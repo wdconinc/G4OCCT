@@ -1,0 +1,24 @@
+name: SPDX
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  check-spdx-headers:
+    name: Check SPDX license headers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check SPDX headers
+        uses: enarx/spdx@master
+        with:
+          licenses: |-
+            LGPL-2.1-or-later

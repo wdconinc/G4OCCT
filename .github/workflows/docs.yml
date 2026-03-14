@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+name: Docs
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+# Allow only one concurrent deployment, skipping runs queued between
+# the run in-progress and latest queued.  Cancel in-progress runs.
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # ── Build Doxygen API reference ─────────────────────────────────────────────
+  doxygen:
+    name: Build Doxygen API reference
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Doxygen
+        run: sudo apt-get install -y doxygen
+
+      - name: Generate API documentation
+        run: doxygen Doxyfile
+
+      - name: Upload API docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: doxygen-api
+          path: docs/api/
+          retention-days: 1
+
+  # ── Deploy docsify + Doxygen to GitHub Pages ────────────────────────────────
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: doxygen
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Doxygen API docs
+        uses: actions/download-artifact@v4
+        with:
+          name: doxygen-api
+          path: docs/api/
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

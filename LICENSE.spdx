@@ -1,0 +1,24 @@
+SPDXVersion: SPDX-2.3
+DataLicense: CC0-1.0
+
+##-------------------------
+## Document Information
+##-------------------------
+
+DocumentNamespace: https://github.com/wdconinc/G4OCCT/blob/main/LICENSE.spdx
+DocumentName: G4OCCT
+
+##-------------------------
+## Package Information
+##-------------------------
+
+PackageName: G4OCCT
+SPDXID: SPDXRef-G4OCCT
+PackageVersion: 0.1.0
+PackageDownloadLocation: https://github.com/wdconinc/G4OCCT
+FilesAnalyzed: false
+PackageLicenseConcluded: LGPL-2.1-or-later
+PackageLicenseDeclared: LGPL-2.1-or-later
+PackageCopyrightText: Copyright (C) 2024 G4OCCT Contributors
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-G4OCCT

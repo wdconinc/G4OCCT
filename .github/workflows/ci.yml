@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-test-benchmark:
+    name: Build, test, and benchmark (eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v4
+
+      - name: Build, test, and install inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_TESTING=ON \
+              -DBUILD_BENCHMARKS=ON \
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install"
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build -- -j$(nproc)
+
+            # ── Test ───────────────────────────────────────────────────────
+            ctest --test-dir build --output-on-failure -j$(nproc)
+
+            # ── Install ────────────────────────────────────────────────────
+            cmake --install build
