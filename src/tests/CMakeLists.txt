@@ -18,6 +18,11 @@ add_executable(test_placement test_placement.cc)
 target_link_libraries(test_placement PRIVATE G4OCCT)
 add_test(NAME test_placement COMMAND test_placement)
 
+# ─── test_navigation_harness ──────────────────────────────────────────────────
+add_executable(test_navigation_harness test_navigation_harness.cc)
+target_link_libraries(test_navigation_harness PRIVATE G4OCCT)
+add_test(NAME test_navigation_harness COMMAND test_navigation_harness)
+
 # ─── Integration test: downstream find_package(G4OCCT) ───────────────────────
 # This test group installs G4OCCT to a temporary prefix and then configures,
 # builds, and runs a minimal downstream CMake project that consumes the library
