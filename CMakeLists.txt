@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ─── External dependencies ────────────────────────────────────────────────────
 
 find_package(Geant4 11.3 REQUIRED)
-find_package(OpenCASCADE 7.9 REQUIRED COMPONENTS
+find_package(OpenCASCADE 7.8 REQUIRED COMPONENTS
   TKernel TKMath TKBRep TKGeomBase TKGeomAlgo TKTopAlgo
   TKPrim TKBO TKIGES TKSTEP TKSTEPAttr TKSTEPBase TKSTEP209
   TKXSBase

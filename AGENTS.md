@@ -62,8 +62,8 @@ AI agents) must follow these instructions.
 
 - **C++ standard:** C++17 (`CMAKE_CXX_STANDARD 17`).
 - **Minimum Geant4 version:** 11.3 — specified as `find_package(Geant4 11.3 REQUIRED)`.
-- **Minimum OpenCASCADE version:** 7.9 — specified as
-  `find_package(OpenCASCADE 7.9 REQUIRED COMPONENTS ...)`.
+- **Minimum OpenCASCADE version:** 7.8 — specified as
+  `find_package(OpenCASCADE 7.8 REQUIRED COMPONENTS ...)`.
 - **CMake minimum:** 3.16.
 
 Do not lower these version floors without an explicit project decision.

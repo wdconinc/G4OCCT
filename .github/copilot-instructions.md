@@ -29,7 +29,7 @@ Every new file must begin with:
 ### Build Requirements
 - C++17, CMake ≥ 3.16
 - Geant4 ≥ 11.3 (`find_package(Geant4 11.3 REQUIRED)`)
-- OpenCASCADE ≥ 7.9 (`find_package(OpenCASCADE 7.9 REQUIRED ...)`)
+- OpenCASCADE ≥ 7.8 (`find_package(OpenCASCADE 7.8 REQUIRED ...)`)
 
 ### CI
 - Single job `build-test-benchmark`; triggers on `main` only.
