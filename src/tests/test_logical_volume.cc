@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2024 G4OCCT Contributors
+
 // test_logical_volume.cc
 // Tests for G4OCCTLogicalVolume: verify construction with an OCCT shape and
 // that the G4LogicalVolume base is properly initialised.
@@ -5,8 +8,8 @@
 #include "G4OCCT/G4OCCTSolid.hh"
 #include "G4OCCT/G4OCCTLogicalVolume.hh"
 
-#include "G4Box.hh"
-#include "G4NistManager.hh"
+#include <G4Box.hh>
+#include <G4NistManager.hh>
 
 // OCCT
 #include <BRepPrimAPI_MakeBox.hxx>

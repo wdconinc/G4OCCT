@@ -1,7 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2024 G4OCCT Contributors
+
 #ifndef G4OCCT_G4OCCTLogicalVolume_hh
 #define G4OCCT_G4OCCTLogicalVolume_hh
 
-#include "G4LogicalVolume.hh"
+#include <G4LogicalVolume.hh>
 
 // OCCT
 #include <TopoDS_Shape.hxx>

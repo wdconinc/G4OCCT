@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2024 G4OCCT Contributors
+
 // test_placement.cc
 // Tests for G4OCCTPlacement: verify construction and that the OCCT location
 // getter/setter work correctly.
@@ -6,7 +9,7 @@
 #include "G4OCCT/G4OCCTLogicalVolume.hh"
 #include "G4OCCT/G4OCCTPlacement.hh"
 
-#include "G4NistManager.hh"
+#include <G4NistManager.hh>
 
 // OCCT
 #include <BRepPrimAPI_MakeBox.hxx>

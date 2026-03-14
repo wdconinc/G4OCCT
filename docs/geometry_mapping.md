@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2024 G4OCCT Contributors -->
+
 # G4OCCT — Geometry Class Mapping: Geant4 ↔ OCCT
 
 This document discusses the parallels between the Geant4 geometry class

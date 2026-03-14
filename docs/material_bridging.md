@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2024 G4OCCT Contributors -->
+
 # G4OCCT — Material Bridging: Strategies for Mapping OCCT/STEP Materials to Geant4
 
 ## 1. The Problem
@@ -24,157 +27,116 @@ The physics information required by Geant4 is typically *absent* from STEP
 files.  Bridging this gap is therefore a non-trivial step in any CAD-to-Geant4
 geometry workflow.
 
+**Design principle:** The material identity for every volume must be
+*correct, unique, and unambiguous*.  Heuristics (e.g. guessing a material
+from density alone) are explicitly out of scope; they can produce silently
+incorrect physics results and are not acceptable in a production simulation
+framework.
+
 ---
 
 ## 2. Strategies
 
-### 2.1 Name-Based Lookup (Recommended for Initial Implementation)
+### 2.1 Explicit User-Provided Material Map (Recommended)
 
-**Idea:** Map the STEP/OCCT material name to a `G4Material` from the Geant4
-NIST material database (`G4NistManager`).
+**Idea:** The user supplies a mapping file that associates each STEP material
+name with an exact `G4Material` definition.  No fallbacks or best-guess logic
+is applied; any unmapped material name is a fatal error that must be resolved
+before the simulation can run.
 
-**Workflow:**
-1. Parse the STEP file; extract the material name from the XDE label
-   (`XCAFDoc_MaterialTool`).
-2. Normalise the name (strip whitespace, convert to uppercase).
-3. Look up a matching entry in a configurable name → Geant4-material map.
-4. Fall back to a default material (e.g. `G4_AIR` or `G4_Fe`) if no match
-   is found.
+**Format example (GDML-inspired XML):**
+```xml
+<materials>
+  <!-- Map STEP name → Geant4 NIST material -->
+  <material stepName="AISI 316L" geant4Name="G4_STAINLESS-STEEL"/>
+  <material stepName="Al 6061"   geant4Name="G4_Al"/>
 
-**Pros:**
-* Simple, zero external dependencies.
-* The NIST database covers ~300 predefined materials.
-
-**Cons:**
-* Relies on consistent naming conventions in STEP files (not guaranteed).
-* Engineering alloy names rarely match NIST names exactly.
-
-**Implementation sketch:**
-```cpp
-G4Material* LookupMaterial(const std::string& stepName) {
-  static const std::map<std::string, std::string> nameMap = {
-    {"STAINLESS STEEL",  "G4_STAINLESS-STEEL"},
-    {"ALUMINIUM",        "G4_Al"},
-    {"COPPER",           "G4_Cu"},
-    {"LEAD",             "G4_Pb"},
-    {"SILICON",          "G4_Si"},
-    {"CARBON FIBRE",     "G4_C"},
-    {"AIR",              "G4_AIR"},
-    {"VACUUM",           "G4_Galactic"},
-  };
-  auto it = nameMap.find(ToUpper(Trim(stepName)));
-  if (it != nameMap.end())
-    return G4NistManager::Instance()->FindOrBuildMaterial(it->second);
-  return G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR"); // fallback
-}
+  <!-- Custom multi-element material -->
+  <material stepName="FR4" density="1.86" unit="g/cm3">
+    <fraction n="0.18" ref="Si"/>
+    <fraction n="0.39" ref="O"/>
+    <fraction n="0.28" ref="C"/>
+    <fraction n="0.03" ref="H"/>
+    <fraction n="0.12" ref="Br"/>
+  </material>
+</materials>
 ```
 
----
-
-### 2.2 Density-Based Heuristic
-
-**Idea:** Use the density value from the STEP file to select the closest
-matching Geant4 material.
-
-**Workflow:**
-1. Extract density ρ from the OCCT XDE material attribute.
-2. Query the NIST database for all materials with |ρ_NIST − ρ_STEP| / ρ_STEP
-   below a threshold (e.g. 5 %).
-3. Among candidates, prefer materials whose name partially matches the STEP
-   material name.
+**Behaviour:**
+* Every material name encountered in the STEP file **must** appear in the
+  mapping file.
+* If a name is absent, G4OCCT aborts with a descriptive error listing the
+  unmapped material.
+* There are no defaults or catch-all fallbacks.
 
 **Pros:**
-* Density is a robust, unit-bearing scalar — less sensitive to naming
-  conventions.
+* Unambiguous — the user explicitly controls every material assignment.
+* User-maintained file separates material physics from CAD geometry.
+* Custom multi-element materials can be defined inline.
 
 **Cons:**
-* Many materials share similar densities (e.g. several steels, copper alloys).
-* No chemical composition information is inferred.
+* Requires the user to create and maintain the mapping file.
 
 ---
 
-### 2.3 External Material Database / Configuration File
-
-**Idea:** Provide an external YAML/JSON/XML configuration file that the user
-populates to map STEP material names to `G4Material` definitions.
-
-**Format example (YAML):**
-```yaml
-materials:
-  - step_name: "AISI 316L"
-    geant4_name: "G4_STAINLESS-STEEL"
-
-  - step_name: "Al 6061"
-    geant4_name: "G4_Al"
-
-  - step_name: "FR4"
-    density: 1.86  # g/cm3
-    components:
-      - element: Si
-        fraction: 0.18
-      - element: O
-        fraction: 0.39
-      - element: C
-        fraction: 0.28
-      - element: H
-        fraction: 0.03
-      - element: Br
-        fraction: 0.12
-
-  - step_name: "*"   # catch-all default
-    geant4_name: "G4_AIR"
-```
-
-**Pros:**
-* User-controlled, flexible.
-* Allows custom multi-element materials not in NIST.
-* Separates material mapping from code — no recompilation needed.
-
-**Cons:**
-* Requires the user to create and maintain the configuration file.
-* Parser must be implemented (or a library dependency added, e.g. yaml-cpp).
-
----
-
-### 2.4 Inline Annotations in the CAD Model
-
-**Idea:** Encode Geant4 material names directly in the STEP file using
-user-defined attributes or the `PRODUCT_DEFINITION_CONTEXT` entity name field.
-
-**Workflow:**
-1. In the CAD tool, set the material name of each part to the exact Geant4
-   NIST material string (e.g. `"G4_STAINLESS-STEEL"`).
-2. G4OCCT reads the name from the XDE label and passes it directly to
-   `G4NistManager::FindOrBuildMaterial`.
-
-**Pros:**
-* Zero ambiguity — the material identity is explicit in the file.
-* No external configuration needed.
-
-**Cons:**
-* Requires CAD tool discipline and user training.
-* STEP files edited by automated tools may overwrite custom names.
-
----
-
-### 2.5 Geant4 GDML Overlay
+### 2.2 GDML Overlay (Primary Long-Term Strategy)
 
 **Idea:** Build the physical geometry from the STEP file, then read an
-accompanying GDML file that provides material assignments by volume name.
+accompanying GDML file that provides material definitions and material
+assignments by volume name.
+
+GDML is the standard Geant4 geometry exchange language and already provides
+a complete XML vocabulary for materials (`<material>`, `<element>`,
+`<fraction>`, density, state, temperature, pressure, optical properties).
+Using GDML for the material side of the bridge leverages existing Geant4
+tooling (`G4GDMLParser`), schema validation, and community familiarity.
 
 **Workflow:**
-1. Import the STEP file → create G4OCCT geometry (solids + placements).
-2. Parse a GDML file containing `<physvol>` material attributes.
-3. Match GDML `name` attributes to the OCCT XDE label names.
-4. Assign `G4Material*` to each `G4LogicalVolume`.
+1. Import the STEP file → build G4OCCT geometry tree (solids + placements,
+   no materials yet).
+2. Parse the GDML file.  Extract:
+   * `<materials>` section → construct `G4Material` objects.
+   * `<structure>` section → match `<volume>` `name` attributes to OCCT
+     XDE label names and assign the corresponding `G4Material*`.
+3. Every volume in the OCCT tree must find a corresponding entry in the GDML
+   `<structure>`.  Unmatched volumes are a fatal error.
 
 **Pros:**
-* GDML is the standard Geant4 geometry description language.
-* Leverages existing GDML tooling and validation.
+* GDML is schema-validated; errors are caught before the simulation runs.
+* The full Geant4 `G4GDMLParser` material vocabulary is available, including
+  isotopes, natural elements, molecules, mixtures, optical properties, and
+  surface properties.
+* Separates CAD geometry (STEP) from simulation physics (GDML) cleanly.
 
 **Cons:**
 * Requires maintaining two separate files (STEP + GDML) in sync.
-* GDML volume naming must match XDE label naming exactly.
+* Volume naming must be consistent between XDE labels and GDML names.
+
+---
+
+### 2.3 Inline GDML Annotations in the CAD Model
+
+**Idea:** Embed GDML material names directly in the STEP file using
+user-defined attributes or the `PRODUCT_DEFINITION_CONTEXT` entity name
+field.  G4OCCT reads the embedded name and resolves it via a provided GDML
+materials fragment.
+
+**Workflow:**
+1. In the CAD tool, set the material name of each part to the exact string
+   that appears as a `<material name="...">` entry in the GDML materials
+   fragment.
+2. G4OCCT parses the GDML fragment to build `G4Material` objects.
+3. G4OCCT reads the material name from each XDE label and performs an exact
+   lookup — no normalization or matching beyond exact string equality.
+
+**Pros:**
+* The complete material identity is encoded in the STEP file itself.
+* No separate mapping file is needed.
+* Still unambiguous: exact string matching, no guessing.
+
+**Cons:**
+* Requires strict CAD tool discipline; automated STEP editors may overwrite
+  custom names.
 
 ---
 
@@ -182,10 +144,9 @@ accompanying GDML file that provides material assignments by volume name.
 
 | Phase | Strategy | Goal |
 |---|---|---|
-| v0.1 | Hard-coded name map (2.1) | First working end-to-end example |
-| v0.2 | External config file (2.3) | User-friendly, no recompilation |
-| v0.3 | Density heuristic as fallback (2.2) | Reduce unmapped-material rate |
-| v1.0 | GDML overlay support (2.5) | Full integration with GDML ecosystem |
+| v0.1 | Explicit user map (2.1) | First working end-to-end example |
+| v0.2 | GDML overlay (2.2) | Full material vocabulary, schema validation |
+| v0.3 | Inline GDML annotations (2.3) | Self-contained STEP files |
 
 ---
 
@@ -197,17 +158,20 @@ accompanying GDML file that provides material assignments by volume name.
 
 2. **Composite materials:** Engineering materials such as printed circuit
    board laminates (FR4), carbon-fibre-reinforced polymers (CFRP), and
-   aerogels have no direct NIST equivalent and require custom
-   `G4Material::CreateMixture` definitions.
+   aerogels have no NIST equivalent and require custom
+   `G4Material::CreateMixture` definitions.  The GDML `<material>` element
+   handles these natively.
 
 3. **Optical properties:** Geant4 optical physics (`G4OpticalSurface`,
    `G4MaterialPropertiesTable`) has no STEP equivalent at all.  These must
-   always be specified externally (e.g. via GDML or user code).
+   always be specified via GDML or user code.
 
-4. **Material de-duplication:** When the same STEP material name appears on
-   multiple volumes, G4OCCT should ensure a single `G4Material*` is shared
+4. **Material de-duplication:** When the same material name appears on
+   multiple volumes, G4OCCT must ensure a single `G4Material*` is shared
    rather than creating duplicate objects.
 
-5. **Unknown materials:** A clear user-facing warning (or configurable error)
-   should be emitted when a STEP material name cannot be resolved.  Silently
-   using air as a fallback can produce incorrect physics results.
+5. **Error handling:** When a STEP material name is not found in the mapping,
+   G4OCCT must abort with a clear diagnostic listing the unmapped name(s)
+   and the STEP file path from which they were read.  Silent fallbacks are
+   not permitted.
+

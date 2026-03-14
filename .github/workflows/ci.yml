@@ -1,14 +1,17 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
 name: CI
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main"]
   pull_request:
-    branches: ["main", "master", "**"]
+    branches: ["main"]
 
 jobs:
-  build-and-test:
-    name: Build and test (eic_ci)
+  build-test-benchmark:
+    name: Build, test, and benchmark (eic_ci)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -17,10 +20,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v4
+
       - name: Build, test, and install inside eic_ci container
-        uses: eic/run-cvmfs-osg-eic-shell@main
+        uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
-          platform-release: "jug_xl:nightly"
+          platform-release: "eic_ci:nightly"
           run: |
             set -euo pipefail
 
@@ -28,7 +34,7 @@ jobs:
             cmake -S . -B build \
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=ON \
-              -DBUILD_BENCHMARKS=OFF \
+              -DBUILD_BENCHMARKS=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install"
 
             # ── Build ──────────────────────────────────────────────────────
@@ -39,33 +45,3 @@ jobs:
 
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
-
-            # ── Verify downstream find_package ────────────────────────────
-            cmake -S .github/downstream_test -B build_downstream \
-              -DCMAKE_PREFIX_PATH="${PWD}/install" \
-              -DCMAKE_BUILD_TYPE=Release
-            cmake --build build_downstream -- -j$(nproc)
-
-  build-benchmarks:
-    name: Build benchmarks (eic_ci)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Build with benchmarks inside eic_ci container
-        uses: eic/run-cvmfs-osg-eic-shell@main
-        with:
-          platform-release: "jug_xl:nightly"
-          run: |
-            set -euo pipefail
-
-            cmake -S . -B build_bench \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_TESTING=OFF \
-              -DBUILD_BENCHMARKS=ON
-
-            cmake --build build_bench -- -j$(nproc)

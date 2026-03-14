@@ -1,7 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2024 G4OCCT Contributors
+
 #ifndef G4OCCT_G4OCCTPlacement_hh
 #define G4OCCT_G4OCCTPlacement_hh
 
-#include "G4PVPlacement.hh"
+#include <G4PVPlacement.hh>
 
 // OCCT
 #include <TopLoc_Location.hxx>

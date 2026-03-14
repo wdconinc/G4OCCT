@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2024 G4OCCT Contributors
+
 // bench_navigator.cc
 // Navigator performance benchmark: compare geantino tracking through
 // identical geometries described in native Geant4 vs G4OCCTSolid wrappers.
@@ -25,12 +28,12 @@
 #include "G4OCCT/G4OCCTPlacement.hh"
 
 // Geant4 native solids
-#include "G4Box.hh"
-#include "G4Sphere.hh"
-#include "G4Tubs.hh"
-#include "G4NistManager.hh"
-#include "G4Navigator.hh"
-#include "G4GeometryManager.hh"
+#include <G4Box.hh>
+#include <G4Sphere.hh>
+#include <G4Tubs.hh>
+#include <G4NistManager.hh>
+#include <G4Navigator.hh>
+#include <G4GeometryManager.hh>
 
 // OCCT primitives
 #include <BRepPrimAPI_MakeBox.hxx>

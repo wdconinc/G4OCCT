@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+#
+# Doxygen configuration for G4OCCT.
+# Run:  doxygen Doxyfile
+# Output is written to docs/api/
+
+PROJECT_NAME           = "G4OCCT"
+PROJECT_NUMBER         = 0.1.0
+PROJECT_BRIEF          = "Geant4 interface to Open CASCADE Technology (OCCT) geometry definitions"
+PROJECT_LOGO           =
+
+OUTPUT_DIRECTORY       = docs/api
+CREATE_SUBDIRS         = NO
+OUTPUT_LANGUAGE        = English
+
+# ── Input ─────────────────────────────────────────────────────────────────────
+INPUT                  = include src
+FILE_PATTERNS          = *.hh *.cc
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */tests/* */benchmarks/*
+
+# ── Extraction ────────────────────────────────────────────────────────────────
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+
+# ── Source browsing ───────────────────────────────────────────────────────────
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# ── HTML output ───────────────────────────────────────────────────────────────
+GENERATE_HTML          = YES
+HTML_OUTPUT            = .
+HTML_FILE_EXTENSION    = .html
+GENERATE_TREEVIEW      = YES
+
+# ── LaTeX output (disabled) ───────────────────────────────────────────────────
+GENERATE_LATEX         = NO
+
+# ── Preprocessor ──────────────────────────────────────────────────────────────
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+
+# ── Diagrams ──────────────────────────────────────────────────────────────────
+HAVE_DOT               = NO
+CLASS_DIAGRAMS         = YES
+
+# ── Warnings ──────────────────────────────────────────────────────────────────
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = NO

@@ -1,8 +1,11 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2024 G4OCCT Contributors
+
 #ifndef G4OCCT_G4OCCTSolid_hh
 #define G4OCCT_G4OCCTSolid_hh
 
-#include "G4VSolid.hh"
-#include "G4ThreeVector.hh"
+#include <G4VSolid.hh>
+#include <G4ThreeVector.hh>
 
 // OCCT shape representation
 #include <TopoDS_Shape.hxx>

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2024 G4OCCT Contributors
+
 // test_solid.cc
 // Tests for G4OCCTSolid: verify that the stub implementations compile and
 // return the expected sentinel values.

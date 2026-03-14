@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2024 G4OCCT Contributors
+
 #include "G4OCCT/G4OCCTSolid.hh"
 
-#include "G4VoxelLimits.hh"
-#include "G4AffineTransform.hh"
-#include "G4Polyhedron.hh"
-#include "G4VisExtent.hh"
+#include <G4VoxelLimits.hh>
+#include <G4AffineTransform.hh>
+#include <G4Polyhedron.hh>
+#include <G4VisExtent.hh>
 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
     : G4VSolid(name), fShape(shape) {}
