@@ -63,6 +63,15 @@ class G4OCCTSolid : public G4VSolid {
   /// Return the axis-aligned bounding box extent.
   G4VisExtent GetExtent() const override;
 
+  /// Calculate the extent of the solid in the given axis.
+  G4bool CalculateExtent(const EAxis pAxis,
+                         const G4VoxelLimits& pVoxelLimit,
+                         const G4AffineTransform& pTransform,
+                         G4double& pMin, G4double& pMax) const override;
+
+  /// Describe the solid to the graphics scene.
+  void DescribeYourselfTo(G4VGraphicsScene& scene) const override;
+
   /// Create a polyhedron representation for visualisation.
   G4Polyhedron* CreatePolyhedron() const override;
 

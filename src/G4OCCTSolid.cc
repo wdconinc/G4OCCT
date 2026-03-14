@@ -4,6 +4,7 @@
 #include "G4OCCT/G4OCCTSolid.hh"
 
 #include <G4Polyhedron.hh>
+#include <G4VGraphicsScene.hh>
 #include <G4VisExtent.hh>
 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
@@ -55,6 +56,20 @@ G4VisExtent G4OCCTSolid::GetExtent() const {
   // TODO: Use Bnd_Box + BRepBndLib::Add to compute the axis-aligned bounding
   //       box from the OCCT shape
   return G4VisExtent(-1, 1, -1, 1, -1, 1);
+}
+
+G4bool G4OCCTSolid::CalculateExtent(const EAxis /*pAxis*/,
+                                    const G4VoxelLimits& /*pVoxelLimit*/,
+                                    const G4AffineTransform& /*pTransform*/,
+                                    G4double& pMin, G4double& pMax) const {
+  // TODO: Use Bnd_Box + BRepBndLib::Add with transformation
+  pMin = -1.0;
+  pMax = 1.0;
+  return true;
+}
+
+void G4OCCTSolid::DescribeYourselfTo(G4VGraphicsScene& scene) const {
+  scene.AddSolid(*this);
 }
 
 G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {

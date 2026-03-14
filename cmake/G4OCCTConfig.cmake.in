@@ -12,11 +12,7 @@
 include(CMakeFindDependencyMacro)
 
 find_dependency(Geant4 REQUIRED)
-find_dependency(OpenCASCADE REQUIRED COMPONENTS
-  TKernel TKMath TKBRep TKGeomBase TKGeomAlgo TKTopAlgo
-  TKPrim TKBO TKIGES TKSTEP TKSTEPAttr TKSTEPBase TKSTEP209
-  TKXSBase
-)
+find_dependency(OpenCASCADE REQUIRED)
 
 include("${CMAKE_CURRENT_LIST_DIR}/G4OCCTTargets.cmake")
 

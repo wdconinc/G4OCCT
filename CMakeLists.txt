@@ -15,11 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ─── External dependencies ────────────────────────────────────────────────────
 
 find_package(Geant4 11.3 REQUIRED)
-find_package(OpenCASCADE 7.8 REQUIRED COMPONENTS
-  TKernel TKMath TKBRep TKGeomBase TKGeomAlgo TKTopAlgo
-  TKPrim TKBO TKIGES TKSTEP TKSTEPAttr TKSTEPBase TKSTEP209
-  TKXSBase
-)
+find_package(OpenCASCADE REQUIRED)
 
 # ─── Library ─────────────────────────────────────────────────────────────────
 
@@ -34,13 +30,12 @@ target_include_directories(G4OCCT
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-  PRIVATE
     ${Geant4_INCLUDE_DIRS}
     ${OpenCASCADE_INCLUDE_DIR}
 )
 
 target_link_libraries(G4OCCT
-  PRIVATE
+  PUBLIC
     ${Geant4_LIBRARIES}
     ${OpenCASCADE_LIBRARIES}
 )
