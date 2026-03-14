@@ -34,12 +34,13 @@ target_include_directories(G4OCCT
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+  PRIVATE
     ${Geant4_INCLUDE_DIRS}
     ${OpenCASCADE_INCLUDE_DIR}
 )
 
 target_link_libraries(G4OCCT
-  PUBLIC
+  PRIVATE
     ${Geant4_LIBRARIES}
     ${OpenCASCADE_LIBRARIES}
 )

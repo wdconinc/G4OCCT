@@ -17,6 +17,7 @@
 #include <gp_Trsf.hxx>
 
 #include <cassert>
+#include <cstdlib>
 #include <iostream>
 
 static void check(bool condition, const char* msg) {

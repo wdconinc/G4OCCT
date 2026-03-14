@@ -3,8 +3,6 @@
 
 #include "G4OCCT/G4OCCTSolid.hh"
 
-#include <G4VoxelLimits.hh>
-#include <G4AffineTransform.hh>
 #include <G4Polyhedron.hh>
 #include <G4VisExtent.hh>
 
