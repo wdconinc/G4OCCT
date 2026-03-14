@@ -50,3 +50,14 @@ Every new file must begin with:
 ### Updating Instructions
 When a PR establishes a new convention, update **both** `AGENTS.md` **and**
 this file in the same commit.
+
+### Code Quality Tools
+Install pre-commit hooks:
+```bash
+pip install pre-commit && pre-commit install
+```
+- `.clang-format`: LLVM style, `Standard: c++17`, 100-col limit
+- `.clang-tidy`: `bugprone-*`, `modernize-*`, `readability-*`
+- `.codespellrc` / `.codespell-ignore`: spell checking
+- `.github/cmake-lint.py`: cmake-lint settings
+- Run all hooks: `pre-commit run --all-files`

@@ -161,11 +161,50 @@ Do not lower these version floors without an explicit project decision.
 - Single-line `///` Doxygen comments for short members.
 - Section dividers use `// ── Section name ──...──` (em-dash style) as seen
   in existing source files.
-- No trailing whitespace; use 2-space indentation for C++.
+- No trailing whitespace; use 2-space indentation for C++; 100-character column limit.
 
 ---
 
-## 11. Updating These Instructions
+## 11. Code Quality Tools (pre-commit)
+
+The project uses **pre-commit** hooks (`.pre-commit-config.yaml`) to enforce
+consistent style automatically before every commit.  Install once with:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+The active hooks are:
+
+| Hook | Purpose |
+|---|---|
+| `check-yaml` | Validates YAML syntax |
+| `end-of-file-fixer` | Ensures files end with a newline |
+| `trailing-whitespace` | Removes trailing whitespace |
+| `codespell` | Spell-checks source and documentation |
+| `clang-format` | Formats C/C++ with `.clang-format` (LLVM style, C++17, 100-col limit) |
+| `forbid-crlf` / `remove-crlf` | Enforces LF line endings |
+| `forbid-tabs` / `remove-tabs` | Replaces tabs with spaces |
+| `cmake-format` | Auto-formats `CMakeLists.txt` files |
+| `cmake-lint` | Lints `CMakeLists.txt` (config: `.github/cmake-lint.py`) |
+
+**Configuration files:**
+- `.clang-format` — LLVM-based C++ style, `Standard: c++17`, 100-column limit.
+- `.clang-tidy` — Static-analysis checks: `bugprone-*`, `modernize-*`,
+  `readability-*`, and others; several overly-strict checks are disabled.
+- `.codespellrc` — Codespell skip patterns; custom ignore list in
+  `.codespell-ignore`.
+- `.github/cmake-lint.py` — cmake-lint settings.
+
+Run all hooks manually on all files:
+```bash
+pre-commit run --all-files
+```
+
+---
+
+## 12. Updating These Instructions
 
 If a PR discussion establishes a new convention:
 
