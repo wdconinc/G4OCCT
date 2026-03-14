@@ -34,7 +34,7 @@ Every new file must begin with:
 ### CI
 - Single job `build-test-benchmark`; triggers on `main` only.
 - Prerequisite: `cvmfs-contrib/github-action-cvmfs@v4` before `eic/run-cvmfs-osg-eic-shell@v1`.
-- Platform: `eic_ci:nightly`.
+- Platform: `eic_xl:nightly`.
 - Always build with `-DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`.
 
 ### Material Bridging

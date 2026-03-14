@@ -104,7 +104,7 @@ Do not lower these version floors without an explicit project decision.
   2. Installs CVMFS via `cvmfs-contrib/github-action-cvmfs@v4` (required
      prerequisite for the eic-shell action).
   3. Runs the build, tests, and install inside
-     `eic/run-cvmfs-osg-eic-shell@v1` with `platform-release: "eic_ci:nightly"`.
+     `eic/run-cvmfs-osg-eic-shell@v1` with `platform-release: "eic_xl:nightly"`.
   4. Configures with `-DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`.
 - **Do not split** tests and benchmarks into separate jobs.
 - **Docs workflow (`docs.yml`):** Builds Doxygen API docs and deploys the
