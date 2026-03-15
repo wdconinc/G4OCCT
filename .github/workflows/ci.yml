@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install CVMFS
-        uses: cvmfs-contrib/github-action-cvmfs@v4
+        uses: cvmfs-contrib/github-action-cvmfs@v5
 
       - name: Build, test, and install inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
