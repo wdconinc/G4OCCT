@@ -290,4 +290,3 @@ item references the relevant section of this document.
 | **4** | Rewrite `DistanceToOut(p)` to use a single `BRepExtrema_DistShapeShape` against the full shape | Reduces O(N_faces) object constructions to one | §2.4 |
 | **5** | Cache `G4Polyhedron` in `CreatePolyhedron` | Avoids repeated full tessellation on visualisation refreshes | §2.7 |
 | **6** | Evaluate BVH / AABB-tree front-end for ray–shape intersection | May reduce O(N_faces) ray test to O(log N_faces) for complex solids | §5 |
-
