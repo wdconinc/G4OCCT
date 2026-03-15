@@ -82,6 +82,9 @@ add_executable(test_geometry_validation
 target_include_directories(test_geometry_validation
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_include_directories(test_geometry_validation SYSTEM
+  PRIVATE
     ${OpenCASCADE_INCLUDE_DIR}
 )
 target_compile_definitions(test_geometry_validation

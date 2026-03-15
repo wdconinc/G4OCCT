@@ -16,6 +16,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(CheckCXXCompilerFlag)
 
+# ─── Warnings ─────────────────────────────────────────────────────────────────
+
+option(ENABLE_WERROR "Treat compiler warnings as errors (-Werror)" OFF)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall)
+  if(ENABLE_WERROR)
+    add_compile_options(-Werror)
+  endif()
+endif()
+
 # ─── External dependencies ────────────────────────────────────────────────────
 
 find_package(Geant4 11.3 REQUIRED)
@@ -34,6 +44,10 @@ target_include_directories(G4OCCT
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+)
+
+target_include_directories(G4OCCT SYSTEM
+  PUBLIC
     ${Geant4_INCLUDE_DIRS}
     ${OpenCASCADE_INCLUDE_DIR}
 )
