@@ -45,8 +45,7 @@ Importing such a file into Geant4 requires:
 
 In the STEP AP214 / AP242 exchange format, a product hierarchy is encoded
 as a tree of `PRODUCT_DEFINITION` entities linked by
-`NEXT_ASSEMBLY_USAGE_OCCURENCE` (NAUO, note the single-R spelling mandated by
-ISO 10303-44) relationships.  Each occurrence carries
+`NEXT_ASSEMBLY_USAGE_OCCURRENCE` (NAUO) relationships.  Each occurrence carries
 a `PRODUCT_DEFINITION_TRANSFORMATION` (a `gp_Trsf` in OCCT terms) that
 positions the child part in the parent's coordinate frame.
 
@@ -66,7 +65,7 @@ The key concepts that must be preserved during import are:
 |---|---|---|
 | `PRODUCT_DEFINITION` (assembly) | `TopoDS_Compound` | `G4AssemblyVolume` |
 | `PRODUCT_DEFINITION` (leaf part) | `TopoDS_Solid` | `G4OCCTSolid` + `G4OCCTLogicalVolume` |
-| `NEXT_ASSEMBLY_USAGE_OCCURENCE` | XDE shape reference | `G4OCCTPlacement` |
+| `NEXT_ASSEMBLY_USAGE_OCCURRENCE` | XDE shape reference | `G4OCCTPlacement` |
 | `PRODUCT_DEFINITION_TRANSFORMATION` | `TopLoc_Location` / `gp_Trsf` | `G4RotationMatrix` + `G4ThreeVector` |
 | `PRODUCT_DEFINITION.name` | XDE name attribute | `G4LogicalVolume` name |
 | `MATERIAL_DESIGNATION` (if present) | XDE material attribute | `G4Material*` |
@@ -179,16 +178,19 @@ parameters follows the scheme described in
 [Reference Position Handling](reference_position.md):
 
 ```cpp
-// Each XDE reference label carries a TopLoc_Location encoding the placement
-// in the parent frame.  The located BRep shape from XCAFDoc_ShapeTool already
-// has the effective (compounded) location applied, so the net gp_Trsf can be
-// extracted directly:
-TopoDS_Shape locatedShape = shapeTool->GetShape(referenceLabel);
-gp_Trsf trsf = locatedShape.Location().IsIdentity()
-                   ? gp_Trsf()
-                   : locatedShape.Location().IsSimple()
-                         ? locatedShape.Location().FirstDatum()->Trsf()
-                         : /* compound: iterate TopLoc_Location chain */ gp_Trsf();
+// XCAFDoc_ShapeTool::GetShape returns the leaf shape pre-moved to its
+// absolute position in the assembly frame.  Compose the TopLoc_Location
+// chain into a single gp_Trsf by iterating the datum-power pairs:
+TopoDS_Shape locShape = shapeTool->GetShape(referenceLabel);
+TopLoc_Location loc   = locShape.Location();
+
+gp_Trsf trsf;  // starts as identity
+for (TopLoc_Location cursor = loc; !cursor.IsIdentity();
+     cursor = cursor.NextLocation()) {
+  gp_Trsf step = cursor.FirstDatum()->Trsf();
+  if (cursor.FirstPower() < 0) { step.Invert(); }
+  trsf.Multiply(step);
+}
 
 // Convert to Geant4 rotation + translation (both use mm; see Geometry Mapping §5)
 G4RotationMatrix* rot = new G4RotationMatrix(
@@ -254,7 +256,7 @@ the same part placed multiple times, the algorithm maintains a map from XDE
 label entry to `G4OCCTLogicalVolume*`:
 
 ```cpp
-std::map<TDF_Label, G4OCCTLogicalVolume*, TDF_LabelMapHasher> prototypeMap;
+NCollection_DataMap<TDF_Label, G4OCCTLogicalVolume*> prototypeMap;
 ```
 
 When a simple-shape label is first encountered the logical volume is created
