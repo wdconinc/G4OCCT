@@ -59,6 +59,12 @@ private:
   std::vector<ValidationMessage> messages_;
 };
 
+/** Description of a known expected-failure fixture. */
+struct FixtureExpectedFailure {
+  bool enabled{false};
+  std::string reason;
+};
+
 /** File-level validation request for a single fixture entry. */
 struct FixtureValidationRequest {
   /// Manifest that owns the fixture entry.
@@ -102,6 +108,31 @@ struct FixtureGeometryValidationOptions {
  * @return Lowercase severity token.
  */
 std::string ToString(ValidationSeverity severity);
+
+/**
+ * Reclassify non-equivalence error diagnostics as expected-failure warnings.
+ *
+ * Only errors whose codes are in the non-equivalence allowlist (e.g.,
+ * `fixture.volume_mismatch`, `fixture.ray_origin_state_mismatch`,
+ * `fixture.ray_intersection_mismatch`, `fixture.ray_distance_mismatch`) are
+ * demoted to warnings with an `xfail.` prefix.  Structural and IO errors
+ * (missing files, STEP read/transfer failures, etc.) are kept as errors even
+ * when the fixture is marked as an expected failure.
+ *
+ * @param report Source report to rewrite.
+ * @param reason Human-readable explanation attached to downgraded messages.
+ * @return A copy with allowlisted error severities demoted to warnings and `xfail.` code prefixes.
+ */
+ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
+                                            const std::string& reason);
+
+/**
+ * Return the known expected-failure policy for a fixture.
+ *
+ * @param request Fixture under consideration.
+ * @return Enabled policy when the fixture is currently expected to fail strict comparison.
+ */
+FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest& request);
 
 /**
  * Validate the repository-level fixture manifest and family directory layout.

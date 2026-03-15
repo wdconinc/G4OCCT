@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2024 G4OCCT Contributors
 
+#include "geometry/fixture_ray_compare.hh"
 #include "geometry/fixture_manifest.hh"
 #include "geometry/fixture_validation.hh"
 
 #include <cstdlib>
+#include <algorithm>
 #include <exception>
 #include <filesystem>
 #include <iostream>
@@ -12,13 +14,16 @@
 
 namespace g4occt::tests::geometry {
 
-#ifndef G4OCCT_TEST_SOURCE_DIR
-#define G4OCCT_TEST_SOURCE_DIR "."
-#endif
+namespace {
 
-std::filesystem::path DefaultRepositoryManifestPath() {
-  return std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "geometry" / "manifest.yaml";
-}
+  bool HasErrors(const ValidationReport& report) {
+    return std::any_of(report.Messages().begin(), report.Messages().end(),
+                       [](const ValidationMessage& message) {
+                         return message.severity == ValidationSeverity::kError;
+                       });
+  }
+
+} // namespace
 
 void PrintReport(const ValidationReport& report) {
   for (const auto& message : report.Messages()) {
@@ -39,6 +44,10 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
 
   std::size_t validated_fixture_count = 0;
   std::size_t geometry_checked_count  = 0;
+  std::size_t ray_compared_count      = 0;
+  std::size_t expected_failure_count  = 0;
+  double total_native_ms              = 0.0;
+  double total_imported_ms            = 0.0;
 
   for (const auto& family : repository_manifest.families) {
     const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
@@ -59,9 +68,10 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
 
     for (const auto& fixture : family_manifest.fixtures) {
       FixtureValidationRequest request;
-      request.manifest                = family_manifest;
-      request.fixture                 = fixture;
-      request.require_provenance_file = true;
+      request.manifest                              = family_manifest;
+      request.fixture                               = fixture;
+      request.require_provenance_file               = true;
+      const FixtureExpectedFailure expected_failure = ExpectedFailureForFixture(request);
 
       const ValidationReport layout_report = ValidateFixtureLayout(request);
       aggregate_report.Append(layout_report);
@@ -74,9 +84,26 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
       FixtureGeometryValidationOptions geom_opts;
       geom_opts.volume_unit = repository_manifest.policy.volume_unit;
       FixtureGeometryObservation observation;
-      aggregate_report.Append(ValidateFixtureGeometry(request, geom_opts, &observation));
+      ValidationReport geometry_report = ValidateFixtureGeometry(request, geom_opts, &observation);
+      if (expected_failure.enabled) {
+        geometry_report = ReclassifyExpectedFailures(geometry_report, expected_failure.reason);
+      }
+      aggregate_report.Append(geometry_report);
       if (observation.imported) {
         ++geometry_checked_count;
+      }
+
+      FixtureRayComparisonSummary ray_summary;
+      ValidationReport ray_report = CompareFixtureRays(request, {}, &ray_summary);
+      if (expected_failure.enabled) {
+        ++expected_failure_count;
+        ray_report = ReclassifyExpectedFailures(ray_report, expected_failure.reason);
+      }
+      aggregate_report.Append(ray_report);
+      if (ray_summary.ray_count > 0U) {
+        ++ray_compared_count;
+        total_native_ms += ray_summary.native_elapsed_ms;
+        total_imported_ms += ray_summary.imported_elapsed_ms;
       }
     }
   }
@@ -97,7 +124,19 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
   std::cout << "Validated " << repository_manifest.families.size() << " fixture families, "
             << validated_fixture_count << " fixture entries, and " << geometry_checked_count
             << " imported STEP geometries.\n";
-  return aggregate_report.Ok() ? EXIT_SUCCESS : EXIT_FAILURE;
+  if (ray_compared_count > 0U) {
+    std::cout << "Ray comparison summary: " << ray_compared_count
+              << " fixtures, native=" << total_native_ms << " ms, imported=" << total_imported_ms
+              << " ms";
+    if (total_imported_ms > 0.0) {
+      std::cout << ", native/imported ratio=" << total_native_ms / total_imported_ms;
+    }
+    std::cout << '\n';
+  }
+  if (expected_failure_count > 0U) {
+    std::cout << "Expected ray/volume failures: " << expected_failure_count << " fixtures\n";
+  }
+  return HasErrors(aggregate_report) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 } // namespace g4occt::tests::geometry

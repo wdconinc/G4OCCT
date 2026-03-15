@@ -53,13 +53,36 @@ target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
 include(CTest)
-if(BUILD_TESTING)
-  add_subdirectory(src/tests)
-endif()
 
 # ─── Benchmarks ───────────────────────────────────────────────────────────────
 
 option(BUILD_BENCHMARKS "Build navigator benchmark programs" OFF)
+
+# ─── Internal fixture comparison support ──────────────────────────────────────
+
+if(BUILD_TESTING OR BUILD_BENCHMARKS)
+  find_package(yaml-cpp 0.8 REQUIRED)
+  add_library(
+    G4OCCTFixtureSupport
+    src/tests/geometry/fixture_manifest.cc
+    src/tests/geometry/fixture_validation.cc
+    src/tests/geometry/fixture_ray_compare.cc)
+  target_include_directories(
+    G4OCCTFixtureSupport
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/tests ${Geant4_INCLUDE_DIRS}
+           ${OpenCASCADE_INCLUDE_DIR})
+  target_compile_definitions(
+    G4OCCTFixtureSupport
+    PUBLIC G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/tests")
+  target_link_libraries(
+    G4OCCTFixtureSupport PUBLIC G4OCCT ${Geant4_LIBRARIES}
+                                ${OpenCASCADE_LIBRARIES} yaml-cpp::yaml-cpp)
+endif()
+
+if(BUILD_TESTING)
+  add_subdirectory(src/tests)
+endif()
+
 if(BUILD_BENCHMARKS)
   add_subdirectory(src/benchmarks)
 endif()
