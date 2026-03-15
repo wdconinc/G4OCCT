@@ -60,8 +60,8 @@ repository policy in `manifest.yaml`.
 
 | Family | Coverage today | Regeneration | Notes |
 | --- | --- | --- | --- |
-| `direct-primitives/` | Real STEP coverage for 10 validated fixtures | `./direct-primitives/regenerate.sh` | Uses `normalize_step_header.py` to make STEP headers deterministic, including the tilted-end `G4CutTubs` slab-intersection fixture. |
-| `profile-faceted/` | Real STEP coverage for 10 validated fixtures | `./profile-faceted/regenerate.sh` | Reuses `../direct-primitives/normalize_step_header.py`; now includes a non-monotonic `G4GenericPolycone` contour revolved with DRAWEXE. |
+| `direct-primitives/` | Real STEP coverage for 10 validated fixtures | `./direct-primitives/regenerate.sh` | Uses `tools/normalize_step_header.py` to make STEP headers deterministic, including the tilted-end `G4CutTubs` slab-intersection fixture. |
+| `profile-faceted/` | Real STEP coverage for 10 validated fixtures | `./profile-faceted/regenerate.sh` | Uses `tools/normalize_step_header.py`; now includes a non-monotonic `G4GenericPolycone` contour revolved with DRAWEXE. |
 | `twisted-swept/` | Real STEP coverage for 6 validated fixtures | `./twisted-swept/regenerate.sh` | Uses a shared OCCT loft utility to generate `G4ExtrudedSolid`, `G4TwistedBox`, `G4TwistedTrd`, `G4TwistedTrap`, `G4TwistedTubs`, and `G4VTwistedFaceted`. |
 | `tessellated/` | Real STEP coverage for 1 validated fixture | `./tessellated/regenerate.sh` | Covers `G4TessellatedSolid` with a closed tetrahedral shell. |
 | `boolean-compound/` | Real STEP coverage for 4 validated fixtures | `./boolean-compound/regenerate.sh` | Deterministic DRAWEXE scripts plus inline timestamp normalization. |

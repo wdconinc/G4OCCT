@@ -29,7 +29,7 @@ run_fixture twisted-trap "${script_dir}/G4TwistedTrap/trap-dx7-13-dy9-z18-phi30-
 run_fixture twisted-tubs "${script_dir}/G4TwistedTubs/tubs-r6-r12-z20-dphi210-phi30-v1/shape.step"
 run_fixture vtwisted-faceted "${script_dir}/G4VTwistedFaceted/faceted-dz20-theta8-phi20-v1/shape.step"
 
-python3 "${script_dir}/../direct-primitives/normalize_step_header.py" \
+python3 "${script_dir}/../tools/normalize_step_header.py" \
   "${script_dir}/G4TwistedBox/box-dx10-dy8-z20-phi30-v1/shape.step" \
   "${script_dir}/G4TwistedTrd/trd-dx10-16-dy8-14-z20-phi30-v1/shape.step" \
   "${script_dir}/G4TwistedTrap/trap-dx7-13-dy9-z18-phi30-v1/shape.step" \

@@ -14,6 +14,27 @@
 #include <set>
 #include <utility>
 
+namespace {
+
+/// Return true when \p path ends with every component of \p suffix.
+bool PathEndsWith(const std::filesystem::path& path, const std::filesystem::path& suffix) {
+  auto path_it = path.end();
+  auto suffix_it = suffix.end();
+  while (suffix_it != suffix.begin()) {
+    if (path_it == path.begin()) {
+      return false;
+    }
+    --suffix_it;
+    --path_it;
+    if (*path_it != *suffix_it) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
 namespace g4occt::tests::geometry {
 
 void ValidationReport::AddInfo(std::string code, std::string text, std::filesystem::path path) {
@@ -88,6 +109,15 @@ ValidationReport ValidateRepositoryLayout(const FixtureRepositoryManifest& manif
         "repository.fixture_root",
         "Repository manifest fixture_root must not be empty",
         manifest.source_path);
+  } else {
+    const std::filesystem::path on_disk_root = manifest.source_path.parent_path();
+    if (!PathEndsWith(on_disk_root, manifest.fixture_root)) {
+      report.AddError(
+          "repository.fixture_root_mismatch",
+          "Repository manifest fixture_root '" + manifest.fixture_root.string() +
+              "' does not match the manifest's on-disk location '" + on_disk_root.string() + "'",
+          manifest.source_path);
+    }
   }
   if (manifest.owner.empty()) {
     report.AddError(
@@ -276,7 +306,7 @@ ValidationReport ValidateFixtureLayout(const FixtureValidationRequest& request) 
   if (request.require_provenance_file) {
     const auto provenance_path = ResolveFixtureProvenancePath(request.manifest, request.fixture);
     if (!std::filesystem::exists(provenance_path)) {
-      report.AddWarning(
+      report.AddError(
           "fixture.provenance_missing",
           "Fixture provenance file is missing",
           provenance_path);
@@ -373,10 +403,22 @@ ValidationReport ValidateFixtureGeometry(
       if (expectation.quantity != "volume") {
         continue;
       }
-      if (expectation.unit != "mm3") {
+      if (expectation.unit != options.volume_unit) {
         report.AddWarning(
-            "fixture.volume_unit_unsupported",
-            "Volume expectation unit is not yet supported for comparison: " + expectation.unit,
+            "fixture.volume_unit_mismatch",
+            "Volume expectation unit does not match policy unit '" + options.volume_unit +
+                "': " + expectation.unit,
+            step_path);
+        continue;
+      }
+      // OCCT BRepGProp::VolumeProperties always returns mm^3.  If the policy
+      // unit is not mm3 the comparison would be meaningless, so skip it and
+      // emit a clear warning rather than silently comparing in the wrong unit.
+      if (options.volume_unit != "mm3") {
+        report.AddWarning(
+            "fixture.volume_unit_not_mm3",
+            "Volume comparison skipped: OCCT reports volumes in mm3 but policy unit is '" +
+                options.volume_unit + "'",
             step_path);
         continue;
       }
