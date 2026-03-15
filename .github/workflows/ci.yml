@@ -36,6 +36,7 @@ jobs:
               -DBUILD_TESTING=ON \
               -DBUILD_BENCHMARKS=ON \
               -DBUILD_EXAMPLES=ON \
+              -DENABLE_WARNINGS=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install"
 
             # ── Build ──────────────────────────────────────────────────────
@@ -86,6 +87,7 @@ jobs:
               -DBUILD_TESTING=ON \
               -DUSE_ASAN=ON \
               -DUSE_UBSAN=ON \
+              -DENABLE_WARNINGS=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install"
 
             # ── Build ──────────────────────────────────────────────────────
