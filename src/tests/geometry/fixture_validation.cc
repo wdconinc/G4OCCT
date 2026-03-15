@@ -345,9 +345,13 @@ ValidationReport ValidateFixtureGeometry(const FixtureValidationRequest& request
 
   const auto step_path = ResolveFixtureStepPath(request.manifest, request.fixture);
 
-  // Skip geometry validation for planned fixtures whose STEP file has not been
-  // fetched yet.  The layout check above already emitted a warning.
+  // For planned fixtures whose STEP file has not been fetched yet, skip
+  // geometry validation.  The layout check above already emitted a warning.
+  // For all other fixtures, a missing STEP file is a hard error.
   if (!std::filesystem::exists(step_path)) {
+    if (request.fixture.validation_state != FixtureValidationState::kPlanned) {
+      report.AddError("fixture.step_missing", "Fixture STEP file is missing", step_path);
+    }
     return report;
   }
 
