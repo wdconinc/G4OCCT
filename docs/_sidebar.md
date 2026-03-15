@@ -10,4 +10,7 @@
 - [Geometry Test Status](geometry_test_status.md)
 - **Examples**
   - [B1 — Water Phantom](example_b1.md)
+- **CI Reports**
+  - [Test Results](https://wdconinc.github.io/G4OCCT/reports/test-results.html)
+  - [Benchmark Results](https://wdconinc.github.io/G4OCCT/reports/bench-results.html)
 - [API Reference](https://wdconinc.github.io/G4OCCT/api/index.html)
