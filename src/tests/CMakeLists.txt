@@ -102,10 +102,12 @@ target_compile_definitions(
 target_link_libraries(test_nist_ctc_inside_volume PRIVATE G4OCCT)
 file(
   GLOB _nist_ctc_fixture_dirs
+  CONFIGURE_DEPENDS
   LIST_DIRECTORIES true
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/nist-ctc/G4OCCTSolid
   ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-*-v*
 )
+list(SORT _nist_ctc_fixture_dirs)
 foreach(fixture_id IN LISTS _nist_ctc_fixture_dirs)
   add_test(NAME "test_nist_ctc_inside_volume/${fixture_id}"
            COMMAND test_nist_ctc_inside_volume ${fixture_id})
