@@ -206,6 +206,14 @@ ToG4(const gp_Trsf& trsf) {
 Units: Geant4 uses mm; OCCT STEP import typically uses mm as well, but this
 should be verified for each import session.
 
+> **Reference position:** Geant4 solids are centered at the local origin,
+> whereas OCCT shapes imported from STEP can have an arbitrary reference
+> position (e.g., a corner at the origin rather than the center).  Before
+> constructing a `G4OCCTSolid`, the shape should be translated so that its
+> bounding-box centroid coincides with the OCCT origin.  See
+> [Reference Position Handling](reference_position.md) for strategies and
+> worked examples.
+
 ---
 
 ## 6. Recommended Strategy

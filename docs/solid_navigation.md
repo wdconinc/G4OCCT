@@ -437,6 +437,11 @@ in the same units as the shape was imported in.  If the shape was scaled
 during import, all query points and returned distances must be scaled
 consistently.
 
+In addition to unit conventions, the **origin** of the OCCT shape must match
+Geant4's expectation that every solid is centered at `(0, 0, 0)` in its local
+frame.  See [Reference Position Handling](reference_position.md) for how to
+recenter STEP-imported shapes before constructing `G4OCCTSolid`.
+
 ### 4.3 Thread Safety
 
 `IntCurvesFace_ShapeIntersector` and `BRepClass3d_SolidClassifier` are

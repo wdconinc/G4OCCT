@@ -3,6 +3,7 @@
 
 - [Project Goals](goals.md)
 - [Geometry Mapping](geometry_mapping.md)
+- [Reference Position Handling](reference_position.md)
 - [Material Bridging](material_bridging.md)
 - [Solid Navigation Design](solid_navigation.md)
 - [Performance Considerations](performance.md)
