@@ -39,9 +39,10 @@ between CAD geometry and Geant4 geometry enables:
 |---|---|
 | OCCT BRep → Geant4 solid wrapper | Full OCCT-native navigator |
 | STEP file import via OCCT | GDML export |
-| CTest-based validation suite | GPU navigation |
-| Navigator performance benchmarks | Magnetic field integration |
-| Design documents | Material database mapping (tracked separately) |
+| Multi-shape STEP assembly import | GPU navigation |
+| CTest-based validation suite | Magnetic field integration |
+| Navigator performance benchmarks | Material database mapping (tracked separately) |
+| Design documents | |
 
 ---
 
@@ -125,4 +126,5 @@ G4OCCT/
 | v0.3 | 🔨 In progress | `DistanceToIn/Out` via `IntCurvesFace_ShapeIntersector` | [Solid Navigation Design](solid_navigation.md) §2.3–2.6, [Performance Considerations](performance.md) |
 | v0.4 | ✅ Complete | STEP import end-to-end example | [Example B1 — Water Phantom](example_b1.md) |
 | v0.5 | 🔨 In progress | Full test suite passing for all G4 primitives | [Geometry Test Status](geometry_test_status.md) |
+| v0.6 | 🔲 Planned | Multi-shape STEP assembly import (`G4OCCTAssemblyBuilder`) | [Multi-Shape STEP Assembly Import](step_assembly_import.md) |
 | v1.0 | 🔲 Planned | Production-quality performance, material bridging | [Performance Considerations](performance.md), [Material Bridging](material_bridging.md) |

@@ -5,6 +5,7 @@
 - [Geometry Mapping](geometry_mapping.md)
 - [Reference Position Handling](reference_position.md)
 - [Material Bridging](material_bridging.md)
+- [Multi-Shape STEP Assembly Import](step_assembly_import.md)
 - [Solid Navigation Design](solid_navigation.md)
 - [Performance Considerations](performance.md)
 - [Geometry Test Status](geometry_test_status.md)
