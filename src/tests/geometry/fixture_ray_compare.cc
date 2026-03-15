@@ -78,7 +78,6 @@ struct FixtureProvenance {
 struct RaySample {
   bool intersects{false};
   G4double distance{kInfinity};
-  G4ThreeVector point;
 };
 
 std::string ToString(const G4ThreeVector& vector) {
@@ -702,8 +701,7 @@ G4ThreeVector BoundingBoxCenter(const G4VSolid& solid) {
 
 G4ThreeVector FixtureComparisonOrigin(
     const FixtureProvenance& provenance,
-    const G4VSolid& solid,
-    const bool imported_model) {
+    const G4VSolid& solid) {
   const YamlNode& shape = ShapeNode(provenance);
   const std::string geant4_class = Geant4Class(provenance);
 
@@ -755,14 +753,7 @@ RaySample TraceRay(const G4VSolid& solid, const G4ThreeVector& origin, const EIn
   RaySample sample;
   sample.distance = (state == kOutside) ? solid.DistanceToIn(origin, direction)
                                         : solid.DistanceToOut(origin, direction);
-  if (std::isinf(sample.distance)) {
-    sample.intersects = false;
-    sample.point = origin;
-    return sample;
-  }
-
-  sample.intersects = true;
-  sample.point = origin + sample.distance * direction;
+  sample.intersects = !std::isinf(sample.distance);
   return sample;
 }
 
@@ -797,7 +788,6 @@ ValidationReport CompareFixtureRays(
 
   FixtureRayComparisonSummary local_summary;
   local_summary.fixture_id = request.fixture.id;
-  local_summary.ray_count = options.ray_count;
   local_summary.distance_tolerance = DefaultRayComparisonTolerance();
 
   try {
@@ -808,21 +798,23 @@ ValidationReport CompareFixtureRays(
     std::unique_ptr<G4VSolid> native_solid = BuildNativeSolid(provenance);
     auto imported_solid = std::make_unique<G4OCCTSolid>(request.fixture.id + "_imported", LoadImportedShape(request));
 
-    local_summary.native_origin = FixtureComparisonOrigin(provenance, *native_solid, false);
-    local_summary.imported_origin = FixtureComparisonOrigin(provenance, *imported_solid, true);
+    local_summary.native_origin = FixtureComparisonOrigin(provenance, *native_solid);
+    local_summary.imported_origin = FixtureComparisonOrigin(provenance, *imported_solid);
     local_summary.native_origin_state = native_solid->Inside(local_summary.native_origin);
     local_summary.imported_origin_state = imported_solid->Inside(local_summary.imported_origin);
 
     if (local_summary.native_origin_state != local_summary.imported_origin_state) {
       report.AddError(
           "fixture.ray_origin_state_mismatch",
-          "Bounding-box center classification mismatch for fixture '" + request.fixture.id + "': native=" +
-              ToString(local_summary.native_origin_state) + ", imported=" +
-              ToString(local_summary.imported_origin_state),
+          "Comparison origin classification mismatch for fixture '" + request.fixture.id + "': native=" +
+              ToString(local_summary.native_origin_state) + " at " + ToString(local_summary.native_origin) +
+              ", imported=" + ToString(local_summary.imported_origin_state) + " at " +
+              ToString(local_summary.imported_origin),
           provenance_path);
     }
 
     const std::vector<G4ThreeVector> directions = GenerateDirections(options.ray_count);
+    local_summary.ray_count = directions.size();
     std::vector<RaySample> native_samples;
     std::vector<RaySample> imported_samples;
     native_samples.reserve(directions.size());
