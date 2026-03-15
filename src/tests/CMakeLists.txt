@@ -18,6 +18,61 @@ add_executable(test_placement test_placement.cc)
 target_link_libraries(test_placement PRIVATE G4OCCT)
 add_test(NAME test_placement COMMAND test_placement)
 
+# ─── test_navigation_harness ──────────────────────────────────────────────────
+add_executable(test_navigation_harness test_navigation_harness.cc)
+target_link_libraries(test_navigation_harness PRIVATE G4OCCT)
+add_test(NAME test_navigation_harness COMMAND test_navigation_harness)
+
+# ─── test_navigation_inside ───────────────────────────────────────────────────
+add_executable(test_navigation_inside test_navigation_inside.cc)
+target_link_libraries(test_navigation_inside PRIVATE G4OCCT)
+add_test(NAME test_navigation_inside COMMAND test_navigation_inside)
+
+# ─── test_surface_normal ──────────────────────────────────────────────────────
+add_executable(test_surface_normal test_surface_normal.cc)
+target_link_libraries(test_surface_normal PRIVATE G4OCCT)
+add_test(NAME test_surface_normal COMMAND test_surface_normal)
+
+# ─── test_distance_to_in_ray ──────────────────────────────────────────────────
+add_executable(test_distance_to_in_ray test_distance_to_in_ray.cc)
+target_link_libraries(test_distance_to_in_ray PRIVATE G4OCCT)
+add_test(NAME test_distance_to_in_ray COMMAND test_distance_to_in_ray)
+
+# ─── test_distance_to_in_safety ───────────────────────────────────────────────
+add_executable(test_distance_to_in_safety test_distance_to_in_safety.cc)
+target_link_libraries(test_distance_to_in_safety PRIVATE G4OCCT)
+add_test(NAME test_distance_to_in_safety COMMAND test_distance_to_in_safety)
+
+# ─── test_distance_to_out_ray ─────────────────────────────────────────────────
+add_executable(test_distance_to_out_ray test_distance_to_out_ray.cc)
+target_link_libraries(test_distance_to_out_ray PRIVATE G4OCCT)
+add_test(NAME test_distance_to_out_ray COMMAND test_distance_to_out_ray)
+
+# ─── test_distance_to_out_safety ──────────────────────────────────────────────
+add_executable(test_distance_to_out_safety test_distance_to_out_safety.cc)
+target_link_libraries(test_distance_to_out_safety PRIVATE G4OCCT)
+add_test(NAME test_distance_to_out_safety COMMAND test_distance_to_out_safety)
+
+# ─── test_get_extent ──────────────────────────────────────────────────────────
+add_executable(test_get_extent test_get_extent.cc)
+target_link_libraries(test_get_extent PRIVATE G4OCCT)
+add_test(NAME test_get_extent COMMAND test_get_extent)
+
+# ─── test_bounding_limits ─────────────────────────────────────────────────────
+add_executable(test_bounding_limits test_bounding_limits.cc)
+target_link_libraries(test_bounding_limits PRIVATE G4OCCT)
+add_test(NAME test_bounding_limits COMMAND test_bounding_limits)
+
+# ─── test_calculate_extent ────────────────────────────────────────────────────
+add_executable(test_calculate_extent test_calculate_extent.cc)
+target_link_libraries(test_calculate_extent PRIVATE G4OCCT)
+add_test(NAME test_calculate_extent COMMAND test_calculate_extent)
+
+# ─── test_create_polyhedron ───────────────────────────────────────────────────
+add_executable(test_create_polyhedron test_create_polyhedron.cc)
+target_link_libraries(test_create_polyhedron PRIVATE G4OCCT)
+add_test(NAME test_create_polyhedron COMMAND test_create_polyhedron)
+
 # ─── Integration test: downstream find_package(G4OCCT) ───────────────────────
 # This test group installs G4OCCT to a temporary prefix and then configures,
 # builds, and runs a minimal downstream CMake project that consumes the library

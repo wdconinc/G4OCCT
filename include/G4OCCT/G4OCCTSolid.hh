@@ -4,8 +4,8 @@
 #ifndef G4OCCT_G4OCCTSolid_hh
 #define G4OCCT_G4OCCTSolid_hh
 
-#include <G4VSolid.hh>
 #include <G4ThreeVector.hh>
+#include <G4VSolid.hh>
 
 // OCCT shape representation
 #include <TopoDS_Shape.hxx>
@@ -14,16 +14,13 @@
  * G4OCCTSolid
  *
  * Wraps an Open CASCADE Technology (OCCT) TopoDS_Shape as a Geant4 solid
- * (G4VSolid).  The OCCT shape is stored by value; once set it is used to
- * answer the Geant4 navigation queries (Inside, DistanceToIn, …).
+ * (G4VSolid). The OCCT shape is stored by value and is queried directly for
+ * Geant4 navigation, extent, and visualisation requests.
  *
- * In OCCT the closest analogue to G4VSolid is TopoDS_Shape, which is the
- * root of the Boundary-Representation (BRep) topology hierarchy and can
- * describe any shape from a simple box to a complex multi-face shell.
- * The mapping is discussed in detail in docs/geometry_mapping.md.
- *
- * NOTE: All navigation methods currently contain stub implementations.
- *       Full OCCT-based implementations are planned for a future milestone.
+ * In OCCT the closest analogue to G4VSolid is TopoDS_Shape, which is the root
+ * of the Boundary-Representation topology hierarchy and can describe any shape
+ * from a simple box to a complex multi-face shell. The mapping is discussed in
+ * detail in docs/geometry_mapping.md.
  */
 class G4OCCTSolid : public G4VSolid {
  public:
@@ -63,11 +60,15 @@ class G4OCCTSolid : public G4VSolid {
   /// Return the axis-aligned bounding box extent.
   G4VisExtent GetExtent() const override;
 
+  /// Return the axis-aligned bounding box limits.
+  void BoundingLimits(G4ThreeVector& pMin, G4ThreeVector& pMax) const override;
+
   /// Calculate the extent of the solid in the given axis.
   G4bool CalculateExtent(const EAxis pAxis,
                          const G4VoxelLimits& pVoxelLimit,
                          const G4AffineTransform& pTransform,
-                         G4double& pMin, G4double& pMax) const override;
+                         G4double& pMin,
+                         G4double& pMax) const override;
 
   /// Describe the solid to the graphics scene.
   void DescribeYourselfTo(G4VGraphicsScene& scene) const override;

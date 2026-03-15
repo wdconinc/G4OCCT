@@ -2,18 +2,20 @@
 // Copyright (C) 2024 G4OCCT Contributors
 
 // test_solid.cc
-// Tests for G4OCCTSolid: verify that the stub implementations compile and
-// return the expected sentinel values.
+// Tests for G4OCCTSolid: verify that the basic APIs compile and return
+// expected values for implemented navigation methods.
 
 #include "G4OCCT/G4OCCTSolid.hh"
 
 // OCCT primitives
 #include <BRepPrimAPI_MakeBox.hxx>
-#include <BRepPrimAPI_MakeSphere.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
+#include <BRepPrimAPI_MakeSphere.hxx>
 #include <TopoDS_Shape.hxx>
+#include <gp_Pnt.hxx>
 
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 
@@ -37,17 +39,16 @@ static void test_box_solid() {
   check(solid.GetEntityType() == "G4OCCTSolid", "entity type is G4OCCTSolid");
   check(!solid.GetOCCTShape().IsNull(), "OCCT shape is not null");
 
-  // Stub: Inside returns kOutside for any point
-  check(solid.Inside(G4ThreeVector(0, 0, 0)) == kOutside,
-        "Inside returns kOutside (stub)");
+  check(solid.Inside(G4ThreeVector(5.0, 10.0, 15.0)) == kInside,
+        "Inside returns kInside for an interior point");
+  check(solid.Inside(G4ThreeVector(0.0, 0.0, 0.0)) == kSurface,
+        "Inside returns kSurface for a corner point on the box");
 
-  // Stub: DistanceToIn returns kInfinity
-  check(solid.DistanceToIn(G4ThreeVector(100, 0, 0)) == kInfinity,
-        "DistanceToIn(p) returns kInfinity (stub)");
+  check(std::abs(solid.DistanceToIn(G4ThreeVector(100.0, 0.0, 0.0)) - 90.0) < 1.0e-9,
+        "DistanceToIn(p) returns the shortest distance for an outside point");
 
-  // Stub: DistanceToOut returns 0
-  check(solid.DistanceToOut(G4ThreeVector(0, 0, 0)) == 0.0,
-        "DistanceToOut(p) returns 0 (stub)");
+  check(std::abs(solid.DistanceToOut(G4ThreeVector(5.0, 10.0, 15.0)) - 5.0) < 1.0e-9,
+        "DistanceToOut(p) returns the nearest face distance for an interior point");
 }
 
 static void test_sphere_solid() {
@@ -72,13 +73,14 @@ static void test_cylinder_solid() {
         "replaced cylinder shape is not null");
 }
 
-static void test_surface_normal_stub() {
-  TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+static void test_surface_normal_box_face() {
+  TopoDS_Shape box =
+      BRepPrimAPI_MakeBox(gp_Pnt(-10.0, -10.0, -10.0), gp_Pnt(10.0, 10.0, 10.0)).Shape();
   G4OCCTSolid solid("NormalTest", box);
 
-  G4ThreeVector n = solid.SurfaceNormal(G4ThreeVector(5, 0, 0));
-  // Stub returns (0,0,1)
-  check(n == G4ThreeVector(0, 0, 1), "SurfaceNormal stub returns (0,0,1)");
+  G4ThreeVector n = solid.SurfaceNormal(G4ThreeVector(10.0, 0.0, 0.0));
+  check((n - G4ThreeVector(1.0, 0.0, 0.0)).mag() < 1.0e-9,
+        "SurfaceNormal returns +x on centered box face");
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -87,7 +89,7 @@ int main() {
   test_box_solid();
   test_sphere_solid();
   test_cylinder_solid();
-  test_surface_normal_stub();
+  test_surface_normal_box_face();
 
   std::cout << "\nAll test_solid tests passed.\n";
   return 0;
