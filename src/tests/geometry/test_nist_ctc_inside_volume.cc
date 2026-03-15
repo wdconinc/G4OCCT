@@ -19,6 +19,10 @@
 /// Fixtures whose shape.step file has not been fetched (run fetch.sh in the
 /// nist-ctc family directory) are silently skipped; the test exits with
 /// success so that CI passes even when the NIST files are absent.
+///
+/// When invoked with a single positional argument (a fixture ID such as
+/// "nist-ctc-01-v1"), only that fixture is tested.  CTest uses this to
+/// register one test per fixture so that progress is visible during the run.
 
 #include "geometry/fixture_manifest.hh"
 
@@ -35,6 +39,7 @@
 #include <G4ThreeVector.hh>
 #include <globals.hh>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -127,10 +132,13 @@ double MonteCarloVolume(G4OCCTSolid& solid, int n_samples, unsigned int seed) {
 
 } // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
   using g4occt::tests::geometry::ParseFixtureManifestFile;
   using g4occt::tests::geometry::ResolveFixtureDirectory;
   using g4occt::tests::geometry::ResolveFixtureStepPath;
+
+  // Optional positional argument: restrict the run to a single fixture ID.
+  const std::string fixture_filter = (argc > 1) ? argv[1] : "";
 
   const std::filesystem::path manifest_path = NistManifestPath();
   if (!std::filesystem::exists(manifest_path)) {
@@ -146,11 +154,27 @@ int main() {
     return EXIT_FAILURE;
   }
 
+  // When a specific fixture ID was requested, verify it exists in the manifest.
+  if (!fixture_filter.empty()) {
+    const auto it =
+        std::find_if(manifest.fixtures.begin(), manifest.fixtures.end(),
+                     [&](const auto& f) { return f.id == fixture_filter; });
+    if (it == manifest.fixtures.end()) {
+      std::cerr << "FAIL: Fixture '" << fixture_filter << "' not found in manifest.\n";
+      return EXIT_FAILURE;
+    }
+  }
+
   int pass_count = 0;
   int fail_count = 0;
   int skip_count = 0;
 
   for (const auto& fixture : manifest.fixtures) {
+    // Skip fixtures not matching the filter (when one was provided).
+    if (!fixture_filter.empty() && fixture.id != fixture_filter) {
+      continue;
+    }
+
     const auto step_path = ResolveFixtureStepPath(manifest, fixture);
 
     if (!std::filesystem::exists(step_path)) {
