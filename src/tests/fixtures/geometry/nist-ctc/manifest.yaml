@@ -3,10 +3,7 @@
 
 schema_version: geometry-fixture-manifest/v1
 family: nist-ctc
-summary: >
-  NIST MBE PMI Conformance Test Case (CTC) AP203 geometry-only STEP files.
-  These 11 fixtures are downloaded at test time from the NIST website;
-  run fetch.sh to populate the shape.step assets before executing tests.
+summary: "NIST MBE PMI Conformance Test Case (CTC) AP203 geometry-only STEP files. These 11 fixtures are downloaded at test time from the NIST website; run fetch.sh to populate the shape.step assets before executing tests."
 coverage_classes:
   - G4OCCTSolid
 fixtures:
