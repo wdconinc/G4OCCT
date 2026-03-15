@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2024 G4OCCT Contributors -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>G4OCCT — Point Cloud Viewer</title>
+  <style>
+{{ css_content }}
+  </style>
+  <script type="importmap">
+  {"imports":{
+    "three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }}
+  </script>
+</head>
+<body>
+  <div id="header">
+    <h1>G4OCCT — Geantino Ray Point Cloud</h1>
+    <span class="meta">Generated: {{ timestamp }} · {{ count_str }}</span>
+  </div>
+  <div id="main">
+    <div id="sidebar">
+      <div id="sidebar-inner">
+        <label for="fixture-select">Fixture</label>
+        <select id="fixture-select"></select>
+        <div class="toggle-row">
+          <button id="btn-native" class="toggle-btn native">Native</button>
+          <button id="btn-imported" class="toggle-btn imported">Imported</button>
+        </div>
+        <table class="stats-table"><tbody id="stats-body"></tbody></table>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot native"></span>Native</div>
+          <div class="legend-item"><span class="legend-dot imported"></span>Imported</div>
+        </div>
+        <div id="empty-msg">No point-cloud data found.</div>
+      </div>
+    </div>
+    <div id="canvas-container">
+      <div id="count-overlay"></div>
+      <div id="info-overlay">drag to rotate · scroll to zoom · right-drag to pan</div>
+    </div>
+  </div>
+  <script type="application/json" id="fixture-data">{{ fixture_json }}</script>
+  <script type="module">
+{{ js_content }}
+  </script>
+</body>
+</html>

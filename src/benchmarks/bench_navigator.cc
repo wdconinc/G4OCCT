@@ -49,7 +49,7 @@ namespace {
   }
 
   int RunBenchmark(const std::filesystem::path& repository_manifest_path,
-                   const std::size_t ray_count) {
+                   const std::size_t ray_count, const std::filesystem::path& point_cloud_dir) {
     const FixtureRepositoryManifest repository_manifest =
         ParseFixtureRepositoryManifest(repository_manifest_path);
 
@@ -57,7 +57,8 @@ namespace {
     aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
 
     FixtureRayComparisonOptions options;
-    options.ray_count = ray_count;
+    options.ray_count       = ray_count;
+    options.point_cloud_dir = point_cloud_dir;
 
     std::vector<FixtureRayComparisonSummary> summaries;
     std::size_t expected_failure_count = 0;
@@ -151,7 +152,8 @@ int main(int argc, char** argv) {
     const std::filesystem::path manifest_path =
         argc > 2 ? std::filesystem::path(argv[2])
                  : g4occt::tests::geometry::DefaultRepositoryManifestPath();
-    return g4occt::benchmarks::RunBenchmark(manifest_path, ray_count);
+    const std::filesystem::path point_cloud_dir = argc > 3 ? std::filesystem::path(argv[3]) : "";
+    return g4occt::benchmarks::RunBenchmark(manifest_path, ray_count, point_cloud_dir);
   } catch (const std::exception& error) {
     std::cerr << "FAIL: benchmark setup threw an exception: " << error.what() << '\n';
     return EXIT_FAILURE;

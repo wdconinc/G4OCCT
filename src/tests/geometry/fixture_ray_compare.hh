@@ -21,6 +21,8 @@ struct FixtureRayComparisonOptions {
   std::size_t ray_count{2048};
   /// Maximum number of detailed mismatch diagnostics to emit per fixture.
   std::size_t max_reported_mismatches{8};
+  /// Output directory for per-fixture point-cloud JSON files; empty means skip.
+  std::filesystem::path point_cloud_dir;
 };
 
 /** Summary of one fixture's native-vs-imported ray-comparison run. */
