@@ -25,6 +25,17 @@
         placeholder: 'Search docs…',
         noData: 'No results.',
       },
+      plugins: [
+        function(hook) {
+          hook.init(function() {
+            var hash = window.location.hash;
+            if (hash.startsWith('#/api/')) {
+              var apiPath = hash.replace('#/', '');
+              window.location.replace(window.location.pathname + apiPath);
+            }
+          });
+        }
+      ],
     };
   </script>
   <!-- docsify core -->
