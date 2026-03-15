@@ -35,6 +35,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=ON \
               -DBUILD_BENCHMARKS=ON \
+              -DBUILD_EXAMPLES=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install"
 
             # ── Build ──────────────────────────────────────────────────────
