@@ -128,7 +128,7 @@ G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector
   }
 
   BRepExtrema_DistShapeShape distance(MakeVertex(point), shape);
-  if (!distance.IsDone()) {
+  if (!distance.IsDone() || distance.NbSolution() == 0) {
     return kInfinity;
   }
 
