@@ -48,4 +48,5 @@ leak:G4ThreadLocalSingleton
 # The BRepClass3d_SolidClassifier held by G4OCCTSolid::fClassifierCache, and
 # the OCCT data structures it allocates internally via Standard::Allocate, are
 # all reachable from the G4Cache root and are reported as indirect leaks.
-leak:G4Cache
+# Scoped to G4OCCTSolid::GetOrCreateClassifier to avoid masking unrelated leaks.
+leak:G4OCCTSolid::GetOrCreateClassifier
