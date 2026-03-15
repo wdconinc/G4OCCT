@@ -7,6 +7,7 @@
 - [Material Bridging](material_bridging.md)
 - [Solid Navigation Design](solid_navigation.md)
 - [Performance Considerations](performance.md)
+- [Geometry Test Status](geometry_test_status.md)
 - **Examples**
   - [B1 — Water Phantom](example_b1.md)
 - [API Reference](https://wdconinc.github.io/G4OCCT/api/index.html)
