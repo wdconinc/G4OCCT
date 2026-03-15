@@ -18,10 +18,11 @@ include(CheckCXXCompilerFlag)
 
 # ─── Warnings ─────────────────────────────────────────────────────────────────
 
-option(ENABLE_WARNINGS "Enable -Wall -Werror compiler warnings" OFF)
-if(ENABLE_WARNINGS)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Werror)
+option(ENABLE_WERROR "Treat compiler warnings as errors (-Werror)" OFF)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall)
+  if(ENABLE_WERROR)
+    add_compile_options(-Werror)
   endif()
 endif()
 
