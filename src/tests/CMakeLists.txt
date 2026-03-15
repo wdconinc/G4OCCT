@@ -76,21 +76,14 @@ add_test(NAME test_create_polyhedron COMMAND test_create_polyhedron)
 # ─── test_geometry_validation ────────────────────────────────────────────────
 add_executable(test_geometry_validation
   geometry/test_geometry_validation.cc
-  geometry/fixture_manifest.cc
-  geometry/fixture_validation.cc
 )
 target_include_directories(test_geometry_validation
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${OpenCASCADE_INCLUDE_DIR}
-)
-target_compile_definitions(test_geometry_validation
-  PRIVATE
-    G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
 target_link_libraries(test_geometry_validation
   PRIVATE
-    ${OpenCASCADE_LIBRARIES}
+    G4OCCTFixtureSupport
 )
 add_test(NAME test_geometry_validation COMMAND test_geometry_validation)
 
