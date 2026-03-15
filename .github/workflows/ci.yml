@@ -82,7 +82,9 @@ jobs:
             cmake --build build -- -j$(nproc)
 
             # ── Test ───────────────────────────────────────────────────────
-            ctest --test-dir build --output-on-failure -j$(nproc)
+            ctest --test-dir build --output-on-failure \
+              --output-junit "${PWD}/test-results.xml" \
+              -j$(nproc)
 
             # ── Benchmark + point-cloud export ─────────────────────────────
             ./build/src/benchmarks/bench_navigator 2048 \
@@ -93,15 +95,30 @@ jobs:
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
 
-      - name: Generate HTML reports
+      - name: Generate Markdown reports
+        if: always()
         run: |
           pip3 install --quiet jinja2
+          python3 .github/scripts/generate_test_report.py \
+            test-results.xml reports/test-results.md
           python3 .github/scripts/generate_bench_report.py \
-            bench_results.txt reports/bench_report.html
+            bench_results.txt reports/bench-results.md
           python3 .github/scripts/generate_point_cloud_report.py \
             point_clouds/ reports/point_cloud_viewer.html
 
+      - name: Post reports as step summary
+        if: always()
+        run: |
+          if [ -f reports/test-results.md ]; then
+            cat reports/test-results.md >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f reports/bench-results.md ]; then
+            cat reports/bench-results.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload test and benchmark reports as artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ci-reports
