@@ -42,7 +42,7 @@ SteppingAction::SteppingAction(EventAction* eventAction) : fEventAction(eventAct
 void SteppingAction::UserSteppingAction(const G4Step* step) {
   // Retrieve the scoring volume pointer on first call.
   if (fScoringVolume == nullptr) {
-    const auto* detectorConstruction = dynamic_cast<const DetectorConstruction*>(
+    const auto* detectorConstruction = dynamic_cast<const B1::DetectorConstruction*>(
         G4RunManager::GetRunManager()->GetUserDetectorConstruction());
     if (detectorConstruction != nullptr) {
       fScoringVolume = detectorConstruction->GetScoringVolume();
