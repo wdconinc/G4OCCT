@@ -64,8 +64,8 @@ Consider a 20 × 30 × 40 mm box imported from STEP with one corner at
 
 | Scenario | OCCT box center | G4PVPlacement translation | Actual solid center in world | Correct? |
 |---|---|---|---|---|
-| Box not recentered | (10, 15, 20) | (0, 0, 0) | (10, 15, 20) | ✗ (10 mm off) |
-| Box not recentered | (10, 15, 20) | (10, 15, 20) | (10, 15, 20) | ✓ (but fragile) |
+| Box not recentered | (10, 15, 20) | (0, 0, 0) | (10, 15, 20) | ✗ (off by half-dims) |
+| Box not recentered, offset compensated | (10, 15, 20) | (-10, -15, -20) | (0, 0, 0) | ✓ (but fragile) |
 | Box recentered to origin | (0, 0, 0) | (0, 0, 0) | (0, 0, 0) | ✓ |
 | Box recentered to origin | (0, 0, 0) | (50, 0, 100) | (50, 0, 100) | ✓ |
 
