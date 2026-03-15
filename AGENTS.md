@@ -104,9 +104,9 @@ Do not lower these version floors without an explicit project decision.
 
 ## 6. CI
 
-- **Workflows** trigger on `push` against `main` and on `pull_request` against
-  any branch (no branch filter on `pull_request`), to support sub-PR workflows
-  where feature branches target other feature branches.
+- **CI workflow (`ci.yml`)** triggers on `push` against `main` and on
+  `pull_request` with no branch filter, to support sub-PR workflows where
+  feature branches target other feature branches.
   Do not add `master` or wildcard branch patterns to the `push` trigger.
 - **CI job (`ci.yml`):** Two jobs:
   1. `build-test-benchmark` — builds with `-DCMAKE_BUILD_TYPE=Release
