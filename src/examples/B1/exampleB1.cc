@@ -32,9 +32,12 @@
 /// files and whose materials are specified using G4NistManager names.
 ///
 /// Usage (batch):
-///   ./exampleB1 run.mac
+///   ./exampleB1 run.mac [nthreads]
 ///
 /// The @p run.mac macro initialises the run manager and fires the beam.
+/// An optional second argument @p nthreads (positive integer) sets the number
+/// of worker threads before /run/initialize so that multi-threaded behaviour
+/// can be exercised (e.g. under ThreadSanitizer).
 
 #include "ActionInitialization.hh"
 #include "DetectorConstruction.hh"
@@ -42,6 +45,10 @@
 #include <G4RunManagerFactory.hh>
 #include <G4UImanager.hh>
 #include <QBBC.hh>
+
+#include <cerrno>
+#include <cstdlib>
+#include <iostream>
 
 int main(int argc, char** argv) {
   // ── Run manager ───────────────────────────────────────────────────────────
@@ -57,6 +64,24 @@ int main(int argc, char** argv) {
   // ── UI manager ────────────────────────────────────────────────────────────
 
   G4UImanager* UImanager = G4UImanager::GetUIpointer();
+
+  // Optional second argument: number of worker threads (must be set before
+  // /run/initialize, which is the first command in the macro).
+  if (argc > 2) {
+    char* endptr  = nullptr;
+    errno         = 0;
+    long nthreads = std::strtol(argv[2], &endptr, 10);
+    if (errno != 0 || endptr == argv[2] || *endptr != '\0' || nthreads <= 0) {
+      std::cerr << "exampleB1: invalid nthreads argument '" << argv[2]
+                << "' (must be a positive integer)\n";
+      return 1;
+    }
+    int rc = UImanager->ApplyCommand(G4String("/run/numberOfThreads ") + G4String(argv[2]));
+    if (rc != 0) {
+      std::cerr << "exampleB1: /run/numberOfThreads command failed (code " << rc << ")\n";
+      return 1;
+    }
+  }
 
   if (argc > 1) {
     // Batch mode: execute the supplied macro file.
