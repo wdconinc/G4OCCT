@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4ellipticaltube-elliptical-tube-12x7x25-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4EllipticalTube
+  constructor:
+    dx_mm: 12.0
+    dy_mm: 7.0
+    dz_mm: 25.0
+  construction:
+    - pcylinder seed_cylinder 12 50
+    - translate seed_cylinder 0 0 -25
+    - scalexyz seed_shape seed_cylinder 1 0.5833333333333334 1
+validation:
+  expected_volume_mm3: 13308.366562628955
+  analytic_volume_mm3: 13194.689145077133
+notes:
+  - The checked STEP round-trip imports at 13308.366562628955 mm3 with OCCT 7.9.1, so
+    the manifest validates against the imported reference volume.

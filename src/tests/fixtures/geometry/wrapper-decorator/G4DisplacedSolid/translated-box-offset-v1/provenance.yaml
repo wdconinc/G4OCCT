@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4displacedsolid-translated-box-offset-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4DisplacedSolid
+  draw_commands:
+    - box displaced_box 20 30 40
+    - ttranslate displaced_box 12 -7 25
+  translation_mm: [12.0, -7.0, 25.0]
+  base_box_mm: [20.0, 30.0, 40.0]
+validation:
+  expected_volume_mm3: 24000.0

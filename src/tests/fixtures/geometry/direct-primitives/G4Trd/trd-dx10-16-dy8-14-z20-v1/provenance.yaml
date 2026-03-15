@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4trd-trd-dx10-16-dy8-14-z20-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Trd
+  bottom_half_x_mm: 10.0
+  top_half_x_mm: 16.0
+  bottom_half_y_mm: 8.0
+  top_half_y_mm: 14.0
+  half_z_mm: 20.0
+  vertices_mm:
+    - [-10.0, -8.0, -20.0]
+    - [10.0, -8.0, -20.0]
+    - [10.0, 8.0, -20.0]
+    - [-10.0, 8.0, -20.0]
+    - [-16.0, -14.0, 20.0]
+    - [16.0, -14.0, 20.0]
+    - [16.0, 14.0, 20.0]
+    - [-16.0, 14.0, 20.0]
+  construction:
+    - polyline bottom_face -10 -8 -20 10 -8 -20 10 8 -20 -10 8 -20 -10 -8 -20
+    - mkplane trd_bottom bottom_face
+    - polyline top_face -16 -14 20 16 -14 20 16 14 20 -16 14 20 -16 -14 20
+    - mkplane trd_top top_face
+    - mkvolume seed_shape trd_bottom trd_top trd_yneg trd_xpos trd_ypos trd_xneg
+validation:
+  expected_volume_mm3: 23360.0

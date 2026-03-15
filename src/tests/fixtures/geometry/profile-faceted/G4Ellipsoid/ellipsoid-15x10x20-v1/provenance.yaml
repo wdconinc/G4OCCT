@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4ellipsoid-ellipsoid-15x10x20-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Ellipsoid
+  constructor:
+    pxSemiAxis_mm: 15.0
+    pySemiAxis_mm: 10.0
+    pzSemiAxis_mm: 20.0
+    zBottomCut_mm: 0.0
+    zTopCut_mm: 0.0
+  draw_commands:
+    - psphere base_sphere 10
+    - scalexyz seed_shape base_sphere 1.5 1 2
+validation:
+  expected_volume_mm3: 12560.874755296664
+  analytic_volume_mm3: 12566.37061435917
+notes:
+  - The manifest expectation is updated from the imported STEP reference volume after validation.

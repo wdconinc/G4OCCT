@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4extrudedsolid-extruded-pentagon-z30-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4ExtrudedSolid
+  draw_commands:
+    - polyline base_wire 0 0 0 30 0 0 30 10 0 10 20 0 0 20 0 0 0 0
+    - mkplane base_face base_wire
+    - prism extruded_shape base_face 0 0 30
+  polygon_vertices_mm:
+    - [0.0, 0.0]
+    - [30.0, 0.0]
+    - [30.0, 10.0]
+    - [10.0, 20.0]
+    - [0.0, 20.0]
+  z_sections_mm:
+    - z: -15.0
+      offset: [0.0, 0.0]
+      scale: 1.0
+    - z: 15.0
+      offset: [0.0, 0.0]
+      scale: 1.0
+validation:
+  expected_volume_mm3: 15000.0
+notes:
+  - This fixture intentionally uses identical top and bottom sections, making it a trustworthy seed for G4ExtrudedSolid manifest and STEP validation without claiming any twisted behaviour.

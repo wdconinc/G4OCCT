@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4twistedtrd-trd-dx10-16-dy8-14-z20-phi30-v1
+generator:
+  tool: generate_twisted_fixtures
+  source: ../../tools/generate_twisted_fixtures.cc
+shape:
+  geant4_class: G4TwistedTrd
+  constructor:
+    dx1_mm: 10.0
+    dx2_mm: 16.0
+    dy1_mm: 8.0
+    dy2_mm: 14.0
+    dz_mm: 20.0
+    phi_twist_deg: 30.0
+validation:
+  expected_volume_mm3: 22402.5

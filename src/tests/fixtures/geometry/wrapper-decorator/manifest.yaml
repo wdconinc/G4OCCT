@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-manifest/v1
+family: wrapper-decorator
+summary: Deterministic wrapper fixtures for translated and scaled OCCT solids.
+coverage_classes:
+  - G4DisplacedSolid
+  - G4ScaledSolid
+fixtures:
+  - id: g4displacedsolid-translated-box-offset-v1
+    geant4_class: G4DisplacedSolid
+    fixture_slug: translated-box-offset
+    relative_directory: G4DisplacedSolid/translated-box-offset-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 24000.0
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4scaledsolid-scaled-sphere-nonuniform-v1
+    geant4_class: G4ScaledSolid
+    fixture_slug: scaled-sphere-nonuniform
+    relative_directory: G4ScaledSolid/scaled-sphere-nonuniform-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 6280.437377688254
+        absolute_tolerance: 0.1
+        unit: mm3

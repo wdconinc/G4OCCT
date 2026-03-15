@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4genericpolycone-generic-polycone-nonmonotonic-z-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4GenericPolycone
+  constructor:
+    phiStart_deg: 0.0
+    phiTotal_deg: 360.0
+    rz_points_mm:
+      - [0.0, -20.0]
+      - [8.0, -20.0]
+      - [12.0, -5.0]
+      - [7.0, 5.0]
+      - [11.0, 0.0]
+      - [9.0, 15.0]
+      - [5.0, 20.0]
+      - [0.0, 20.0]
+  draw_commands:
+    - polyline profile 0 0 -20 8 0 -20 12 0 -5 7 0 5 11 0 0 9 0 15 5 0 20 0 0 20 0 0 -20
+    - revol seed_shape profile 0 0 0 0 0 1 360
+validation:
+  expected_volume_mm3: 11901.400169
+notes:
+  - The R/Z contour is intentionally non-monotonic in z, so this fixture exercises a case outside the simpler G4Polycone parameterization.

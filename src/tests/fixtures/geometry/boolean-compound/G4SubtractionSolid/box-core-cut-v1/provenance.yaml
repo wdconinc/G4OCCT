@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4subtractionsolid-box-core-cut-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4SubtractionSolid
+  draw_commands:
+    - box outer_box 30 30 30
+    - box core_box -min 10 10 10 -size 10 10 10
+    - bcut subtraction_shape outer_box core_box
+  outer_box_mm: [30.0, 30.0, 30.0]
+  removed_box_min_mm: [10.0, 10.0, 10.0]
+  removed_box_size_mm: [10.0, 10.0, 10.0]
+validation:
+  expected_volume_mm3: 26000.0

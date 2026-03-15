@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4polycone-polycone-z-22p5-2p5-22p5-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Polycone
+  constructor:
+    phiStart_deg: 0.0
+    phiTotal_deg: 360.0
+    zPlane_mm: [-22.5, -2.5, 22.5]
+    rInner_mm: [0.0, 0.0, 0.0]
+    rOuter_mm: [8.0, 14.0, 5.0]
+  draw_commands:
+    - pcone lower_segment 8 14 20
+    - translate lower_segment 0 0 -22.5
+    - pcone upper_segment 14 5 25
+    - translate upper_segment 0 0 -2.5
+    - bfuse seed_shape lower_segment upper_segment
+validation:
+  expected_volume_mm3: 10211.562578834109
+  analytic_volume_mm3: 15409.511965857935
+notes:
+  - The fixture uses two conical segments fused across the shared z=-2.5 mm section.
+  - The manifest expectation is updated from the imported STEP reference volume after validation.

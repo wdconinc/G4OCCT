@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4unionsolid-box-overlap-x10-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4UnionSolid
+  draw_commands:
+    - box left_box 20 20 20
+    - box right_box -min 10 0 0 -size 20 20 20
+    - bfuse union_shape left_box right_box
+  component_boxes_mm:
+    - min: [0.0, 0.0, 0.0]
+      size: [20.0, 20.0, 20.0]
+    - min: [10.0, 0.0, 0.0]
+      size: [20.0, 20.0, 20.0]
+validation:
+  expected_volume_mm3: 12000.0

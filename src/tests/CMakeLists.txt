@@ -18,6 +18,27 @@ add_executable(test_placement test_placement.cc)
 target_link_libraries(test_placement PRIVATE G4OCCT)
 add_test(NAME test_placement COMMAND test_placement)
 
+# ─── test_geometry_validation ────────────────────────────────────────────────
+add_executable(test_geometry_validation
+  geometry/test_geometry_validation.cc
+  geometry/fixture_manifest.cc
+  geometry/fixture_validation.cc
+)
+target_include_directories(test_geometry_validation
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${OpenCASCADE_INCLUDE_DIR}
+)
+target_compile_definitions(test_geometry_validation
+  PRIVATE
+    G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
+target_link_libraries(test_geometry_validation
+  PRIVATE
+    ${OpenCASCADE_LIBRARIES}
+)
+add_test(NAME test_geometry_validation COMMAND test_geometry_validation)
+
 # ─── Integration test: downstream find_package(G4OCCT) ───────────────────────
 # This test group installs G4OCCT to a temporary prefix and then configures,
 # builds, and runs a minimal downstream CMake project that consumes the library

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-manifest/v1
+family: twisted-swept
+summary: Deterministic swept and twisted fixtures generated with a shared OCCT loft utility.
+coverage_classes:
+  - G4ExtrudedSolid
+  - G4TwistedBox
+  - G4TwistedTrd
+  - G4TwistedTrap
+  - G4TwistedTubs
+  - G4VTwistedFaceted
+  - G4UExtrudedSolid
+fixtures:
+  - id: g4extrudedsolid-extruded-pentagon-z30-v1
+    geant4_class: G4ExtrudedSolid
+    fixture_slug: extruded-pentagon-z30
+    relative_directory: G4ExtrudedSolid/extruded-pentagon-z30-v1
+    validation_state: validated
+    reused_by:
+      - G4UExtrudedSolid
+    expectations:
+      - quantity: volume
+        value: 15000.0
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4twistedbox-box-dx10-dy8-z20-phi30-v1
+    geant4_class: G4TwistedBox
+    fixture_slug: box-dx10-dy8-z20-phi30
+    relative_directory: G4TwistedBox/box-dx10-dy8-z20-phi30-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 12228.4
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4twistedtrd-trd-dx10-16-dy8-14-z20-phi30-v1
+    geant4_class: G4TwistedTrd
+    fixture_slug: trd-dx10-16-dy8-14-z20-phi30
+    relative_directory: G4TwistedTrd/trd-dx10-16-dy8-14-z20-phi30-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 22402.5
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4twistedtrap-trap-dx7-13-dy9-z18-phi30-v1
+    geant4_class: G4TwistedTrap
+    fixture_slug: trap-dx7-13-dy9-z18-phi30
+    relative_directory: G4TwistedTrap/trap-dx7-13-dy9-z18-phi30-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 12381.2
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4twistedtubs-tubs-r6-r12-z20-dphi210-phi30-v1
+    geant4_class: G4TwistedTubs
+    fixture_slug: tubs-r6-r12-z20-dphi210-phi30
+    relative_directory: G4TwistedTubs/tubs-r6-r12-z20-dphi210-phi30-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 7563.26
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4vtwistedfaceted-faceted-dz20-theta8-phi20-v1
+    geant4_class: G4VTwistedFaceted
+    fixture_slug: faceted-dz20-theta8-phi20
+    relative_directory: G4VTwistedFaceted/faceted-dz20-theta8-phi20-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 14383.3
+        absolute_tolerance: 0.001
+        unit: mm3
