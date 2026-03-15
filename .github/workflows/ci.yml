@@ -9,11 +9,6 @@ on:
   pull_request:
     branches: ["main"]
 
-env:
-  ASAN_OPTIONS: suppressions=${{ github.workspace }}/.github/asan.supp:malloc_context_size=20:detect_leaks=1:verify_asan_link_order=0:detect_stack_use_after_return=1:detect_odr_violation=1:new_delete_type_mismatch=0:intercept_tls_get_addr=0
-  LSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/lsan.supp
-  UBSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/ubsan.supp:print_stacktrace=1:silence_unsigned_overflow=1:report_error_type=1
-
 jobs:
   build-test-benchmark:
     name: Build, test, and benchmark (eic_xl)
@@ -57,6 +52,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # detect_leaks=1: also enable leak sanitizer via ASan
+      # verify_asan_link_order=0: allow ASan in shared-library builds (Geant4/OCCT)
+      # detect_stack_use_after_return=1: catch stack-use-after-return bugs
+      # detect_odr_violation=1: catch one-definition-rule violations
+      # new_delete_type_mismatch=0: suppress false positives from ROOT/Geant4 allocators
+      # intercept_tls_get_addr=0: avoid crashes in some CVMFS-hosted libs
+      ASAN_OPTIONS: suppressions=${{ github.workspace }}/.github/asan.supp:malloc_context_size=20:detect_leaks=1:verify_asan_link_order=0:detect_stack_use_after_return=1:detect_odr_violation=1:new_delete_type_mismatch=0:intercept_tls_get_addr=0
+      LSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/lsan.supp
+      # print_stacktrace=1: print stack trace on UBSan error
+      # silence_unsigned_overflow=1: suppress unsigned overflow (defined in C++)
+      # report_error_type=1: include the sanitizer type in the error message
+      UBSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/ubsan.supp:print_stacktrace=1:silence_unsigned_overflow=1:report_error_type=1
 
     steps:
       - name: Checkout repository

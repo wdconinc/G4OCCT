@@ -32,10 +32,13 @@ Every new file must begin with:
 - OpenCASCADE ≥ 7.8 (`find_package(OpenCASCADE 7.8 REQUIRED ...)`)
 
 ### CI
-- Single job `build-test-benchmark`; triggers on `main` only.
-- Prerequisite: `cvmfs-contrib/github-action-cvmfs@v4` before `eic/run-cvmfs-osg-eic-shell@v1`.
+- Two jobs: `build-test-benchmark` (Release + benchmarks) and `sanitizer` (RelWithDebInfo + ASAN + UBSAN).
+- Prerequisite: `cvmfs-contrib/github-action-cvmfs@v5` before `eic/run-cvmfs-osg-eic-shell@v1`.
 - Platform: `eic_xl:nightly`.
-- Always build with `-DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`.
+- `build-test-benchmark`: build with `-DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`, run tests, install.
+- `sanitizer`: build with `-DBUILD_TESTING=ON -DUSE_ASAN=ON -DUSE_UBSAN=ON`, run tests.
+- Sanitizer runtime options (`ASAN_OPTIONS`, `LSAN_OPTIONS`, `UBSAN_OPTIONS`) are scoped to the `sanitizer` job.
+- Suppression files live in `.github/asan.supp`, `.github/lsan.supp`, `.github/ubsan.supp`.
 
 ### Material Bridging
 - No heuristics, no silent fallbacks.
