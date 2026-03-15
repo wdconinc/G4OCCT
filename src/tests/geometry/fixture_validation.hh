@@ -69,7 +69,7 @@ struct FixtureValidationRequest {
   FixtureReference fixture;
   /// Require `shape.step` to exist.
   bool require_step_file{true};
-  /// Require `provenance.yaml` to exist.
+  /// Require `provenance.yaml` to exist; missing file is reported as an error.
   bool require_provenance_file{false};
 };
 
@@ -93,6 +93,8 @@ struct FixtureGeometryValidationOptions {
   bool require_positive_volume{true};
   /// Compare the imported volume against manifest expectations when present.
   bool compare_volume_expectations{true};
+  /// Unit to use when comparing volume expectations (must match policy.volume_unit).
+  std::string volume_unit{"mm3"};
 };
 
 /**

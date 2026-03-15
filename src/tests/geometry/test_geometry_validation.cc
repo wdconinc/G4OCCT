@@ -62,7 +62,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
       FixtureValidationRequest request;
       request.manifest = family_manifest;
       request.fixture = fixture;
-      request.require_provenance_file = false;
+      request.require_provenance_file = true;
 
       const ValidationReport layout_report = ValidateFixtureLayout(request);
       aggregate_report.Append(layout_report);
@@ -72,8 +72,10 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
         continue;
       }
 
+      FixtureGeometryValidationOptions geom_opts;
+      geom_opts.volume_unit = repository_manifest.policy.volume_unit;
       FixtureGeometryObservation observation;
-      aggregate_report.Append(ValidateFixtureGeometry(request, {}, &observation));
+      aggregate_report.Append(ValidateFixtureGeometry(request, geom_opts, &observation));
       if (observation.imported) {
         ++geometry_checked_count;
       }
