@@ -20,7 +20,17 @@ html, body {
   width: 310px; flex-shrink: 0;
   background: #16213e; border-right: 1px solid #0f3460;
   display: flex; flex-direction: column; overflow: hidden;
+  transition: width 0.2s ease;
 }
+#sidebar.hidden { width: 0; border-right: none; }
+#sidebar-toggle {
+  position: absolute; left: 0; top: 8px; z-index: 10;
+  background: #0f3460; color: #e0e0e0;
+  border: 1px solid #334; border-left: none; border-radius: 0 4px 4px 0;
+  padding: 6px 5px; cursor: pointer; font-size: 0.8rem; line-height: 1;
+  user-select: none;
+}
+#sidebar-toggle:focus-visible { outline: 2px solid #4a9eff; outline-offset: 2px; }
 #sidebar-inner { padding: 12px; overflow-y: auto; flex: 1; }
 #sidebar label { font-size: 0.78rem; color: #aaa; display: block; margin-bottom: 4px; }
 #fixture-select {
