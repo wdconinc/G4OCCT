@@ -10,6 +10,12 @@
 # Run-manager thread coordination (benign races on shutdown flags)
 race:G4MTRunManager
 
+# G4TaskRunManager::CreateAndStartWorkers lambda destruction races with
+# G4UImanager::SolveAlias reads on PTL worker threads (Geant4 internal race,
+# not related to G4OCCT code).
+race:G4TaskRunManager::CreateAndStartWorkers
+race:G4UImanager::SolveAlias
+
 # Physics-list and process-table thread-local init
 race:G4PhysicsListHelper
 race:G4ProcessTable
