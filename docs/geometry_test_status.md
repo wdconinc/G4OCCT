@@ -114,15 +114,22 @@ sequence of ruled surface patches.  The resulting BRep differs geometrically
 from the analytic Geant4 definition, so ray-intersection distances and
 inside/outside classifications diverge at the boundary.
 
-**Work required to pass:**
-1. Implement a Geant4-to-OCCT direct construction path for each twisted class
-   (e.g., parameterise the swept profile at discrete twist angles and build a
-   proper B-spline surface through those sections).
-2. Regenerate the STEP fixtures using that construction path so that the STEP
-   boundary exactly matches the Geant4 analytic solid (to within `kCarTolerance`).
-3. Update the fixture `provenance.yaml` files to record the new construction
-   method, remove the xfail annotation in `ExpectedFailureForFixture`, and
-   confirm CI passes.
+**Important context:** G4OCCT's primary goal is to import and navigate
+arbitrary STEP geometry — not to provide a round-trip STEP export for every
+Geant4 type.  The absence of an exact STEP representation for twisted surfaces
+is therefore **not a design gap that must be closed** for the project to be
+useful.  The fixtures exist to validate that the OCCT-imported shapes behave
+consistently, not to demand that twisted Geant4 solids be expressible in STEP.
+
+**Work required to pass (optional):**
+If a use case arises that requires ray-comparison parity for twisted fixtures,
+the path forward would be:
+1. Parameterise the swept profile at discrete twist angles and build a tight
+   B-spline surface approximation through those cross-sections.
+2. Regenerate the STEP fixtures with that construction so the BRep boundary
+   agrees with the Geant4 analytic solid to within `kCarTolerance`.
+3. Update the fixture `provenance.yaml` files, remove the xfail annotation in
+   `ExpectedFailureForFixture`, and confirm CI passes.
 
 ### 3.2 Faceted profile approximations
 
