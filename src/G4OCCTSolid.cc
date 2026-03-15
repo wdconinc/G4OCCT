@@ -163,8 +163,8 @@ G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
 // ── G4OCCTSolid private helpers ───────────────────────────────────────────────
 
 BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {
-  ClassifierCache&      cache      = fClassifierCache.Get();
-  const std::uint64_t   currentGen = fShapeGeneration.load(std::memory_order_acquire);
+  ClassifierCache& cache         = fClassifierCache.Get();
+  const std::uint64_t currentGen = fShapeGeneration.load(std::memory_order_acquire);
   if (cache.generation != currentGen) {
     cache.classifier.emplace();
     cache.classifier->Load(fShape); // O(N_faces) — paid once per thread per shape

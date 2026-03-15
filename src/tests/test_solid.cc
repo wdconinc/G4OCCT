@@ -73,8 +73,7 @@ static void test_cylinder_solid() {
 
 static void test_set_occt_shape_invalidates_cache() {
   // Build a 10×10×10 box centred at the origin.
-  TopoDS_Shape box1 =
-      BRepPrimAPI_MakeBox(gp_Pnt(-5.0, -5.0, -5.0), gp_Pnt(5.0, 5.0, 5.0)).Shape();
+  TopoDS_Shape box1 = BRepPrimAPI_MakeBox(gp_Pnt(-5.0, -5.0, -5.0), gp_Pnt(5.0, 5.0, 5.0)).Shape();
   G4OCCTSolid solid("CacheInvalidateTest", box1);
 
   // Warm the per-thread classifier cache.

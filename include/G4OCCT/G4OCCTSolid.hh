@@ -130,7 +130,7 @@ private:
   /// Initialised to the maximum uint64 value, which can never match generation 0,
   /// so the first call from each thread always builds the classifier.
   struct ClassifierCache {
-    std::uint64_t                              generation{std::numeric_limits<std::uint64_t>::max()};
+    std::uint64_t generation{std::numeric_limits<std::uint64_t>::max()};
     std::optional<BRepClass3d_SolidClassifier> classifier;
   };
 
