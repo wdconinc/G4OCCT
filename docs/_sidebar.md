@@ -5,4 +5,5 @@
 - [Geometry Mapping](geometry_mapping.md)
 - [Material Bridging](material_bridging.md)
 - [Solid Navigation Design](solid_navigation.md)
+- [Performance Considerations](performance.md)
 - [API Reference](https://wdconinc.github.io/G4OCCT/api/index.html)
