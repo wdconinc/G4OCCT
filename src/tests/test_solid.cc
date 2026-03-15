@@ -71,6 +71,37 @@ static void test_cylinder_solid() {
   check(!solid.GetOCCTShape().IsNull(), "replaced cylinder shape is not null");
 }
 
+static void test_set_occt_shape_invalidates_cache() {
+  // Build a 10×10×10 box centred at the origin.
+  TopoDS_Shape box1 = BRepPrimAPI_MakeBox(gp_Pnt(-5.0, -5.0, -5.0), gp_Pnt(5.0, 5.0, 5.0)).Shape();
+  G4OCCTSolid solid("CacheInvalidateTest", box1);
+
+  // Warm the per-thread classifier cache.
+  const G4ThreeVector originPt(0.0, 0.0, 0.0);
+  check(solid.Inside(originPt) == kInside,
+        "cache-invalidate: Inside() kInside for box1 centre before SetOCCTShape");
+
+  // Replace with a different box that does not contain the original test point.
+  TopoDS_Shape box2 =
+      BRepPrimAPI_MakeBox(gp_Pnt(20.0, 20.0, 20.0), gp_Pnt(30.0, 30.0, 30.0)).Shape();
+  solid.SetOCCTShape(box2);
+
+  // After shape replacement the original point must be kOutside.
+  check(solid.Inside(originPt) == kOutside,
+        "cache-invalidate: Inside() kOutside after SetOCCTShape (cache must reload)");
+
+  // A point inside the new box must be kInside.
+  check(solid.Inside(G4ThreeVector(25.0, 25.0, 25.0)) == kInside,
+        "cache-invalidate: Inside() kInside for new box centre after SetOCCTShape");
+
+  // DistanceToIn(p) must also reflect the new shape.
+  // Nearest corner of the new box to origin is (20,20,20): distance = 20*sqrt(3) ~= 34.64
+  const G4double expectedDist = 20.0 * std::sqrt(3.0);
+  const G4double dist         = solid.DistanceToIn(originPt);
+  check(std::abs(dist - expectedDist) < 0.5,
+        "cache-invalidate: DistanceToIn(p) reflects new shape after SetOCCTShape");
+}
+
 static void test_surface_normal_box_face() {
   TopoDS_Shape box =
       BRepPrimAPI_MakeBox(gp_Pnt(-10.0, -10.0, -10.0), gp_Pnt(10.0, 10.0, 10.0)).Shape();
@@ -87,6 +118,7 @@ int main() {
   test_box_solid();
   test_sphere_solid();
   test_cylinder_solid();
+  test_set_occt_shape_invalidates_cache();
   test_surface_normal_box_face();
 
   std::cout << "\nAll test_solid tests passed.\n";

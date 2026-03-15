@@ -160,6 +160,19 @@ bool TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u, const S
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
     : G4VSolid(name), fShape(shape) {}
 
+// ── G4OCCTSolid private helpers ───────────────────────────────────────────────
+
+BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {
+  ClassifierCache& cache         = fClassifierCache.Get();
+  const std::uint64_t currentGen = fShapeGeneration.load(std::memory_order_acquire);
+  if (cache.generation != currentGen) {
+    cache.classifier.emplace();
+    cache.classifier->Load(fShape); // O(N_faces) — paid once per thread per shape
+    cache.generation = currentGen;
+  }
+  return *cache.classifier;
+}
+
 // ── G4VSolid pure-virtual implementations ────────────────────────────────────
 
 EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
@@ -167,7 +180,7 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     return kOutside;
   }
 
-  BRepClass3d_SolidClassifier classifier(fShape);
+  BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
   classifier.Perform(ToPoint(p), IntersectionTolerance());
   return ToG4Inside(classifier.State());
 }
@@ -259,7 +272,7 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
     return kInfinity;
   }
 
-  BRepClass3d_SolidClassifier classifier(fShape);
+  BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
   classifier.Perform(ToPoint(p), IntersectionTolerance());
   if (classifier.State() == TopAbs_IN || classifier.State() == TopAbs_ON) {
     return 0.0;

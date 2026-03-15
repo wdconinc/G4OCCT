@@ -41,3 +41,12 @@ leak:G4AccumulableManager::Instance
 # Fast-simulation manager (thread-local singleton)
 leak:G4GlobalFastSimulationManager::GetGlobalFastSimulationManager
 leak:G4ThreadLocalSingleton
+
+# ── G4OCCT per-thread caches ──────────────────────────────────────────────────
+# G4Cache<T> allocates per-thread T objects that are intentionally never freed
+# (they live for the duration of the process, matching Geant4's threading model).
+# The BRepClass3d_SolidClassifier held by G4OCCTSolid::fClassifierCache, and
+# the OCCT data structures it allocates internally via Standard::Allocate, are
+# all reachable from the G4Cache root and are reported as indirect leaks.
+# Scoped to G4OCCTSolid::GetOrCreateClassifier to avoid masking unrelated leaks.
+leak:G4OCCTSolid::GetOrCreateClassifier
