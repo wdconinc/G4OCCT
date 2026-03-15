@@ -84,9 +84,13 @@ add_test(NAME test_geometry_validation COMMAND test_geometry_validation)
 
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
 # Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified
-# Test Case (CTC) geometry-only STEP files.  Fixtures that have not been fetched
-# (run src/tests/fixtures/geometry/nist-ctc/fetch.sh first) are silently
-# skipped; the test still exits with success in that case.
+# Test Case (CTC) geometry-only STEP files.  One CTest sub-test is registered
+# per fixture directory discovered under fixtures/geometry/nist-ctc/G4OCCTSolid/
+# so that CI reports per-volume progress, individual failures are easier to
+# diagnose, and adding a new fixture directory automatically adds a new test.
+# Fixtures that have not been fetched (run
+# src/tests/fixtures/geometry/nist-ctc/fetch.sh first) are silently skipped; the
+# individual test still exits with success in that case.
 add_executable(
   test_nist_ctc_inside_volume geometry/test_nist_ctc_inside_volume.cc
                               geometry/fixture_manifest.cc)
@@ -96,7 +100,18 @@ target_compile_definitions(
   test_nist_ctc_inside_volume
   PRIVATE G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_nist_ctc_inside_volume PRIVATE G4OCCT)
-add_test(NAME test_nist_ctc_inside_volume COMMAND test_nist_ctc_inside_volume)
+file(
+  GLOB _nist_ctc_fixture_dirs CONFIGURE_DEPENDS
+  LIST_DIRECTORIES true
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/nist-ctc/G4OCCTSolid
+  ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-*-v*
+)
+list(SORT _nist_ctc_fixture_dirs)
+foreach(fixture_id IN LISTS _nist_ctc_fixture_dirs)
+  add_test(NAME "test_nist_ctc_inside_volume/${fixture_id}"
+           COMMAND test_nist_ctc_inside_volume ${fixture_id})
+endforeach()
+unset(_nist_ctc_fixture_dirs)
 
 # ─── Integration test: downstream find_package(G4OCCT) ───────────────────────
 # This test group installs G4OCCT to a temporary prefix and then configures,
