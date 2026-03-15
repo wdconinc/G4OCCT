@@ -61,11 +61,13 @@ function clearClouds() {
   if (nativeCloud) {
     scene.remove(nativeCloud);
     nativeCloud.geometry.dispose();
+    nativeCloud.material.dispose();
     nativeCloud = null;
   }
   if (importedCloud) {
     scene.remove(importedCloud);
     importedCloud.geometry.dispose();
+    importedCloud.material.dispose();
     importedCloud = null;
   }
 }
@@ -91,8 +93,16 @@ function loadFixture(fixture) {
     scene.add(importedCloud);
   }
 
-  // Fit camera to the bounding box of the visible hits
-  const cloudForBounds = nativeCloud || importedCloud;
+  // Fit camera to the bounding box of visible hits.  Prefer a visible cloud so
+  // the camera doesn't move based on a currently-hidden dataset.
+  let cloudForBounds = null;
+  if (showNative && nativeCloud) {
+    cloudForBounds = nativeCloud;
+  } else if (showImported && importedCloud) {
+    cloudForBounds = importedCloud;
+  } else {
+    cloudForBounds = nativeCloud || importedCloud;
+  }
   if (cloudForBounds) {
     const box    = new THREE.Box3().setFromObject(cloudForBounds);
     const center = new THREE.Vector3();
@@ -113,7 +123,8 @@ function loadFixture(fixture) {
     <tr><td>Rays fired</td><td>${fixture.ray_count}</td></tr>
     <tr><td>Native hits</td><td>${nh}</td></tr>
     <tr><td>Imported hits</td><td>${ih}</td></tr>
-    <tr><td>Origin</td><td>${fixture.pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
+    <tr><td>Native origin</td><td>${fixture.native_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
+    <tr><td>Imported origin</td><td>${fixture.imported_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
   `;
   countEl.textContent = `native: ${nh} pts  |  imported: ${ih} pts`;
 }

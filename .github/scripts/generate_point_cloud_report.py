@@ -1,18 +1,19 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2024 G4OCCT Contributors
 
-"""Generate a self-contained three.js point-cloud viewer from per-fixture JSON files.
+"""Generate a three.js point-cloud viewer (requires CDN access) from per-fixture JSON files.
 
 Usage:
     python generate_point_cloud_report.py <point-cloud-dir> <output.html>
 
 Each JSON file in <point-cloud-dir> must contain:
-    fixture_id            – fixture path string
-    geant4_class          – Geant4 solid class name
-    ray_count             – number of rays fired
-    pre_step_origin       – [x, y, z]  (shared launch point)
-    native_post_step_hits – [[x,y,z], ...]
-    imported_post_step_hits – [[x,y,z], ...]
+    fixture_id                  – qualified fixture path (family/id)
+    geant4_class                – Geant4 solid class name
+    ray_count                   – number of rays fired
+    native_pre_step_origin      – [x, y, z]  (native solid launch point)
+    imported_pre_step_origin    – [x, y, z]  (imported solid launch point)
+    native_post_step_hits       – [[x,y,z], ...]
+    imported_post_step_hits     – [[x,y,z], ...]
 """
 
 import json
@@ -32,7 +33,7 @@ def _load_fixture_data(point_cloud_dir: Path) -> list:
         try:
             data = json.loads(json_path.read_text(encoding="utf-8"))
             for key in ("fixture_id", "geant4_class", "ray_count",
-                        "pre_step_origin",
+                        "native_pre_step_origin", "imported_pre_step_origin",
                         "native_post_step_hits", "imported_post_step_hits"):
                 if key not in data:
                     print(f"Warning: {json_path.name}: missing key '{key}', skipping",
@@ -62,7 +63,10 @@ def _render_report(fixtures: list) -> str:
     return template.render(
         css_content=css_content,
         js_content=js_content,
-        fixture_json=json.dumps(fixtures, separators=(",", ":")),
+        # Escape "</" so the HTML parser cannot encounter "</script>" (or any
+        # other closing tag) while reading the embedded <script> element,
+        # regardless of the MIME type attribute.  "<\/" is valid JSON.
+        fixture_json=json.dumps(fixtures, separators=(",", ":")).replace("</", "<\\/"),
         timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         count_str=f"{len(fixtures)} fixture(s)",
     )
