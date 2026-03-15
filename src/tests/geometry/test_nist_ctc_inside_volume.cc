@@ -104,9 +104,9 @@ double MonteCarloVolume(G4OCCTSolid& solid, int n_samples, unsigned int seed) {
   G4ThreeVector pMin, pMax;
   solid.BoundingLimits(pMin, pMax);
 
-  const G4double dx = pMax.x() - pMin.x();
-  const G4double dy = pMax.y() - pMin.y();
-  const G4double dz = pMax.z() - pMin.z();
+  const G4double dx          = pMax.x() - pMin.x();
+  const G4double dy          = pMax.y() - pMin.y();
+  const G4double dz          = pMax.z() - pMin.z();
   const G4double bbox_volume = dx * dy * dz;
 
   std::mt19937 rng(seed);
@@ -201,16 +201,15 @@ int main() {
     }
   }
 
-  std::cout << "\nResults: " << pass_count << " passed, " << fail_count << " failed, "
-            << skip_count << " skipped.\n";
+  std::cout << "\nResults: " << pass_count << " passed, " << fail_count << " failed, " << skip_count
+            << " skipped.\n";
 
   if (fail_count > 0) {
     return EXIT_FAILURE;
   }
   if (skip_count == static_cast<int>(manifest.fixtures.size())) {
-    std::cout
-        << "NOTE: All fixtures were skipped because no STEP files were present.\n"
-        << "      Run src/tests/fixtures/geometry/nist-ctc/fetch.sh to download them.\n";
+    std::cout << "NOTE: All fixtures were skipped because no STEP files were present.\n"
+              << "      Run src/tests/fixtures/geometry/nist-ctc/fetch.sh to download them.\n";
   }
   return EXIT_SUCCESS;
 }

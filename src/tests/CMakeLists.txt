@@ -84,12 +84,12 @@ add_test(NAME test_geometry_validation COMMAND test_geometry_validation)
 
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
 # Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified
-# Test Case (CTC) geometry-only STEP files.  Fixtures that have not been
-# fetched (run src/tests/fixtures/geometry/nist-ctc/fetch.sh first) are
-# silently skipped; the test still exits with success in that case.
+# Test Case (CTC) geometry-only STEP files.  Fixtures that have not been fetched
+# (run src/tests/fixtures/geometry/nist-ctc/fetch.sh first) are silently
+# skipped; the test still exits with success in that case.
 add_executable(
-  test_nist_ctc_inside_volume
-  geometry/test_nist_ctc_inside_volume.cc geometry/fixture_manifest.cc)
+  test_nist_ctc_inside_volume geometry/test_nist_ctc_inside_volume.cc
+                              geometry/fixture_manifest.cc)
 target_include_directories(test_nist_ctc_inside_volume
                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(
