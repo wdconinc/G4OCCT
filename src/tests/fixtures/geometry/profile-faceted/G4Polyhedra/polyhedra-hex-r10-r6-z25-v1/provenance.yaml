@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4polyhedra-polyhedra-hex-r10-r6-z25-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Polyhedra
+  constructor:
+    phiStart_deg: 0.0
+    phiTotal_deg: 360.0
+    numSides: 6
+    zPlane_mm: [-12.5, 12.5]
+    rInner_mm: [0.0, 0.0]
+    rOuter_mm: [10.0, 6.0]
+  draw_commands:
+    - polyline bottom_hex 10 0 -12.5 5 8.660254037844386 -12.5 -5 8.660254037844387 -12.5 -10 0 -12.5 -5 -8.660254037844384 -12.5 5 -8.660254037844386 -12.5 10 0 -12.5
+    - polyline top_hex 6 0 12.5 3 5.196152422706632 12.5 -3 5.196152422706632 12.5 -6 0 12.5 -3 -5.19615242270663 12.5 3 -5.196152422706632 12.5 6 0 12.5
+    - thrusections seed_shape 1 1 bottom_hex top_hex -safe
+validation:
+  expected_volume_mm3: 4243.524478543749
+  analytic_volume_mm3: 4243.52447854375
+notes:
+  - The regular hexagon sections are defined by circumradii 10 mm and 6 mm at z=-12.5 mm and z=+12.5 mm.
+  - The manifest expectation is updated from the imported STEP reference volume after validation.

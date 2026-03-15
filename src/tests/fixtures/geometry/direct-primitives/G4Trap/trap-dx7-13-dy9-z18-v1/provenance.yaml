@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4trap-trap-dx7-13-dy9-z18-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Trap
+  half_z_mm: 18.0
+  theta_deg: 0.0
+  phi_deg: 0.0
+  bottom_half_y_mm: 9.0
+  bottom_half_x_at_minus_y_mm: 7.0
+  bottom_half_x_at_plus_y_mm: 13.0
+  bottom_alpha_deg: 0.0
+  top_half_y_mm: 9.0
+  top_half_x_at_minus_y_mm: 7.0
+  top_half_x_at_plus_y_mm: 13.0
+  top_alpha_deg: 0.0
+  vertices_mm:
+    - [-7.0, -9.0, -18.0]
+    - [7.0, -9.0, -18.0]
+    - [13.0, 9.0, -18.0]
+    - [-13.0, 9.0, -18.0]
+    - [-7.0, -9.0, 18.0]
+    - [7.0, -9.0, 18.0]
+    - [13.0, 9.0, 18.0]
+    - [-13.0, 9.0, 18.0]
+  construction:
+    - polyline bottom_face -7 -9 -18 7 -9 -18 13 9 -18 -13 9 -18 -7 -9 -18
+    - mkplane trap_bottom bottom_face
+    - polyline top_face -7 -9 18 7 -9 18 13 9 18 -13 9 18 -7 -9 18
+    - mkplane trap_top top_face
+    - mkvolume seed_shape trap_bottom trap_top trap_yneg trap_xpos trap_ypos trap_xneg
+validation:
+  expected_volume_mm3: 12960.0

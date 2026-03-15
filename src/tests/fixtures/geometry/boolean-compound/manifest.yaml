@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-manifest/v1
+family: boolean-compound
+summary: Deterministic OCCT Boolean and compound fixtures generated with DRAWEXE.
+# `G4BooleanSolid` is a shared concrete implementation class rather than a
+# standalone geometry vocabulary item. This family treats it as represented by
+# the validated union/subtraction/intersection fixtures below instead of adding
+# an artificial standalone asset.
+coverage_classes:
+  - G4BooleanSolid
+  - G4UnionSolid
+  - G4SubtractionSolid
+  - G4IntersectionSolid
+  - G4MultiUnion
+fixtures:
+  - id: g4unionsolid-box-overlap-x10-v1
+    geant4_class: G4UnionSolid
+    fixture_slug: box-overlap-x10
+    relative_directory: G4UnionSolid/box-overlap-x10-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 12000.0
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4subtractionsolid-box-core-cut-v1
+    geant4_class: G4SubtractionSolid
+    fixture_slug: box-core-cut
+    relative_directory: G4SubtractionSolid/box-core-cut-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 26000.0
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4intersectionsolid-box-overlap-x10-v1
+    geant4_class: G4IntersectionSolid
+    fixture_slug: box-overlap-x10
+    relative_directory: G4IntersectionSolid/box-overlap-x10-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 4000.0
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4multiunion-triple-box-chain-v1
+    geant4_class: G4MultiUnion
+    fixture_slug: triple-box-chain
+    relative_directory: G4MultiUnion/triple-box-chain-v1
+    validation_state: validated
+    expectations:
+      - quantity: volume
+        value: 2200.0
+        absolute_tolerance: 0.001
+        unit: mm3

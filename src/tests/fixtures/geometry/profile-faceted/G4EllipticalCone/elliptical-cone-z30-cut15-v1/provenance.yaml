@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4ellipticalcone-elliptical-cone-z30-cut15-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4EllipticalCone
+  constructor:
+    pxSemiAxis: 0.5333333333333333
+    pySemiAxis: 0.3333333333333333
+    zMax_mm: 30.0
+    pzTopCut_mm: 15.0
+  cross_section_semiaxes_mm:
+    at_z_minus_top_cut: [24.0, 15.0]
+    at_z_zero: [16.0, 10.0]
+    at_z_plus_top_cut: [8.0, 5.0]
+  draw_commands:
+    - pcone base_cone 24 8 30
+    - scalexyz scaled_cone base_cone 1 0.625 1
+    - translate scaled_cone 0 0 -15
+validation:
+  expected_volume_mm3: 16464.18134144224
+  analytic_volume_mm3: 16336.281798666922
+notes:
+  - The DRAWEXE recipe matches the Geant4 elliptical-cone profile exactly by scaling an axial frustum.
+  - The manifest expectation is updated from the imported STEP reference volume after validation.

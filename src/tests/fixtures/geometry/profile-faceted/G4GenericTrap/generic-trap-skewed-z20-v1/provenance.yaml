@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4generictrap-generic-trap-skewed-z20-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4GenericTrap
+  constructor:
+    halfZ_mm: 20.0
+    vertices_mm:
+      - [-12.0, -8.0]
+      - [10.0, -8.0]
+      - [14.0, 9.0]
+      - [-9.0, 7.0]
+      - [-8.0, -6.0]
+      - [13.0, -7.0]
+      - [9.0, 10.0]
+      - [-11.0, 8.0]
+  draw_commands:
+    - polyline bottom_face -12 -8 -20 10 -8 -20 14 9 -20 -9 7 -20 -12 -8 -20
+    - polyline top_face -8 -6 20 13 -7 20 9 10 20 -11 8 20 -8 -6 20
+    - thrusections seed_shape 1 1 bottom_face top_face -safe
+validation:
+  expected_volume_mm3: 13536.66666666667
+notes:
+  - The vertex ordering follows the lower z face first, then the upper z face.
+  - The manifest expectation is updated from the imported STEP reference volume after validation.

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4cuttubs-cut-tubs-r12-z40-tilted-x-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4CutTubs
+  constructor:
+    outer_radius_mm: 12.0
+    inner_radius_mm: 0.0
+    height_mm: 40.0
+    start_phi_deg: 0.0
+    delta_phi_deg: 360.0
+    low_norm: [0.19611613513818404, 0.0, -0.9805806756909202]
+    high_norm: [-0.09950371902099892, 0.0, 0.9950371902099892]
+  draw_commands:
+    - pcylinder raw_tube 12 40
+    - translate raw_tube 0 0 -20
+    - polyline slab_bottom -50 -50 -30 50 -50 -10 50 50 -10 -50 50 -30 -50 -50 -30
+    - polyline slab_top -50 -50 15 50 -50 25 50 50 25 -50 50 15 -50 -50 15
+    - thrusections cut_slab 1 1 slab_bottom slab_top -safe
+    - bcommon seed_shape raw_tube cut_slab
+validation:
+  expected_volume_mm3: 9047.786839
+notes:
+  - The slab cross-sections are intentionally oversized so only the two tilted end planes clip the cylinder.

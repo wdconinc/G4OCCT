@@ -1,0 +1,158 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-manifest/v1
+family: profile-faceted
+summary: Profile and faceted STEP fixtures generated with deterministic DRAWEXE scripts.
+coverage_classes:
+  - G4Ellipsoid
+  - G4EllipticalCone
+  - G4EllipticalTube
+  - G4GenericPolycone
+  - G4GenericTrap
+  - G4Hype
+  - G4Paraboloid
+  - G4Polycone
+  - G4Polyhedra
+  - G4Tet
+  - G4UEllipsoid
+  - G4UEllipticalCone
+  - G4UEllipticalTube
+  - G4UGenericPolycone
+  - G4UGenericTrap
+  - G4UHype
+  - G4UParaboloid
+  - G4UPolycone
+  - G4UPolyhedra
+  - G4UTet
+fixtures:
+  - id: g4ellipsoid-ellipsoid-15x10x20-v1
+    family: profile-faceted
+    geant4_class: G4Ellipsoid
+    fixture_slug: ellipsoid-15x10x20
+    relative_directory: G4Ellipsoid/ellipsoid-15x10x20-v1
+    validation_state: validated
+    reused_by:
+      - G4UEllipsoid
+    expectations:
+      - quantity: volume
+        value: 12560.874755296664
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4ellipticalcone-elliptical-cone-z30-cut15-v1
+    family: profile-faceted
+    geant4_class: G4EllipticalCone
+    fixture_slug: elliptical-cone-z30-cut15
+    relative_directory: G4EllipticalCone/elliptical-cone-z30-cut15-v1
+    validation_state: validated
+    reused_by:
+      - G4UEllipticalCone
+    expectations:
+      - quantity: volume
+        value: 16464.18134144224
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4ellipticaltube-elliptical-tube-12x7x25-v1
+    family: profile-faceted
+    geant4_class: G4EllipticalTube
+    fixture_slug: elliptical-tube-12x7x25
+    relative_directory: G4EllipticalTube/elliptical-tube-12x7x25-v1
+    validation_state: validated
+    reused_by:
+      - G4UEllipticalTube
+    expectations:
+      - quantity: volume
+        value: 13308.366562628955
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4genericpolycone-generic-polycone-nonmonotonic-z-v1
+    family: profile-faceted
+    geant4_class: G4GenericPolycone
+    fixture_slug: generic-polycone-nonmonotonic-z
+    relative_directory: G4GenericPolycone/generic-polycone-nonmonotonic-z-v1
+    validation_state: validated
+    reused_by:
+      - G4UGenericPolycone
+    expectations:
+      - quantity: volume
+        value: 11901.400169
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4generictrap-generic-trap-skewed-z20-v1
+    family: profile-faceted
+    geant4_class: G4GenericTrap
+    fixture_slug: generic-trap-skewed-z20
+    relative_directory: G4GenericTrap/generic-trap-skewed-z20-v1
+    validation_state: validated
+    reused_by:
+      - G4UGenericTrap
+    expectations:
+      - quantity: volume
+        value: 13536.66666666667
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4hype-hype-r8-stereo20-z25-v1
+    family: profile-faceted
+    geant4_class: G4Hype
+    fixture_slug: hype-r8-stereo20-z25
+    relative_directory: G4Hype/hype-r8-stereo20-z25-v1
+    validation_state: validated
+    reused_by:
+      - G4UHype
+    expectations:
+      - quantity: volume
+        value: 14288.71990626374
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4paraboloid-paraboloid-r6-r18-z20-v1
+    family: profile-faceted
+    geant4_class: G4Paraboloid
+    fixture_slug: paraboloid-r6-r18-z20
+    relative_directory: G4Paraboloid/paraboloid-r6-r18-z20-v1
+    validation_state: validated
+    reused_by:
+      - G4UParaboloid
+    expectations:
+      - quantity: volume
+        value: 22310.999465129025
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4polycone-polycone-z-22p5-2p5-22p5-v1
+    family: profile-faceted
+    geant4_class: G4Polycone
+    fixture_slug: polycone-z-22p5-2p5-22p5
+    relative_directory: G4Polycone/polycone-z-22p5-2p5-22p5-v1
+    validation_state: validated
+    reused_by:
+      - G4UPolycone
+    expectations:
+      - quantity: volume
+        value: 10211.562578834109
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4polyhedra-polyhedra-hex-r10-r6-z25-v1
+    family: profile-faceted
+    geant4_class: G4Polyhedra
+    fixture_slug: polyhedra-hex-r10-r6-z25
+    relative_directory: G4Polyhedra/polyhedra-hex-r10-r6-z25-v1
+    validation_state: validated
+    reused_by:
+      - G4UPolyhedra
+    expectations:
+      - quantity: volume
+        value: 4243.524478543749
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4tet-tet-right-20x30x40-v1
+    family: profile-faceted
+    geant4_class: G4Tet
+    fixture_slug: tet-right-20x30x40
+    relative_directory: G4Tet/tet-right-20x30x40-v1
+    validation_state: validated
+    reused_by:
+      - G4UTet
+    expectations:
+      - quantity: volume
+        value: 4000.0
+        absolute_tolerance: 0.000001
+        unit: mm3

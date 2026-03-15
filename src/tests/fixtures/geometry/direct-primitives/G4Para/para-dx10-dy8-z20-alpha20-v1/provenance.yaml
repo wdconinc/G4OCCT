@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4para-para-dx10-dy8-z20-alpha20-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Para
+  half_x_mm: 10.0
+  half_y_mm: 8.0
+  half_z_mm: 20.0
+  alpha_deg: 20.0
+  theta_deg: 0.0
+  phi_deg: 0.0
+  vertices_mm:
+    - [-12.911761874129513, -8.0, -20.0]
+    - [7.088238125870487, -8.0, -20.0]
+    - [12.911761874129513, 8.0, -20.0]
+    - [-7.088238125870487, 8.0, -20.0]
+    - [-12.911761874129513, -8.0, 20.0]
+    - [7.088238125870487, -8.0, 20.0]
+    - [12.911761874129513, 8.0, 20.0]
+    - [-7.088238125870487, 8.0, 20.0]
+  construction:
+    - polyline bottom_face -12.911761874129513 -8 -20 7.088238125870487 -8 -20 12.911761874129513 8 -20 -7.088238125870487 8 -20 -12.911761874129513 -8 -20
+    - mkplane para_bottom bottom_face
+    - polyline top_face -12.911761874129513 -8 20 7.088238125870487 -8 20 12.911761874129513 8 20 -7.088238125870487 8 20 -12.911761874129513 -8 20
+    - mkplane para_top top_face
+    - mkvolume seed_shape para_bottom para_top para_yneg para_xpos para_ypos para_xneg
+validation:
+  expected_volume_mm3: 12800.0

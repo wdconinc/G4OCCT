@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4twistedbox-box-dx10-dy8-z20-phi30-v1
+generator:
+  tool: generate_twisted_fixtures
+  source: ../../tools/generate_twisted_fixtures.cc
+shape:
+  geant4_class: G4TwistedBox
+  constructor:
+    dx_mm: 10.0
+    dy_mm: 8.0
+    dz_mm: 20.0
+    phi_twist_deg: 30.0
+validation:
+  expected_volume_mm3: 12228.4

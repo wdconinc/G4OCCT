@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4scaledsolid-scaled-sphere-nonuniform-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4ScaledSolid
+  draw_commands:
+    - psphere base_sphere 10
+    - scalexyz scaled_shape base_sphere 1.5 2.0 0.5
+  base_radius_mm: 10.0
+  scale_factors: [1.5, 2.0, 0.5]
+  resulting_semiaxes_mm: [15.0, 20.0, 5.0]
+validation:
+  expected_volume_mm3: 6280.437377688254
+  analytic_volume_mm3: 6283.185307179586
+notes:
+  - The checked STEP round-trip imports at 6280.437377688254 mm3 with OCCT 7.9.1, so the manifest validates against the imported reference volume.

@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4cons-cons-r8-r3-z24-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Cons
+  draw_command: pcone seed_cons 8 3 24
+  bottom_outer_radius_mm: 8.0
+  top_outer_radius_mm: 3.0
+  bottom_inner_radius_mm: 0.0
+  top_inner_radius_mm: 0.0
+  height_mm: 24.0
+  delta_phi_deg: 360.0
+validation:
+  expected_volume_mm3: 2437.8758991856794
