@@ -4,21 +4,21 @@
 // Fixture data is supplied by the HTML page as an inline JSON script element so
 // that this file remains a static asset with no runtime replacements.
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 
 const ALL_FIXTURES = JSON.parse(document.getElementById('fixture-data').textContent);
 
 // ── UI elements ──────────────────────────────────────────────────────────────
-const selectEl   = document.getElementById('fixture-select');
-const btnNative  = document.getElementById('btn-native');
-const btnImp     = document.getElementById('btn-imported');
-const statsEl    = document.getElementById('stats-body');
-const countEl    = document.getElementById('count-overlay');
-const emptyMsg   = document.getElementById('empty-msg');
+const selectEl  = document.getElementById('fixture-select');
+const btnNative = document.getElementById('btn-native');
+const btnImp    = document.getElementById('btn-imported');
+const statsEl   = document.getElementById('stats-body');
+const countEl   = document.getElementById('count-overlay');
+const emptyMsg  = document.getElementById('empty-msg');
 
 // ── Three.js setup ────────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
-const renderer  = new THREE.WebGLRenderer({ antialias: true });
+const renderer  = new THREE.WebGLRenderer({antialias : true});
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x1a1a2e);
 container.appendChild(renderer.domElement);
@@ -27,9 +27,9 @@ const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, 1, 0.001, 1e6);
 camera.position.set(0, 0, 200);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+const controls              = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping      = true;
+controls.dampingFactor      = 0.08;
 controls.screenSpacePanning = true;
 
 // Axes helper — always visible to provide orientation reference
@@ -42,7 +42,9 @@ let showNative    = true;
 let showImported  = true;
 
 function makeCloud(points, color) {
-  if (points.length === 0) { return null; }
+  if (points.length === 0) {
+    return null;
+  }
   const positions = new Float32Array(points.length * 3);
   for (let i = 0; i < points.length; i++) {
     positions[i * 3]     = points[i][0];
@@ -51,30 +53,43 @@ function makeCloud(points, color) {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.PointsMaterial({ color, size: 1.5, sizeAttenuation: false });
+  const mat = new THREE.PointsMaterial({color, size : 1.5, sizeAttenuation : false});
   return new THREE.Points(geo, mat);
 }
 
 function clearClouds() {
-  if (nativeCloud)   { scene.remove(nativeCloud);   nativeCloud.geometry.dispose();   nativeCloud = null; }
-  if (importedCloud) { scene.remove(importedCloud); importedCloud.geometry.dispose(); importedCloud = null; }
+  if (nativeCloud) {
+    scene.remove(nativeCloud);
+    nativeCloud.geometry.dispose();
+    nativeCloud = null;
+  }
+  if (importedCloud) {
+    scene.remove(importedCloud);
+    importedCloud.geometry.dispose();
+    importedCloud = null;
+  }
 }
 
 function escHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function loadFixture(fixture) {
   clearClouds();
-  if (!fixture) { return; }
+  if (!fixture) {
+    return;
+  }
 
-  nativeCloud   = makeCloud(fixture.native_post_step_hits,   0x4a90d9);
+  nativeCloud   = makeCloud(fixture.native_post_step_hits, 0x4a90d9);
   importedCloud = makeCloud(fixture.imported_post_step_hits, 0xe87040);
-  if (nativeCloud)   { nativeCloud.visible   = showNative;   scene.add(nativeCloud); }
-  if (importedCloud) { importedCloud.visible = showImported; scene.add(importedCloud); }
+  if (nativeCloud) {
+    nativeCloud.visible = showNative;
+    scene.add(nativeCloud);
+  }
+  if (importedCloud) {
+    importedCloud.visible = showImported;
+    scene.add(importedCloud);
+  }
 
   // Fit camera to the bounding box of the visible hits
   const cloudForBounds = nativeCloud || importedCloud;
@@ -85,7 +100,7 @@ function loadFixture(fixture) {
     const size   = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 1e-3);
     camera.position.copy(center).addScaledVector(new THREE.Vector3(1, 0.8, 1).normalize(),
-                                                  maxDim * 2.0);
+                                                 maxDim * 2.0);
     controls.target.copy(center);
     controls.update();
   }
@@ -112,15 +127,17 @@ function populateSelect() {
   const families = {};
   for (const f of ALL_FIXTURES) {
     const family = f.fixture_id.split('/')[0] || 'other';
-    if (!families[family]) { families[family] = []; }
+    if (!families[family]) {
+      families[family] = [];
+    }
     families[family].push(f);
   }
   for (const [family, fixtures] of Object.entries(families)) {
     const group = document.createElement('optgroup');
     group.label = family;
     for (const f of fixtures) {
-      const opt = document.createElement('option');
-      opt.value = f.fixture_id;
+      const opt       = document.createElement('option');
+      opt.value       = f.fixture_id;
       opt.textContent = f.fixture_id.split('/').slice(1).join('/') + ' (' + f.geant4_class + ')';
       group.appendChild(opt);
     }
@@ -129,7 +146,9 @@ function populateSelect() {
 }
 
 populateSelect();
-if (ALL_FIXTURES.length > 0) { loadFixture(ALL_FIXTURES[0]); }
+if (ALL_FIXTURES.length > 0) {
+  loadFixture(ALL_FIXTURES[0]);
+}
 
 selectEl.addEventListener('change', () => {
   const f = ALL_FIXTURES.find(x => x.fixture_id === selectEl.value);
@@ -140,18 +159,22 @@ selectEl.addEventListener('change', () => {
 btnNative.addEventListener('click', () => {
   showNative = !showNative;
   btnNative.classList.toggle('off', !showNative);
-  if (nativeCloud) { nativeCloud.visible = showNative; }
+  if (nativeCloud) {
+    nativeCloud.visible = showNative;
+  }
 });
 btnImp.addEventListener('click', () => {
   showImported = !showImported;
   btnImp.classList.toggle('off', !showImported);
-  if (importedCloud) { importedCloud.visible = showImported; }
+  if (importedCloud) {
+    importedCloud.visible = showImported;
+  }
 });
 
 // ── Resize handler ────────────────────────────────────────────────────────────
 function onResize() {
-  const w = container.clientWidth;
-  const h = container.clientHeight;
+  const w       = container.clientWidth;
+  const h       = container.clientHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
