@@ -115,7 +115,7 @@ ValidationReport ValidateRepositoryLayout(const FixtureRepositoryManifest& manif
       report.AddError(
           "repository.fixture_root_mismatch",
           "Repository manifest fixture_root '" + manifest.fixture_root.string() +
-              "' does not match the manifest's on-disk location",
+              "' does not match the manifest's on-disk location '" + on_disk_root.string() + "'",
           manifest.source_path);
     }
   }
@@ -405,9 +405,20 @@ ValidationReport ValidateFixtureGeometry(
       }
       if (expectation.unit != options.volume_unit) {
         report.AddWarning(
-            "fixture.volume_unit_unsupported",
+            "fixture.volume_unit_mismatch",
             "Volume expectation unit does not match policy unit '" + options.volume_unit +
                 "': " + expectation.unit,
+            step_path);
+        continue;
+      }
+      // OCCT BRepGProp::VolumeProperties always returns mm^3.  If the policy
+      // unit is not mm3 the comparison would be meaningless, so skip it and
+      // emit a clear warning rather than silently comparing in the wrong unit.
+      if (options.volume_unit != "mm3") {
+        report.AddWarning(
+            "fixture.volume_unit_not_mm3",
+            "Volume comparison skipped: OCCT reports volumes in mm3 but policy unit is '" +
+                options.volume_unit + "'",
             step_path);
         continue;
       }
