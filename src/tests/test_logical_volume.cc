@@ -46,7 +46,7 @@ static void test_occt_logical_volume_with_occt_solid() {
 }
 
 static void test_occt_logical_volume_default_shape() {
-  G4Box* g4box = new G4Box("G4Box", 5.0, 5.0, 5.0);
+  G4Box* g4box    = new G4Box("G4Box", 5.0, 5.0, 5.0);
   G4Material* mat = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
 
   // No OCCT shape provided – defaults to null TopoDS_Shape
@@ -57,7 +57,7 @@ static void test_occt_logical_volume_default_shape() {
 }
 
 static void test_occt_logical_volume_set_shape() {
-  G4Box* g4box = new G4Box("G4Box2", 5.0, 5.0, 5.0);
+  G4Box* g4box    = new G4Box("G4Box2", 5.0, 5.0, 5.0);
   G4Material* mat = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
   G4OCCTLogicalVolume lv(g4box, mat, "SetShapeLV");
 

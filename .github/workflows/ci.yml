@@ -96,4 +96,3 @@ jobs:
 
             # ── Test ───────────────────────────────────────────────────────
             ctest --test-dir build --output-on-failure -j$(nproc)
-

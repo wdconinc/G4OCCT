@@ -33,7 +33,7 @@ struct ValidationMessage {
 
 /** Reusable validation result accumulator for geometry fixture helpers. */
 class ValidationReport {
- public:
+public:
   /** Record an informational message. */
   void AddInfo(std::string code, std::string text, std::filesystem::path path = {});
 
@@ -52,10 +52,8 @@ class ValidationReport {
   /** @return Immutable list of collected messages. */
   const std::vector<ValidationMessage>& Messages() const;
 
- private:
-  void AddMessage(ValidationSeverity severity,
-                  std::string code,
-                  std::string text,
+private:
+  void AddMessage(ValidationSeverity severity, std::string code, std::string text,
                   std::filesystem::path path);
 
   std::vector<ValidationMessage> messages_;
@@ -137,11 +135,10 @@ ValidationReport ValidateFixtureLayout(const FixtureValidationRequest& request);
  * @param observation Optional destination for computed geometry facts.
  * @return Validation report covering STEP import, topology validity, and volume.
  */
-ValidationReport ValidateFixtureGeometry(
-    const FixtureValidationRequest& request,
-    const FixtureGeometryValidationOptions& options = {},
-    FixtureGeometryObservation* observation = nullptr);
+ValidationReport ValidateFixtureGeometry(const FixtureValidationRequest& request,
+                                         const FixtureGeometryValidationOptions& options = {},
+                                         FixtureGeometryObservation* observation         = nullptr);
 
-}  // namespace g4occt::tests::geometry
+} // namespace g4occt::tests::geometry
 
 #endif

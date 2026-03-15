@@ -35,12 +35,12 @@
  * @brief Initializes all user action classes for the B1 example.
  */
 class ActionInitialization : public G4VUserActionInitialization {
- public:
-  ActionInitialization() = default;
+public:
+  ActionInitialization()           = default;
   ~ActionInitialization() override = default;
 
   void BuildForMaster() const override;
   void Build() const override;
 };
 
-#endif  // B1_ActionInitialization_hh
+#endif // B1_ActionInitialization_hh

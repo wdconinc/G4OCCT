@@ -50,8 +50,7 @@ void SteppingAction::UserSteppingAction(const G4Step* step) {
   }
 
   // Collect energy deposited only inside shape2.
-  G4VPhysicalVolume* pv =
-      step->GetPreStepPoint()->GetTouchableHandle()->GetVolume();
+  G4VPhysicalVolume* pv = step->GetPreStepPoint()->GetTouchableHandle()->GetVolume();
   if (pv == nullptr) {
     return;
   }

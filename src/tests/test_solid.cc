@@ -56,8 +56,7 @@ static void test_sphere_solid() {
   G4OCCTSolid solid("TestSphere", sphere);
 
   check(!solid.GetOCCTShape().IsNull(), "sphere shape is not null");
-  check(solid.GetEntityType() == "G4OCCTSolid",
-        "sphere entity type is G4OCCTSolid");
+  check(solid.GetEntityType() == "G4OCCTSolid", "sphere entity type is G4OCCTSolid");
 }
 
 static void test_cylinder_solid() {
@@ -69,8 +68,7 @@ static void test_cylinder_solid() {
   // Replace shape via setter
   TopoDS_Shape cyl2 = BRepPrimAPI_MakeCylinder(5.0, 10.0).Shape();
   solid.SetOCCTShape(cyl2);
-  check(!solid.GetOCCTShape().IsNull(),
-        "replaced cylinder shape is not null");
+  check(!solid.GetOCCTShape().IsNull(), "replaced cylinder shape is not null");
 }
 
 static void test_surface_normal_box_face() {

@@ -25,10 +25,9 @@ void TestRotatedAndTranslatedExtent() {
   rotation.rotateZ(90.0 * deg);
   const G4AffineTransform transform(rotation, G4ThreeVector(5.0 * mm, -7.0 * mm, 11.0 * mm));
 
-  G4double min = 0.0;
-  G4double max = 0.0;
-  const G4bool intersects =
-      box.solid.CalculateExtent(kXAxis, G4VoxelLimits(), transform, min, max);
+  G4double min            = 0.0;
+  G4double max            = 0.0;
+  const G4bool intersects = box.solid.CalculateExtent(kXAxis, G4VoxelLimits(), transform, min, max);
 
   ExpectTrue("rotated box extent intersects world limits", intersects);
   ExpectNear("rotated box x-min follows transformed y half-length", min, -15.0 * mm,
@@ -65,11 +64,10 @@ void TestExtentRejectsDisjointVoxel() {
   const G4bool intersects =
       box.solid.CalculateExtent(kXAxis, voxelLimits, G4AffineTransform(), min, max);
 
-  ExpectTrue("box extent reports no intersection for disjoint orthogonal voxel",
-             !intersects);
+  ExpectTrue("box extent reports no intersection for disjoint orthogonal voxel", !intersects);
 }
 
-}  // namespace
+} // namespace
 
 int main() {
   TestRotatedAndTranslatedExtent();

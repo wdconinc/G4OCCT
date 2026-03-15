@@ -174,4 +174,3 @@ materials fragment.
    G4OCCT must abort with a clear diagnostic listing the unmapped name(s)
    and the STEP file path from which they were read.  Silent fallbacks are
    not permitted.
-
