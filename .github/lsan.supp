@@ -1,3 +1,43 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2024 G4OCCT Contributors
 # LeakSanitizer suppression file for G4OCCT
+
+# ── Geant4 thread-local singletons ───────────────────────────────────────────
+# Geant4 uses thread-local singletons throughout its run-management, process,
+# and physics infrastructure.  These objects are intentionally not deleted at
+# process exit, so LeakSanitizer reports them as leaks.  All suppressions below
+# are rooted in Geant4 shared-library frames, not in G4OCCT code.
+
+# Run manager allocates a thread-worker array that is never freed
+leak:G4MTRunManager::G4MTRunManager
+
+# Per-thread physics-catalog storage (G4VPCData)
+leak:G4VPCData::initialize
+
+# Physics-list helper and transportation process
+leak:G4PhysicsListHelper::AddTransportation
+leak:G4PhysicsListHelper::GetPhysicsListHelper
+leak:G4Transportation::G4Transportation
+leak:G4TransportationLogger::G4TransportationLogger
+
+# Physics-table helpers
+leak:G4PhysicsTableHelper::PreparePhysicsTable
+leak:G4PhysicsTable::resize
+
+# Hadronic / cross-section registries (thread-local singletons)
+leak:G4HadronicInteractionRegistry::Instance
+leak:G4HadronicProcessStore::Instance
+leak:G4CrossSectionDataSetRegistry::Instance
+
+# EM / loss-table manager (thread-local singleton)
+leak:G4LossTableManager::Instance
+
+# Process table (thread-local singleton)
+leak:G4ProcessTable::GetProcessTable
+
+# Accumulable manager (thread-local singleton)
+leak:G4AccumulableManager::Instance
+
+# Fast-simulation manager (thread-local singleton)
+leak:G4GlobalFastSimulationManager::GetGlobalFastSimulationManager
+leak:G4ThreadLocalSingleton
