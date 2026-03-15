@@ -84,6 +84,7 @@ jobs:
             cmake -S . -B build \
               -DCMAKE_BUILD_TYPE=RelWithDebInfo \
               -DBUILD_TESTING=ON \
+              -DBUILD_EXAMPLES=ON \
               -DUSE_ASAN=ON \
               -DUSE_UBSAN=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install"
