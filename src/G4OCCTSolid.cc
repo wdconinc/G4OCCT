@@ -43,7 +43,6 @@
 
 namespace {
 
-constexpr Standard_Real kMinNormalMagnitudeSquared = 1.0e-24;
 constexpr G4double kFallbackExtentMin = -1.0;
 constexpr G4double kFallbackExtentMax = 1.0;
 
@@ -185,12 +184,23 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
     return FallbackNormal();
   }
 
-  const Handle(Geom_Surface) surface = BRep_Tool::Surface(closestFace);
+  TopLoc_Location loc;
+  const Handle(Geom_Surface) surface = BRep_Tool::Surface(closestFace, loc);
   if (surface.IsNull()) {
     return FallbackNormal();
   }
 
-  GeomAPI_ProjectPointOnSurf projection(ToPoint(p), surface);
+  // Transform the query point into the surface's local frame so that the
+  // projection and the subsequent adaptor evaluation share the same
+  // parametric domain (BRepAdaptor_Surface applies the location when
+  // evaluating derivatives, so the (u,v) parameters must be obtained from
+  // the unlocated surface with the point expressed in local coordinates).
+  gp_Pnt pLocal = ToPoint(p);
+  if (!loc.IsIdentity()) {
+    pLocal.Transform(loc.Transformation().Inverted());
+  }
+
+  GeomAPI_ProjectPointOnSurf projection(pLocal, surface);
   if (projection.NbPoints() == 0) {
     return FallbackNormal();
   }
@@ -199,23 +209,12 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   Standard_Real v = 0.0;
   projection.LowerDistanceParameters(u, v);
 
-  BRepAdaptor_Surface adaptor(closestFace);
-  gp_Pnt projectedPoint;
-  gp_Vec derivativeU;
-  gp_Vec derivativeV;
-  adaptor.D1(u, v, projectedPoint, derivativeU, derivativeV);
-
-  gp_Vec normal = derivativeU.Crossed(derivativeV);
-  if (normal.SquareMagnitude() < kMinNormalMagnitudeSquared) {
+  G4ThreeVector normal;
+  if (!TryGetOutwardNormal(closestFace, u, v, &normal)) {
     return FallbackNormal();
   }
 
-  normal.Normalize();
-  if (closestFace.Orientation() == TopAbs_REVERSED) {
-    normal.Reverse();
-  }
-
-  return G4ThreeVector(normal.X(), normal.Y(), normal.Z());
+  return normal;
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p,
@@ -372,8 +371,12 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
     return nullptr;
   }
 
-  constexpr Standard_Real kLinearDeflection = 0.1;
-  BRepMesh_IncrementalMesh mesher(fShape, kLinearDeflection);
+  // Use a relative deflection (1 % of each face's bounding-box size) so that
+  // the mesh density scales with the shape rather than being a fixed world-
+  // space length that is inappropriate for both very small and very large
+  // shapes.
+  constexpr Standard_Real kRelativeDeflection = 0.01;
+  BRepMesh_IncrementalMesh mesher(fShape, kRelativeDeflection, /*isRelative=*/Standard_True);
   (void)mesher;
 
   G4TessellatedSolid tessellatedSolid(GetName() + "_polyhedron");
