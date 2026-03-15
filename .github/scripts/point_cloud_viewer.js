@@ -90,6 +90,17 @@ function loadFixture(fixture) {
   }
   if (importedCloud) {
     importedCloud.visible = showImported;
+    // Displace the imported cloud by a small fraction of the bounding-box size
+    // so that both point clouds remain visible when they are in perfect agreement
+    // (otherwise identical points would completely overlap and only one colour
+    // would be seen).
+    if (nativeCloud) {
+      const box    = new THREE.Box3().setFromObject(nativeCloud);
+      const size   = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z, 1e-3);
+      const offset = maxDim * 0.01;
+      importedCloud.position.set(offset, offset, offset);
+    }
     scene.add(importedCloud);
   }
 
