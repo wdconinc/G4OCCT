@@ -123,8 +123,10 @@ function loadFixture(fixture) {
     <tr><td>Rays fired</td><td>${fixture.ray_count}</td></tr>
     <tr><td>Native hits</td><td>${nh}</td></tr>
     <tr><td>Imported hits</td><td>${ih}</td></tr>
-    <tr><td>Native origin</td><td>${fixture.native_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
-    <tr><td>Imported origin</td><td>${fixture.imported_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
+    <tr><td>Native origin</td><td>${
+      fixture.native_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
+    <tr><td>Imported origin</td><td>${
+      fixture.imported_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
   `;
   countEl.textContent = `native: ${nh} pts  |  imported: ${ih} pts`;
 }
