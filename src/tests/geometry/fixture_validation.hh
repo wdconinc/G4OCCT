@@ -123,7 +123,8 @@ std::string ToString(ValidationSeverity severity);
  * @param reason Human-readable explanation attached to downgraded messages.
  * @return A copy with allowlisted error severities demoted to warnings and `xfail.` code prefixes.
  */
-ValidationReport ReclassifyExpectedFailures(const ValidationReport& report, const std::string& reason);
+ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
+                                            const std::string& reason);
 
 /**
  * Return the known expected-failure policy for a fixture.

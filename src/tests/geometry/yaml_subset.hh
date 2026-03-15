@@ -13,7 +13,7 @@ namespace g4occt::tests::geometry {
 
 /** Minimal YAML node used by the fixture provenance parser. */
 class YamlNode {
- public:
+public:
   enum class Type {
     kScalar,
     kSequence,
@@ -21,7 +21,7 @@ class YamlNode {
   };
 
   using SequenceType = std::vector<YamlNode>;
-  using MappingType = std::map<std::string, YamlNode>;
+  using MappingType  = std::map<std::string, YamlNode>;
 
   YamlNode();
 
@@ -38,7 +38,7 @@ class YamlNode {
   const SequenceType& AsSequence() const;
   const MappingType& AsMapping() const;
 
- private:
+private:
   Type type_;
   std::string scalar_;
   SequenceType sequence_;
@@ -48,6 +48,6 @@ class YamlNode {
 /** Parse the repository's narrow YAML subset into a typed node tree. */
 YamlNode ParseYamlSubsetFile(const std::filesystem::path& path);
 
-}  // namespace g4occt::tests::geometry
+} // namespace g4occt::tests::geometry
 
 #endif
