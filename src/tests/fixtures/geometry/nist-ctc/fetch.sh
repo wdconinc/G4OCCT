@@ -8,19 +8,18 @@
 # Usage:
 #   bash fetch.sh
 #
-# The script downloads NIST-PMI-STEP-Files.zip from the NIST website, extracts
-# the 11 AP203 geometry-only STEP files, and copies them (sorted by filename)
-# to the G4OCCTSolid/nist-ctc-NN-v1/shape.step paths expected by the test
-# manifest.
+# The script downloads NIST-PMI-STEP-Files.zip from the usnistgov/SFA GitHub
+# repository, extracts the 11 AP203 geometry-only STEP files, and copies them
+# (sorted by filename) to the G4OCCTSolid/nist-ctc-NN-v1/shape.step paths
+# expected by the test manifest.
 #
 # Reference:
-#   https://www.nist.gov/ctl/smart-connected-systems-division/
-#   smart-connected-manufacturing-systems-group/mbe-pmi-0
+#   https://github.com/usnistgov/SFA/tree/master/Release
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ZIP_URL="https://www.nist.gov/system/files/documents/el/msid/syseng/NIST-PMI-STEP-Files.zip"
+ZIP_URL="https://raw.githubusercontent.com/usnistgov/SFA/master/Release/NIST-PMI-STEP-Files.zip"
 TMP_DIR="$(mktemp -d)"
 ZIP_FILE="${TMP_DIR}/NIST-PMI-STEP-Files.zip"
 EXTRACT_DIR="${TMP_DIR}/extracted"

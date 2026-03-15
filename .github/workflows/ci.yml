@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v1-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
 
       - name: Download NIST CTC STEP fixtures
         if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
@@ -134,7 +134,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v1-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
 
       - name: Download NIST CTC STEP fixtures
         if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
