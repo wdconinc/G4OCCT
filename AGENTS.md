@@ -99,13 +99,17 @@ Do not lower these version floors without an explicit project decision.
 
 - **Workflows** trigger on `push` and `pull_request` against `main` only.
   Do not add `master` or wildcard branch patterns.
-- **CI job (`ci.yml`):** A single job `build-test-benchmark` that:
-  1. Checks out the repository.
-  2. Installs CVMFS via `cvmfs-contrib/github-action-cvmfs@v4` (required
-     prerequisite for the eic-shell action).
-  3. Runs the build, tests, and install inside
-     `eic/run-cvmfs-osg-eic-shell@v1` with `platform-release: "eic_xl:nightly"`.
-  4. Configures with `-DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`.
+- **CI job (`ci.yml`):** Two jobs:
+  1. `build-test-benchmark` — builds with `-DCMAKE_BUILD_TYPE=Release
+     -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`, runs tests, and installs.
+  2. `sanitizer` — builds with `-DCMAKE_BUILD_TYPE=RelWithDebInfo
+     -DBUILD_TESTING=ON -DUSE_ASAN=ON -DUSE_UBSAN=ON` and runs tests.
+  Both jobs check out the repository, install CVMFS, and run inside
+  `eic/run-cvmfs-osg-eic-shell@v1` with `platform-release: "eic_xl:nightly"`.
+- The sanitizer job sets `ASAN_OPTIONS`, `LSAN_OPTIONS`, and `UBSAN_OPTIONS`
+  at the workflow level, matching the EICrecon project conventions.
+- Suppression files live in `.github/asan.supp`, `.github/lsan.supp`, and
+  `.github/ubsan.supp`.
 - **Do not split** tests and benchmarks into separate jobs.
 - **Docs workflow (`docs.yml`):** Builds Doxygen API docs and deploys the
   `docs/` directory (including generated `docs/api/`) to GitHub Pages.
