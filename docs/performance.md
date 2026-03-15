@@ -55,14 +55,14 @@ and is wasted when the classifier is discarded at the end of the call.
 ```cpp
 IntCurvesFace_ShapeIntersector intersector;
 intersector.Load(fShape, tolerance);   // ← rebuilds internal index every call
-intersector.Perform(ray, …);
+intersector.Perform(ray, /* pmin */, /* pmax */);
 ```
 
 `Load` builds an internal face-interference data structure over all faces
 of the shape.  For a shape with N faces this is O(N) work that is
 discarded after a single ray query.
 
-### 2.3 `DistanceToIn(p)` — Double Classification
+### 2.3 `DistanceToIn(p)` — Classification Then Distance Query
 
 ```cpp
 BRepClass3d_SolidClassifier classifier(fShape);  // ← first classifier
@@ -80,7 +80,7 @@ process the full shape at construction time.
 ### 2.4 `DistanceToOut(p)` — Per-Face Distance Queries
 
 ```cpp
-for (TopExp_Explorer explorer(fShape, TopAbs_FACE); …) {
+for (TopExp_Explorer explorer(fShape, TopAbs_FACE); explorer.More(); explorer.Next()) {
   BRepExtrema_DistShapeShape distance(vertex, explorer.Current());
 }
 ```
@@ -169,8 +169,8 @@ class G4OCCTSolid : public G4VSolid {
   TopoDS_Shape fShape;
 
   // Per-thread cached algorithm objects (not yet implemented)
-  mutable G4Cache<BRepClass3d_SolidClassifier> fClassifierCache;
-  mutable G4Cache<IntCurvesFace_ShapeIntersector> fIntersectorCache;
+  mutable G4Cache<std::optional<BRepClass3d_SolidClassifier>> fClassifierCache;
+  mutable G4Cache<std::optional<IntCurvesFace_ShapeIntersector>> fIntersectorCache;
 };
 ```
 
@@ -178,12 +178,13 @@ Each worker thread would initialise its cache entry on first use:
 
 ```cpp
 EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
-  BRepClass3d_SolidClassifier& cls = fClassifierCache.Get();
-  if (cls.IsNull()) {       // first call on this thread
-    cls.Load(fShape);       // prepares shape data once per thread
+  std::optional<BRepClass3d_SolidClassifier>& cache = fClassifierCache.Get();
+  if (!cache.has_value()) {   // first call on this thread
+    cache.emplace();
+    cache->Load(fShape);      // prepares shape data once per thread
   }
-  cls.Perform(ToPoint(p), IntersectionTolerance());
-  return ToG4Inside(cls.State());
+  cache->Perform(ToPoint(p), IntersectionTolerance());
+  return ToG4Inside(cache->State());
 }
 ```
 
