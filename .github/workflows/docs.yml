@@ -39,10 +39,64 @@ jobs:
           path: docs/api/
           retention-days: 1
 
-  # ── Deploy docsify + Doxygen to GitHub Pages ────────────────────────────────
+  # ── Build test & benchmark reports ──────────────────────────────────────────
+  reports:
+    name: Generate test and benchmark reports
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Build, test, and benchmark inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_TESTING=ON \
+              -DBUILD_BENCHMARKS=ON \
+              -DENABLE_WERROR=ON
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build -- -j$(nproc)
+
+            # ── Test (JUnit XML; continue even if tests fail) ──────────────
+            ctest --test-dir build \
+              --output-junit "${PWD}/test-results.xml" \
+              -j$(nproc) || true
+
+            # ── Benchmark (capture output; continue on error) ──────────────
+            ./build/src/benchmarks/bench_navigator 2048 \
+              > "${PWD}/bench-results.txt" 2>&1 || true
+
+      - name: Generate HTML reports
+        run: |
+          python3 .github/scripts/generate_test_report.py \
+            test-results.xml docs/reports/test-results.html
+          python3 .github/scripts/generate_bench_report.py \
+            bench-results.txt docs/reports/bench-results.html
+
+      - name: Upload reports artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: docs/reports/
+          retention-days: 1
+
+  # ── Deploy docsify + Doxygen + reports to GitHub Pages ──────────────────────
   deploy:
     name: Deploy to GitHub Pages
-    needs: doxygen
+    needs: [doxygen, reports]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -62,6 +116,12 @@ jobs:
         with:
           name: doxygen-api
           path: docs/api/
+
+      - name: Download test and benchmark reports
+        uses: actions/download-artifact@v8
+        with:
+          name: reports
+          path: docs/reports/
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
