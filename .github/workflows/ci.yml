@@ -20,17 +20,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Cache NIST CTC STEP fixtures
+      - name: Restore NIST CTC STEP fixtures cache
         id: cache-nist-ctc
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v1-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
 
       - name: Download NIST CTC STEP fixtures
         if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
         run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
         continue-on-error: true
+
+      - name: Verify NIST CTC STEP fixtures
+        id: verify-nist-ctc
+        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
+        run: |
+          missing=0
+          for i in $(seq -w 1 11); do
+            f="src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-${i}-v1/shape.step"
+            if [[ ! -f "${f}" ]]; then
+              echo "Missing: ${f}" >&2
+              missing=$((missing + 1))
+            fi
+          done
+          if [[ "${missing}" -eq 0 ]]; then
+            echo "nist_ctc_complete=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "WARNING: ${missing} NIST CTC STEP file(s) missing; skipping cache save." >&2
+            echo "nist_ctc_complete=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save NIST CTC STEP fixtures cache
+        if: steps.verify-nist-ctc.outputs.nist_ctc_complete == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
+          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
@@ -129,17 +155,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Cache NIST CTC STEP fixtures
+      - name: Restore NIST CTC STEP fixtures cache
         id: cache-nist-ctc
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v1-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
 
       - name: Download NIST CTC STEP fixtures
         if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
         run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
         continue-on-error: true
+
+      - name: Verify NIST CTC STEP fixtures
+        id: verify-nist-ctc
+        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
+        run: |
+          missing=0
+          for i in $(seq -w 1 11); do
+            f="src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-${i}-v1/shape.step"
+            if [[ ! -f "${f}" ]]; then
+              echo "Missing: ${f}" >&2
+              missing=$((missing + 1))
+            fi
+          done
+          if [[ "${missing}" -eq 0 ]]; then
+            echo "nist_ctc_complete=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "WARNING: ${missing} NIST CTC STEP file(s) missing; skipping cache save." >&2
+            echo "nist_ctc_complete=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save NIST CTC STEP fixtures cache
+        if: steps.verify-nist-ctc.outputs.nist_ctc_complete == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
+          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5

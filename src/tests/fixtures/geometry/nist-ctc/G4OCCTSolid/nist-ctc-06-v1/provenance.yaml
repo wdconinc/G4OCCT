@@ -6,6 +6,7 @@ fixture_id: nist-ctc-06-v1
 source:
   provider: NIST
   project: MBE PMI Validation and Conformance Testing
+  repository_url: https://github.com/usnistgov/SFA/tree/master/Release
   page_url: https://www.nist.gov/ctl/smart-connected-systems-division/smart-connected-manufacturing-systems-group/mbe-pmi-0
   archive: NIST-PMI-STEP-Files.zip
   directory: AP203 geometry only
