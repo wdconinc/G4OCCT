@@ -62,6 +62,12 @@ jobs:
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
 
+      - name: Generate PR diff for clang-tidy
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git fetch --depth=1 origin ${{ github.event.pull_request.base.sha }}
+          git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > pr.diff
+
       - name: Run clang-tidy on changed files
         uses: eic/run-cvmfs-osg-eic-shell@v1
         if: ${{ github.event_name == 'pull_request' }}
@@ -69,10 +75,9 @@ jobs:
           platform-release: "eic_xl:nightly"
           run: |
             set -euo pipefail
-            git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} \
-              | clang-tidy-diff -p 1 -path build -quiet \
-                  -export-fixes clang_tidy_fixes.yaml \
-                  -extra-arg='-std=c++17'
+            clang-tidy-diff -p 1 -path build -quiet \
+              -export-fixes clang_tidy_fixes.yaml \
+              -extra-arg='-std=c++17' < pr.diff || true
 
       - name: Run clang-tidy on all files
         uses: eic/run-cvmfs-osg-eic-shell@v1
