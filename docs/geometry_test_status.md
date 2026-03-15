@@ -188,7 +188,7 @@ Geant4-convention local origin:
 **Work required to pass:**
 1. For each affected class, verify the exact local-frame origin convention
    used by the Geant4 solid (see `G4VSolid` documentation and
-   `reference_position.md`).
+   [Reference Position Handling](reference_position.md)).
 2. Adjust the STEP fixture generation scripts (or post-process the STEP file
    with an OCCT recentering transform) so that the STEP solid's centroid
    coincides with the Geant4 local-frame origin.
@@ -252,8 +252,11 @@ To **add** a new fixture:
 1. Generate a STEP file using the appropriate DRAWEXE or OCCT utility script
    in `src/tests/fixtures/geometry/<family>/`.
 2. Write a `provenance.yaml` describing the construction parameters.
-3. Register the fixture in the family `manifest.yaml` with a
-   `validation_state: validated` entry and a volume expectation.
+3. Register the fixture in the family `manifest.yaml`.  Set
+   `validation_state: planned` initially; once the fixture is confirmed
+   passing (step 4), promote it to `validation_state: validated`.  Use
+   `validation_state: rejected` to mark fixtures that are intentionally
+   excluded.  Include a volume expectation for `validated` entries.
 4. Run `./build/src/tests/test_geometry_validation` and confirm the new
    fixture produces no errors.
 
