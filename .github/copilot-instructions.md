@@ -39,6 +39,7 @@ Every new file must begin with:
 - `sanitizer`: build with `-DBUILD_TESTING=ON -DUSE_ASAN=ON -DUSE_UBSAN=ON`, run tests.
 - Sanitizer runtime options (`ASAN_OPTIONS`, `LSAN_OPTIONS`, `UBSAN_OPTIONS`) are scoped to the `sanitizer` job.
 - Suppression files live in `.github/asan.supp`, `.github/lsan.supp`, `.github/ubsan.supp`.
+- `ci.yml` `pull_request` trigger has no branch filter — CI runs for PRs targeting any branch (supports sub-PR workflows).
 
 ### Material Bridging
 - No heuristics, no silent fallbacks.
