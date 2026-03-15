@@ -173,6 +173,18 @@ BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {
   return *cache.classifier;
 }
 
+IntCurvesFace_ShapeIntersector& G4OCCTSolid::GetOrCreateIntersector() const {
+  IntersectorCache& cache        = fIntersectorCache.Get();
+  const std::uint64_t currentGen = fShapeGeneration.load(std::memory_order_acquire);
+  if (cache.generation != currentGen) {
+    cache.intersector.emplace();
+    cache.intersector->Load(fShape,
+                            IntersectionTolerance()); // O(N_faces) — paid once per thread per shape
+    cache.generation = currentGen;
+  }
+  return *cache.intersector;
+}
+
 // ── G4VSolid pure-virtual implementations ────────────────────────────────────
 
 EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
@@ -246,8 +258,7 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& 
     return kInfinity;
   }
 
-  IntCurvesFace_ShapeIntersector intersector;
-  intersector.Load(fShape, IntersectionTolerance());
+  IntCurvesFace_ShapeIntersector& intersector = GetOrCreateIntersector();
 
   const gp_Lin ray(ToPoint(p), gp_Dir(v.x(), v.y(), v.z()));
   intersector.Perform(ray, IntersectionTolerance(), Precision::Infinite());
@@ -295,8 +306,7 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
   const G4double tolerance = IntersectionTolerance();
   const gp_Lin ray(ToPoint(p), gp_Dir(v.x(), v.y(), v.z()));
 
-  IntCurvesFace_ShapeIntersector intersector;
-  intersector.Load(fShape, tolerance);
+  IntCurvesFace_ShapeIntersector& intersector = GetOrCreateIntersector();
   intersector.Perform(ray, tolerance, Precision::Infinite());
 
   if (!intersector.IsDone() || intersector.NbPnt() == 0) {

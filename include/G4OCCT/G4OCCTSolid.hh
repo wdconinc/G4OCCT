@@ -13,6 +13,7 @@
 
 // OCCT shape representation
 #include <BRepClass3d_SolidClassifier.hxx>
+#include <IntCurvesFace_ShapeIntersector.hxx>
 #include <TopoDS_Shape.hxx>
 
 #include <atomic>
@@ -36,18 +37,19 @@
  *
  * `G4OCCTSolid` is shared read-only across all Geant4 worker threads once
  * the geometry is constructed.  OCCT algorithm objects such as
- * `BRepClass3d_SolidClassifier` hold mutable internal state and must not be
- * shared between threads.  A per-thread cache of the classifier is maintained
- * via `G4Cache` so that the one-time O(N_faces) initialisation cost is paid
- * only once per thread rather than on every `Inside` or `DistanceToIn(p)` call.
+ * `BRepClass3d_SolidClassifier` and `IntCurvesFace_ShapeIntersector` hold
+ * mutable internal state and must not be shared between threads.  Per-thread
+ * caches of both algorithm objects are maintained via `G4Cache` so that the
+ * one-time O(N_faces) initialisation cost is paid only once per thread rather
+ * than on every navigation call.
  *
  * A monotonically increasing `fShapeGeneration` counter is incremented by
  * `SetOCCTShape()`.  Each per-thread cache entry records the generation at
- * which it was built; `GetOrCreateClassifier()` rebuilds the entry whenever
- * the stored generation is stale.  This ensures that all worker threads
- * automatically pick up a new shape on their next navigation call, even if
- * `SetOCCTShape()` is invoked after some threads have already initialised
- * their caches.
+ * which it was built; `GetOrCreateClassifier()` and `GetOrCreateIntersector()`
+ * rebuild the entry whenever the stored generation is stale.  This ensures that
+ * all worker threads automatically pick up a new shape on their next navigation
+ * call, even if `SetOCCTShape()` is invoked after some threads have already
+ * initialised their caches.
  */
 class G4OCCTSolid : public G4VSolid {
 public:
@@ -113,10 +115,10 @@ public:
 
   /// Replace the underlying OCCT shape.
   /// @note Increments an internal generation counter so that every worker
-  ///       thread automatically reloads its per-thread classifier on its next
-  ///       navigation call.  The shape update itself is not atomic with respect
-  ///       to ongoing navigation; avoid calling this while a simulation run is
-  ///       in progress.
+  ///       thread automatically reloads its per-thread classifier and
+  ///       intersector on its next navigation call.  The shape update itself
+  ///       is not atomic with respect to ongoing navigation; avoid calling
+  ///       this while a simulation run is in progress.
   void SetOCCTShape(const TopoDS_Shape& shape) {
     fShape = shape;
     fShapeGeneration.fetch_add(1, std::memory_order_release);
@@ -134,10 +136,22 @@ private:
     std::optional<BRepClass3d_SolidClassifier> classifier;
   };
 
+  /// Per-thread intersector cache entry: generation stamp + lazily-built intersector.
+  ///
+  /// The `generation` field is compared against `fShapeGeneration` on every
+  /// call to `GetOrCreateIntersector()`; a mismatch triggers a reload.
+  /// Initialised to the maximum uint64 value, which can never match generation 0,
+  /// so the first call from each thread always builds the intersector.
+  struct IntersectorCache {
+    std::uint64_t generation{std::numeric_limits<std::uint64_t>::max()};
+    std::optional<IntCurvesFace_ShapeIntersector> intersector;
+  };
+
   TopoDS_Shape fShape;
 
   /// Monotonically increasing counter; incremented by each `SetOCCTShape()` call.
-  /// Read (acquire) in `GetOrCreateClassifier()` const; written (release) in `SetOCCTShape()`.
+  /// Read (acquire) in `GetOrCreateClassifier()` and `GetOrCreateIntersector()` const;
+  /// written (release) in `SetOCCTShape()`.
   std::atomic<std::uint64_t> fShapeGeneration{0};
 
   /// Per-thread cache of the BRepClass3d_SolidClassifier for this solid.
@@ -146,9 +160,19 @@ private:
   /// each thread.  Stale entries (generation mismatch) are rebuilt automatically.
   mutable G4Cache<ClassifierCache> fClassifierCache;
 
+  /// Per-thread cache of the IntCurvesFace_ShapeIntersector for this solid.
+  ///
+  /// Initialised lazily on the first `DistanceToIn(p, v)` or `DistanceToOut(p, v)`
+  /// call on each thread.  Stale entries (generation mismatch) are rebuilt automatically.
+  mutable G4Cache<IntersectorCache> fIntersectorCache;
+
   /// Return a reference to the per-thread classifier, (re-)initialising it from
   /// @c fShape whenever the cached generation does not match @c fShapeGeneration.
   BRepClass3d_SolidClassifier& GetOrCreateClassifier() const;
+
+  /// Return a reference to the per-thread intersector, (re-)initialising it from
+  /// @c fShape whenever the cached generation does not match @c fShapeGeneration.
+  IntCurvesFace_ShapeIntersector& GetOrCreateIntersector() const;
 };
 
 #endif // G4OCCT_G4OCCTSolid_hh
