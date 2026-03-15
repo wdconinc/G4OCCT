@@ -55,11 +55,10 @@ G4double DefaultRayComparisonTolerance();
  *   `generate_twisted_fixtures`): the coordinate origin `(0, 0, 0)`.
  * - All other solids: the centre of the axis-aligned bounding box.
  */
-ValidationReport CompareFixtureRays(
-    const FixtureValidationRequest& request,
-    const FixtureRayComparisonOptions& options = {},
-    FixtureRayComparisonSummary* summary = nullptr);
+ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
+                                    const FixtureRayComparisonOptions& options = {},
+                                    FixtureRayComparisonSummary* summary       = nullptr);
 
-}  // namespace g4occt::tests::geometry
+} // namespace g4occt::tests::geometry
 
 #endif

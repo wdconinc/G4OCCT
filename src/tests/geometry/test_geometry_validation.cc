@@ -16,14 +16,14 @@ namespace g4occt::tests::geometry {
 
 namespace {
 
-bool HasErrors(const ValidationReport& report) {
-  return std::any_of(
-      report.Messages().begin(),
-      report.Messages().end(),
-      [](const ValidationMessage& message) { return message.severity == ValidationSeverity::kError; });
-}
+  bool HasErrors(const ValidationReport& report) {
+    return std::any_of(report.Messages().begin(), report.Messages().end(),
+                       [](const ValidationMessage& message) {
+                         return message.severity == ValidationSeverity::kError;
+                       });
+  }
 
-}  // namespace
+} // namespace
 
 void PrintReport(const ValidationReport& report) {
   for (const auto& message : report.Messages()) {
@@ -43,11 +43,11 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
   aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
 
   std::size_t validated_fixture_count = 0;
-  std::size_t geometry_checked_count = 0;
-  std::size_t ray_compared_count = 0;
-  std::size_t expected_failure_count = 0;
-  double total_native_ms = 0.0;
-  double total_imported_ms = 0.0;
+  std::size_t geometry_checked_count  = 0;
+  std::size_t ray_compared_count      = 0;
+  std::size_t expected_failure_count  = 0;
+  double total_native_ms              = 0.0;
+  double total_imported_ms            = 0.0;
 
   for (const auto& family : repository_manifest.families) {
     const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
@@ -59,19 +59,18 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
     try {
       family_manifest = ParseFixtureManifestFile(family_manifest_path);
     } catch (const std::exception& error) {
-      aggregate_report.AddError(
-          "manifest.parse_failed",
-          std::string("Failed to parse family manifest: ") + error.what(),
-          family_manifest_path);
+      aggregate_report.AddError("manifest.parse_failed",
+                                std::string("Failed to parse family manifest: ") + error.what(),
+                                family_manifest_path);
       continue;
     }
     aggregate_report.Append(ValidateManifestStructure(family_manifest));
 
     for (const auto& fixture : family_manifest.fixtures) {
       FixtureValidationRequest request;
-      request.manifest = family_manifest;
-      request.fixture = fixture;
-      request.require_provenance_file = true;
+      request.manifest                              = family_manifest;
+      request.fixture                               = fixture;
+      request.require_provenance_file               = true;
       const FixtureExpectedFailure expected_failure = ExpectedFailureForFixture(request);
 
       const ValidationReport layout_report = ValidateFixtureLayout(request);
@@ -127,8 +126,8 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
             << " imported STEP geometries.\n";
   if (ray_compared_count > 0U) {
     std::cout << "Ray comparison summary: " << ray_compared_count
-              << " fixtures, native=" << total_native_ms
-              << " ms, imported=" << total_imported_ms << " ms";
+              << " fixtures, native=" << total_native_ms << " ms, imported=" << total_imported_ms
+              << " ms";
     if (total_imported_ms > 0.0) {
       std::cout << ", native/imported ratio=" << total_native_ms / total_imported_ms;
     }
@@ -140,7 +139,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
   return HasErrors(aggregate_report) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-}  // namespace g4occt::tests::geometry
+} // namespace g4occt::tests::geometry
 
 int main(int argc, char** argv) {
   try {

@@ -10,4 +10,4 @@ add_executable(bench_navigator bench_navigator.cc)
 target_link_libraries(bench_navigator PRIVATE G4OCCTFixtureSupport)
 
 # Benchmarks are not added to CTest by default; run manually with:
-#   ./bench_navigator [N_rays] [manifest_path]
+# ./bench_navigator [N_rays] [manifest_path]
