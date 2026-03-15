@@ -9,12 +9,14 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 const ALL_FIXTURES = JSON.parse(document.getElementById('fixture-data').textContent);
 
 // ── UI elements ──────────────────────────────────────────────────────────────
-const selectEl  = document.getElementById('fixture-select');
-const btnNative = document.getElementById('btn-native');
-const btnImp    = document.getElementById('btn-imported');
-const statsEl   = document.getElementById('stats-body');
-const countEl   = document.getElementById('count-overlay');
-const emptyMsg  = document.getElementById('empty-msg');
+const selectEl      = document.getElementById('fixture-select');
+const btnNative     = document.getElementById('btn-native');
+const btnImp        = document.getElementById('btn-imported');
+const statsEl       = document.getElementById('stats-body');
+const countEl       = document.getElementById('count-overlay');
+const emptyMsg      = document.getElementById('empty-msg');
+const sidebarEl     = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
 
 // ── Three.js setup ────────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
@@ -181,6 +183,28 @@ btnImp.addEventListener('click', () => {
   btnImp.classList.toggle('off', !showImported);
   if (importedCloud) {
     importedCloud.visible = showImported;
+  }
+});
+
+// ── Sidebar toggle ────────────────────────────────────────────────────────────
+// Use a single persistent transitionend/transitioncancel handler so rapid
+// toggles cannot accumulate multiple once-listeners that never fire.
+sidebarEl.addEventListener('transitionend', onResize);
+sidebarEl.addEventListener('transitioncancel', onResize);
+
+sidebarToggle.addEventListener('click', () => {
+  const hidden              = sidebarEl.classList.toggle('hidden');
+  sidebarToggle.textContent = hidden ? '▶' : '◀';
+  sidebarToggle.title       = hidden ? 'Show sidebar' : 'Hide sidebar';
+  sidebarToggle.setAttribute('aria-label', hidden ? 'Show sidebar' : 'Hide sidebar');
+  sidebarToggle.setAttribute('aria-expanded', String(!hidden));
+  // Remove hidden sidebar from the tab order and hide from assistive tech.
+  if (hidden) {
+    sidebarEl.inert = true;
+    sidebarEl.setAttribute('aria-hidden', 'true');
+  } else {
+    sidebarEl.inert = false;
+    sidebarEl.removeAttribute('aria-hidden');
   }
 });
 
