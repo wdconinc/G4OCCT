@@ -22,7 +22,7 @@ jobs:
 
       - name: Restore NIST CTC STEP fixtures cache
         id: cache-nist-ctc
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
           key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
@@ -53,7 +53,7 @@ jobs:
 
       - name: Save NIST CTC STEP fixtures cache
         if: steps.verify-nist-ctc.outputs.nist_ctc_complete == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
           key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
@@ -195,7 +195,7 @@ jobs:
 
       - name: Restore NIST CTC STEP fixtures cache
         id: cache-nist-ctc
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
           key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
@@ -226,7 +226,7 @@ jobs:
 
       - name: Save NIST CTC STEP fixtures cache
         if: steps.verify-nist-ctc.outputs.nist_ctc_complete == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
           key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
