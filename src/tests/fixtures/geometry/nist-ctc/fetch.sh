@@ -19,7 +19,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ZIP_URL="https://raw.githubusercontent.com/usnistgov/SFA/master/Release/NIST-PMI-STEP-Files.zip"
+# Pinned to commit 48bcd4ccef07db7b903baaefaf6a2eb427d02b05 in usnistgov/SFA for reproducibility.
+ZIP_URL="https://raw.githubusercontent.com/usnistgov/SFA/48bcd4ccef07db7b903baaefaf6a2eb427d02b05/Release/NIST-PMI-STEP-Files.zip"
 TMP_DIR="$(mktemp -d)"
 ZIP_FILE="${TMP_DIR}/NIST-PMI-STEP-Files.zip"
 EXTRACT_DIR="${TMP_DIR}/extracted"
@@ -31,6 +32,14 @@ trap cleanup EXIT
 
 echo "Downloading ${ZIP_URL} ..."
 curl -L --fail --max-time 300 --retry 3 -o "${ZIP_FILE}" "${ZIP_URL}"
+
+echo "Validating ZIP integrity ..."
+if ! unzip -t "${ZIP_FILE}" > /dev/null 2>&1; then
+  echo "ERROR: Downloaded file is not a valid ZIP archive." >&2
+  echo "File contents (first 256 bytes):" >&2
+  head -c 256 "${ZIP_FILE}" >&2
+  exit 1
+fi
 
 echo "Extracting ZIP ..."
 mkdir -p "${EXTRACT_DIR}"
