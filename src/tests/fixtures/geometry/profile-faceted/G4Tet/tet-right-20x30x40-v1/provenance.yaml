@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4tet-tet-right-20x30x40-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Tet
+  vertices_mm:
+    - [0.0, 0.0, 0.0]
+    - [20.0, 0.0, 0.0]
+    - [0.0, 30.0, 0.0]
+    - [0.0, 0.0, 40.0]
+  construction:
+    - polyline tri123 0 0 0 20 0 0 0 30 0 0 0 0
+    - mkplane f123 tri123
+    - polyline tri124 0 0 0 20 0 0 0 0 40 0 0 0
+    - mkplane f124 tri124
+    - polyline tri134 0 0 0 0 30 0 0 0 40 0 0 0
+    - mkplane f134 tri134
+    - polyline tri234 20 0 0 0 30 0 0 0 40 20 0 0
+    - mkplane f234 tri234
+    - mkvolume seed_shape f123 f124 f134 f234
+validation:
+  expected_volume_mm3: 4000.0

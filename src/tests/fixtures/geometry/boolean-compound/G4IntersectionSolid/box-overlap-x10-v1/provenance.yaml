@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4intersectionsolid-box-overlap-x10-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4IntersectionSolid
+  draw_commands:
+    - box left_box 20 20 20
+    - box right_box -min 10 0 0 -size 20 20 20
+    - bcommon intersection_shape left_box right_box
+  overlap_box_mm:
+    min: [10.0, 0.0, 0.0]
+    size: [10.0, 20.0, 20.0]
+validation:
+  expected_volume_mm3: 4000.0

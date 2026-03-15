@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4torus-torus-rtor20-rmax5-v1
+generator:
+  tool: DRAWEXE
+  executable: /opt/local/bin/DRAWEXE
+  script: generate.tcl
+shape:
+  geant4_class: G4Torus
+  draw_command: ptorus seed_torus 20 5
+  swept_radius_mm: 20.0
+  inner_tube_radius_mm: 0.0
+  outer_tube_radius_mm: 5.0
+  start_phi_deg: 0.0
+  delta_phi_deg: 360.0
+validation:
+  expected_volume_mm3: 9869.604401089358

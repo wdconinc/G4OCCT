@@ -1,0 +1,148 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-manifest/v1
+family: direct-primitives
+summary: Seed primitive STEP fixtures generated with DRAWEXE for end-to-end validation.
+coverage_classes:
+  - G4Box
+  - G4Cons
+  - G4CutTubs
+  - G4Orb
+  - G4Para
+  - G4Sphere
+  - G4Torus
+  - G4Trap
+  - G4Trd
+  - G4Tubs
+  - G4UBox
+  - G4UCons
+  - G4UCutTubs
+  - G4UOrb
+  - G4UPara
+  - G4USphere
+  - G4UTorus
+  - G4UTrap
+  - G4UTrd
+  - G4UTubs
+fixtures:
+  - id: g4box-box-20x30x40-v1
+    geant4_class: G4Box
+    fixture_slug: box-20x30x40
+    relative_directory: G4Box/box-20x30x40-v1
+    validation_state: validated
+    reused_by:
+      - G4UBox
+    expectations:
+      - quantity: volume
+        value: 24000.0
+        absolute_tolerance: 0.000001
+        unit: mm3
+  - id: g4cons-cons-r8-r3-z24-v1
+    geant4_class: G4Cons
+    fixture_slug: cons-r8-r3-z24
+    relative_directory: G4Cons/cons-r8-r3-z24-v1
+    validation_state: validated
+    reused_by:
+      - G4UCons
+    expectations:
+      - quantity: volume
+        value: 2437.8758991856794
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4cuttubs-cut-tubs-r12-z40-tilted-x-v1
+    geant4_class: G4CutTubs
+    fixture_slug: cut-tubs-r12-z40-tilted-x
+    relative_directory: G4CutTubs/cut-tubs-r12-z40-tilted-x-v1
+    validation_state: validated
+    reused_by:
+      - G4UCutTubs
+    expectations:
+      - quantity: volume
+        value: 9047.786839
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4orb-orb-r11-v1
+    geant4_class: G4Orb
+    fixture_slug: orb-r11
+    relative_directory: G4Orb/orb-r11-v1
+    validation_state: validated
+    reused_by:
+      - G4UOrb
+    expectations:
+      - quantity: volume
+        value: 5575.279762570686
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4para-para-dx10-dy8-z20-alpha20-v1
+    geant4_class: G4Para
+    fixture_slug: para-dx10-dy8-z20-alpha20
+    relative_directory: G4Para/para-dx10-dy8-z20-alpha20-v1
+    validation_state: validated
+    reused_by:
+      - G4UPara
+    expectations:
+      - quantity: volume
+        value: 12800.0
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4sphere-sphere-r15-v1
+    geant4_class: G4Sphere
+    fixture_slug: sphere-r15
+    relative_directory: G4Sphere/sphere-r15-v1
+    validation_state: validated
+    reused_by:
+      - G4USphere
+    expectations:
+      - quantity: volume
+        value: 14137.166941154069
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4torus-torus-rtor20-rmax5-v1
+    geant4_class: G4Torus
+    fixture_slug: torus-rtor20-rmax5
+    relative_directory: G4Torus/torus-rtor20-rmax5-v1
+    validation_state: validated
+    reused_by:
+      - G4UTorus
+    expectations:
+      - quantity: volume
+        value: 9869.604401089358
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4trap-trap-dx7-13-dy9-z18-v1
+    geant4_class: G4Trap
+    fixture_slug: trap-dx7-13-dy9-z18
+    relative_directory: G4Trap/trap-dx7-13-dy9-z18-v1
+    validation_state: validated
+    reused_by:
+      - G4UTrap
+    expectations:
+      - quantity: volume
+        value: 12960.0
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4trd-trd-dx10-16-dy8-14-z20-v1
+    geant4_class: G4Trd
+    fixture_slug: trd-dx10-16-dy8-14-z20
+    relative_directory: G4Trd/trd-dx10-16-dy8-14-z20-v1
+    validation_state: validated
+    reused_by:
+      - G4UTrd
+    expectations:
+      - quantity: volume
+        value: 23360.0
+        absolute_tolerance: 0.001
+        unit: mm3
+  - id: g4tubs-tubs-r12-z35-v1
+    geant4_class: G4Tubs
+    fixture_slug: tubs-r12-z35
+    relative_directory: G4Tubs/tubs-r12-z35-v1
+    validation_state: validated
+    reused_by:
+      - G4UTubs
+    expectations:
+      - quantity: volume
+        value: 15833.626974092558
+        absolute_tolerance: 0.001
+        unit: mm3
