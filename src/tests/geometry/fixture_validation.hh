@@ -110,11 +110,18 @@ struct FixtureGeometryValidationOptions {
 std::string ToString(ValidationSeverity severity);
 
 /**
- * Reclassify error-level diagnostics as expected-failure warnings.
+ * Reclassify non-equivalence error diagnostics as expected-failure warnings.
+ *
+ * Only errors whose codes are in the non-equivalence allowlist (e.g.,
+ * `fixture.volume_mismatch`, `fixture.ray_origin_state_mismatch`,
+ * `fixture.ray_intersection_mismatch`, `fixture.ray_distance_mismatch`) are
+ * demoted to warnings with an `xfail.` prefix.  Structural and IO errors
+ * (missing files, STEP read/transfer failures, etc.) are kept as errors even
+ * when the fixture is marked as an expected failure.
  *
  * @param report Source report to rewrite.
  * @param reason Human-readable explanation attached to downgraded messages.
- * @return A copy with error severities demoted to warnings and `xfail.` code prefixes.
+ * @return A copy with allowlisted error severities demoted to warnings and `xfail.` code prefixes.
  */
 ValidationReport ReclassifyExpectedFailures(const ValidationReport& report, const std::string& reason);
 

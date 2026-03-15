@@ -69,16 +69,32 @@ const std::vector<ValidationMessage>& ValidationReport::Messages() const {
   return messages_;
 }
 
+/// Error codes that represent non-equivalence between native and imported geometry.
+/// These are the only codes that may be demoted to warnings when a fixture is
+/// marked as an expected failure; structural and IO errors are always kept as errors.
+static const std::set<std::string> kNonEquivalenceCodes = {
+    "fixture.volume_mismatch",
+    "fixture.ray_origin_state_mismatch",
+    "fixture.ray_intersection_mismatch",
+    "fixture.ray_distance_mismatch",
+};
+
 ValidationReport ReclassifyExpectedFailures(const ValidationReport& report, const std::string& reason) {
   ValidationReport rewritten;
   for (const auto& message : report.Messages()) {
-    if (message.severity == ValidationSeverity::kError) {
+    if (message.severity == ValidationSeverity::kError &&
+        kNonEquivalenceCodes.count(message.code) != 0U) {
       rewritten.AddWarning("xfail." + message.code, message.text + " (xfail: " + reason + ")", message.path);
       continue;
     }
 
     if (message.severity == ValidationSeverity::kWarning) {
       rewritten.AddWarning(message.code, message.text, message.path);
+      continue;
+    }
+
+    if (message.severity == ValidationSeverity::kError) {
+      rewritten.AddError(message.code, message.text, message.path);
       continue;
     }
 
