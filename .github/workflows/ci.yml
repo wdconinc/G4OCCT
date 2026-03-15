@@ -9,6 +9,11 @@ on:
   pull_request:
     branches: ["main"]
 
+env:
+  ASAN_OPTIONS: suppressions=${{ github.workspace }}/.github/asan.supp:malloc_context_size=20:detect_leaks=1:verify_asan_link_order=0:detect_stack_use_after_return=1:detect_odr_violation=1:new_delete_type_mismatch=0:intercept_tls_get_addr=0
+  LSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/lsan.supp
+  UBSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/ubsan.supp:print_stacktrace=1:silence_unsigned_overflow=1:report_error_type=1
+
 jobs:
   build-test-benchmark:
     name: Build, test, and benchmark (eic_xl)
@@ -46,3 +51,38 @@ jobs:
 
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
+
+  sanitizer:
+    name: Build and test with sanitizers (eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Build and test with ASAN and UBSAN inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              -DBUILD_TESTING=ON \
+              -DUSE_ASAN=ON \
+              -DUSE_UBSAN=ON \
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install"
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build -- -j$(nproc)
+
+            # ── Test ───────────────────────────────────────────────────────
+            ctest --test-dir build --output-on-failure -j$(nproc)
+
