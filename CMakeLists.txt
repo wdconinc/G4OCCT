@@ -115,7 +115,10 @@ endif()
 option(USE_TSAN "Compile with thread sanitizer" OFF)
 if(USE_TSAN)
   if(USE_ASAN)
-    message(FATAL_ERROR "USE_TSAN is incompatible with USE_ASAN (and the leak sanitizer it implies). Enable only one sanitizer at a time.")
+    message(
+      FATAL_ERROR
+        "USE_TSAN is incompatible with USE_ASAN (and the leak sanitizer it implies). Enable only one sanitizer at a time."
+    )
   endif()
   add_compile_options(-fsanitize=thread -fno-omit-frame-pointer -g -O1)
   add_link_options(-fsanitize=thread)
