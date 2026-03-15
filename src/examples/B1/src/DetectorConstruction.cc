@@ -42,6 +42,9 @@ TopoDS_Shape LoadStepFile(const std::string& path) {
 
 }  // namespace
 
+namespace B1
+{
+
 G4VPhysicalVolume* DetectorConstruction::Construct() {
   G4NistManager* nist = G4NistManager::Instance();
 
@@ -96,3 +99,5 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
   fScoringVolume = lv2;
   return worldPV;
 }
+
+}  // namespace B1

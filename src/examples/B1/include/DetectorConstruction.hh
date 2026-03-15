@@ -1,43 +1,60 @@
-// SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright (C) 2024 G4OCCT Contributors
+//
+// ********************************************************************
+// * License and Disclaimer                                           *
+// *                                                                  *
+// * The  Geant4 software  is  copyright of the Copyright Holders  of *
+// * the Geant4 Collaboration.  It is provided  under  the terms  and *
+// * conditions of the Geant4 Software License,  included in the file *
+// * LICENSE and available at  http://cern.ch/geant4/license .  These *
+// * include a list of copyright holders.                             *
+// *                                                                  *
+// * Neither the authors of this software system, nor their employing *
+// * institutes,nor the agencies providing financial support for this *
+// * work  make  any representation or  warranty, express or implied, *
+// * regarding  this  software system or assume any liability for its *
+// * use.  Please see the license in the file  LICENSE  and URL above *
+// * for the full disclaimer and the limitation of liability.         *
+// *                                                                  *
+// * This  code  implementation is the result of  the  scientific and *
+// * technical work of the GEANT4 collaboration.                      *
+// * By using,  copying,  modifying or  distributing the software (or *
+// * any work based  on the software)  you  agree  to acknowledge its *
+// * use  in  resulting  scientific  publications,  and indicate your *
+// * acceptance of all terms of the Geant4 Software license.          *
+// ********************************************************************
+//
+/// \file DetectorConstruction.hh
+/// \brief Definition of the B1::DetectorConstruction class
 
-/// @file DetectorConstruction.hh
-/// @brief Detector construction for the G4OCCT B1 example.
+#ifndef B1DetectorConstruction_h
+#define B1DetectorConstruction_h 1
 
-#ifndef B1_DetectorConstruction_hh
-#define B1_DetectorConstruction_hh
+#include "G4VUserDetectorConstruction.hh"
 
-#include <G4LogicalVolume.hh>
-#include <G4VUserDetectorConstruction.hh>
+class G4VPhysicalVolume;
+class G4LogicalVolume;
 
-/**
- * @brief B1 detector construction loading shapes from STEP files.
- *
- * Builds an envelope box of water containing two shapes loaded from STEP files
- * via G4OCCTSolid. The scoring volume (shape2) pointer is exposed for use in
- * SteppingAction.
- *
- * Geometry layout:
- * - World: 24 cm × 24 cm × 48 cm box of G4_AIR
- * - Envelope: 20 cm × 20 cm × 30 cm box of G4_WATER
- * - Shape1: sphere (r = 15 mm) loaded from step/shape1.step, G4_A-150_TISSUE
- * - Shape2: box (20 × 30 × 40 mm) loaded from step/shape2.step, G4_BONE_COMPACT_ICRU
- *
- * The @p G4OCCT_B1_STEP_DIR compile definition must be set to the directory
- * containing the STEP files.
- */
-class DetectorConstruction : public G4VUserDetectorConstruction {
- public:
-  DetectorConstruction() = default;
-  ~DetectorConstruction() override = default;
+namespace B1
+{
 
-  G4VPhysicalVolume* Construct() override;
+/// Detector construction class to define materials and geometry.
 
-  /// Return a pointer to the scoring logical volume (shape2).
-  G4LogicalVolume* GetScoringVolume() const { return fScoringVolume; }
+class DetectorConstruction : public G4VUserDetectorConstruction
+{
+  public:
+    DetectorConstruction() = default;
+    ~DetectorConstruction() override = default;
 
- private:
-  G4LogicalVolume* fScoringVolume = nullptr;
+    G4VPhysicalVolume* Construct() override;
+
+    G4LogicalVolume* GetScoringVolume() const { return fScoringVolume; }
+
+  protected:
+    G4LogicalVolume* fScoringVolume = nullptr;
 };
 
-#endif  // B1_DetectorConstruction_hh
+}  // namespace B1
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+#endif
