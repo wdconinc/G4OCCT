@@ -187,13 +187,25 @@ btnImp.addEventListener('click', () => {
 });
 
 // ── Sidebar toggle ────────────────────────────────────────────────────────────
+// Use a single persistent transitionend/transitioncancel handler so rapid
+// toggles cannot accumulate multiple once-listeners that never fire.
+sidebarEl.addEventListener('transitionend',    onResize);
+sidebarEl.addEventListener('transitioncancel', onResize);
+
 sidebarToggle.addEventListener('click', () => {
   const hidden              = sidebarEl.classList.toggle('hidden');
   sidebarToggle.textContent = hidden ? '▶' : '◀';
   sidebarToggle.title       = hidden ? 'Show sidebar' : 'Hide sidebar';
-  sidebarToggle.setAttribute('aria-label', hidden ? 'Show sidebar' : 'Hide sidebar');
+  sidebarToggle.setAttribute('aria-label',    hidden ? 'Show sidebar' : 'Hide sidebar');
   sidebarToggle.setAttribute('aria-expanded', String(!hidden));
-  sidebarEl.addEventListener('transitionend', onResize, {once : true});
+  // Remove hidden sidebar from the tab order and hide from assistive tech.
+  if (hidden) {
+    sidebarEl.inert      = true;
+    sidebarEl.setAttribute('aria-hidden', 'true');
+  } else {
+    sidebarEl.inert      = false;
+    sidebarEl.removeAttribute('aria-hidden');
+  }
 });
 
 // ── Resize handler ────────────────────────────────────────────────────────────
