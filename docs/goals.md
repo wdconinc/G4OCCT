@@ -118,11 +118,11 @@ G4OCCT/
 
 ## Roadmap
 
-| Milestone | Description |
-|---|---|
-| v0.1 | CMake skeleton, stub classes, CI, docs |
-| v0.2 | `Inside` via `BRepClass3d_SolidClassifier` |
-| v0.3 | `DistanceToIn/Out` via `IntCurvesFace_ShapeIntersector` |
-| v0.4 | STEP import end-to-end example |
-| v0.5 | Full test suite passing for all G4 primitives |
-| v1.0 | Production-quality performance, material bridging |
+| Milestone | Status | Description | Tracking |
+|---|---|---|---|
+| v0.1 | ✅ Complete | CMake skeleton, stub classes, CI, docs | — |
+| v0.2 | 🔨 In progress | `Inside` via `BRepClass3d_SolidClassifier` | [Solid Navigation Design](solid_navigation.md) §2.1 |
+| v0.3 | 🔨 In progress | `DistanceToIn/Out` via `IntCurvesFace_ShapeIntersector` | [Solid Navigation Design](solid_navigation.md) §2.3–2.6, [Performance Considerations](performance.md) |
+| v0.4 | ✅ Complete | STEP import end-to-end example | [Example B1 — Water Phantom](example_b1.md) |
+| v0.5 | 🔨 In progress | Full test suite passing for all G4 primitives | [Geometry Test Status](geometry_test_status.md) |
+| v1.0 | 🔲 Planned | Production-quality performance, material bridging | [Performance Considerations](performance.md), [Material Bridging](material_bridging.md) |
