@@ -54,6 +54,7 @@ jobs:
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
       - name: Build, test, and benchmark inside eic_xl container
+        continue-on-error: true
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
           platform-release: "eic_xl:nightly"
@@ -80,6 +81,7 @@ jobs:
               > "${PWD}/bench-results.txt" 2>&1 || true
 
       - name: Generate HTML reports
+        if: always()
         run: |
           python3 .github/scripts/generate_test_report.py \
             test-results.xml docs/reports/test-results.html
@@ -87,6 +89,7 @@ jobs:
             bench-results.txt docs/reports/bench-results.html
 
       - name: Upload reports artifact
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: reports
