@@ -1,0 +1,10 @@
+# Macro file for the G4OCCT B1 example — batch mode
+# Fires 100 primary 6 MeV gammas along +z through the water envelope and
+# reports the energy deposited in the scoring volume (shape2).
+
+/run/initialize
+
+/gun/particle gamma
+/gun/energy 6 MeV
+
+/run/beamOn 100

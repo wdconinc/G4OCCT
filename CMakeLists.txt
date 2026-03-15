@@ -54,6 +54,13 @@ if(BUILD_BENCHMARKS)
   add_subdirectory(src/benchmarks)
 endif()
 
+# ─── Examples ─────────────────────────────────────────────────────────────────
+
+option(BUILD_EXAMPLES "Build G4OCCT usage examples" OFF)
+if(BUILD_EXAMPLES)
+  add_subdirectory(src/examples)
+endif()
+
 # ─── Installation ─────────────────────────────────────────────────────────────
 
 include(GNUInstallDirs)
