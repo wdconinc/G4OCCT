@@ -7,11 +7,15 @@
 #ifndef G4OCCT_G4OCCTSolid_hh
 #define G4OCCT_G4OCCTSolid_hh
 
+#include <G4Cache.hh>
 #include <G4ThreeVector.hh>
 #include <G4VSolid.hh>
 
 // OCCT shape representation
+#include <BRepClass3d_SolidClassifier.hxx>
 #include <TopoDS_Shape.hxx>
+
+#include <optional>
 
 /**
  * @brief Geant4 solid wrapping an Open CASCADE Technology (OCCT) TopoDS_Shape.
@@ -24,6 +28,15 @@
  * of the Boundary-Representation topology hierarchy and can describe any shape
  * from a simple box to a complex multi-face shell. The mapping is discussed in
  * detail in docs/geometry_mapping.md.
+ *
+ * ## Thread safety and caching
+ *
+ * `G4OCCTSolid` is shared read-only across all Geant4 worker threads once
+ * the geometry is constructed.  OCCT algorithm objects such as
+ * `BRepClass3d_SolidClassifier` hold mutable internal state and must not be
+ * shared between threads.  A per-thread cache of the classifier is maintained
+ * via `G4Cache` so that the one-time O(N_faces) initialisation cost is paid
+ * only once per thread rather than on every `Inside` or `DistanceToIn(p)` call.
  */
 class G4OCCTSolid : public G4VSolid {
 public:
@@ -88,10 +101,27 @@ public:
   const TopoDS_Shape& GetOCCTShape() const { return fShape; }
 
   /// Replace the underlying OCCT shape.
-  void SetOCCTShape(const TopoDS_Shape& shape) { fShape = shape; }
+  /// @note Must only be called during geometry construction, before any worker
+  ///       threads are launched.  Calling this after worker threads have been
+  ///       started leaves per-thread classifier caches stale.
+  void SetOCCTShape(const TopoDS_Shape& shape) {
+    fShape = shape;
+    fClassifierCache.Get().reset();
+  }
 
 private:
   TopoDS_Shape fShape;
+
+  /// Per-thread cache of the BRepClass3d_SolidClassifier for this solid.
+  ///
+  /// Initialised lazily on the first `Inside` or `DistanceToIn(p)` call on
+  /// each thread; thereafter the already-loaded classifier is reused, avoiding
+  /// the O(N_faces) construction overhead on every call.
+  mutable G4Cache<std::optional<BRepClass3d_SolidClassifier>> fClassifierCache;
+
+  /// Return a reference to the per-thread classifier, initialising it from
+  /// @c fShape on the first call from each thread.
+  BRepClass3d_SolidClassifier& GetOrCreateClassifier() const;
 };
 
 #endif // G4OCCT_G4OCCTSolid_hh
