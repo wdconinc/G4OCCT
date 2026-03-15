@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # ─── bench_navigator ─────────────────────────────────────────────────────────
 add_executable(bench_navigator bench_navigator.cc)
-target_link_libraries(bench_navigator PRIVATE G4OCCT)
+target_link_libraries(bench_navigator PRIVATE G4OCCTFixtureSupport)
 
 # Benchmarks are not added to CTest by default; run manually with:
-# ./bench_navigator [N_geantinos]
+#   ./bench_navigator [N_rays] [manifest_path]
