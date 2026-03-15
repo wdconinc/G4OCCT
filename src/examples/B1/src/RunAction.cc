@@ -39,8 +39,8 @@
 
 RunAction::RunAction() {
   G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
-  accumulableManager->RegisterAccumulable(fEdep);
-  accumulableManager->RegisterAccumulable(fEdep2);
+  accumulableManager->Register(fEdep);
+  accumulableManager->Register(fEdep2);
 }
 
 void RunAction::BeginOfRunAction(const G4Run* /* run */) {
