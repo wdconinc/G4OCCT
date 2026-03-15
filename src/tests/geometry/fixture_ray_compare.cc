@@ -54,6 +54,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <fstream>
 #include <iomanip>
 #include <limits>
 #include <memory>
@@ -741,6 +742,70 @@ namespace {
     return buffer.str();
   }
 
+  /// Escape a plain ASCII string for embedding as a JSON string value.
+  std::string JsonString(const std::string& s) {
+    std::string result;
+    result.reserve(s.size() + 2U);
+    result += '"';
+    for (const char c : s) {
+      if (c == '"') {
+        result += "\\\"";
+      } else if (c == '\\') {
+        result += "\\\\";
+      } else {
+        result += c;
+      }
+    }
+    result += '"';
+    return result;
+  }
+
+  /// Write a JSON array of 3-vectors to an output stream.
+  void WriteJsonVectorArray(std::ostream& out, const std::vector<G4ThreeVector>& points) {
+    out << '[';
+    for (std::size_t index = 0; index < points.size(); ++index) {
+      if (index > 0U) {
+        out << ',';
+      }
+      out << std::setprecision(15) << '[' << points[index].x() << ',' << points[index].y() << ','
+          << points[index].z() << ']';
+    }
+    out << ']';
+  }
+
+  /**
+   * Write a JSON file with the pre-step origin and the post-step surface hit
+   * points collected during native-vs-imported ray comparison.
+   *
+   * The pre-step origin is the single shared launch point for all rays.
+   * Each entry in native_hits / imported_hits is
+   *   origin + distance * direction
+   * for rays that intersect the respective solid.
+   */
+  void WritePointCloudJson(const std::filesystem::path& output_path,
+                           const std::string& fixture_id, const std::string& geant4_class,
+                           const std::size_t ray_count, const G4ThreeVector& origin,
+                           const std::vector<G4ThreeVector>& native_hits,
+                           const std::vector<G4ThreeVector>& imported_hits) {
+    std::ofstream out(output_path);
+    if (!out) {
+      throw std::runtime_error("Cannot open point-cloud output file: " + output_path.string());
+    }
+    out << "{\n";
+    out << "  \"fixture_id\": " << JsonString(fixture_id) << ",\n";
+    out << "  \"geant4_class\": " << JsonString(geant4_class) << ",\n";
+    out << "  \"ray_count\": " << ray_count << ",\n";
+    out << std::setprecision(15);
+    out << "  \"pre_step_origin\": [" << origin.x() << ',' << origin.y() << ',' << origin.z()
+        << "],\n";
+    out << "  \"native_post_step_hits\": ";
+    WriteJsonVectorArray(out, native_hits);
+    out << ",\n";
+    out << "  \"imported_post_step_hits\": ";
+    WriteJsonVectorArray(out, imported_hits);
+    out << "\n}\n";
+  }
+
 } // namespace
 
 std::filesystem::path DefaultRepositoryManifestPath() {
@@ -859,6 +924,36 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
                    << " ms, imported=" << local_summary.imported_elapsed_ms
                    << " ms, mismatches=" << local_summary.mismatch_count;
     report.AddInfo("fixture.ray_compare_summary", timing_summary.str(), provenance_path);
+
+    if (!options.point_cloud_dir.empty()) {
+      std::vector<G4ThreeVector> native_hits;
+      std::vector<G4ThreeVector> imported_hits;
+      native_hits.reserve(directions.size());
+      imported_hits.reserve(directions.size());
+      for (std::size_t index = 0; index < directions.size(); ++index) {
+        if (native_samples[index].intersects) {
+          native_hits.push_back(local_summary.native_origin +
+                                native_samples[index].distance * directions[index]);
+        }
+        if (imported_samples[index].intersects) {
+          imported_hits.push_back(local_summary.imported_origin +
+                                  imported_samples[index].distance * directions[index]);
+        }
+      }
+      // Fixture IDs contain only alphanumerics, hyphens, and forward slashes.
+      // Replace the path separators so the ID can be used as a flat filename.
+      std::string filename = request.fixture.id;
+      for (char& c : filename) {
+        if (c == '/' || c == '\\') {
+          c = '_';
+        }
+      }
+      filename += ".json";
+      std::filesystem::create_directories(options.point_cloud_dir);
+      WritePointCloudJson(options.point_cloud_dir / filename, local_summary.fixture_id,
+                          local_summary.geant4_class, local_summary.ray_count,
+                          local_summary.native_origin, native_hits, imported_hits);
+    }
   } catch (const std::exception& error) {
     report.AddError("fixture.ray_compare_failed",
                     std::string("Fixture ray comparison failed: ") + error.what(),
