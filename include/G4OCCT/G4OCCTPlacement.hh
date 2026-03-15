@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2024 G4OCCT Contributors
 
+/// @file G4OCCTPlacement.hh
+/// @brief Declaration of G4OCCTPlacement.
+
 #ifndef G4OCCT_G4OCCTPlacement_hh
 #define G4OCCT_G4OCCTPlacement_hh
 
@@ -10,7 +13,7 @@
 #include <TopLoc_Location.hxx>
 
 /**
- * G4OCCTPlacement
+ * @brief Extends Geant4's G4PVPlacement with the corresponding OCCT placement.
  *
  * Extends Geant4's G4PVPlacement to carry the corresponding OCCT placement
  * (TopLoc_Location), enabling round-trip translation between the two geometry

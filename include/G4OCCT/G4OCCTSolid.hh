@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2024 G4OCCT Contributors
 
+/// @file G4OCCTSolid.hh
+/// @brief Declaration of G4OCCTSolid.
+
 #ifndef G4OCCT_G4OCCTSolid_hh
 #define G4OCCT_G4OCCTSolid_hh
 
@@ -11,7 +14,7 @@
 #include <TopoDS_Shape.hxx>
 
 /**
- * G4OCCTSolid
+ * @brief Geant4 solid wrapping an Open CASCADE Technology (OCCT) TopoDS_Shape.
  *
  * Wraps an Open CASCADE Technology (OCCT) TopoDS_Shape as a Geant4 solid
  * (G4VSolid). The OCCT shape is stored by value and is queried directly for
@@ -24,7 +27,12 @@
  */
 class G4OCCTSolid : public G4VSolid {
  public:
-  /// Construct with a Geant4 solid name and an OCCT shape.
+  /**
+   * Construct with a Geant4 solid name and an OCCT shape.
+   *
+   * @param name  Name registered with the Geant4 solid store.
+   * @param shape OCCT boundary-representation shape to wrap.
+   */
   G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape);
 
   ~G4OCCTSolid() override = default;
