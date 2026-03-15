@@ -188,10 +188,10 @@ btnImp.addEventListener('click', () => {
 
 // ── Sidebar toggle ────────────────────────────────────────────────────────────
 sidebarToggle.addEventListener('click', () => {
-  const hidden = sidebarEl.classList.toggle('hidden');
+  const hidden              = sidebarEl.classList.toggle('hidden');
   sidebarToggle.textContent = hidden ? '▶' : '◀';
   sidebarToggle.title       = hidden ? 'Show sidebar' : 'Hide sidebar';
-  sidebarToggle.setAttribute('aria-label',    hidden ? 'Show sidebar' : 'Hide sidebar');
+  sidebarToggle.setAttribute('aria-label', hidden ? 'Show sidebar' : 'Hide sidebar');
   sidebarToggle.setAttribute('aria-expanded', String(!hidden));
   sidebarEl.addEventListener('transitionend', onResize, {once : true});
 });
