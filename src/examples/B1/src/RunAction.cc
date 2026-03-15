@@ -70,6 +70,6 @@ void RunAction::EndOfRunAction(const G4Run* run) {
 }
 
 void RunAction::AddEdep(G4double edep) {
-  fEdep  += edep;
+  fEdep += edep;
   fEdep2 += edep * edep;
 }

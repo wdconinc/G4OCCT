@@ -51,24 +51,19 @@
 G4VPhysicalVolume* BuildNativeGeometry(G4Material* air, G4Material* iron) {
   auto* worldSolid = new G4Box("WorldBox", 1000, 1000, 1000);
   auto* worldLV    = new G4LogicalVolume(worldSolid, air, "WorldLV");
-  auto* worldPV    = new G4PVPlacement(
-      nullptr, G4ThreeVector(), worldLV, "World", nullptr, false, 0);
+  auto* worldPV = new G4PVPlacement(nullptr, G4ThreeVector(), worldLV, "World", nullptr, false, 0);
 
   auto* boxSolid = new G4Box("Box", 50, 50, 50);
   auto* boxLV    = new G4LogicalVolume(boxSolid, iron, "BoxLV");
-  new G4PVPlacement(nullptr, G4ThreeVector(-200, 0, 0), boxLV, "BoxPV",
-                    worldLV, false, 0);
+  new G4PVPlacement(nullptr, G4ThreeVector(-200, 0, 0), boxLV, "BoxPV", worldLV, false, 0);
 
-  auto* sphereSolid = new G4Sphere("Sphere", 0, 50, 0,
-                                   CLHEP::twopi, 0, CLHEP::pi);
+  auto* sphereSolid = new G4Sphere("Sphere", 0, 50, 0, CLHEP::twopi, 0, CLHEP::pi);
   auto* sphereLV    = new G4LogicalVolume(sphereSolid, iron, "SphereLV");
-  new G4PVPlacement(nullptr, G4ThreeVector(0, 0, 0), sphereLV, "SpherePV",
-                    worldLV, false, 0);
+  new G4PVPlacement(nullptr, G4ThreeVector(0, 0, 0), sphereLV, "SpherePV", worldLV, false, 0);
 
   auto* cylSolid = new G4Tubs("Cylinder", 0, 40, 60, 0, CLHEP::twopi);
   auto* cylLV    = new G4LogicalVolume(cylSolid, iron, "CylLV");
-  new G4PVPlacement(nullptr, G4ThreeVector(200, 0, 0), cylLV, "CylPV",
-                    worldLV, false, 0);
+  new G4PVPlacement(nullptr, G4ThreeVector(200, 0, 0), cylLV, "CylPV", worldLV, false, 0);
 
   return worldPV;
 }
@@ -76,32 +71,26 @@ G4VPhysicalVolume* BuildNativeGeometry(G4Material* air, G4Material* iron) {
 /// Build an equivalent world using G4OCCTSolid wrappers.
 G4VPhysicalVolume* BuildOCCTGeometry(G4Material* air, G4Material* iron) {
   TopoDS_Shape worldShape = BRepPrimAPI_MakeBox(2000, 2000, 2000).Shape();
-  auto* worldSolid = new G4OCCTSolid("WorldBox", worldShape);
-  auto* worldLV    = new G4OCCTLogicalVolume(worldSolid, air, "WorldLV_OCCT",
-                                             worldShape);
-  auto* worldPV    = new G4OCCTPlacement(
-      nullptr, G4ThreeVector(), worldLV, "World_OCCT", nullptr, false, 0);
+  auto* worldSolid        = new G4OCCTSolid("WorldBox", worldShape);
+  auto* worldLV           = new G4OCCTLogicalVolume(worldSolid, air, "WorldLV_OCCT", worldShape);
+  auto* worldPV =
+      new G4OCCTPlacement(nullptr, G4ThreeVector(), worldLV, "World_OCCT", nullptr, false, 0);
 
   TopoDS_Shape boxShape = BRepPrimAPI_MakeBox(100, 100, 100).Shape();
-  auto* boxSolid = new G4OCCTSolid("Box", boxShape);
-  auto* boxLV    = new G4OCCTLogicalVolume(boxSolid, iron, "BoxLV_OCCT",
-                                           boxShape);
-  new G4OCCTPlacement(nullptr, G4ThreeVector(-200, 0, 0), boxLV, "BoxPV_OCCT",
-                      worldLV, false, 0);
+  auto* boxSolid        = new G4OCCTSolid("Box", boxShape);
+  auto* boxLV           = new G4OCCTLogicalVolume(boxSolid, iron, "BoxLV_OCCT", boxShape);
+  new G4OCCTPlacement(nullptr, G4ThreeVector(-200, 0, 0), boxLV, "BoxPV_OCCT", worldLV, false, 0);
 
   TopoDS_Shape sphereShape = BRepPrimAPI_MakeSphere(50).Shape();
-  auto* sphereSolid = new G4OCCTSolid("Sphere", sphereShape);
-  auto* sphereLV    = new G4OCCTLogicalVolume(sphereSolid, iron,
-                                              "SphereLV_OCCT", sphereShape);
-  new G4OCCTPlacement(nullptr, G4ThreeVector(0, 0, 0), sphereLV,
-                      "SpherePV_OCCT", worldLV, false, 0);
+  auto* sphereSolid        = new G4OCCTSolid("Sphere", sphereShape);
+  auto* sphereLV = new G4OCCTLogicalVolume(sphereSolid, iron, "SphereLV_OCCT", sphereShape);
+  new G4OCCTPlacement(nullptr, G4ThreeVector(0, 0, 0), sphereLV, "SpherePV_OCCT", worldLV, false,
+                      0);
 
   TopoDS_Shape cylShape = BRepPrimAPI_MakeCylinder(40, 120).Shape();
-  auto* cylSolid = new G4OCCTSolid("Cylinder", cylShape);
-  auto* cylLV    = new G4OCCTLogicalVolume(cylSolid, iron, "CylLV_OCCT",
-                                           cylShape);
-  new G4OCCTPlacement(nullptr, G4ThreeVector(200, 0, 0), cylLV,
-                      "CylPV_OCCT", worldLV, false, 0);
+  auto* cylSolid        = new G4OCCTSolid("Cylinder", cylShape);
+  auto* cylLV           = new G4OCCTLogicalVolume(cylSolid, iron, "CylLV_OCCT", cylShape);
+  new G4OCCTPlacement(nullptr, G4ThreeVector(200, 0, 0), cylLV, "CylPV_OCCT", worldLV, false, 0);
 
   return worldPV;
 }
@@ -128,12 +117,14 @@ long RunGeantinos(G4VPhysicalVolume* world, int nGeantinos) {
 
     nav.LocateGlobalPointAndSetup(pos);
 
-    int steps = 0;
+    int steps     = 0;
     double safety = 0;
     for (int s = 0; s < 200; ++s) {
       double step = 50.0;
       double dist = nav.ComputeStep(pos, dir, step, safety);
-      if (dist >= kInfinity) { break; }
+      if (dist >= kInfinity) {
+        break;
+      }
       pos += (dist + 1e-7) * dir;
       nav.SetGeometricallyLimitedStep();
       nav.LocateGlobalPointAndSetup(pos);
@@ -150,7 +141,9 @@ long RunGeantinos(G4VPhysicalVolume* world, int nGeantinos) {
 
 int main(int argc, char* argv[]) {
   int nGeantinos = 10000;
-  if (argc > 1) { nGeantinos = std::atoi(argv[1]); }
+  if (argc > 1) {
+    nGeantinos = std::atoi(argv[1]);
+  }
 
   G4Material* air  = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
   G4Material* iron = G4NistManager::Instance()->FindOrBuildMaterial("G4_Fe");
@@ -162,30 +155,24 @@ int main(int argc, char* argv[]) {
   G4VPhysicalVolume* occtWorld = BuildOCCTGeometry(air, iron);
 
   // ── native benchmark ───────────────────────────────────────────────────────
-  std::cout << "Running " << nGeantinos
-            << " geantinos through native geometry...\n";
-  auto t0 = std::chrono::steady_clock::now();
+  std::cout << "Running " << nGeantinos << " geantinos through native geometry...\n";
+  auto t0          = std::chrono::steady_clock::now();
   long stepsNative = RunGeantinos(nativeWorld, nGeantinos);
-  auto t1 = std::chrono::steady_clock::now();
-  double msNative =
-      std::chrono::duration<double, std::milli>(t1 - t0).count();
+  auto t1          = std::chrono::steady_clock::now();
+  double msNative  = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
   // ── OCCT benchmark ─────────────────────────────────────────────────────────
-  std::cout << "Running " << nGeantinos
-            << " geantinos through OCCT geometry (stub)...\n";
-  auto t2 = std::chrono::steady_clock::now();
+  std::cout << "Running " << nGeantinos << " geantinos through OCCT geometry (stub)...\n";
+  auto t2        = std::chrono::steady_clock::now();
   long stepsOCCT = RunGeantinos(occtWorld, nGeantinos);
-  auto t3 = std::chrono::steady_clock::now();
-  double msOCCT =
-      std::chrono::duration<double, std::milli>(t3 - t2).count();
+  auto t3        = std::chrono::steady_clock::now();
+  double msOCCT  = std::chrono::duration<double, std::milli>(t3 - t2).count();
 
   // ── results ────────────────────────────────────────────────────────────────
   std::cout << "\n=== Navigator Benchmark Results ===\n";
   std::cout << "Geantinos: " << nGeantinos << "\n";
-  std::cout << "Native Geant4 : " << msNative  << " ms  (" << stepsNative
-            << " steps)\n";
-  std::cout << "OCCT (stub)   : " << msOCCT    << " ms  (" << stepsOCCT
-            << " steps)\n";
+  std::cout << "Native Geant4 : " << msNative << " ms  (" << stepsNative << " steps)\n";
+  std::cout << "OCCT (stub)   : " << msOCCT << " ms  (" << stepsOCCT << " steps)\n";
   if (msOCCT > 0) {
     std::cout << "Speed ratio (native/OCCT): " << msNative / msOCCT << "\n";
   }

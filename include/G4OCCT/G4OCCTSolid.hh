@@ -26,7 +26,7 @@
  * detail in docs/geometry_mapping.md.
  */
 class G4OCCTSolid : public G4VSolid {
- public:
+public:
   /**
    * Construct with a Geant4 solid name and an OCCT shape.
    *
@@ -46,17 +46,14 @@ class G4OCCTSolid : public G4VSolid {
   G4ThreeVector SurfaceNormal(const G4ThreeVector& p) const override;
 
   /// Distance from external point @p p along direction @p v to solid surface.
-  G4double DistanceToIn(const G4ThreeVector& p,
-                        const G4ThreeVector& v) const override;
+  G4double DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const override;
 
   /// Shortest distance from external point @p p to the solid surface.
   G4double DistanceToIn(const G4ThreeVector& p) const override;
 
   /// Distance from internal point @p p along direction @p v to solid surface.
-  G4double DistanceToOut(const G4ThreeVector& p,
-                         const G4ThreeVector& v,
-                         const G4bool calcNorm = false,
-                         G4bool* validNorm = nullptr,
+  G4double DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v,
+                         const G4bool calcNorm = false, G4bool* validNorm = nullptr,
                          G4ThreeVector* n = nullptr) const override;
 
   /// Shortest distance from internal point @p p to the solid surface.
@@ -72,10 +69,8 @@ class G4OCCTSolid : public G4VSolid {
   void BoundingLimits(G4ThreeVector& pMin, G4ThreeVector& pMax) const override;
 
   /// Calculate the extent of the solid in the given axis.
-  G4bool CalculateExtent(const EAxis pAxis,
-                         const G4VoxelLimits& pVoxelLimit,
-                         const G4AffineTransform& pTransform,
-                         G4double& pMin,
+  G4bool CalculateExtent(const EAxis pAxis, const G4VoxelLimits& pVoxelLimit,
+                         const G4AffineTransform& pTransform, G4double& pMin,
                          G4double& pMax) const override;
 
   /// Describe the solid to the graphics scene.
@@ -95,8 +90,8 @@ class G4OCCTSolid : public G4VSolid {
   /// Replace the underlying OCCT shape.
   void SetOCCTShape(const TopoDS_Shape& shape) { fShape = shape; }
 
- private:
+private:
   TopoDS_Shape fShape;
 };
 
-#endif  // G4OCCT_G4OCCTSolid_hh
+#endif // G4OCCT_G4OCCTSolid_hh

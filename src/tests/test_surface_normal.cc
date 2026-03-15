@@ -46,7 +46,7 @@ void TestSphereSurfaceNormals() {
   const G4double component = sphere.radius / std::sqrt(3.0);
   const G4ThreeVector diagonalPoint(component, component, component);
   const G4ThreeVector expectedDiagonalNormal = diagonalPoint.unit();
-  const G4ThreeVector diagonalNormal = sphere.solid.SurfaceNormal(diagonalPoint);
+  const G4ThreeVector diagonalNormal         = sphere.solid.SurfaceNormal(diagonalPoint);
   ExpectSurfaceNormal("sphere diagonal normal", sphere.solid, diagonalPoint,
                       expectedDiagonalNormal);
   ExpectUnitNormal("sphere diagonal normal is unit length", diagonalNormal);
@@ -54,7 +54,7 @@ void TestSphereSurfaceNormals() {
   const G4double equatorialComponent = sphere.radius / std::sqrt(2.0);
   const G4ThreeVector equatorialPoint(0.0, equatorialComponent, equatorialComponent);
   const G4ThreeVector expectedEquatorialNormal = equatorialPoint.unit();
-  const G4ThreeVector equatorialNormal = sphere.solid.SurfaceNormal(equatorialPoint);
+  const G4ThreeVector equatorialNormal         = sphere.solid.SurfaceNormal(equatorialPoint);
   ExpectSurfaceNormal("sphere equatorial normal", sphere.solid, equatorialPoint,
                       expectedEquatorialNormal);
   ExpectUnitNormal("sphere equatorial normal is unit length", equatorialNormal);
@@ -66,9 +66,8 @@ void TestCylinderSurfaceNormals() {
   const G4double radialComponent = cylinder.radius / std::sqrt(2.0);
   const G4ThreeVector radialPoint(radialComponent, radialComponent, 0.0);
   const G4ThreeVector expectedRadialNormal = radialPoint.unit();
-  const G4ThreeVector radialNormal = cylinder.solid.SurfaceNormal(radialPoint);
-  ExpectSurfaceNormal("cylinder radial normal", cylinder.solid, radialPoint,
-                      expectedRadialNormal);
+  const G4ThreeVector radialNormal         = cylinder.solid.SurfaceNormal(radialPoint);
+  ExpectSurfaceNormal("cylinder radial normal", cylinder.solid, radialPoint, expectedRadialNormal);
   ExpectUnitNormal("cylinder radial normal is unit length", radialNormal);
 
   const G4ThreeVector topNormal = cylinder.solid.SurfaceNormal(cylinder.PositiveZSurface());
@@ -83,7 +82,7 @@ void TestCylinderSurfaceNormals() {
   ExpectUnitNormal("cylinder bottom normal is unit length", bottomNormal);
 }
 
-}  // namespace
+} // namespace
 
 int main() {
   TestBoxSurfaceNormals();

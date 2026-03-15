@@ -38,15 +38,15 @@ class G4LogicalVolume;
  * @brief Accumulates energy deposited inside the scoring volume (shape2).
  */
 class SteppingAction : public G4UserSteppingAction {
- public:
+public:
   explicit SteppingAction(EventAction* eventAction);
   ~SteppingAction() override = default;
 
   void UserSteppingAction(const G4Step* step) override;
 
- private:
-  EventAction* fEventAction = nullptr;
+private:
+  EventAction* fEventAction       = nullptr;
   G4LogicalVolume* fScoringVolume = nullptr;
 };
 
-#endif  // B1_SteppingAction_hh
+#endif // B1_SteppingAction_hh

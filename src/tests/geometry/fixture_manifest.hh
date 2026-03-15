@@ -122,10 +122,8 @@ FixtureValidationState ParseFixtureValidationState(std::string_view token);
  * @param description Human-readable summary.
  * @return Initialised manifest document.
  */
-FixtureManifest MakeFixtureManifest(
-    const std::filesystem::path& source_path,
-    std::string family,
-    std::string description);
+FixtureManifest MakeFixtureManifest(const std::filesystem::path& source_path, std::string family,
+                                    std::string description);
 
 /**
  * Append a covered class name if it is not already recorded.
@@ -158,9 +156,8 @@ std::filesystem::path ResolveRepositoryFixtureRoot(const FixtureRepositoryManife
  * @param family Family directory key.
  * @return Absolute family manifest path.
  */
-std::filesystem::path ResolveFamilyManifestPath(
-    const FixtureRepositoryManifest& manifest,
-    std::string_view family);
+std::filesystem::path ResolveFamilyManifestPath(const FixtureRepositoryManifest& manifest,
+                                                std::string_view family);
 
 /**
  * Resolve the on-disk directory for a fixture entry.
@@ -169,9 +166,8 @@ std::filesystem::path ResolveFamilyManifestPath(
  * @param fixture Fixture entry within the manifest.
  * @return Absolute fixture directory path.
  */
-std::filesystem::path ResolveFixtureDirectory(
-    const FixtureManifest& manifest,
-    const FixtureReference& fixture);
+std::filesystem::path ResolveFixtureDirectory(const FixtureManifest& manifest,
+                                              const FixtureReference& fixture);
 
 /**
  * Resolve the on-disk STEP path for a fixture entry.
@@ -180,9 +176,8 @@ std::filesystem::path ResolveFixtureDirectory(
  * @param fixture Fixture entry within the manifest.
  * @return Absolute STEP file path.
  */
-std::filesystem::path ResolveFixtureStepPath(
-    const FixtureManifest& manifest,
-    const FixtureReference& fixture);
+std::filesystem::path ResolveFixtureStepPath(const FixtureManifest& manifest,
+                                             const FixtureReference& fixture);
 
 /**
  * Resolve the on-disk provenance path for a fixture entry.
@@ -191,9 +186,8 @@ std::filesystem::path ResolveFixtureStepPath(
  * @param fixture Fixture entry within the manifest.
  * @return Absolute provenance file path.
  */
-std::filesystem::path ResolveFixtureProvenancePath(
-    const FixtureManifest& manifest,
-    const FixtureReference& fixture);
+std::filesystem::path ResolveFixtureProvenancePath(const FixtureManifest& manifest,
+                                                   const FixtureReference& fixture);
 
 /**
  * Read the raw text of a manifest file.
@@ -212,7 +206,8 @@ std::string ReadManifestText(const std::filesystem::path& manifest_path);
  * @param manifest_path Repository-level manifest file.
  * @return Parsed repository manifest.
  */
-FixtureRepositoryManifest ParseFixtureRepositoryManifest(const std::filesystem::path& manifest_path);
+FixtureRepositoryManifest
+ParseFixtureRepositoryManifest(const std::filesystem::path& manifest_path);
 
 /**
  * Parse a family-level geometry fixture manifest.
@@ -225,6 +220,6 @@ FixtureRepositoryManifest ParseFixtureRepositoryManifest(const std::filesystem::
  */
 FixtureManifest ParseFixtureManifestFile(const std::filesystem::path& manifest_path);
 
-}  // namespace g4occt::tests::geometry
+} // namespace g4occt::tests::geometry
 
 #endif

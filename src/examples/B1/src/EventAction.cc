@@ -37,10 +37,6 @@
 
 EventAction::EventAction(RunAction* runAction) : fRunAction(runAction) {}
 
-void EventAction::BeginOfEventAction(const G4Event* /* event */) {
-  fEdep = 0.0;
-}
+void EventAction::BeginOfEventAction(const G4Event* /* event */) { fEdep = 0.0; }
 
-void EventAction::EndOfEventAction(const G4Event* /* event */) {
-  fRunAction->AddEdep(fEdep);
-}
+void EventAction::EndOfEventAction(const G4Event* /* event */) { fRunAction->AddEdep(fEdep); }

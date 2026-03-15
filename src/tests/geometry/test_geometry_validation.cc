@@ -38,7 +38,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
   aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
 
   std::size_t validated_fixture_count = 0;
-  std::size_t geometry_checked_count = 0;
+  std::size_t geometry_checked_count  = 0;
 
   for (const auto& family : repository_manifest.families) {
     const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
@@ -50,18 +50,17 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
     try {
       family_manifest = ParseFixtureManifestFile(family_manifest_path);
     } catch (const std::exception& error) {
-      aggregate_report.AddError(
-          "manifest.parse_failed",
-          std::string("Failed to parse family manifest: ") + error.what(),
-          family_manifest_path);
+      aggregate_report.AddError("manifest.parse_failed",
+                                std::string("Failed to parse family manifest: ") + error.what(),
+                                family_manifest_path);
       continue;
     }
     aggregate_report.Append(ValidateManifestStructure(family_manifest));
 
     for (const auto& fixture : family_manifest.fixtures) {
       FixtureValidationRequest request;
-      request.manifest = family_manifest;
-      request.fixture = fixture;
+      request.manifest                = family_manifest;
+      request.fixture                 = fixture;
       request.require_provenance_file = true;
 
       const ValidationReport layout_report = ValidateFixtureLayout(request);
@@ -101,7 +100,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
   return aggregate_report.Ok() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-}  // namespace g4occt::tests::geometry
+} // namespace g4occt::tests::geometry
 
 int main(int argc, char** argv) {
   try {

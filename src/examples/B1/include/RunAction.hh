@@ -41,7 +41,7 @@ class G4Run;
  * shape2.
  */
 class RunAction : public G4UserRunAction {
- public:
+public:
   RunAction();
   ~RunAction() override = default;
 
@@ -51,9 +51,9 @@ class RunAction : public G4UserRunAction {
   /// Add @p edep to the accumulated energy deposit.
   void AddEdep(G4double edep);
 
- private:
+private:
   G4Accumulable<G4double> fEdep{0.0};
   G4Accumulable<G4double> fEdep2{0.0};
 };
 
-#endif  // B1_RunAction_hh
+#endif // B1_RunAction_hh

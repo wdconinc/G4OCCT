@@ -18,7 +18,7 @@ namespace {
 
 /// Return true when \p path ends with every component of \p suffix.
 bool PathEndsWith(const std::filesystem::path& path, const std::filesystem::path& suffix) {
-  auto path_it = path.end();
+  auto path_it   = path.end();
   auto suffix_it = suffix.end();
   while (suffix_it != suffix.begin()) {
     if (path_it == path.begin()) {
@@ -33,7 +33,7 @@ bool PathEndsWith(const std::filesystem::path& path, const std::filesystem::path
   return true;
 }
 
-}  // namespace
+} // namespace
 
 namespace g4occt::tests::geometry {
 
@@ -41,10 +41,7 @@ void ValidationReport::AddInfo(std::string code, std::string text, std::filesyst
   AddMessage(ValidationSeverity::kInfo, std::move(code), std::move(text), std::move(path));
 }
 
-void ValidationReport::AddWarning(
-    std::string code,
-    std::string text,
-    std::filesystem::path path) {
+void ValidationReport::AddWarning(std::string code, std::string text, std::filesystem::path path) {
   AddMessage(ValidationSeverity::kWarning, std::move(code), std::move(text), std::move(path));
 }
 
@@ -65,15 +62,10 @@ bool ValidationReport::Ok() const {
   return true;
 }
 
-const std::vector<ValidationMessage>& ValidationReport::Messages() const {
-  return messages_;
-}
+const std::vector<ValidationMessage>& ValidationReport::Messages() const { return messages_; }
 
-void ValidationReport::AddMessage(
-    const ValidationSeverity severity,
-    std::string code,
-    std::string text,
-    std::filesystem::path path) {
+void ValidationReport::AddMessage(const ValidationSeverity severity, std::string code,
+                                  std::string text, std::filesystem::path path) {
   messages_.push_back(ValidationMessage{
       severity,
       std::move(code),
@@ -84,12 +76,12 @@ void ValidationReport::AddMessage(
 
 std::string ToString(const ValidationSeverity severity) {
   switch (severity) {
-    case ValidationSeverity::kInfo:
-      return "info";
-    case ValidationSeverity::kWarning:
-      return "warning";
-    case ValidationSeverity::kError:
-      return "error";
+  case ValidationSeverity::kInfo:
+    return "info";
+  case ValidationSeverity::kWarning:
+    return "warning";
+  case ValidationSeverity::kError:
+    return "error";
   }
 
   return "unknown";
@@ -99,97 +91,74 @@ ValidationReport ValidateRepositoryLayout(const FixtureRepositoryManifest& manif
   ValidationReport report;
 
   if (manifest.schema_version.empty()) {
-    report.AddError(
-        "repository.schema_version",
-        "Repository manifest schema_version must not be empty",
-        manifest.source_path);
+    report.AddError("repository.schema_version",
+                    "Repository manifest schema_version must not be empty", manifest.source_path);
   }
   if (manifest.fixture_root.empty()) {
-    report.AddError(
-        "repository.fixture_root",
-        "Repository manifest fixture_root must not be empty",
-        manifest.source_path);
+    report.AddError("repository.fixture_root", "Repository manifest fixture_root must not be empty",
+                    manifest.source_path);
   } else {
     const std::filesystem::path on_disk_root = manifest.source_path.parent_path();
     if (!PathEndsWith(on_disk_root, manifest.fixture_root)) {
-      report.AddError(
-          "repository.fixture_root_mismatch",
-          "Repository manifest fixture_root '" + manifest.fixture_root.string() +
-              "' does not match the manifest's on-disk location '" + on_disk_root.string() + "'",
-          manifest.source_path);
+      report.AddError("repository.fixture_root_mismatch",
+                      "Repository manifest fixture_root '" + manifest.fixture_root.string() +
+                          "' does not match the manifest's on-disk location '" +
+                          on_disk_root.string() + "'",
+                      manifest.source_path);
     }
   }
   if (manifest.owner.empty()) {
-    report.AddError(
-        "repository.owner",
-        "Repository manifest owner must not be empty",
-        manifest.source_path);
+    report.AddError("repository.owner", "Repository manifest owner must not be empty",
+                    manifest.source_path);
   }
   if (manifest.policy.step_file_name.empty()) {
-    report.AddError(
-        "repository.policy.step_file_name",
-        "Repository manifest must declare step_file_name",
-        manifest.source_path);
+    report.AddError("repository.policy.step_file_name",
+                    "Repository manifest must declare step_file_name", manifest.source_path);
   }
   if (manifest.policy.provenance_file_name.empty()) {
-    report.AddError(
-        "repository.policy.provenance_file_name",
-        "Repository manifest must declare provenance_file_name",
-        manifest.source_path);
+    report.AddError("repository.policy.provenance_file_name",
+                    "Repository manifest must declare provenance_file_name", manifest.source_path);
   }
   if (manifest.policy.volume_unit.empty()) {
-    report.AddError(
-        "repository.policy.volume_unit",
-        "Repository manifest must declare volume_unit",
-        manifest.source_path);
+    report.AddError("repository.policy.volume_unit", "Repository manifest must declare volume_unit",
+                    manifest.source_path);
   }
 
   const auto root_directory = ResolveRepositoryFixtureRoot(manifest);
   if (!std::filesystem::exists(root_directory)) {
-    report.AddError(
-        "repository.root_missing",
-        "Fixture repository root directory does not exist",
-        root_directory);
+    report.AddError("repository.root_missing", "Fixture repository root directory does not exist",
+                    root_directory);
     return report;
   }
 
   if (!std::filesystem::is_directory(root_directory)) {
-    report.AddError(
-        "repository.root_not_directory",
-        "Fixture repository root path is not a directory",
-        root_directory);
+    report.AddError("repository.root_not_directory",
+                    "Fixture repository root path is not a directory", root_directory);
     return report;
   }
 
   if (manifest.families.empty()) {
-    report.AddWarning(
-        "repository.families_empty",
-        "Repository manifest does not list any fixture families",
-        manifest.source_path);
+    report.AddWarning("repository.families_empty",
+                      "Repository manifest does not list any fixture families",
+                      manifest.source_path);
   }
 
   for (const auto& family : manifest.families) {
-    const auto family_directory = root_directory / family;
+    const auto family_directory     = root_directory / family;
     const auto family_manifest_path = ResolveFamilyManifestPath(manifest, family);
     if (!std::filesystem::exists(family_directory)) {
-      report.AddError(
-          "repository.family_missing",
-          "Fixture family directory does not exist: " + family,
-          family_directory);
+      report.AddError("repository.family_missing",
+                      "Fixture family directory does not exist: " + family, family_directory);
       continue;
     }
     if (!std::filesystem::is_directory(family_directory)) {
-      report.AddError(
-          "repository.family_not_directory",
-          "Fixture family path is not a directory: " + family,
-          family_directory);
+      report.AddError("repository.family_not_directory",
+                      "Fixture family path is not a directory: " + family, family_directory);
       continue;
     }
     if (!std::filesystem::exists(family_manifest_path)) {
-      report.AddError(
-          "repository.family_manifest_missing",
-          "Fixture family manifest is missing: " + family,
-          family_manifest_path);
+      report.AddError("repository.family_manifest_missing",
+                      "Fixture family manifest is missing: " + family, family_manifest_path);
     }
   }
 
@@ -204,10 +173,8 @@ ValidationReport ValidateManifestStructure(const FixtureManifest& manifest) {
   }
 
   if (manifest.schema_version.empty()) {
-    report.AddError(
-        "manifest.schema_version",
-        "Manifest schema_version must not be empty",
-        manifest.source_path);
+    report.AddError("manifest.schema_version", "Manifest schema_version must not be empty",
+                    manifest.source_path);
   }
 
   std::set<std::string> fixture_ids;
@@ -215,36 +182,27 @@ ValidationReport ValidateManifestStructure(const FixtureManifest& manifest) {
     if (fixture.id.empty()) {
       report.AddError("fixture.id", "Fixture id must not be empty", manifest.source_path);
     } else if (!fixture_ids.insert(fixture.id).second) {
-      report.AddError(
-          "fixture.duplicate_id",
-          "Fixture id is duplicated within the manifest: " + fixture.id,
-          manifest.source_path);
+      report.AddError("fixture.duplicate_id",
+                      "Fixture id is duplicated within the manifest: " + fixture.id,
+                      manifest.source_path);
     }
 
     if (fixture.geant4_class.empty()) {
-      report.AddError(
-          "fixture.geant4_class",
-          "Fixture geant4_class must not be empty",
-          manifest.source_path);
+      report.AddError("fixture.geant4_class", "Fixture geant4_class must not be empty",
+                      manifest.source_path);
     }
 
     if (fixture.relative_directory.empty()) {
-      report.AddError(
-          "fixture.relative_directory",
-          "Fixture relative_directory must not be empty",
-          manifest.source_path);
+      report.AddError("fixture.relative_directory", "Fixture relative_directory must not be empty",
+                      manifest.source_path);
     }
 
     if (fixture.family.empty()) {
-      report.AddError(
-          "fixture.family",
-          "Fixture family must not be empty",
-          manifest.source_path);
+      report.AddError("fixture.family", "Fixture family must not be empty", manifest.source_path);
     } else if (fixture.family != manifest.family) {
-      report.AddError(
-          "fixture.family_mismatch",
-          "Fixture family does not match owning manifest family: " + fixture.family,
-          manifest.source_path);
+      report.AddError("fixture.family_mismatch",
+                      "Fixture family does not match owning manifest family: " + fixture.family,
+                      manifest.source_path);
     }
   }
 
@@ -258,22 +216,18 @@ ValidationReport ValidateFixtureLayout(const FixtureValidationRequest& request) 
     report.AddError("fixture.id", "Fixture id must not be empty", request.manifest.source_path);
   }
   if (request.fixture.geant4_class.empty()) {
-    report.AddError(
-        "fixture.geant4_class",
-        "Fixture geant4_class must not be empty",
-        request.manifest.source_path);
+    report.AddError("fixture.geant4_class", "Fixture geant4_class must not be empty",
+                    request.manifest.source_path);
   }
   if (request.fixture.relative_directory.empty()) {
-    report.AddError(
-        "fixture.relative_directory",
-        "Fixture relative_directory must not be empty",
-        request.manifest.source_path);
+    report.AddError("fixture.relative_directory", "Fixture relative_directory must not be empty",
+                    request.manifest.source_path);
   }
   if (!request.fixture.family.empty() && request.fixture.family != request.manifest.family) {
-    report.AddError(
-        "fixture.family_mismatch",
-        "Fixture family does not match owning manifest family: " + request.fixture.family,
-        request.manifest.source_path);
+    report.AddError("fixture.family_mismatch",
+                    "Fixture family does not match owning manifest family: " +
+                        request.fixture.family,
+                    request.manifest.source_path);
   }
   if (!report.Ok()) {
     return report;
@@ -281,18 +235,14 @@ ValidationReport ValidateFixtureLayout(const FixtureValidationRequest& request) 
 
   const auto fixture_directory = ResolveFixtureDirectory(request.manifest, request.fixture);
   if (!std::filesystem::exists(fixture_directory)) {
-    report.AddError(
-        "fixture.directory_missing",
-        "Fixture directory does not exist",
-        fixture_directory);
+    report.AddError("fixture.directory_missing", "Fixture directory does not exist",
+                    fixture_directory);
     return report;
   }
 
   if (!std::filesystem::is_directory(fixture_directory)) {
-    report.AddError(
-        "fixture.directory_not_directory",
-        "Fixture path is not a directory",
-        fixture_directory);
+    report.AddError("fixture.directory_not_directory", "Fixture path is not a directory",
+                    fixture_directory);
     return report;
   }
 
@@ -306,20 +256,17 @@ ValidationReport ValidateFixtureLayout(const FixtureValidationRequest& request) 
   if (request.require_provenance_file) {
     const auto provenance_path = ResolveFixtureProvenancePath(request.manifest, request.fixture);
     if (!std::filesystem::exists(provenance_path)) {
-      report.AddError(
-          "fixture.provenance_missing",
-          "Fixture provenance file is missing",
-          provenance_path);
+      report.AddError("fixture.provenance_missing", "Fixture provenance file is missing",
+                      provenance_path);
     }
   }
 
   return report;
 }
 
-ValidationReport ValidateFixtureGeometry(
-    const FixtureValidationRequest& request,
-    const FixtureGeometryValidationOptions& options,
-    FixtureGeometryObservation* observation) {
+ValidationReport ValidateFixtureGeometry(const FixtureValidationRequest& request,
+                                         const FixtureGeometryValidationOptions& options,
+                                         FixtureGeometryObservation* observation) {
   ValidationReport report = ValidateFixtureLayout(request);
   if (!report.Ok()) {
     return report;
@@ -332,10 +279,8 @@ ValidationReport ValidateFixtureGeometry(
   STEPControl_Reader reader;
   const IFSelect_ReturnStatus read_status = reader.ReadFile(step_path.string().c_str());
   if (read_status != IFSelect_RetDone) {
-    report.AddError(
-        "fixture.step_read_failed",
-        "STEPControl_Reader failed to read STEP file",
-        step_path);
+    report.AddError("fixture.step_read_failed", "STEPControl_Reader failed to read STEP file",
+                    step_path);
     if (observation != nullptr) {
       *observation = local_observation;
     }
@@ -343,10 +288,8 @@ ValidationReport ValidateFixtureGeometry(
   }
 
   if (reader.TransferRoots() <= 0) {
-    report.AddError(
-        "fixture.step_transfer_failed",
-        "STEPControl_Reader did not transfer any STEP roots",
-        step_path);
+    report.AddError("fixture.step_transfer_failed",
+                    "STEPControl_Reader did not transfer any STEP roots", step_path);
     if (observation != nullptr) {
       *observation = local_observation;
     }
@@ -355,10 +298,7 @@ ValidationReport ValidateFixtureGeometry(
 
   const TopoDS_Shape shape = reader.OneShape();
   if (shape.IsNull()) {
-    report.AddError(
-        "fixture.shape_null",
-        "Transferred STEP shape is null",
-        step_path);
+    report.AddError("fixture.shape_null", "Transferred STEP shape is null", step_path);
     if (observation != nullptr) {
       *observation = local_observation;
     }
@@ -369,33 +309,27 @@ ValidationReport ValidateFixtureGeometry(
 
   const BRepCheck_Analyzer analyzer(shape);
   if (!analyzer.IsValid()) {
-    report.AddError(
-        "fixture.shape_invalid",
-        "BRepCheck_Analyzer reported an invalid imported shape",
-        step_path);
+    report.AddError("fixture.shape_invalid",
+                    "BRepCheck_Analyzer reported an invalid imported shape", step_path);
   } else {
     local_observation.topologically_valid = true;
-    report.AddInfo(
-        "fixture.shape_valid",
-        "BRepCheck_Analyzer accepted the imported shape",
-        step_path);
+    report.AddInfo("fixture.shape_valid", "BRepCheck_Analyzer accepted the imported shape",
+                   step_path);
   }
 
   GProp_GProps properties;
   BRepGProp::VolumeProperties(shape, properties);
-  local_observation.volume_mm3 = properties.Mass();
+  local_observation.volume_mm3      = properties.Mass();
   local_observation.volume_computed = true;
 
   if (options.require_positive_volume && !(local_observation.volume_mm3 > 0.0)) {
-    report.AddError(
-        "fixture.volume_non_positive",
-        "Imported shape volume must be positive",
-        step_path);
+    report.AddError("fixture.volume_non_positive", "Imported shape volume must be positive",
+                    step_path);
   } else {
-    report.AddInfo(
-        "fixture.volume_computed",
-        "Imported shape volume = " + std::to_string(local_observation.volume_mm3) + " mm^3",
-        step_path);
+    report.AddInfo("fixture.volume_computed",
+                   "Imported shape volume = " + std::to_string(local_observation.volume_mm3) +
+                       " mm^3",
+                   step_path);
   }
 
   if (options.compare_volume_expectations) {
@@ -404,11 +338,10 @@ ValidationReport ValidateFixtureGeometry(
         continue;
       }
       if (expectation.unit != options.volume_unit) {
-        report.AddWarning(
-            "fixture.volume_unit_mismatch",
-            "Volume expectation unit does not match policy unit '" + options.volume_unit +
-                "': " + expectation.unit,
-            step_path);
+        report.AddWarning("fixture.volume_unit_mismatch",
+                          "Volume expectation unit does not match policy unit '" +
+                              options.volume_unit + "': " + expectation.unit,
+                          step_path);
         continue;
       }
       // OCCT BRepGProp::VolumeProperties always returns mm^3.  If the policy
@@ -425,16 +358,13 @@ ValidationReport ValidateFixtureGeometry(
 
       const double delta = std::fabs(local_observation.volume_mm3 - expectation.value);
       if (delta > expectation.absolute_tolerance) {
-        report.AddError(
-            "fixture.volume_mismatch",
-            "Imported shape volume differs from expectation by " + std::to_string(delta) +
-                " mm^3",
-            step_path);
+        report.AddError("fixture.volume_mismatch",
+                        "Imported shape volume differs from expectation by " +
+                            std::to_string(delta) + " mm^3",
+                        step_path);
       } else {
-        report.AddInfo(
-            "fixture.volume_match",
-            "Imported shape volume matches the manifest expectation",
-            step_path);
+        report.AddInfo("fixture.volume_match",
+                       "Imported shape volume matches the manifest expectation", step_path);
       }
     }
   }
@@ -445,4 +375,4 @@ ValidationReport ValidateFixtureGeometry(
   return report;
 }
 
-}  // namespace g4occt::tests::geometry
+} // namespace g4occt::tests::geometry
