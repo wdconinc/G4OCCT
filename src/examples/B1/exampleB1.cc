@@ -46,6 +46,10 @@
 #include <G4UImanager.hh>
 #include <QBBC.hh>
 
+#include <cerrno>
+#include <cstdlib>
+#include <iostream>
+
 int main(int argc, char** argv) {
   // ── Run manager ───────────────────────────────────────────────────────────
 
@@ -64,7 +68,19 @@ int main(int argc, char** argv) {
   // Optional second argument: number of worker threads (must be set before
   // /run/initialize, which is the first command in the macro).
   if (argc > 2) {
-    UImanager->ApplyCommand(G4String("/run/numberOfThreads ") + G4String(argv[2]));
+    char* endptr  = nullptr;
+    errno         = 0;
+    long nthreads = std::strtol(argv[2], &endptr, 10);
+    if (errno != 0 || endptr == argv[2] || *endptr != '\0' || nthreads <= 0) {
+      std::cerr << "exampleB1: invalid nthreads argument '" << argv[2]
+                << "' (must be a positive integer)\n";
+      return 1;
+    }
+    int rc = UImanager->ApplyCommand(G4String("/run/numberOfThreads ") + G4String(argv[2]));
+    if (rc != 0) {
+      std::cerr << "exampleB1: /run/numberOfThreads command failed (code " << rc << ")\n";
+      return 1;
+    }
   }
 
   if (argc > 1) {
