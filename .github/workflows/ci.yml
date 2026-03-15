@@ -69,6 +69,7 @@ jobs:
 
       - name: Generate HTML reports
         run: |
+          pip3 install --quiet jinja2
           python3 .github/scripts/generate_bench_report.py \
             bench_results.txt reports/bench_report.html
           python3 .github/scripts/generate_point_cloud_report.py \
