@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+# ThreadSanitizer suppression file for G4OCCT
+
+# ── Geant4 thread-local singletons ───────────────────────────────────────────
+# Geant4 uses thread-local singletons whose initialization/destruction sequences
+# can appear as benign races to TSAN.  These are rooted in Geant4 shared-library
+# frames and are not indicative of bugs in G4OCCT code.
+
+# Run-manager thread coordination (benign races on shutdown flags)
+race:G4MTRunManager
+
+# Physics-list and process-table thread-local init
+race:G4PhysicsListHelper
+race:G4ProcessTable
+
+# ── OCCT thread-local caches ──────────────────────────────────────────────────
+# OCCT allocates thread-local storage on first use inside geometry queries.
+# These are intentionally per-thread and are safe.
+
+race:Standard_MMgrRaw
+race:Standard_MMgrOpt

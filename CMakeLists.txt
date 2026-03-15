@@ -111,6 +111,13 @@ if(USE_UBSAN)
   add_compile_options(-g -O1)
 endif()
 
+# Thread sanitizer (incompatible with address sanitizer and leak sanitizer)
+option(USE_TSAN "Compile with thread sanitizer" OFF)
+if(USE_TSAN)
+  add_compile_options(-fsanitize=thread -fno-omit-frame-pointer -g -O1)
+  add_link_options(-fsanitize=thread)
+endif()
+
 # ─── Examples ─────────────────────────────────────────────────────────────────
 
 option(BUILD_EXAMPLES "Build G4OCCT usage examples" OFF)

@@ -256,3 +256,86 @@ jobs:
 
             # ── Test ───────────────────────────────────────────────────────
             ctest --test-dir build --output-on-failure -j$(nproc)
+
+  tsan:
+    name: Build and test with thread sanitizer (eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # halt_on_error=1: treat every race as fatal
+      # second_deadlock_stack=1: print both stacks for deadlock reports
+      # history_size=7: increase per-thread history for better stack traces
+      TSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/tsan.supp:halt_on_error=1:second_deadlock_stack=1:history_size=7
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Restore NIST CTC STEP fixtures cache
+        id: cache-nist-ctc
+        uses: actions/cache/restore@v4
+        with:
+          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
+          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+
+      - name: Download NIST CTC STEP fixtures
+        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
+        run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
+        continue-on-error: true
+
+      - name: Verify NIST CTC STEP fixtures
+        id: verify-nist-ctc
+        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
+        run: |
+          missing=0
+          for i in $(seq -w 1 11); do
+            f="src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-${i}-v1/shape.step"
+            if [[ ! -f "${f}" ]]; then
+              echo "Missing: ${f}" >&2
+              missing=$((missing + 1))
+            fi
+          done
+          if [[ "${missing}" -eq 0 ]]; then
+            echo "nist_ctc_complete=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "WARNING: ${missing} NIST CTC STEP file(s) missing; skipping cache save." >&2
+            echo "nist_ctc_complete=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save NIST CTC STEP fixtures cache
+        if: steps.verify-nist-ctc.outputs.nist_ctc_complete == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
+          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Build and test with TSAN inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              -DBUILD_TESTING=ON \
+              -DBUILD_EXAMPLES=ON \
+              -DUSE_TSAN=ON \
+              -DENABLE_WERROR=ON \
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install"
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build -- -j$(nproc)
+
+            # ── Test ───────────────────────────────────────────────────────
+            ctest --test-dir build --output-on-failure -j$(nproc)
+
+            # ── Run B1 with $(nproc) threads to exercise multi-threading ───
+            ./build/src/examples/B1/exampleB1 \
+              "${PWD}/src/examples/B1/run.mac" \
+              $(nproc)

@@ -32,9 +32,12 @@
 /// files and whose materials are specified using G4NistManager names.
 ///
 /// Usage (batch):
-///   ./exampleB1 run.mac
+///   ./exampleB1 run.mac [nthreads]
 ///
 /// The @p run.mac macro initialises the run manager and fires the beam.
+/// An optional second argument @p nthreads (positive integer) sets the number
+/// of worker threads before /run/initialize so that multi-threaded behaviour
+/// can be exercised (e.g. under ThreadSanitizer).
 
 #include "ActionInitialization.hh"
 #include "DetectorConstruction.hh"
@@ -57,6 +60,12 @@ int main(int argc, char** argv) {
   // ── UI manager ────────────────────────────────────────────────────────────
 
   G4UImanager* UImanager = G4UImanager::GetUIpointer();
+
+  // Optional second argument: number of worker threads (must be set before
+  // /run/initialize, which is the first command in the macro).
+  if (argc > 2) {
+    UImanager->ApplyCommand(G4String("/run/numberOfThreads ") + G4String(argv[2]));
+  }
 
   if (argc > 1) {
     // Batch mode: execute the supplied macro file.
