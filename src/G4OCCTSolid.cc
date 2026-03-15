@@ -178,7 +178,8 @@ IntCurvesFace_ShapeIntersector& G4OCCTSolid::GetOrCreateIntersector() const {
   const std::uint64_t currentGen = fShapeGeneration.load(std::memory_order_acquire);
   if (cache.generation != currentGen) {
     cache.intersector.emplace();
-    cache.intersector->Load(fShape, IntersectionTolerance()); // O(N_faces) — paid once per thread per shape
+    cache.intersector->Load(fShape,
+                            IntersectionTolerance()); // O(N_faces) — paid once per thread per shape
     cache.generation = currentGen;
   }
   return *cache.intersector;
