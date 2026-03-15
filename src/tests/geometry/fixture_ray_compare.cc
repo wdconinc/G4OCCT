@@ -4,7 +4,8 @@
 #include "geometry/fixture_ray_compare.hh"
 
 #include "G4OCCT/G4OCCTSolid.hh"
-#include "geometry/yaml_subset.hh"
+
+#include <yaml-cpp/yaml.h>
 
 #include <STEPControl_Reader.hxx>
 #include <TopoDS_Shape.hxx>
@@ -72,7 +73,7 @@ namespace {
 
   struct FixtureProvenance {
     std::filesystem::path source_path;
-    YamlNode document;
+    YAML::Node document;
   };
 
   struct RaySample {
@@ -98,42 +99,41 @@ namespace {
     return "<unknown EInside>";
   }
 
-  const YamlNode& RequireNode(const YamlNode& parent, const std::string& key,
-                              const std::string& context) {
-    const auto& mapping = parent.AsMapping();
-    const auto it       = mapping.find(key);
-    if (it == mapping.end()) {
+  const YAML::Node RequireNode(const YAML::Node& parent, const std::string& key,
+                               const std::string& context) {
+    const YAML::Node node = parent[key];
+    if (!node.IsDefined()) {
       throw std::runtime_error("Missing YAML key '" + key + "' in " + context);
     }
-    return it->second;
+    return node;
   }
 
-  bool HasNode(const YamlNode& parent, const std::string& key) {
-    const auto& mapping = parent.AsMapping();
-    return mapping.find(key) != mapping.end();
+  bool HasNode(const YAML::Node& parent, const std::string& key) {
+    return parent[key].IsDefined();
   }
 
-  double ParseDouble(const YamlNode& node, const std::string& context) {
+  double ParseDouble(const YAML::Node& node, const std::string& context) {
     try {
-      return std::stod(node.AsScalar());
+      return std::stod(node.as<std::string>());
     } catch (const std::exception&) {
       throw std::runtime_error("Expected numeric YAML scalar in " + context + ": '" +
-                               node.AsScalar() + "'");
+                               node.as<std::string>() + "'");
     }
   }
 
-  std::string RequireString(const YamlNode& parent, const std::string& key,
+  std::string RequireString(const YAML::Node& parent, const std::string& key,
                             const std::string& context) {
-    return RequireNode(parent, key, context).AsScalar();
+    return RequireNode(parent, key, context).as<std::string>();
   }
 
-  double RequireDouble(const YamlNode& parent, const std::string& key, const std::string& context) {
+  double RequireDouble(const YAML::Node& parent, const std::string& key,
+                       const std::string& context) {
     return ParseDouble(RequireNode(parent, key, context), context + "." + key);
   }
 
-  std::vector<double> RequireDoubleList(const YamlNode& parent, const std::string& key,
+  std::vector<double> RequireDoubleList(const YAML::Node& parent, const std::string& key,
                                         const std::string& context) {
-    const auto& sequence = RequireNode(parent, key, context).AsSequence();
+    const YAML::Node sequence = RequireNode(parent, key, context);
     std::vector<double> values;
     values.reserve(sequence.size());
     for (std::size_t index = 0; index < sequence.size(); ++index) {
@@ -143,13 +143,13 @@ namespace {
     return values;
   }
 
-  std::vector<G4ThreeVector> RequirePointList(const YamlNode& parent, const std::string& key,
+  std::vector<G4ThreeVector> RequirePointList(const YAML::Node& parent, const std::string& key,
                                               const std::string& context) {
-    const auto& sequence = RequireNode(parent, key, context).AsSequence();
+    const YAML::Node sequence = RequireNode(parent, key, context);
     std::vector<G4ThreeVector> points;
     points.reserve(sequence.size());
     for (std::size_t index = 0; index < sequence.size(); ++index) {
-      const auto& coords = sequence[index].AsSequence();
+      const YAML::Node coords = sequence[index];
       if (coords.size() != 3U) {
         throw std::runtime_error("Expected 3-vector YAML entry in " + context + "." + key + "[" +
                                  std::to_string(index) + "]");
@@ -160,13 +160,13 @@ namespace {
     return points;
   }
 
-  std::vector<G4TwoVector> RequirePlanarPointList(const YamlNode& parent, const std::string& key,
+  std::vector<G4TwoVector> RequirePlanarPointList(const YAML::Node& parent, const std::string& key,
                                                   const std::string& context) {
-    const auto& sequence = RequireNode(parent, key, context).AsSequence();
+    const YAML::Node sequence = RequireNode(parent, key, context);
     std::vector<G4TwoVector> points;
     points.reserve(sequence.size());
     for (std::size_t index = 0; index < sequence.size(); ++index) {
-      const auto& coords = sequence[index].AsSequence();
+      const YAML::Node coords = sequence[index];
       if (coords.size() != 2U) {
         throw std::runtime_error("Expected 2-vector YAML entry in " + context + "." + key + "[" +
                                  std::to_string(index) + "]");
@@ -197,7 +197,7 @@ namespace {
     return polygon;
   }
 
-  G4ThreeVector RequireVector3(const YamlNode& parent, const std::string& key,
+  G4ThreeVector RequireVector3(const YAML::Node& parent, const std::string& key,
                                const std::string& context) {
     const std::vector<double> values = RequireDoubleList(parent, key, context);
     if (values.size() != 3U) {
@@ -209,11 +209,11 @@ namespace {
   FixtureProvenance ParseFixtureProvenance(const std::filesystem::path& path) {
     FixtureProvenance provenance;
     provenance.source_path = path;
-    provenance.document    = ParseYamlSubsetFile(path);
+    provenance.document    = YAML::LoadFile(path.string());
     return provenance;
   }
 
-  const YamlNode& ShapeNode(const FixtureProvenance& provenance) {
+  YAML::Node ShapeNode(const FixtureProvenance& provenance) {
     return RequireNode(provenance.document, "shape", provenance.source_path.string());
   }
 
@@ -223,28 +223,27 @@ namespace {
   }
 
   std::unique_ptr<G4VSolid> BuildBooleanBoxSolid(const std::string& geant4_class,
-                                                 const std::string& name, const YamlNode& shape,
+                                                 const std::string& name, const YAML::Node& shape,
                                                  const std::string& context) {
     if (geant4_class == "G4UnionSolid" || geant4_class == "G4IntersectionSolid") {
       if (geant4_class == "G4IntersectionSolid" && HasNode(shape, "overlap_box_mm")) {
-        const auto& overlap = RequireNode(shape, "overlap_box_mm", context).AsMapping();
-        const G4ThreeVector overlap_size =
-            RequireVector3(YamlNode::Mapping(overlap), "size", context);
+        const YAML::Node overlap = RequireNode(shape, "overlap_box_mm", context);
+        const G4ThreeVector overlap_size = RequireVector3(overlap, "size", context);
         return std::make_unique<G4Box>(name, 0.5 * overlap_size.x(), 0.5 * overlap_size.y(),
                                        0.5 * overlap_size.z());
       }
 
-      const auto& boxes = RequireNode(shape, "component_boxes_mm", context).AsSequence();
+      const YAML::Node boxes = RequireNode(shape, "component_boxes_mm", context);
       if (boxes.size() != 2U) {
         throw std::runtime_error(context +
                                  ": boolean fixture requires exactly two component boxes");
       }
-      const auto& left               = boxes[0].AsMapping();
-      const auto& right              = boxes[1].AsMapping();
-      const G4ThreeVector left_min   = RequireVector3(YamlNode::Mapping(left), "min", context);
-      const G4ThreeVector left_size  = RequireVector3(YamlNode::Mapping(left), "size", context);
-      const G4ThreeVector right_min  = RequireVector3(YamlNode::Mapping(right), "min", context);
-      const G4ThreeVector right_size = RequireVector3(YamlNode::Mapping(right), "size", context);
+      const YAML::Node left              = boxes[0];
+      const YAML::Node right             = boxes[1];
+      const G4ThreeVector left_min       = RequireVector3(left, "min", context);
+      const G4ThreeVector left_size      = RequireVector3(left, "size", context);
+      const G4ThreeVector right_min      = RequireVector3(right, "min", context);
+      const G4ThreeVector right_size     = RequireVector3(right, "size", context);
 
       auto* left_box =
           new G4Box(name + "_left", 0.5 * left_size.x(), 0.5 * left_size.y(), 0.5 * left_size.z());
@@ -282,14 +281,14 @@ namespace {
     throw std::runtime_error("Unsupported boolean class in " + context + ": " + geant4_class);
   }
 
-  std::unique_ptr<G4VSolid> BuildMultiUnionSolid(const std::string& name, const YamlNode& shape,
+  std::unique_ptr<G4VSolid> BuildMultiUnionSolid(const std::string& name, const YAML::Node& shape,
                                                  const std::string& context) {
-    auto solid        = std::make_unique<G4MultiUnion>(name);
-    const auto& boxes = RequireNode(shape, "component_boxes_mm", context).AsSequence();
+    auto solid              = std::make_unique<G4MultiUnion>(name);
+    const YAML::Node boxes  = RequireNode(shape, "component_boxes_mm", context);
     for (std::size_t index = 0; index < boxes.size(); ++index) {
-      const auto& box_map         = boxes[index].AsMapping();
-      const G4ThreeVector minimum = RequireVector3(YamlNode::Mapping(box_map), "min", context);
-      const G4ThreeVector size    = RequireVector3(YamlNode::Mapping(box_map), "size", context);
+      const YAML::Node box_node   = boxes[index];
+      const G4ThreeVector minimum = RequireVector3(box_node, "min", context);
+      const G4ThreeVector size    = RequireVector3(box_node, "size", context);
       auto* box = new G4Box(name + "_box_" + std::to_string(index), 0.5 * size.x(), 0.5 * size.y(),
                             0.5 * size.z());
       G4Transform3D transform(G4RotationMatrix(), minimum + 0.5 * size);
@@ -299,14 +298,14 @@ namespace {
     return solid;
   }
 
-  std::unique_ptr<G4VSolid> BuildTessellatedSolid(const std::string& name, const YamlNode& shape,
+  std::unique_ptr<G4VSolid> BuildTessellatedSolid(const std::string& name, const YAML::Node& shape,
                                                   const std::string& context) {
     const std::vector<G4ThreeVector> vertices = RequirePointList(shape, "vertices_mm", context);
-    const auto& facets = RequireNode(shape, "triangular_facets", context).AsSequence();
+    const YAML::Node facets = RequireNode(shape, "triangular_facets", context);
 
     auto solid = std::make_unique<G4TessellatedSolid>(name);
     for (std::size_t facet_index = 0; facet_index < facets.size(); ++facet_index) {
-      const auto& indices = facets[facet_index].AsSequence();
+      const YAML::Node indices = facets[facet_index];
       if (indices.size() != 3U) {
         throw std::runtime_error(context +
                                  ": triangular_facets entries must contain exactly 3 indices");
@@ -334,7 +333,7 @@ namespace {
   }
 
   std::unique_ptr<G4VSolid> BuildVTwistedFacetedFallback(const std::string& name,
-                                                         const YamlNode& ctor,
+                                                         const YAML::Node& ctor,
                                                          const std::string& context) {
     const G4double phi_twist = RequireDouble(ctor, "phi_twist_deg", context) * deg;
     const G4double dz        = RequireDouble(ctor, "dz_mm", context);
@@ -395,19 +394,18 @@ namespace {
     return solid;
   }
 
-  std::unique_ptr<G4VSolid> BuildExtrudedSolid(const std::string& name, const YamlNode& shape,
+  std::unique_ptr<G4VSolid> BuildExtrudedSolid(const std::string& name, const YAML::Node& shape,
                                                const std::string& context) {
     const std::vector<G4TwoVector> polygon =
         RequirePlanarPointList(shape, "polygon_vertices_mm", context);
-    const auto& sections = RequireNode(shape, "z_sections_mm", context).AsSequence();
+    const YAML::Node sections = RequireNode(shape, "z_sections_mm", context);
     std::vector<G4ExtrudedSolid::ZSection> z_sections;
     z_sections.reserve(sections.size());
     for (std::size_t index = 0; index < sections.size(); ++index) {
-      const auto& section = sections[index].AsMapping();
-      const double z      = RequireDouble(YamlNode::Mapping(section), "z", context);
-      const std::vector<double> offset =
-          RequireDoubleList(YamlNode::Mapping(section), "offset", context);
-      const double scale = RequireDouble(YamlNode::Mapping(section), "scale", context);
+      const YAML::Node section = sections[index];
+      const double z           = RequireDouble(section, "z", context);
+      const std::vector<double> offset = RequireDoubleList(section, "offset", context);
+      const double scale               = RequireDouble(section, "scale", context);
       if (offset.size() != 2U) {
         throw std::runtime_error(context + ": z_sections offset must have 2 coordinates");
       }
@@ -417,12 +415,12 @@ namespace {
   }
 
   std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance) {
-    const YamlNode& shape          = ShapeNode(provenance);
+    const YAML::Node shape         = ShapeNode(provenance);
     const std::string geant4_class = Geant4Class(provenance);
     const std::string name         = provenance.source_path.stem().string() + "_native";
     const std::string context      = provenance.source_path.string() + ".shape";
     const bool has_constructor     = HasNode(shape, "constructor");
-    const YamlNode& ctor = has_constructor ? RequireNode(shape, "constructor", context) : shape;
+    const YAML::Node ctor = has_constructor ? RequireNode(shape, "constructor", context) : shape;
 
     if (geant4_class == "G4Box") {
       const std::vector<double> dimensions = RequireDoubleList(shape, "dimensions_mm", context);
@@ -677,7 +675,7 @@ namespace {
 
   G4ThreeVector FixtureComparisonOrigin(const FixtureProvenance& provenance,
                                         const G4VSolid& solid) {
-    const YamlNode& shape          = ShapeNode(provenance);
+    const YAML::Node shape         = ShapeNode(provenance);
     const std::string geant4_class = Geant4Class(provenance);
 
     if (geant4_class == "G4Tet") {
@@ -695,10 +693,10 @@ namespace {
       return G4ThreeVector();
     }
 
-    const auto& generator =
-        RequireNode(provenance.document, "generator", provenance.source_path.string()).AsMapping();
-    const auto tool_it = generator.find("tool");
-    if (tool_it != generator.end() && tool_it->second.AsScalar() == "generate_twisted_fixtures") {
+    const YAML::Node generator =
+        RequireNode(provenance.document, "generator", provenance.source_path.string());
+    if (generator["tool"].IsDefined() &&
+        generator["tool"].as<std::string>() == "generate_twisted_fixtures") {
       return G4ThreeVector();
     }
 
