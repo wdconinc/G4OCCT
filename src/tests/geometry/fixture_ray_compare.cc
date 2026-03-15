@@ -108,9 +108,7 @@ namespace {
     return node;
   }
 
-  bool HasNode(const YAML::Node& parent, const std::string& key) {
-    return parent[key].IsDefined();
-  }
+  bool HasNode(const YAML::Node& parent, const std::string& key) { return parent[key].IsDefined(); }
 
   double ParseDouble(const YAML::Node& node, const std::string& context) {
     try {
@@ -227,7 +225,7 @@ namespace {
                                                  const std::string& context) {
     if (geant4_class == "G4UnionSolid" || geant4_class == "G4IntersectionSolid") {
       if (geant4_class == "G4IntersectionSolid" && HasNode(shape, "overlap_box_mm")) {
-        const YAML::Node overlap = RequireNode(shape, "overlap_box_mm", context);
+        const YAML::Node overlap         = RequireNode(shape, "overlap_box_mm", context);
         const G4ThreeVector overlap_size = RequireVector3(overlap, "size", context);
         return std::make_unique<G4Box>(name, 0.5 * overlap_size.x(), 0.5 * overlap_size.y(),
                                        0.5 * overlap_size.z());
@@ -238,12 +236,12 @@ namespace {
         throw std::runtime_error(context +
                                  ": boolean fixture requires exactly two component boxes");
       }
-      const YAML::Node left              = boxes[0];
-      const YAML::Node right             = boxes[1];
-      const G4ThreeVector left_min       = RequireVector3(left, "min", context);
-      const G4ThreeVector left_size      = RequireVector3(left, "size", context);
-      const G4ThreeVector right_min      = RequireVector3(right, "min", context);
-      const G4ThreeVector right_size     = RequireVector3(right, "size", context);
+      const YAML::Node left          = boxes[0];
+      const YAML::Node right         = boxes[1];
+      const G4ThreeVector left_min   = RequireVector3(left, "min", context);
+      const G4ThreeVector left_size  = RequireVector3(left, "size", context);
+      const G4ThreeVector right_min  = RequireVector3(right, "min", context);
+      const G4ThreeVector right_size = RequireVector3(right, "size", context);
 
       auto* left_box =
           new G4Box(name + "_left", 0.5 * left_size.x(), 0.5 * left_size.y(), 0.5 * left_size.z());
@@ -283,8 +281,8 @@ namespace {
 
   std::unique_ptr<G4VSolid> BuildMultiUnionSolid(const std::string& name, const YAML::Node& shape,
                                                  const std::string& context) {
-    auto solid              = std::make_unique<G4MultiUnion>(name);
-    const YAML::Node boxes  = RequireNode(shape, "component_boxes_mm", context);
+    auto solid             = std::make_unique<G4MultiUnion>(name);
+    const YAML::Node boxes = RequireNode(shape, "component_boxes_mm", context);
     for (std::size_t index = 0; index < boxes.size(); ++index) {
       const YAML::Node box_node   = boxes[index];
       const G4ThreeVector minimum = RequireVector3(box_node, "min", context);
@@ -301,7 +299,7 @@ namespace {
   std::unique_ptr<G4VSolid> BuildTessellatedSolid(const std::string& name, const YAML::Node& shape,
                                                   const std::string& context) {
     const std::vector<G4ThreeVector> vertices = RequirePointList(shape, "vertices_mm", context);
-    const YAML::Node facets = RequireNode(shape, "triangular_facets", context);
+    const YAML::Node facets                   = RequireNode(shape, "triangular_facets", context);
 
     auto solid = std::make_unique<G4TessellatedSolid>(name);
     for (std::size_t facet_index = 0; facet_index < facets.size(); ++facet_index) {
@@ -402,8 +400,8 @@ namespace {
     std::vector<G4ExtrudedSolid::ZSection> z_sections;
     z_sections.reserve(sections.size());
     for (std::size_t index = 0; index < sections.size(); ++index) {
-      const YAML::Node section = sections[index];
-      const double z           = RequireDouble(section, "z", context);
+      const YAML::Node section         = sections[index];
+      const double z                   = RequireDouble(section, "z", context);
       const std::vector<double> offset = RequireDoubleList(section, "offset", context);
       const double scale               = RequireDouble(section, "scale", context);
       if (offset.size() != 2U) {
