@@ -19,12 +19,19 @@ AI agents) must follow these instructions.
 - All source files must carry an **SPDX license header** as the very first
   non-blank line(s).
 - The required identifier is `LGPL-2.1-or-later`.
-- C/C++ and CMake style:
+- C/C++ style:
   ```cpp
   // SPDX-License-Identifier: LGPL-2.1-or-later
   // Copyright (C) 2024 G4OCCT Contributors
   ```
-- YAML/CMake `#`-comment style:
+- CMake `#`-comment style:
+  ```cmake
+  # cmake-format: off
+  # SPDX-License-Identifier: LGPL-2.1-or-later
+  # Copyright (C) 2024 G4OCCT Contributors
+  # cmake-format: on
+  ```
+- YAML `#`-comment style:
   ```cmake
   # SPDX-License-Identifier: LGPL-2.1-or-later
   # Copyright (C) 2024 G4OCCT Contributors
