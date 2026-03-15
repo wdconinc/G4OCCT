@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2024 G4OCCT Contributors
 
+/// @file G4OCCTSolid.cc
+/// @brief Implementation of G4OCCTSolid.
+
 #include "G4OCCT/G4OCCTSolid.hh"
 
 #include <BRepAdaptor_Surface.hxx>
@@ -43,23 +46,29 @@
 
 namespace {
 
+/// Fall-back minimum extent coordinate used when the shape is null or void.
 constexpr G4double kFallbackExtentMin = -1.0;
+/// Fall-back maximum extent coordinate used when the shape is null or void.
 constexpr G4double kFallbackExtentMax = 1.0;
 
+/// Axis-aligned bounding box with a flag indicating a null/void result.
 struct AxisAlignedBounds {
   G4ThreeVector min;
   G4ThreeVector max;
   bool isVoid;
 };
 
+/// Convert a Geant4 three-vector to an OCCT point.
 gp_Pnt ToPoint(const G4ThreeVector& point) {
   return gp_Pnt(point.x(), point.y(), point.z());
 }
 
+/// Return the surface-intersection tolerance derived from the Geant4 geometry tolerance.
 G4double IntersectionTolerance() {
   return 0.5 * G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
 }
 
+/// Build an OCCT vertex from a Geant4 three-vector using the intersection tolerance.
 TopoDS_Vertex MakeVertex(const G4ThreeVector& point) {
   BRep_Builder builder;
   TopoDS_Vertex vertex;
@@ -67,6 +76,7 @@ TopoDS_Vertex MakeVertex(const G4ThreeVector& point) {
   return vertex;
 }
 
+/// Map an OCCT solid-classifier state to the corresponding Geant4 inside enum.
 EInside ToG4Inside(const TopAbs_State state) {
   switch (state) {
     case TopAbs_IN:
@@ -79,10 +89,13 @@ EInside ToG4Inside(const TopAbs_State state) {
   }
 }
 
+/// Return the canonical fall-back surface normal (positive Z axis).
 G4ThreeVector FallbackNormal() {
   return G4ThreeVector(0.0, 0.0, 1.0);
 }
 
+/// Compute the axis-aligned bounding box of @p shape.
+/// Returns a void result if @p shape is null or has no geometry.
 AxisAlignedBounds ComputeAxisAlignedBounds(const TopoDS_Shape& shape) {
   if (shape.IsNull()) {
     return {G4ThreeVector(kFallbackExtentMin, kFallbackExtentMin, kFallbackExtentMin),
@@ -107,13 +120,15 @@ AxisAlignedBounds ComputeAxisAlignedBounds(const TopoDS_Shape& shape) {
   return {G4ThreeVector(xMin, yMin, zMin), G4ThreeVector(xMax, yMax, zMax), false};
 }
 
+/// Compute the shortest distance from @p point to the surface of @p shape.
+/// Returns kInfinity if the shape is null or the calculation fails.
 G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector& point) {
   if (shape.IsNull()) {
     return kInfinity;
   }
 
   BRepExtrema_DistShapeShape distance(MakeVertex(point), shape);
-  if (!distance.IsDone()) {
+  if (!distance.IsDone() || distance.NbSolution() == 0) {
     return kInfinity;
   }
 
@@ -121,6 +136,8 @@ G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector
   return (shortestDistance <= IntersectionTolerance()) ? 0.0 : shortestDistance;
 }
 
+/// Evaluate the outward surface normal on @p face at parameters (@p u, @p v).
+/// Writes the result into @p normal and returns true on success.
 bool TryGetOutwardNormal(const TopoDS_Face& face,
                          const Standard_Real u,
                          const Standard_Real v,

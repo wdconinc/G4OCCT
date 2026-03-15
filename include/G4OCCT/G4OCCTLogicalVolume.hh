@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2024 G4OCCT Contributors
 
+/// @file G4OCCTLogicalVolume.hh
+/// @brief Declaration of G4OCCTLogicalVolume.
+
 #ifndef G4OCCT_G4OCCTLogicalVolume_hh
 #define G4OCCT_G4OCCTLogicalVolume_hh
 
@@ -10,7 +13,7 @@
 #include <TopoDS_Shape.hxx>
 
 /**
- * G4OCCTLogicalVolume
+ * @brief Extends Geant4's G4LogicalVolume with an associated OCCT shape.
  *
  * Extends Geant4's G4LogicalVolume to carry an optional OCCT shape reference
  * alongside the standard Geant4 solid, material, and field pointers.
