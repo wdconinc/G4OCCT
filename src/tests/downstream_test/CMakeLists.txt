@@ -1,5 +1,7 @@
-# SPDX-License-Identifier: LGPL-2.1-or-later Copyright (C) 2024 G4OCCT
-# Contributors
+# cmake-format: off
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+# cmake-format: on
 
 # Minimal CMake project used as a CTest integration test to verify that a
 # downstream project can consume G4OCCT via find_package after installation.
