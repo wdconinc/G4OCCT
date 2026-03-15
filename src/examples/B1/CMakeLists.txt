@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2024 G4OCCT Contributors
 
+cmake_minimum_required(VERSION 3.16)
+
 # ─── B1 example ──────────────────────────────────────────────────────────────
 # G4OCCT version of the Geant4 basic/B1 example.
 # Two shapes are loaded from STEP files via G4OCCTSolid; materials are

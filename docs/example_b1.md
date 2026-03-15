@@ -90,7 +90,7 @@ The included `run.mac` fires 100 primary gammas:
 | `src/DetectorConstruction.cc` | Loads STEP files, wraps shapes in `G4OCCTSolid` |
 | `src/PrimaryGeneratorAction.cc` | 6 MeV gamma gun with random (x, y) start position |
 | `src/SteppingAction.cc` | Accumulates edep inside Shape2 (scoring volume) |
-| `src/RunAction.cc` | Prints dose summary at end of run |
+| `src/RunAction.cc` | Prints energy deposit summary at end of run |
 | `step/shape1.step` | OCCT sphere (r = 15 mm) |
 | `step/shape2.step` | OCCT box (20 × 30 × 40 mm) |
 

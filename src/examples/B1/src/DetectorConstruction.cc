@@ -84,9 +84,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
 
   // ── Shape 2 — box (20 × 30 × 40 mm) from STEP ────────────────────────────
   // Material: G4_BONE_COMPACT_ICRU, placed in the downstream half.
-  // The OCCT box has its corner at the origin; the logical-volume centre is
-  // shifted by half the box dimensions so the shape sits symmetrically around
-  // the chosen placement point.
+  // The OCCT box has its corner at the STEP origin (0,0,0); the placement
+  // point below is therefore the corner of the box, not its centre.
 
   TopoDS_Shape occtShape2 = LoadStepFile(stepDir + "/shape2.step");
   auto* solid2            = new G4OCCTSolid("Shape2", occtShape2);

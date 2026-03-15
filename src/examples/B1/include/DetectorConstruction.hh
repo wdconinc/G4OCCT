@@ -18,7 +18,7 @@
  * SteppingAction.
  *
  * Geometry layout:
- * - World: 1.2 m × 1.2 m × 1.6 m box of G4_AIR
+ * - World: 24 cm × 24 cm × 48 cm box of G4_AIR
  * - Envelope: 20 cm × 20 cm × 30 cm box of G4_WATER
  * - Shape1: sphere (r = 15 mm) loaded from step/shape1.step, G4_A-150_TISSUE
  * - Shape2: box (20 × 30 × 40 mm) loaded from step/shape2.step, G4_BONE_COMPACT_ICRU
