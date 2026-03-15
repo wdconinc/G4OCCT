@@ -782,9 +782,9 @@ namespace {
    *   origin + distance * direction
    * for rays that intersect the respective solid.
    */
-  void WritePointCloudJson(const std::filesystem::path& output_path,
-                           const std::string& fixture_id, const std::string& geant4_class,
-                           const std::size_t ray_count, const G4ThreeVector& origin,
+  void WritePointCloudJson(const std::filesystem::path& output_path, const std::string& fixture_id,
+                           const std::string& geant4_class, const std::size_t ray_count,
+                           const G4ThreeVector& origin,
                            const std::vector<G4ThreeVector>& native_hits,
                            const std::vector<G4ThreeVector>& imported_hits) {
     std::ofstream out(output_path);

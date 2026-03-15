@@ -49,8 +49,7 @@ namespace {
   }
 
   int RunBenchmark(const std::filesystem::path& repository_manifest_path,
-                   const std::size_t ray_count,
-                   const std::filesystem::path& point_cloud_dir) {
+                   const std::size_t ray_count, const std::filesystem::path& point_cloud_dir) {
     const FixtureRepositoryManifest repository_manifest =
         ParseFixtureRepositoryManifest(repository_manifest_path);
 
