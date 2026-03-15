@@ -84,10 +84,12 @@ add_test(NAME test_geometry_validation COMMAND test_geometry_validation)
 
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
 # Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified
-# Test Case (CTC) geometry-only STEP files.  Each of the 11 NIST fixtures is
-# registered as a separate CTest sub-test so that CI reports per-volume
-# progress and individual failures are easier to diagnose.  Fixtures that have
-# not been fetched (run src/tests/fixtures/geometry/nist-ctc/fetch.sh first)
+# Test Case (CTC) geometry-only STEP files.  One CTest sub-test is registered
+# per fixture directory discovered under
+# fixtures/geometry/nist-ctc/G4OCCTSolid/ so that CI reports per-volume
+# progress, individual failures are easier to diagnose, and adding a new
+# fixture directory automatically adds a new test.  Fixtures that have not
+# been fetched (run src/tests/fixtures/geometry/nist-ctc/fetch.sh first)
 # are silently skipped; the individual test still exits with success in that
 # case.
 add_executable(
@@ -99,13 +101,16 @@ target_compile_definitions(
   test_nist_ctc_inside_volume
   PRIVATE G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_nist_ctc_inside_volume PRIVATE G4OCCT)
-foreach(fixture_id
-        nist-ctc-01-v1 nist-ctc-02-v1 nist-ctc-03-v1 nist-ctc-04-v1
-        nist-ctc-05-v1 nist-ctc-06-v1 nist-ctc-07-v1 nist-ctc-08-v1
-        nist-ctc-09-v1 nist-ctc-10-v1 nist-ctc-11-v1)
+file(
+  GLOB _nist_ctc_fixture_dirs
+  LIST_DIRECTORIES true
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/nist-ctc/G4OCCTSolid
+  ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-*-v*)
+foreach(fixture_id IN LISTS _nist_ctc_fixture_dirs)
   add_test(NAME "test_nist_ctc_inside_volume/${fixture_id}"
            COMMAND test_nist_ctc_inside_volume ${fixture_id})
 endforeach()
+unset(_nist_ctc_fixture_dirs)
 
 # ─── Integration test: downstream find_package(G4OCCT) ───────────────────────
 # This test group installs G4OCCT to a temporary prefix and then configures,
