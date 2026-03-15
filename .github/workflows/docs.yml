@@ -80,13 +80,24 @@ jobs:
             ./build/src/benchmarks/bench_navigator 2048 \
               > "${PWD}/bench-results.txt" 2>&1 || true
 
-      - name: Generate HTML reports
+      - name: Generate Markdown reports
         if: always()
         run: |
           python3 .github/scripts/generate_test_report.py \
-            test-results.xml docs/reports/test-results.html
+            test-results.xml docs/reports/test-results.md
           python3 .github/scripts/generate_bench_report.py \
-            bench-results.txt docs/reports/bench-results.html
+            bench-results.txt docs/reports/bench-results.md
+
+      - name: Post reports as step summary
+        if: always()
+        run: |
+          if [ -f docs/reports/test-results.md ]; then
+            cat docs/reports/test-results.md >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f docs/reports/bench-results.md ]; then
+            cat docs/reports/bench-results.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload reports artifact
         if: always()

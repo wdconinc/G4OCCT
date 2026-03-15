@@ -12,6 +12,6 @@
 - **Examples**
   - [B1 — Water Phantom](example_b1.md)
 - **CI Reports**
-  - [Test Results](https://wdconinc.github.io/G4OCCT/reports/test-results.html)
-  - [Benchmark Results](https://wdconinc.github.io/G4OCCT/reports/bench-results.html)
+  - [Test Results](reports/test-results.md)
+  - [Benchmark Results](reports/bench-results.md)
 - [API Reference](https://wdconinc.github.io/G4OCCT/api/index.html)
