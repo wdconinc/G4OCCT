@@ -82,6 +82,22 @@ target_include_directories(test_geometry_validation
 target_link_libraries(test_geometry_validation PRIVATE G4OCCTFixtureSupport)
 add_test(NAME test_geometry_validation COMMAND test_geometry_validation)
 
+# ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
+# Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified
+# Test Case (CTC) geometry-only STEP files.  Fixtures that have not been fetched
+# (run src/tests/fixtures/geometry/nist-ctc/fetch.sh first) are silently
+# skipped; the test still exits with success in that case.
+add_executable(
+  test_nist_ctc_inside_volume geometry/test_nist_ctc_inside_volume.cc
+                              geometry/fixture_manifest.cc)
+target_include_directories(test_nist_ctc_inside_volume
+                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(
+  test_nist_ctc_inside_volume
+  PRIVATE G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_nist_ctc_inside_volume PRIVATE G4OCCT)
+add_test(NAME test_nist_ctc_inside_volume COMMAND test_nist_ctc_inside_volume)
+
 # ─── Integration test: downstream find_package(G4OCCT) ───────────────────────
 # This test group installs G4OCCT to a temporary prefix and then configures,
 # builds, and runs a minimal downstream CMake project that consumes the library

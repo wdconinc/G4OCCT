@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+# NIST STEP files are downloaded at test time by fetch.sh and must not be
+# committed to the repository.
+**/shape.step

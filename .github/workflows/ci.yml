@@ -20,6 +20,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Cache NIST CTC STEP fixtures
+        id: cache-nist-ctc
+        uses: actions/cache@v4
+        with:
+          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
+          key: nist-ctc-step-v1-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+
+      - name: Download NIST CTC STEP fixtures
+        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
+        run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
+        continue-on-error: true
+
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
@@ -70,6 +82,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Cache NIST CTC STEP fixtures
+        id: cache-nist-ctc
+        uses: actions/cache@v4
+        with:
+          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
+          key: nist-ctc-step-v1-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+
+      - name: Download NIST CTC STEP fixtures
+        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
+        run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
+        continue-on-error: true
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5

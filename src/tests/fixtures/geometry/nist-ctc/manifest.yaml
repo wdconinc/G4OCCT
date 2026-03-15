@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-manifest/v1
+family: nist-ctc
+summary: >
+  NIST MBE PMI Conformance Test Case (CTC) AP203 geometry-only STEP files.
+  These 11 fixtures are downloaded at test time from the NIST website;
+  run fetch.sh to populate the shape.step assets before executing tests.
+coverage_classes:
+  - G4OCCTSolid
+fixtures:
+  - id: nist-ctc-01-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-01
+    relative_directory: G4OCCTSolid/nist-ctc-01-v1
+    validation_state: planned
+  - id: nist-ctc-02-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-02
+    relative_directory: G4OCCTSolid/nist-ctc-02-v1
+    validation_state: planned
+  - id: nist-ctc-03-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-03
+    relative_directory: G4OCCTSolid/nist-ctc-03-v1
+    validation_state: planned
+  - id: nist-ctc-04-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-04
+    relative_directory: G4OCCTSolid/nist-ctc-04-v1
+    validation_state: planned
+  - id: nist-ctc-05-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-05
+    relative_directory: G4OCCTSolid/nist-ctc-05-v1
+    validation_state: planned
+  - id: nist-ctc-06-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-06
+    relative_directory: G4OCCTSolid/nist-ctc-06-v1
+    validation_state: planned
+  - id: nist-ctc-07-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-07
+    relative_directory: G4OCCTSolid/nist-ctc-07-v1
+    validation_state: planned
+  - id: nist-ctc-08-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-08
+    relative_directory: G4OCCTSolid/nist-ctc-08-v1
+    validation_state: planned
+  - id: nist-ctc-09-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-09
+    relative_directory: G4OCCTSolid/nist-ctc-09-v1
+    validation_state: planned
+  - id: nist-ctc-10-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-10
+    relative_directory: G4OCCTSolid/nist-ctc-10-v1
+    validation_state: planned
+  - id: nist-ctc-11-v1
+    geant4_class: G4OCCTSolid
+    fixture_slug: nist-ctc-11
+    relative_directory: G4OCCTSolid/nist-ctc-11-v1
+    validation_state: planned

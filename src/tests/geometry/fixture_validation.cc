@@ -315,7 +315,12 @@ ValidationReport ValidateFixtureLayout(const FixtureValidationRequest& request) 
   if (request.require_step_file) {
     const auto step_path = ResolveFixtureStepPath(request.manifest, request.fixture);
     if (!std::filesystem::exists(step_path)) {
-      report.AddError("fixture.step_missing", "Fixture STEP file is missing", step_path);
+      if (request.fixture.validation_state == FixtureValidationState::kPlanned) {
+        report.AddWarning("fixture.step_pending",
+                          "Fixture STEP file not yet present (fixture is planned)", step_path);
+      } else {
+        report.AddError("fixture.step_missing", "Fixture STEP file is missing", step_path);
+      }
     }
   }
 
@@ -339,6 +344,17 @@ ValidationReport ValidateFixtureGeometry(const FixtureValidationRequest& request
   }
 
   const auto step_path = ResolveFixtureStepPath(request.manifest, request.fixture);
+
+  // For planned fixtures whose STEP file has not been fetched yet, skip
+  // geometry validation.  The layout check above already emitted a warning.
+  // For all other fixtures, a missing STEP file is a hard error.
+  if (!std::filesystem::exists(step_path)) {
+    if (request.fixture.validation_state != FixtureValidationState::kPlanned) {
+      report.AddError("fixture.step_missing", "Fixture STEP file is missing", step_path);
+    }
+    return report;
+  }
+
   FixtureGeometryObservation local_observation;
   local_observation.step_path = step_path;
 
