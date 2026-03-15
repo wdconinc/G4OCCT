@@ -37,7 +37,7 @@
  *       helpers are planned for a future milestone.
  */
 class G4OCCTPlacement : public G4PVPlacement {
- public:
+public:
   /**
    * Construct a placement using a rotation matrix and translation.
    *
@@ -52,15 +52,10 @@ class G4OCCTPlacement : public G4PVPlacement {
    * @param location      Corresponding OCCT placement location (optional).
    * @param pSurfChk      Run overlap check during construction if true.
    */
-  G4OCCTPlacement(G4RotationMatrix* pRot,
-                  const G4ThreeVector& tlate,
-                  G4LogicalVolume* pCurrentLogical,
-                  const G4String& pName,
-                  G4LogicalVolume* pMotherLogical,
-                  G4bool pMany,
-                  G4int pCopyNo,
-                  const TopLoc_Location& location = TopLoc_Location(),
-                  G4bool pSurfChk = false);
+  G4OCCTPlacement(G4RotationMatrix* pRot, const G4ThreeVector& tlate,
+                  G4LogicalVolume* pCurrentLogical, const G4String& pName,
+                  G4LogicalVolume* pMotherLogical, G4bool pMany, G4int pCopyNo,
+                  const TopLoc_Location& location = TopLoc_Location(), G4bool pSurfChk = false);
 
   ~G4OCCTPlacement() override = default;
 
@@ -70,11 +65,10 @@ class G4OCCTPlacement : public G4PVPlacement {
   const TopLoc_Location& GetOCCTLocation() const { return fLocation; }
 
   /// Replace the OCCT placement location.
-  void SetOCCTLocation(const TopLoc_Location& location)
-  { fLocation = location; }
+  void SetOCCTLocation(const TopLoc_Location& location) { fLocation = location; }
 
- private:
+private:
   TopLoc_Location fLocation;
 };
 
-#endif  // G4OCCT_G4OCCTPlacement_hh
+#endif // G4OCCT_G4OCCTPlacement_hh

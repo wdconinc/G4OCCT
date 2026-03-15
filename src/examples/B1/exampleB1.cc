@@ -46,8 +46,7 @@
 int main(int argc, char** argv) {
   // ── Run manager ───────────────────────────────────────────────────────────
 
-  auto* runManager =
-      G4RunManagerFactory::CreateRunManager(G4RunManagerType::Default);
+  auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::Default);
 
   // ── User initializations ──────────────────────────────────────────────────
 

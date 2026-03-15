@@ -21,16 +21,15 @@ void TestBoxCreatePolyhedron() {
   ExpectTrue("CreatePolyhedron returns a polyhedron for a box", polyhedron != nullptr);
   ExpectTrue("box polyhedron has vertices",
              polyhedron != nullptr && polyhedron->GetNoVertices() > 0);
-  ExpectTrue("box polyhedron has facets",
-             polyhedron != nullptr && polyhedron->GetNoFacets() > 0);
+  ExpectTrue("box polyhedron has facets", polyhedron != nullptr && polyhedron->GetNoFacets() > 0);
 
   G4int vertexIndex = 0;
-  G4int edgeFlag = 0;
+  G4int edgeFlag    = 0;
   ExpectTrue("box polyhedron exposes facet connectivity",
              polyhedron != nullptr && polyhedron->GetNextVertexIndex(vertexIndex, edgeFlag));
 }
 
-}  // namespace
+} // namespace
 
 int main() {
   TestBoxCreatePolyhedron();

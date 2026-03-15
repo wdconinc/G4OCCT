@@ -38,7 +38,7 @@ class RunAction;
  * @brief Collects total energy deposited in shape2 per event.
  */
 class EventAction : public G4UserEventAction {
- public:
+public:
   explicit EventAction(RunAction* runAction);
   ~EventAction() override = default;
 
@@ -48,9 +48,9 @@ class EventAction : public G4UserEventAction {
   /// Accumulate @p edep for the current event.
   void AddEdep(G4double edep) { fEdep += edep; }
 
- private:
+private:
   RunAction* fRunAction = nullptr;
-  G4double fEdep = 0.0;
+  G4double fEdep        = 0.0;
 };
 
-#endif  // B1_EventAction_hh
+#endif // B1_EventAction_hh

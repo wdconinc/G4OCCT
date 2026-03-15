@@ -34,7 +34,7 @@
  *       during navigation in this initial implementation.
  */
 class G4OCCTLogicalVolume : public G4LogicalVolume {
- public:
+public:
   /**
    * Construct a logical volume.
    *
@@ -44,9 +44,7 @@ class G4OCCTLogicalVolume : public G4LogicalVolume {
    * @param name      Name of this logical volume.
    * @param shape     OCCT shape associated with this volume (optional).
    */
-  G4OCCTLogicalVolume(G4VSolid* pSolid,
-                      G4Material* pMaterial,
-                      const G4String& name,
+  G4OCCTLogicalVolume(G4VSolid* pSolid, G4Material* pMaterial, const G4String& name,
                       const TopoDS_Shape& shape = TopoDS_Shape());
 
   ~G4OCCTLogicalVolume() override = default;
@@ -59,8 +57,8 @@ class G4OCCTLogicalVolume : public G4LogicalVolume {
   /// Replace the associated OCCT shape.
   void SetOCCTShape(const TopoDS_Shape& shape) { fShape = shape; }
 
- private:
+private:
   TopoDS_Shape fShape;
 };
 
-#endif  // G4OCCT_G4OCCTLogicalVolume_hh
+#endif // G4OCCT_G4OCCTLogicalVolume_hh

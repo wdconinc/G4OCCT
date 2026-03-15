@@ -42,7 +42,7 @@
  * Geant4 basic/B1 setup.
  */
 class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
- public:
+public:
   PrimaryGeneratorAction();
   ~PrimaryGeneratorAction() override = default;
 
@@ -51,8 +51,8 @@ class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
   /// Read access to the underlying particle gun.
   const G4ParticleGun* GetParticleGun() const { return fParticleGun.get(); }
 
- private:
+private:
   std::unique_ptr<G4ParticleGun> fParticleGun;
 };
 
-#endif  // B1_PrimaryGeneratorAction_hh
+#endif // B1_PrimaryGeneratorAction_hh

@@ -59,9 +59,7 @@ struct AxisAlignedBounds {
 };
 
 /// Convert a Geant4 three-vector to an OCCT point.
-gp_Pnt ToPoint(const G4ThreeVector& point) {
-  return gp_Pnt(point.x(), point.y(), point.z());
-}
+gp_Pnt ToPoint(const G4ThreeVector& point) { return gp_Pnt(point.x(), point.y(), point.z()); }
 
 /// Return the surface-intersection tolerance derived from the Geant4 geometry tolerance.
 G4double IntersectionTolerance() {
@@ -79,20 +77,18 @@ TopoDS_Vertex MakeVertex(const G4ThreeVector& point) {
 /// Map an OCCT solid-classifier state to the corresponding Geant4 inside enum.
 EInside ToG4Inside(const TopAbs_State state) {
   switch (state) {
-    case TopAbs_IN:
-      return kInside;
-    case TopAbs_ON:
-      return kSurface;
-    case TopAbs_OUT:
-    default:
-      return kOutside;
+  case TopAbs_IN:
+    return kInside;
+  case TopAbs_ON:
+    return kSurface;
+  case TopAbs_OUT:
+  default:
+    return kOutside;
   }
 }
 
 /// Return the canonical fall-back surface normal (positive Z axis).
-G4ThreeVector FallbackNormal() {
-  return G4ThreeVector(0.0, 0.0, 1.0);
-}
+G4ThreeVector FallbackNormal() { return G4ThreeVector(0.0, 0.0, 1.0); }
 
 /// Compute the axis-aligned bounding box of @p shape.
 /// Returns a void result if @p shape is null or has no geometry.
@@ -138,9 +134,7 @@ G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector
 
 /// Evaluate the outward surface normal on @p face at parameters (@p u, @p v).
 /// Writes the result into @p normal and returns true on success.
-bool TryGetOutwardNormal(const TopoDS_Face& face,
-                         const Standard_Real u,
-                         const Standard_Real v,
+bool TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u, const Standard_Real v,
                          G4ThreeVector* normal) {
   if (normal == nullptr) {
     return false;
@@ -161,7 +155,7 @@ bool TryGetOutwardNormal(const TopoDS_Face& face,
   return true;
 }
 
-}  // namespace
+} // namespace
 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
     : G4VSolid(name), fShape(shape) {}
@@ -234,8 +228,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   return normal;
 }
 
-G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p,
-                                   const G4ThreeVector& v) const {
+G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {
   if (fShape.IsNull() || v.mag2() == 0.0) {
     return kInfinity;
   }
@@ -275,10 +268,8 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
   return DistanceFromPointToShape(fShape, p);
 }
 
-G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p,
-                                    const G4ThreeVector& v,
-                                    const G4bool calcNorm,
-                                    G4bool* validNorm,
+G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v,
+                                    const G4bool calcNorm, G4bool* validNorm,
                                     G4ThreeVector* n) const {
   if (validNorm != nullptr) {
     *validNorm = false;
@@ -299,13 +290,13 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p,
     return 0.0;
   }
 
-  G4double minDistance = kInfinity;
+  G4double minDistance      = kInfinity;
   Standard_Integer minIndex = -1;
   for (Standard_Integer index = 1; index <= intersector.NbPnt(); ++index) {
     const G4double candidateDistance = intersector.WParameter(index);
     if (candidateDistance > tolerance && candidateDistance < minDistance) {
       minDistance = candidateDistance;
-      minIndex = index;
+      minIndex    = index;
     }
   }
 
@@ -329,7 +320,7 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
   }
 
   const TopoDS_Vertex vertex = MakeVertex(p);
-  G4double minDistance = kInfinity;
+  G4double minDistance       = kInfinity;
   for (TopExp_Explorer explorer(fShape, TopAbs_FACE); explorer.More(); explorer.Next()) {
     BRepExtrema_DistShapeShape distance(vertex, explorer.Current());
     if (!distance.IsDone() || distance.NbSolution() == 0) {
@@ -344,9 +335,7 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
   return (minDistance < kInfinity) ? minDistance : 0.0;
 }
 
-G4GeometryType G4OCCTSolid::GetEntityType() const {
-  return "G4OCCTSolid";
-}
+G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 
 G4VisExtent G4OCCTSolid::GetExtent() const {
   const AxisAlignedBounds bounds = ComputeAxisAlignedBounds(fShape);
@@ -355,20 +344,18 @@ G4VisExtent G4OCCTSolid::GetExtent() const {
                        kFallbackExtentMax, kFallbackExtentMin, kFallbackExtentMax);
   }
 
-  return G4VisExtent(bounds.min.x(), bounds.max.x(), bounds.min.y(), bounds.max.y(),
-                     bounds.min.z(), bounds.max.z());
+  return G4VisExtent(bounds.min.x(), bounds.max.x(), bounds.min.y(), bounds.max.y(), bounds.min.z(),
+                     bounds.max.z());
 }
 
 void G4OCCTSolid::BoundingLimits(G4ThreeVector& pMin, G4ThreeVector& pMax) const {
   const AxisAlignedBounds bounds = ComputeAxisAlignedBounds(fShape);
-  pMin = bounds.min;
-  pMax = bounds.max;
+  pMin                           = bounds.min;
+  pMax                           = bounds.max;
 }
 
-G4bool G4OCCTSolid::CalculateExtent(const EAxis pAxis,
-                                    const G4VoxelLimits& pVoxelLimit,
-                                    const G4AffineTransform& pTransform,
-                                    G4double& pMin,
+G4bool G4OCCTSolid::CalculateExtent(const EAxis pAxis, const G4VoxelLimits& pVoxelLimit,
+                                    const G4AffineTransform& pTransform, G4double& pMin,
                                     G4double& pMax) const {
   const AxisAlignedBounds bounds = ComputeAxisAlignedBounds(fShape);
   if (bounds.isVoid) {
@@ -379,9 +366,7 @@ G4bool G4OCCTSolid::CalculateExtent(const EAxis pAxis,
   return envelope.CalculateExtent(pAxis, pVoxelLimit, G4Transform3D(pTransform), pMin, pMax);
 }
 
-void G4OCCTSolid::DescribeYourselfTo(G4VGraphicsScene& scene) const {
-  scene.AddSolid(*this);
-}
+void G4OCCTSolid::DescribeYourselfTo(G4VGraphicsScene& scene) const { scene.AddSolid(*this); }
 
 G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
   if (fShape.IsNull()) {
@@ -402,12 +387,12 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
   for (TopExp_Explorer explorer(fShape, TopAbs_FACE); explorer.More(); explorer.Next()) {
     const TopoDS_Face& face = TopoDS::Face(explorer.Current());
     TopLoc_Location location;
-    const Handle(Poly_Triangulation)& triangulation = BRep_Tool::Triangulation(face, location);
+    const Handle(Poly_Triangulation) & triangulation = BRep_Tool::Triangulation(face, location);
     if (triangulation.IsNull()) {
       continue;
     }
 
-    const gp_Trsf& transform = location.Transformation();
+    const gp_Trsf& transform  = location.Transformation();
     const bool reverseWinding = face.Orientation() == TopAbs_REVERSED;
 
     for (Standard_Integer triangleIndex = 1; triangleIndex <= triangulation->NbTriangles();
@@ -425,10 +410,10 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
       const gp_Pnt point2 = triangulation->Node(index2).Transformed(transform);
       const gp_Pnt point3 = triangulation->Node(index3).Transformed(transform);
 
-      auto* facet = new G4TriangularFacet(G4ThreeVector(point1.X(), point1.Y(), point1.Z()),
-                                          G4ThreeVector(point2.X(), point2.Y(), point2.Z()),
-                                          G4ThreeVector(point3.X(), point3.Y(), point3.Z()),
-                                          ABSOLUTE);
+      auto* facet =
+          new G4TriangularFacet(G4ThreeVector(point1.X(), point1.Y(), point1.Z()),
+                                G4ThreeVector(point2.X(), point2.Y(), point2.Z()),
+                                G4ThreeVector(point3.X(), point3.Y(), point3.Z()), ABSOLUTE);
       if (!facet->IsDefined() || !tessellatedSolid.AddFacet(facet)) {
         delete facet;
         continue;

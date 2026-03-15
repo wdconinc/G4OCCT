@@ -40,10 +40,9 @@ TopoDS_Shape LoadStepFile(const std::string& path) {
   return shape;
 }
 
-}  // namespace
+} // namespace
 
-namespace B1
-{
+namespace B1 {
 
 G4VPhysicalVolume* DetectorConstruction::Construct() {
   G4NistManager* nist = G4NistManager::Instance();
@@ -62,17 +61,15 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
 
   // ── World ─────────────────────────────────────────────────────────────────
 
-  auto* worldSolid =
-      new G4Box("World", 0.6 * envSizeXY, 0.6 * envSizeXY, 0.8 * envSizeZ);
-  auto* worldLV = new G4LogicalVolume(worldSolid, matAir, "World");
+  auto* worldSolid = new G4Box("World", 0.6 * envSizeXY, 0.6 * envSizeXY, 0.8 * envSizeZ);
+  auto* worldLV    = new G4LogicalVolume(worldSolid, matAir, "World");
   auto* worldPV =
       new G4PVPlacement(nullptr, G4ThreeVector(), worldLV, "World", nullptr, false, 0, true);
 
   // ── Envelope ─────────────────────────────────────────────────────────────
 
-  auto* envSolid =
-      new G4Box("Envelope", 0.5 * envSizeXY, 0.5 * envSizeXY, 0.5 * envSizeZ);
-  auto* envLV = new G4LogicalVolume(envSolid, matWater, "Envelope");
+  auto* envSolid = new G4Box("Envelope", 0.5 * envSizeXY, 0.5 * envSizeXY, 0.5 * envSizeZ);
+  auto* envLV    = new G4LogicalVolume(envSolid, matWater, "Envelope");
   new G4PVPlacement(nullptr, G4ThreeVector(), envLV, "Envelope", worldLV, false, 0, true);
 
   // ── Shape 1 — sphere (r = 15 mm) from STEP ───────────────────────────────
@@ -82,8 +79,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
   TopoDS_Shape occtShape1   = LoadStepFile(stepDir + "/shape1.step");
   auto* solid1              = new G4OCCTSolid("Shape1", occtShape1);
   auto* lv1                 = new G4LogicalVolume(solid1, matShape1, "Shape1");
-  new G4PVPlacement(nullptr, G4ThreeVector(0, 2.0 * cm, -7.0 * cm), lv1, "Shape1", envLV,
-                    false, 0, true);
+  new G4PVPlacement(nullptr, G4ThreeVector(0, 2.0 * cm, -7.0 * cm), lv1, "Shape1", envLV, false, 0,
+                    true);
 
   // ── Shape 2 — box (20 × 30 × 40 mm) from STEP ────────────────────────────
   // Material: G4_BONE_COMPACT_ICRU, placed in the downstream half.
@@ -93,11 +90,11 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
   TopoDS_Shape occtShape2 = LoadStepFile(stepDir + "/shape2.step");
   auto* solid2            = new G4OCCTSolid("Shape2", occtShape2);
   auto* lv2               = new G4LogicalVolume(solid2, matShape2, "Shape2");
-  new G4PVPlacement(nullptr, G4ThreeVector(-1.0 * cm, -1.5 * cm, 5.0 * cm), lv2, "Shape2",
-                    envLV, false, 0, true);
+  new G4PVPlacement(nullptr, G4ThreeVector(-1.0 * cm, -1.5 * cm, 5.0 * cm), lv2, "Shape2", envLV,
+                    false, 0, true);
 
   fScoringVolume = lv2;
   return worldPV;
 }
 
-}  // namespace B1
+} // namespace B1

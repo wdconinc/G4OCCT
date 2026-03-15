@@ -39,8 +39,8 @@ void TestCylinderInsideClassification() {
                cylinder.PositiveRadialSurface(), kSurface);
   ExpectInside("cylinder top point is on the surface", cylinder.solid, cylinder.PositiveZSurface(),
                kSurface);
-  ExpectInside("cylinder point beyond radius is outside", cylinder.solid,
-               cylinder.OutsideRadialX(), kOutside);
+  ExpectInside("cylinder point beyond radius is outside", cylinder.solid, cylinder.OutsideRadialX(),
+               kOutside);
 }
 
 } // namespace

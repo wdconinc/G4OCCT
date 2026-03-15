@@ -42,10 +42,8 @@ std::pair<double, double> Rotate2D(const double x, const double y, const double 
           x * std::sin(angle_rad) + y * std::cos(angle_rad)};
 }
 
-TopoDS_Wire MakePolygonWire(const std::vector<SectionPoint>& section,
-                            const double z,
-                            const double angle_deg,
-                            const double shift_x = 0.0,
+TopoDS_Wire MakePolygonWire(const std::vector<SectionPoint>& section, const double z,
+                            const double angle_deg, const double shift_x = 0.0,
                             const double shift_y = 0.0) {
   BRepBuilderAPI_MakePolygon polygon;
   for (const auto& point : section) {
@@ -68,10 +66,8 @@ TopoDS_Shape MakeRuledSolid(const TopoDS_Wire& bottom, const TopoDS_Wire& top) {
   return loft.Shape();
 }
 
-TopoDS_Wire MakeTwistedTubsWire(const double z,
-                                const double angle_offset_deg,
-                                const double inner_radius,
-                                const double outer_radius,
+TopoDS_Wire MakeTwistedTubsWire(const double z, const double angle_offset_deg,
+                                const double inner_radius, const double outer_radius,
                                 const double total_phi_deg) {
   const double phi1 = (-0.5 * total_phi_deg + angle_offset_deg) * kPi / 180.0;
   const double phi2 = (0.5 * total_phi_deg + angle_offset_deg) * kPi / 180.0;
@@ -85,8 +81,10 @@ TopoDS_Wire MakeTwistedTubsWire(const double z,
   const gp_Pnt inner_start(inner_radius * std::cos(phi1), inner_radius * std::sin(phi1), z);
   const gp_Pnt inner_end(inner_radius * std::cos(phi2), inner_radius * std::sin(phi2), z);
 
-  const Handle(Geom_TrimmedCurve) outer_arc = GC_MakeArcOfCircle(outer_start, gp_Pnt(outer_radius, 0.0, z), outer_end);
-  const Handle(Geom_TrimmedCurve) inner_arc = GC_MakeArcOfCircle(inner_end, gp_Pnt(inner_radius, 0.0, z), inner_start);
+  const Handle(Geom_TrimmedCurve) outer_arc =
+      GC_MakeArcOfCircle(outer_start, gp_Pnt(outer_radius, 0.0, z), outer_end);
+  const Handle(Geom_TrimmedCurve) inner_arc =
+      GC_MakeArcOfCircle(inner_end, gp_Pnt(inner_radius, 0.0, z), inner_start);
 
   BRepBuilderAPI_MakeWire wire;
   wire.Add(BRepBuilderAPI_MakeEdge(outer_arc));
@@ -97,7 +95,7 @@ TopoDS_Wire MakeTwistedTubsWire(const double z,
 }
 
 TopoDS_Shape MakeTwistedBox() {
-  const double dz = 20.0;
+  const double dz  = 20.0;
   const double phi = 30.0;
   const std::vector<SectionPoint> section{{-10.0, -8.0}, {10.0, -8.0}, {10.0, 8.0}, {-10.0, 8.0}};
   return MakeRuledSolid(MakePolygonWire(section, -dz, -phi / 2.0),
@@ -105,7 +103,7 @@ TopoDS_Shape MakeTwistedBox() {
 }
 
 TopoDS_Shape MakeTwistedTrd() {
-  const double dz = 20.0;
+  const double dz  = 20.0;
   const double phi = 30.0;
   const std::vector<SectionPoint> bottom{{-10.0, -8.0}, {10.0, -8.0}, {10.0, 8.0}, {-10.0, 8.0}};
   const std::vector<SectionPoint> top{{-16.0, -14.0}, {16.0, -14.0}, {16.0, 14.0}, {-16.0, 14.0}};
@@ -114,7 +112,7 @@ TopoDS_Shape MakeTwistedTrd() {
 }
 
 TopoDS_Shape MakeTwistedTrap() {
-  const double dz = 18.0;
+  const double dz  = 18.0;
   const double phi = 30.0;
   const std::vector<SectionPoint> section{{-7.0, -9.0}, {7.0, -9.0}, {13.0, 9.0}, {-13.0, 9.0}};
   return MakeRuledSolid(MakePolygonWire(section, -dz, -phi / 2.0),
@@ -122,14 +120,14 @@ TopoDS_Shape MakeTwistedTrap() {
 }
 
 TopoDS_Shape MakeGenericTwistedFaceted() {
-  const double dz = 20.0;
-  const double phi = 30.0;
-  const double theta = 8.0 * kPi / 180.0;
+  const double dz      = 20.0;
+  const double phi     = 30.0;
+  const double theta   = 8.0 * kPi / 180.0;
   const double azimuth = 20.0 * kPi / 180.0;
   const double shift_r = 2.0 * dz * std::tan(theta);
   const double shift_x = shift_r * std::cos(azimuth);
   const double shift_y = shift_r * std::sin(azimuth);
-  const double alpha = 12.0 * kPi / 180.0;
+  const double alpha   = 12.0 * kPi / 180.0;
 
   const std::vector<SectionPoint> bottom{{-9.0, -8.0}, {9.0, -8.0}, {12.0, 8.0}, {-12.0, 8.0}};
   const std::vector<SectionPoint> top{{-7.0 - 10.0 * std::tan(alpha), -10.0},
@@ -141,8 +139,8 @@ TopoDS_Shape MakeGenericTwistedFaceted() {
 }
 
 TopoDS_Shape MakeTwistedTubs() {
-  const double dz = 20.0;
-  const double phi = 30.0;
+  const double dz   = 20.0;
+  const double phi  = 30.0;
   const double dphi = 210.0;
   const double rmin = 6.0;
   const double rmax = 12.0;
@@ -151,11 +149,16 @@ TopoDS_Shape MakeTwistedTubs() {
 }
 
 TopoDS_Shape MakeFixture(const std::string& fixture_name) {
-  if (fixture_name == "twisted-box") return MakeTwistedBox();
-  if (fixture_name == "twisted-trd") return MakeTwistedTrd();
-  if (fixture_name == "twisted-trap") return MakeTwistedTrap();
-  if (fixture_name == "twisted-tubs") return MakeTwistedTubs();
-  if (fixture_name == "vtwisted-faceted") return MakeGenericTwistedFaceted();
+  if (fixture_name == "twisted-box")
+    return MakeTwistedBox();
+  if (fixture_name == "twisted-trd")
+    return MakeTwistedTrd();
+  if (fixture_name == "twisted-trap")
+    return MakeTwistedTrap();
+  if (fixture_name == "twisted-tubs")
+    return MakeTwistedTubs();
+  if (fixture_name == "vtwisted-faceted")
+    return MakeGenericTwistedFaceted();
   throw std::runtime_error("Unknown twisted fixture name: " + fixture_name);
 }
 
@@ -176,7 +179,7 @@ void ValidateAndWrite(const TopoDS_Shape& shape, const std::filesystem::path& ou
   std::cout << props.Mass() << '\n';
 }
 
-}  // namespace
+} // namespace
 
 int main(int argc, char** argv) {
   if (argc != 3) {
