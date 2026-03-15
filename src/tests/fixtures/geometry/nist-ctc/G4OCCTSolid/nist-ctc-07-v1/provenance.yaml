@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2024 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: nist-ctc-07-v1
+source:
+  provider: NIST
+  project: MBE PMI Validation and Conformance Testing
+  page_url: https://www.nist.gov/ctl/smart-connected-systems-division/smart-connected-manufacturing-systems-group/mbe-pmi-0
+  archive: NIST-PMI-STEP-Files.zip
+  directory: AP203 geometry only
+  note: Run fetch.sh in the nist-ctc fixture directory to download the STEP file.
+shape:
+  geant4_class: G4OCCTSolid
+  description: >
+    NIST Simplified Test Case 07 (AP203 geometry only).
+    Prismatic block with an angular slot, demonstrating angular orientation features.
+validation:
+  note: Expected volume is computed from the OCCT import; see test_nist_ctc_inside_volume.

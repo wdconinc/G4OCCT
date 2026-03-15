@@ -20,6 +20,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Download NIST CTC STEP fixtures
+        run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
+        continue-on-error: true
+
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
@@ -70,6 +74,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Download NIST CTC STEP fixtures
+        run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
+        continue-on-error: true
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
