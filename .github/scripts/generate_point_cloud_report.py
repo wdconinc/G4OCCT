@@ -18,7 +18,8 @@ Each JSON file in <point-cloud-dir> must contain:
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -67,7 +68,7 @@ def _render_report(fixtures: list) -> str:
         # other closing tag) while reading the embedded <script> element,
         # regardless of the MIME type attribute.  "<\/" is valid JSON.
         fixture_json=json.dumps(fixtures, separators=(",", ":")).replace("</", "<\\/"),
-        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        timestamp=datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d %H:%M %Z"),
         count_str=f"{len(fixtures)} fixture(s)",
     )
 
@@ -88,7 +89,7 @@ def _render_error(message: str) -> str:
         css_content=css_content,
         js_content=js_content,
         fixture_json="[]",
-        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        timestamp=datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d %H:%M %Z"),
         count_str=f"Error: {message}",
     )
 
