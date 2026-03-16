@@ -734,8 +734,8 @@ namespace {
     if (state == kOutside) {
       sample.distance = solid.DistanceToIn(origin, direction);
     } else {
-      sample.distance = solid.DistanceToOut(origin, direction, true, &sample.validNorm,
-                                            &sample.normal);
+      sample.distance =
+          solid.DistanceToOut(origin, direction, true, &sample.validNorm, &sample.normal);
     }
     sample.intersects = !std::isinf(sample.distance);
     return sample;
@@ -940,8 +940,8 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
             std::ostringstream message;
             message << "Ray " << index << " normal mismatch for fixture '" << request.fixture.id
                     << "': native=" << ToString(native_sample.normal)
-                    << ", imported=" << ToString(imported_sample.normal)
-                    << ", dot=" << normal_dot << ", direction=" << ToString(directions[index]);
+                    << ", imported=" << ToString(imported_sample.normal) << ", dot=" << normal_dot
+                    << ", direction=" << ToString(directions[index]);
             report.AddError("fixture.ray_normal_mismatch", message.str(), provenance_path);
           }
         }
