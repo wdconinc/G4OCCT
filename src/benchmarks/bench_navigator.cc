@@ -149,14 +149,14 @@ namespace {
       }
     }
 
-    double total_native_ms                   = 0.0;
-    double total_imported_ms                 = 0.0;
-    std::size_t total_mismatches             = 0;
-    std::size_t total_normal_mismatches      = 0;
-    double total_sn_native_ms               = 0.0;
-    double total_sn_imported_ms             = 0.0;
-    std::size_t total_sn_mismatches          = 0;
-    std::size_t total_sn_count               = 0;
+    double total_native_ms              = 0.0;
+    double total_imported_ms            = 0.0;
+    std::size_t total_mismatches        = 0;
+    std::size_t total_normal_mismatches = 0;
+    double total_sn_native_ms           = 0.0;
+    double total_sn_imported_ms         = 0.0;
+    std::size_t total_sn_mismatches     = 0;
+    std::size_t total_sn_count          = 0;
 
     std::cout << "\n=== Fixture Ray Benchmark Results ===\n";
     std::cout << "Rays per fixture: " << ray_count << "\n";
@@ -173,8 +173,8 @@ namespace {
                 << "): native=" << summary.native_elapsed_ms
                 << " ms, imported=" << summary.imported_elapsed_ms
                 << " ms, mismatches=" << summary.mismatch_count
-                << ", normal_mismatches=" << summary.normal_mismatch_count
-                << "; SurfaceNormal(" << summary.surface_normal_count
+                << ", normal_mismatches=" << summary.normal_mismatch_count << "; SurfaceNormal("
+                << summary.surface_normal_count
                 << " points): native=" << summary.native_surface_normal_ms
                 << " ms, imported=" << summary.imported_surface_normal_ms
                 << " ms, mismatches=" << summary.surface_normal_mismatch_count << "\n";
@@ -187,8 +187,9 @@ namespace {
     }
     std::cout << "Total mismatches: " << total_mismatches << "\n";
     std::cout << "Total normal mismatches: " << total_normal_mismatches << "\n";
-    std::cout << "SurfaceNormal aggregate (" << total_sn_count << " points): native="
-              << total_sn_native_ms << " ms, imported=" << total_sn_imported_ms << " ms";
+    std::cout << "SurfaceNormal aggregate (" << total_sn_count
+              << " points): native=" << total_sn_native_ms
+              << " ms, imported=" << total_sn_imported_ms << " ms";
     if (total_sn_imported_ms > 0.0) {
       std::cout << ", native/imported ratio=" << total_sn_native_ms / total_sn_imported_ms;
     }

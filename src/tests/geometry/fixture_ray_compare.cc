@@ -331,14 +331,12 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
       if (!native_sample.intersects || !imported_sample.intersects) {
         continue;
       }
-      const G4double distance_delta =
-          std::fabs(native_sample.distance - imported_sample.distance);
+      const G4double distance_delta = std::fabs(native_sample.distance - imported_sample.distance);
       if (distance_delta > local_summary.distance_tolerance) {
         continue;
       }
       agreed_hits.push_back(
-          {index,
-           local_summary.native_origin + native_sample.distance * directions[index],
+          {index, local_summary.native_origin + native_sample.distance * directions[index],
            local_summary.imported_origin + imported_sample.distance * directions[index]});
     }
     local_summary.surface_normal_count = agreed_hits.size();
@@ -357,8 +355,7 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
     std::vector<G4ThreeVector> imported_surface_normals(agreed_hits.size());
     const auto sn_imported_begin = std::chrono::steady_clock::now();
     for (std::size_t i = 0; i < agreed_hits.size(); ++i) {
-      imported_surface_normals[i] =
-          imported_solid->SurfaceNormal(agreed_hits[i].imported_point);
+      imported_surface_normals[i] = imported_solid->SurfaceNormal(agreed_hits[i].imported_point);
     }
     const auto sn_imported_end = std::chrono::steady_clock::now();
     local_summary.imported_surface_normal_ms =
@@ -367,8 +364,7 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
     // Compare native vs imported SurfaceNormal(p).
     std::size_t reported_sn_mismatches = 0;
     for (std::size_t i = 0; i < agreed_hits.size(); ++i) {
-      const G4double dot =
-          native_surface_normals[i].dot(imported_surface_normals[i]);
+      const G4double dot = native_surface_normals[i].dot(imported_surface_normals[i]);
       if (dot < kNormalAgreementThreshold) {
         ++local_summary.surface_normal_mismatch_count;
         if (reported_sn_mismatches < options.max_reported_mismatches) {
@@ -376,8 +372,7 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
           const std::size_t ray_index = agreed_hits[i].ray_index;
           std::ostringstream message;
           message << "Ray " << ray_index << " SurfaceNormal mismatch for fixture '"
-                  << request.fixture.id
-                  << "': native=" << ToString(native_surface_normals[i])
+                  << request.fixture.id << "': native=" << ToString(native_surface_normals[i])
                   << " at native_point=" << ToString(agreed_hits[i].native_point)
                   << ", imported=" << ToString(imported_surface_normals[i])
                   << " at imported_point=" << ToString(agreed_hits[i].imported_point)
@@ -390,12 +385,11 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
     // Cross-validate: for rays where DistanceToOut provided a valid exit normal,
     // verify that SurfaceNormal(hit_point) agrees (internal consistency check).
     // This check is performed on both native and imported solids independently.
-    auto cross_validate = [&](const std::string& label,
-                               const std::vector<RaySample>& samples,
-                               const std::vector<G4ThreeVector>& sn_normals) {
+    auto cross_validate = [&](const std::string& label, const std::vector<RaySample>& samples,
+                              const std::vector<G4ThreeVector>& sn_normals) {
       for (std::size_t i = 0; i < agreed_hits.size(); ++i) {
-        const std::size_t ray_index   = agreed_hits[i].ray_index;
-        const RaySample& sample       = samples[ray_index];
+        const std::size_t ray_index = agreed_hits[i].ray_index;
+        const RaySample& sample     = samples[ray_index];
         if (!sample.validNorm) {
           continue;
         }
