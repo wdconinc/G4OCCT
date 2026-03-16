@@ -24,11 +24,11 @@ errors.
 |---|---|---|---|---|
 | `direct-primitives` | 10 | 9 | 1 | All analytic BRep except `G4CutTubs` origin alignment |
 | `profile-faceted` | 10 | 3 | 7 | Three enforced; others need frame alignment or tighter curved-surface parity |
-| `twisted-swept` | 6 | 6 | 0 | All six enforced; twisted fixtures use dense B-spline loft |
+| `twisted-swept` | 6 | 1 | 5 | `G4ExtrudedSolid` enforced; twisted STEP files need regeneration with updated B-spline loft |
 | `tessellated` | 1 | 1 | 0 | Closed-facet tetrahedron passes fully |
 | `boolean-compound` | 4 | 4 | 0 | All boolean fixtures enforced |
 | `wrapper-decorator` | 2 | 1 | 1 | `G4ScaledSolid` still needs frame alignment |
-| **Total** | **33** | **24** | **9** | — |
+| **Total** | **33** | **19** | **14** | — |
 
 The table counts unique STEP fixtures. Several fixtures are reused by `G4U*`
 thin-wrapper classes; those wrappers inherit the same enforcement status as the
@@ -69,11 +69,6 @@ regression in any one of them causes the suite to fail immediately.
 | Geant4 class | Fixture slug | Reused by |
 |---|---|---|
 | `G4ExtrudedSolid` | `extruded-pentagon-z30-v1` | `G4UExtrudedSolid` |
-| `G4TwistedBox` | `box-dx10-dy8-z20-phi30-v1` | — |
-| `G4TwistedTrap` | `trap-dx7-13-dy9-z18-phi30-v1` | — |
-| `G4TwistedTrd` | `trd-dx10-16-dy8-14-z20-phi30-v1` | — |
-| `G4TwistedTubs` | `tubs-r6-r12-z20-dphi210-phi30-v1` | — |
-| `G4VTwistedFaceted` | `faceted-dz20-theta8-phi20-v1` | — |
 
 ### 2.4 `tessellated`
 
@@ -108,7 +103,31 @@ specific non-equivalence codes `fixture.volume_mismatch`,
 `fixture.ray_distance_mismatch` are demoted. Structural errors such as missing
 STEP files, failed STEP reads, or invalid manifests remain errors.
 
-### 3.1 Faceted profile approximations
+### 3.1 Twisted-solid STEP fixtures pending regeneration
+
+**Affected classes:** `G4TwistedBox`, `G4TwistedTrd`, `G4TwistedTrap`,
+`G4TwistedTubs`, `G4VTwistedFaceted`
+
+**Why they fail:**
+The fixture generator (`generate_twisted_fixtures.cc`) has been updated to use
+dense multi-section B-spline lofting via `BRepOffsetAPI_ThruSections` with 64
+intermediate cross-sections, which closely approximates the analytically-defined
+twisted faces of Geant4 twisted solids. However, the checked-in STEP files were
+produced by the old 2-section ruled-loft generator and have not yet been
+regenerated. Until the STEP files are rebuilt with the updated generator, the
+BRep boundaries still reflect the old ruled-loft approximation and validation
+diverges from the analytic Geant4 solid.
+
+**Work required to pass:**
+1. Run `src/tests/fixtures/geometry/twisted-swept/regenerate.sh` with an OCCT
+   environment (e.g., eic-shell) to rebuild all five twisted fixture STEP files
+   using the updated B-spline loft generator.
+2. Verify the new volume expectations against the updated STEP files and update
+   the `expectations` entries in `manifest.yaml` if needed.
+3. Remove the xfail annotation in `ExpectedFailureForFixture` and confirm CI
+   passes with the regenerated fixtures.
+
+### 3.2 Faceted profile approximations
 
 **Affected classes:** `G4Hype`, `G4Paraboloid`
 
@@ -132,7 +151,7 @@ compared to the Geant4 analytic solid, especially near curved faces.
    delegates `DistanceToIn`/`DistanceToOut` to the Geant4 analytic solid for
    these specific classes.
 
-### 3.2 Ray-frame alignment not implemented
+### 3.3 Ray-frame alignment not implemented
 
 **Affected classes:** `G4CutTubs`, `G4Ellipsoid`, `G4EllipticalCone`,
 `G4EllipticalTube`, `G4Polycone`, `G4Polyhedra`, `G4ScaledSolid`
@@ -178,7 +197,7 @@ that describes the remaining work.
 |---|---|---|---|---|
 | `G4Box` | direct-primitives | ✅ Enforced | — | — |
 | `G4Cons` | direct-primitives | ✅ Enforced | — | — |
-| `G4CutTubs` | direct-primitives | ⚠ Xfail | ray-frame misalignment | §3.2 |
+| `G4CutTubs` | direct-primitives | ⚠ Xfail | ray-frame misalignment | §3.3 |
 | `G4Orb` | direct-primitives | ✅ Enforced | — | — |
 | `G4Para` | direct-primitives | ✅ Enforced | — | — |
 | `G4Sphere` | direct-primitives | ✅ Enforced | — | — |
@@ -186,29 +205,29 @@ that describes the remaining work.
 | `G4Trap` | direct-primitives | ✅ Enforced | — | — |
 | `G4Trd` | direct-primitives | ✅ Enforced | — | — |
 | `G4Tubs` | direct-primitives | ✅ Enforced | — | — |
-| `G4Ellipsoid` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.2 |
-| `G4EllipticalCone` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.2 |
-| `G4EllipticalTube` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.2 |
+| `G4Ellipsoid` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.3 |
+| `G4EllipticalCone` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.3 |
+| `G4EllipticalTube` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.3 |
 | `G4GenericPolycone` | profile-faceted | ✅ Enforced | — | — |
 | `G4GenericTrap` | profile-faceted | ✅ Enforced | — | — |
-| `G4Hype` | profile-faceted | ⚠ Xfail | faceted approximation | §3.1 |
-| `G4Paraboloid` | profile-faceted | ⚠ Xfail | faceted approximation | §3.1 |
-| `G4Polycone` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.2 |
-| `G4Polyhedra` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.2 |
+| `G4Hype` | profile-faceted | ⚠ Xfail | faceted approximation | §3.2 |
+| `G4Paraboloid` | profile-faceted | ⚠ Xfail | faceted approximation | §3.2 |
+| `G4Polycone` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.3 |
+| `G4Polyhedra` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.3 |
 | `G4Tet` | profile-faceted | ✅ Enforced | — | — |
 | `G4ExtrudedSolid` | twisted-swept | ✅ Enforced | — | — |
-| `G4TwistedBox` | twisted-swept | ✅ Enforced | — | — |
-| `G4TwistedTrap` | twisted-swept | ✅ Enforced | — | — |
-| `G4TwistedTrd` | twisted-swept | ✅ Enforced | — | — |
-| `G4TwistedTubs` | twisted-swept | ✅ Enforced | — | — |
-| `G4VTwistedFaceted` | twisted-swept | ✅ Enforced | — | — |
+| `G4TwistedBox` | twisted-swept | ⚠ Xfail | STEP regeneration pending | §3.1 |
+| `G4TwistedTrap` | twisted-swept | ⚠ Xfail | STEP regeneration pending | §3.1 |
+| `G4TwistedTrd` | twisted-swept | ⚠ Xfail | STEP regeneration pending | §3.1 |
+| `G4TwistedTubs` | twisted-swept | ⚠ Xfail | STEP regeneration pending | §3.1 |
+| `G4VTwistedFaceted` | twisted-swept | ⚠ Xfail | STEP regeneration pending | §3.1 |
 | `G4TessellatedSolid` | tessellated | ✅ Enforced | — | — |
 | `G4UnionSolid` | boolean-compound | ✅ Enforced | — | — |
 | `G4SubtractionSolid` | boolean-compound | ✅ Enforced | — | — |
 | `G4IntersectionSolid` | boolean-compound | ✅ Enforced | — | — |
 | `G4MultiUnion` | boolean-compound | ✅ Enforced | — | — |
 | `G4DisplacedSolid` | wrapper-decorator | ✅ Enforced | — | — |
-| `G4ScaledSolid` | wrapper-decorator | ⚠ Xfail | ray-frame misalignment | §3.2 |
+| `G4ScaledSolid` | wrapper-decorator | ⚠ Xfail | ray-frame misalignment | §3.3 |
 
 > **`G4U*` thin wrappers** (`G4UBox`, `G4UCons`, `G4UCutTubs`, etc.) reuse the
 > same STEP fixture as their `G4*` counterpart and therefore inherit the same
@@ -225,6 +244,7 @@ The remaining work to eliminate all current xfails is:
 | Fix STEP origin alignment for `G4CutTubs` | `G4CutTubs`, `G4UCutTubs` | **High** |
 | Fix ray-frame alignment for profile-faceted fixtures | `G4Ellipsoid`, `G4EllipticalCone`, `G4EllipticalTube`, `G4Polycone`, `G4Polyhedra` | **High** |
 | Fix ray-frame alignment for `G4ScaledSolid` | `G4ScaledSolid` | **Medium** |
+| Regenerate twisted STEP fixtures with updated B-spline loft generator | `G4TwistedBox`, `G4TwistedTrap`, `G4TwistedTrd`, `G4TwistedTubs`, `G4VTwistedFaceted` | **Medium** |
 | Improve faceted approximation for hyperboloid/paraboloid or add analytic fallback | `G4Hype`, `G4Paraboloid` | **Medium** |
 
 ---
