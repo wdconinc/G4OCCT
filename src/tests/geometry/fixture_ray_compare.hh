@@ -31,6 +31,7 @@ struct FixtureRayComparisonSummary {
   std::string geant4_class;
   std::size_t ray_count{0};
   std::size_t mismatch_count{0};
+  std::size_t normal_mismatch_count{0};
   G4double distance_tolerance{0.0};
   G4ThreeVector native_origin;
   G4ThreeVector imported_origin;
