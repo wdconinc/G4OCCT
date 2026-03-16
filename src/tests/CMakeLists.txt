@@ -84,13 +84,12 @@ add_test(NAME test_geometry_validation COMMAND test_geometry_validation)
 file(
   GLOB _geometry_family_manifests CONFIGURE_DEPENDS
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/*/manifest.yaml
-)
+  ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/*/manifest.yaml)
 list(SORT _geometry_family_manifests)
 set(_geometry_fixture_ids)
 foreach(_family_manifest IN LISTS _geometry_family_manifests)
-  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${_family_manifest}" _family_fixture_lines
-       REGEX "^  - id: ")
+  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${_family_manifest}"
+       _family_fixture_lines REGEX "^  - id: ")
   foreach(_fixture_line IN LISTS _family_fixture_lines)
     string(REGEX REPLACE "^  - id: " "" fixture_id "${_fixture_line}")
     list(APPEND _geometry_fixture_ids "${fixture_id}")

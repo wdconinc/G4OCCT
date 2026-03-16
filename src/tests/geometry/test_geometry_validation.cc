@@ -21,8 +21,8 @@ namespace {
   bool HasErrors(const ValidationReport& report) {
     return std::any_of(report.Messages().begin(), report.Messages().end(),
                        [](const ValidationMessage& message) {
-                          return message.severity == ValidationSeverity::kError;
-                        });
+                         return message.severity == ValidationSeverity::kError;
+                       });
   }
 
   struct CommandLineOptions {
