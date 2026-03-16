@@ -2,6 +2,7 @@
 // Copyright (C) 2024 G4OCCT Contributors
 
 #include "geometry/fixture_ray_compare.hh"
+#include "geometry/fixture_inside_compare.hh"
 
 #include <cstdlib>
 #include <algorithm>
@@ -15,8 +16,11 @@ namespace g4occt::benchmarks {
 namespace {
 
   using g4occt::tests::geometry::CompareFixtureRays;
+  using g4occt::tests::geometry::CompareFixtureInside;
   using g4occt::tests::geometry::DefaultRepositoryManifestPath;
   using g4occt::tests::geometry::FixtureManifest;
+  using g4occt::tests::geometry::FixtureInsideComparisonOptions;
+  using g4occt::tests::geometry::FixtureInsideComparisonSummary;
   using g4occt::tests::geometry::FixtureRayComparisonOptions;
   using g4occt::tests::geometry::FixtureRayComparisonSummary;
   using g4occt::tests::geometry::FixtureRepositoryManifest;
@@ -61,6 +65,7 @@ namespace {
     options.point_cloud_dir = point_cloud_dir;
 
     std::vector<FixtureRayComparisonSummary> summaries;
+    std::vector<FixtureInsideComparisonSummary> inside_summaries;
     std::size_t expected_failure_count = 0;
     for (const auto& family : repository_manifest.families) {
       const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
@@ -104,6 +109,17 @@ namespace {
         if (summary.ray_count > 0U) {
           summaries.push_back(summary);
         }
+
+        FixtureInsideComparisonSummary inside_summary;
+        ValidationReport inside_report = CompareFixtureInside(request, {}, &inside_summary);
+        if (expected_failure.enabled) {
+          inside_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
+              inside_report, expected_failure.reason);
+        }
+        aggregate_report.Append(inside_report);
+        if (inside_summary.point_count > 0U) {
+          inside_summaries.push_back(inside_summary);
+        }
       }
     }
 
@@ -141,6 +157,29 @@ namespace {
     if (HasErrors(aggregate_report)) {
       return EXIT_FAILURE;
     }
+
+    double total_inside_native_ms    = 0.0;
+    double total_inside_imported_ms  = 0.0;
+    std::size_t total_inside_mismatches = 0;
+
+    std::cout << "\n=== Fixture Inside Benchmark Results ===\n";
+    for (const auto& s : inside_summaries) {
+      total_inside_native_ms += s.native_elapsed_ms;
+      total_inside_imported_ms += s.imported_elapsed_ms;
+      total_inside_mismatches += s.mismatch_count;
+      std::cout << s.fixture_id << " (" << s.geant4_class
+                << "): native=" << s.native_elapsed_ms
+                << " ms, imported=" << s.imported_elapsed_ms
+                << " ms, points=" << s.point_count
+                << ", mismatches=" << s.mismatch_count << "\n";
+    }
+    std::cout << "Aggregate native   : " << total_inside_native_ms << " ms\n";
+    std::cout << "Aggregate imported : " << total_inside_imported_ms << " ms\n";
+    if (total_inside_imported_ms > 0.0) {
+      std::cout << "Native/imported ratio: "
+                << total_inside_native_ms / total_inside_imported_ms << "\n";
+    }
+    std::cout << "Total mismatches: " << total_inside_mismatches << "\n";
     return EXIT_SUCCESS;
   }
 
