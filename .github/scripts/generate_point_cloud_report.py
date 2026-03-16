@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2024 G4OCCT Contributors
 
-"""Generate a three.js point-cloud viewer (requires CDN access) from per-fixture JSON files.
+"""Generate a three.js point-cloud viewer (requires CDN access) from per-fixture .json.gz files.
 
 Usage:
     python generate_point_cloud_report.py <point-cloud-dir> <output.html>
 
-Each JSON file in <point-cloud-dir> must contain:
+Each .json.gz file in <point-cloud-dir> must contain:
     fixture_id                  – qualified fixture path (family/id)
     geant4_class                – Geant4 solid class name
     ray_count                   – number of rays fired
@@ -16,6 +16,7 @@ Each JSON file in <point-cloud-dir> must contain:
     imported_post_step_hits     – [[x,y,z], ...]
 """
 
+import gzip
 import json
 import sys
 from pathlib import Path
@@ -28,22 +29,23 @@ _SCRIPTS_DIR = Path(__file__).parent
 
 
 def _load_fixture_data(point_cloud_dir: Path) -> list:
-    """Read all *.json files in the directory; return list of dicts."""
+    """Read all *.json.gz files in the directory; return list of dicts."""
     fixtures = []
-    for json_path in sorted(point_cloud_dir.glob("*.json")):
+    for gz_path in sorted(point_cloud_dir.glob("*.json.gz")):
         try:
-            data = json.loads(json_path.read_text(encoding="utf-8"))
+            with gzip.open(gz_path, "rt", encoding="utf-8") as f:
+                data = json.load(f)
             for key in ("fixture_id", "geant4_class", "ray_count",
                         "native_pre_step_origin", "imported_pre_step_origin",
                         "native_post_step_hits", "imported_post_step_hits"):
                 if key not in data:
-                    print(f"Warning: {json_path.name}: missing key '{key}', skipping",
+                    print(f"Warning: {gz_path.name}: missing key '{key}', skipping",
                           file=sys.stderr)
                     break
             else:
                 fixtures.append(data)
         except (json.JSONDecodeError, OSError) as exc:
-            print(f"Warning: could not load {json_path}: {exc}", file=sys.stderr)
+            print(f"Warning: could not load {gz_path}: {exc}", file=sys.stderr)
     return fixtures
 
 

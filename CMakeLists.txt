@@ -62,6 +62,7 @@ option(BUILD_BENCHMARKS "Build navigator benchmark programs" OFF)
 
 if(BUILD_TESTING OR BUILD_BENCHMARKS)
   find_package(yaml-cpp 0.8 REQUIRED)
+  find_package(ZLIB REQUIRED)
   add_library(
     G4OCCTFixtureSupport
     src/tests/geometry/fixture_manifest.cc
@@ -77,8 +78,9 @@ if(BUILD_TESTING OR BUILD_BENCHMARKS)
     G4OCCTFixtureSupport
     PUBLIC G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/tests")
   target_link_libraries(
-    G4OCCTFixtureSupport PUBLIC G4OCCT ${Geant4_LIBRARIES}
-                                ${OpenCASCADE_LIBRARIES} yaml-cpp::yaml-cpp)
+    G4OCCTFixtureSupport
+    PUBLIC G4OCCT ${Geant4_LIBRARIES} ${OpenCASCADE_LIBRARIES}
+           yaml-cpp::yaml-cpp ZLIB::ZLIB)
 endif()
 
 if(BUILD_TESTING)
