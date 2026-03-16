@@ -6,7 +6,13 @@
 import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
+
+try:
+    _TZ = ZoneInfo("America/New_York")
+except ZoneInfoNotFoundError:
+    _TZ = timezone.utc
 
 _STATUS_LABELS = {
     "passed":  "✅ PASS",
@@ -72,7 +78,7 @@ def _render_report(cases: list) -> str:
     passed  = sum(1 for c in cases if c["status"] == "passed")
     failed  = sum(1 for c in cases if c["status"] in ("failed", "error"))
     skipped = sum(1 for c in cases if c["status"] == "skipped")
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    timestamp = datetime.now(_TZ).strftime("%Y-%m-%d %H:%M %Z")
 
     overall_text = (
         f"✅ All {total} tests passed"
@@ -108,7 +114,7 @@ def _render_report(cases: list) -> str:
 
 def _render_error(message: str) -> str:
     """Render a minimal Markdown error report."""
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    timestamp = datetime.now(_TZ).strftime("%Y-%m-%d %H:%M %Z")
     return (
         "# G4OCCT Test Results\n\n"
         f"Generated: {timestamp}\n\n"
