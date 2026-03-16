@@ -121,8 +121,8 @@ public:
   ///       this while a simulation run is in progress.
   void SetOCCTShape(const TopoDS_Shape& shape) {
     fShape = shape;
-    fShapeGeneration.fetch_add(1, std::memory_order_release);
     ComputeBounds();
+    fShapeGeneration.fetch_add(1, std::memory_order_release);
   }
 
 private:
