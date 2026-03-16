@@ -183,15 +183,21 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
     const G4double tolerance = G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
 
     // ── Generate test points ──────────────────────────────────────────────
-    // ~50% bounding-box points, ~50% near-surface points.
-    const std::size_t bb_count      = options.point_count / 2U;
-    const std::size_t surface_count = options.point_count - bb_count;
+    // Default to ~50% bounding-box points and ~50% near-surface points, but
+    // allow callers to disable the boundary-focused samples for pure
+    // throughput benchmarking.
+    const std::size_t bb_count =
+        options.include_near_surface_points ? options.point_count / 2U : options.point_count;
+    const std::size_t surface_count =
+        options.include_near_surface_points ? options.point_count - bb_count : 0U;
     // Each ray produces at most 2 near-surface points.
     const std::size_t surface_ray_count = surface_count;
 
     std::vector<G4ThreeVector> test_points = GenerateBoundingBoxPoints(*native_solid, bb_count);
-    GenerateNearSurfacePoints(*native_solid, tolerance, surface_ray_count, surface_count,
-                              test_points);
+    if (surface_count > 0U) {
+      GenerateNearSurfacePoints(*native_solid, tolerance, surface_ray_count, surface_count,
+                                test_points);
+    }
 
     local_summary.point_count = test_points.size();
 

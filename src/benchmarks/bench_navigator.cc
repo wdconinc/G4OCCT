@@ -63,6 +63,12 @@ namespace {
     FixtureRayComparisonOptions options;
     options.ray_count       = ray_count;
     options.point_cloud_dir = point_cloud_dir;
+    FixtureInsideComparisonOptions inside_options;
+    inside_options.point_count = ray_count;
+    // Keep the benchmark on bulk-classification points: the ray benchmark
+    // already probes boundary behaviour, while boundary-adjacent `Inside()`
+    // queries can wedge OCCT's imported-solid classifier for some fixtures.
+    inside_options.include_near_surface_points = false;
 
     std::vector<FixtureRayComparisonSummary> summaries;
     std::vector<FixtureInsideComparisonSummary> inside_summaries;
@@ -111,7 +117,8 @@ namespace {
         }
 
         FixtureInsideComparisonSummary inside_summary;
-        ValidationReport inside_report = CompareFixtureInside(request, {}, &inside_summary);
+        ValidationReport inside_report =
+            CompareFixtureInside(request, inside_options, &inside_summary);
         if (expected_failure.enabled) {
           inside_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
               inside_report, expected_failure.reason);
