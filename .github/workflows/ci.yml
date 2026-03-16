@@ -240,7 +240,8 @@ jobs:
   # ── Build Doxygen API reference ─────────────────────────────────────────────
   doxygen:
     name: Build Doxygen API reference
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [build-test-benchmark]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -265,7 +266,7 @@ jobs:
   # ── Deploy docsify + Doxygen + reports to GitHub Pages ──────────────────────
   deploy:
     name: Deploy to GitHub Pages
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: [build-test-benchmark, doxygen]
     runs-on: ubuntu-latest
     concurrency:
