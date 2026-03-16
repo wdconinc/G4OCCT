@@ -107,11 +107,6 @@ namespace {
       }
     }
 
-    PrintReportMessages(aggregate_report);
-    if (HasErrors(aggregate_report)) {
-      return EXIT_FAILURE;
-    }
-
     double total_native_ms              = 0.0;
     double total_imported_ms            = 0.0;
     std::size_t total_mismatches        = 0;
@@ -140,6 +135,11 @@ namespace {
     std::cout << "Total normal mismatches: " << total_normal_mismatches << "\n";
     if (expected_failure_count > 0U) {
       std::cout << "Expected failures: " << expected_failure_count << "\n";
+    }
+
+    PrintReportMessages(aggregate_report);
+    if (HasErrors(aggregate_report)) {
+      return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
   }
