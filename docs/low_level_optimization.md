@@ -6,7 +6,7 @@
 This note collects implementation-level optimization opportunities for
 `G4OCCTSolid` and related benchmarking/reporting code.  It is broader than
 `Inside()` alone: the same themes apply to ray queries, safety distances,
-surface normals, visualization support, and benchmark methodology.
+surface normals, visualisation support, and benchmark methodology.
 
 The goal is not to prematurely micro-optimize every path.  The goal is to
 identify optimizations that:
@@ -223,7 +223,7 @@ navigation, but they matter for CI and diagnostics.
 Opportunities:
 
 - cache generated `G4Polyhedron`,
-- reuse triangulations between reporting and visualization code,
+- reuse triangulations between reporting and visualisation code,
 - persist fixture render intermediates where safe.
 
 ---
@@ -280,7 +280,7 @@ This note suggests a natural decomposition into reviewable PRs:
 - benchmark/reporting improvements for first-call vs steady-state visibility,
 - internal batch helpers,
 - ray-acceleration experiments behind isolated helper APIs,
-- visualization/mesh caching changes.
+- visualisation/mesh caching changes.
 
 That breakdown keeps correctness review manageable while still allowing a
 larger long-term optimization strategy.
