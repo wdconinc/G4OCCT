@@ -775,19 +775,6 @@ namespace {
     return result;
   }
 
-  /// Write a JSON array of 3-vectors to an output stream.
-  void WriteJsonVectorArray(std::ostream& out, const std::vector<G4ThreeVector>& points) {
-    out << '[';
-    for (std::size_t index = 0; index < points.size(); ++index) {
-      if (index > 0U) {
-        out << ',';
-      }
-      out << std::setprecision(15) << '[' << points[index].x() << ',' << points[index].y() << ','
-          << points[index].z() << ']';
-    }
-    out << ']';
-  }
-
   /**
    * Write a JSON file with the pre-step origins and the post-step surface hit
    * points collected during native-vs-imported ray comparison.
