@@ -50,12 +50,13 @@
 #include <G4TwoVector.hh>
 #include <G4UnionSolid.hh>
 
+#include <zlib.h>
+
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
-#include <fstream>
 #include <iomanip>
 #include <limits>
 #include <memory>
@@ -802,25 +803,38 @@ namespace {
                            const G4ThreeVector& native_origin, const G4ThreeVector& imported_origin,
                            const std::vector<G4ThreeVector>& native_hits,
                            const std::vector<G4ThreeVector>& imported_hits) {
-    std::ofstream out(output_path);
-    if (!out) {
+    std::ostringstream buf;
+    buf << "{\n";
+    buf << "  \"fixture_id\": " << JsonString(fixture_id) << ",\n";
+    buf << "  \"geant4_class\": " << JsonString(geant4_class) << ",\n";
+    buf << "  \"ray_count\": " << ray_count << ",\n";
+    buf << std::setprecision(15);
+    buf << "  \"native_pre_step_origin\": [" << native_origin.x() << ',' << native_origin.y() << ','
+        << native_origin.z() << "],\n";
+    buf << "  \"imported_pre_step_origin\": [" << imported_origin.x() << ',' << imported_origin.y()
+        << ',' << imported_origin.z() << "],\n";
+    buf << "  \"native_post_step_hits\": ";
+    WriteJsonVectorArray(buf, native_hits);
+    buf << ",\n";
+    buf << "  \"imported_post_step_hits\": ";
+    WriteJsonVectorArray(buf, imported_hits);
+    buf << "\n}\n";
+
+    const std::string json_str = buf.str();
+    if (json_str.size() > static_cast<std::size_t>(std::numeric_limits<unsigned int>::max())) {
+      throw std::runtime_error("Point-cloud JSON exceeds gzwrite size limit: " +
+                               output_path.string());
+    }
+    gzFile gz = gzopen(output_path.c_str(), "wb");
+    if (!gz) {
       throw std::runtime_error("Cannot open point-cloud output file: " + output_path.string());
     }
-    out << "{\n";
-    out << "  \"fixture_id\": " << JsonString(fixture_id) << ",\n";
-    out << "  \"geant4_class\": " << JsonString(geant4_class) << ",\n";
-    out << "  \"ray_count\": " << ray_count << ",\n";
-    out << std::setprecision(15);
-    out << "  \"native_pre_step_origin\": [" << native_origin.x() << ',' << native_origin.y() << ','
-        << native_origin.z() << "],\n";
-    out << "  \"imported_pre_step_origin\": [" << imported_origin.x() << ',' << imported_origin.y()
-        << ',' << imported_origin.z() << "],\n";
-    out << "  \"native_post_step_hits\": ";
-    WriteJsonVectorArray(out, native_hits);
-    out << ",\n";
-    out << "  \"imported_post_step_hits\": ";
-    WriteJsonVectorArray(out, imported_hits);
-    out << "\n}\n";
+    const int written = gzwrite(gz, json_str.data(), static_cast<unsigned int>(json_str.size()));
+    const bool write_ok = (written == static_cast<int>(json_str.size()));
+    gzclose(gz);
+    if (!write_ok) {
+      throw std::runtime_error("Failed to write gzip data to: " + output_path.string());
+    }
   }
 
 } // namespace
@@ -985,7 +999,7 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
           c = '_';
         }
       }
-      filename += ".json";
+      filename += ".json.gz";
       std::filesystem::create_directories(options.point_cloud_dir);
       WritePointCloudJson(options.point_cloud_dir / filename, local_summary.fixture_id,
                           local_summary.geant4_class, local_summary.ray_count,
