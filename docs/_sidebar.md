@@ -8,6 +8,7 @@
 - [Multi-Shape STEP Assembly Import](step_assembly_import.md)
 - [Solid Navigation Design](solid_navigation.md)
 - [Performance Considerations](performance.md)
+- [Low-Level Optimization Notes](low_level_optimization.md)
 - [Geometry Test Status](geometry_test_status.md)
 - **Examples**
   - [B1 — Water Phantom](example_b1.md)
