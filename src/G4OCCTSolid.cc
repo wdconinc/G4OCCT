@@ -42,6 +42,7 @@
 #include <G4VGraphicsScene.hh>
 #include <G4VisExtent.hh>
 
+#include <optional>
 #include <utility>
 
 namespace {
@@ -133,17 +134,13 @@ G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector
 }
 
 /// Evaluate the outward surface normal on @p face at parameters (@p u, @p v).
-/// Writes the result into @p normal and returns true on success.
-bool TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u, const Standard_Real v,
-                         G4ThreeVector* normal) {
-  if (normal == nullptr) {
-    return false;
-  }
-
+/// Returns the normal vector on success, or std::nullopt if the normal is undefined.
+std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
+                                                  const Standard_Real v) {
   BRepAdaptor_Surface surface(face);
   BRepLProp_SLProps props(surface, u, v, 1, IntersectionTolerance());
   if (!props.IsNormalDefined()) {
-    return false;
+    return std::nullopt;
   }
 
   gp_Dir faceNormal = props.Normal();
@@ -151,8 +148,7 @@ bool TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u, const S
     faceNormal.Reverse();
   }
 
-  *normal = G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
-  return true;
+  return G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
 }
 
 } // namespace
@@ -245,12 +241,8 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   Standard_Real v = 0.0;
   projection.LowerDistanceParameters(u, v);
 
-  G4ThreeVector normal;
-  if (!TryGetOutwardNormal(closestFace, u, v, &normal)) {
-    return FallbackNormal();
-  }
-
-  return normal;
+  const auto normal = TryGetOutwardNormal(closestFace, u, v);
+  return normal.value_or(FallbackNormal());
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {
@@ -328,10 +320,13 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
   }
 
   if (calcNorm && validNorm != nullptr && n != nullptr &&
-      intersector.State(minIndex) == TopAbs_IN &&
-      TryGetOutwardNormal(intersector.Face(minIndex), intersector.UParameter(minIndex),
-                          intersector.VParameter(minIndex), n)) {
-    *validNorm = true;
+      intersector.State(minIndex) == TopAbs_IN) {
+    if (auto outNorm = TryGetOutwardNormal(intersector.Face(minIndex),
+                                            intersector.UParameter(minIndex),
+                                            intersector.VParameter(minIndex))) {
+      *n         = *outNorm;
+      *validNorm = true;
+    }
   }
 
   return minDistance;
