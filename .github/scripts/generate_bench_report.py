@@ -80,7 +80,7 @@ def _parse_bench_output(text: str) -> dict:
 
 def _fixture_viewer_link(fixture_id: str, viewer_path: str) -> str:
     """Return a point-cloud viewer deep link for one fixture."""
-    return f"{viewer_path}#fixture={quote(fixture_id, safe='')}"
+    return f"{viewer_path}?fixture={quote(fixture_id, safe='')}"
 
 
 def _render_report(data: dict, viewer_path: str) -> str:

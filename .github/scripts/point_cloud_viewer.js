@@ -78,7 +78,13 @@ function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function fixtureIdFromHash() {
+function fixtureIdFromUrl() {
+  // Check URL query string first (used when linked via docsify-routed bench report)
+  const searchFixture = new URLSearchParams(window.location.search).get('fixture');
+  if (searchFixture) {
+    return searchFixture;
+  }
+  // Fall back to hash fragment (canonical form after first load)
   const hash =
       window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
   if (!hash) {
@@ -91,10 +97,14 @@ function fixtureIdFromHash() {
 
 function setHashForFixture(fixtureId) {
   const nextHash = fixtureId ? `#fixture=${encodeURIComponent(fixtureId)}` : '';
-  if (window.location.hash === nextHash) {
+  // Also update when a query string is present: on first load the fixture may be
+  // supplied via ?fixture=id (from the bench report link), and we need to migrate
+  // that to the canonical #fixture=id form by clearing the search string.
+  if (window.location.hash === nextHash && !window.location.search) {
     return;
   }
-  const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+  // Drop query string; hash is the canonical way to deep-link within the viewer.
+  const nextUrl = `${window.location.pathname}${nextHash}`;
   window.history.replaceState(null, '', nextUrl);
 }
 
@@ -202,7 +212,7 @@ function populateSelect() {
 
 populateSelect();
 if (ALL_FIXTURES.length > 0) {
-  const requestedFixture = fixtureIdFromHash();
+  const requestedFixture = fixtureIdFromUrl();
   const initialFixture =
       ALL_FIXTURES.find(x => x.fixture_id === requestedFixture) || ALL_FIXTURES[0];
   selectEl.value = initialFixture.fixture_id;
@@ -219,7 +229,7 @@ selectEl.addEventListener('change', () => {
 });
 
 window.addEventListener('hashchange', () => {
-  const fixtureId = fixtureIdFromHash();
+  const fixtureId = fixtureIdFromUrl();
   if (!fixtureId || fixtureId === selectEl.value) {
     return;
   }

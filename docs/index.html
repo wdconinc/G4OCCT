@@ -28,11 +28,18 @@
       plugins: [
         function(hook) {
           hook.init(function() {
-            var hash = window.location.hash;
-            if (hash.startsWith('#/api/')) {
-              var apiPath = hash.replace('#/', '');
-              window.location.replace(window.location.pathname + apiPath);
+            // Redirect standalone HTML report pages so they are served directly
+            // rather than being fetched and rendered as Markdown by docsify.
+            // Matches: #/reports/some-page.html and #/reports/some-page.html?query=...
+            var standaloneHtmlPattern = /^#\/reports\/[^?#]*\.html(\?|$)/;
+            function redirectStandalonePage() {
+              var hash = window.location.hash;
+              if (hash.startsWith('#/api/') || standaloneHtmlPattern.test(hash)) {
+                window.location.replace(window.location.pathname + hash.replace('#/', ''));
+              }
             }
+            redirectStandalonePage();
+            window.addEventListener('hashchange', redirectStandalonePage);
           });
         }
       ],
