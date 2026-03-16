@@ -142,19 +142,28 @@ set_tests_properties(
   "test_geometry_validation/nist-ctc-07-v1" PROPERTIES DISABLED TRUE)
 
 # ─── render_geometry_fixtures ────────────────────────────────────────────────
-# Exports a G4Polyhedron mesh JSON file for every fixture solid (both the
-# native Geant4 solid and the imported G4OCCTSolid).  The JSON files are then
-# consumed by a companion Python script that renders PNG images using the mesh
-# data.  The test is considered passing when the exit code is zero, which
-# happens whenever at least one fixture is rendered and no fatal errors occur.
-add_executable(render_geometry_fixtures geometry/render_geometry_fixtures.cc)
-target_include_directories(render_geometry_fixtures
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(render_geometry_fixtures PRIVATE G4OCCTFixtureSupport)
-add_test(
-  NAME render_geometry_fixtures
-  COMMAND render_geometry_fixtures ${CMAKE_BINARY_DIR}/geometry_meshes
-          ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml)
+# Renders each fixture solid to a JPEG image using Geant4's built-in RayTracer
+# visualisation driver (/vis/open RT), which traces rays through Geant4's own
+# geometry navigation infrastructure.  Only built when G4VisExecutive is
+# available (i.e. Geant4 was compiled with visualisation support).
+find_file(
+  G4_VIS_EXECUTIVE_HH G4VisExecutive.hh
+  HINTS ${Geant4_INCLUDE_DIRS}
+  NO_DEFAULT_PATH)
+if(G4_VIS_EXECUTIVE_HH)
+  add_executable(render_geometry_fixtures geometry/render_geometry_fixtures.cc)
+  target_include_directories(render_geometry_fixtures
+                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(render_geometry_fixtures PRIVATE G4OCCTFixtureSupport)
+  add_test(
+    NAME render_geometry_fixtures
+    COMMAND render_geometry_fixtures ${CMAKE_BINARY_DIR}/geometry_renders
+            ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml)
+else()
+  message(
+    STATUS
+    "G4VisExecutive.hh not found; render_geometry_fixtures will not be built")
+endif()
 
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
 # Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified

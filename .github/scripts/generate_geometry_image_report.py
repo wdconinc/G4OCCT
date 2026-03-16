@@ -1,23 +1,21 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2024 G4OCCT Contributors
 
-"""Generate an HTML gallery of geometry fixture PNG images.
+"""Generate an HTML gallery of geometry fixture JPEG images rendered by
+Geant4's RayTracer visualisation driver.
 
 Usage:
     python3 generate_geometry_image_report.py <images_dir> <output.html>
 
-Each PNG in <images_dir> must follow the naming convention produced by
-render_geometry_images.py:
-    <safe_fixture_id>_native.png
-    <safe_fixture_id>_imported.png
+Each JPEG in <images_dir> must follow the naming convention produced by
+render_geometry_fixtures:
+    <safe_fixture_id>_native.jpeg
+    <safe_fixture_id>_imported.jpeg
 
-The corresponding mesh JSON files (from render_geometry_fixtures) are read
-from the same directory to extract fixture_id, geant4_class, and label
-metadata.  If the JSON files are absent the information is inferred from the
-filename.
+The fixture_id, geant4_class, and label are inferred from the filename when
+no companion metadata is available.
 """
 
-import json
 import sys
 from pathlib import Path
 
@@ -29,9 +27,9 @@ _SCRIPTS_DIR = Path(__file__).parent
 
 
 def _load_metadata(images_dir: Path, html_path: Path) -> list:
-    """Return a list of dicts describing each PNG in images_dir.
+    """Return a list of dicts describing each JPEG in images_dir.
 
-    ``png_rel`` is the path to each image relative to the HTML output file.
+    ``image_rel`` is the path to each image relative to the HTML output file.
     """
     try:
         rel_prefix = images_dir.resolve().relative_to(html_path.resolve().parent)
@@ -40,36 +38,24 @@ def _load_metadata(images_dir: Path, html_path: Path) -> list:
         rel_prefix = Path(images_dir.name)
 
     items = []
-    for png_path in sorted(images_dir.glob("*.png")):
-        stem = png_path.stem  # e.g. "direct-primitives_g4box-box-20x30x40-v1_native"
+    for img_path in sorted(images_dir.glob("*.jpeg")):
+        stem = img_path.stem  # e.g. "direct-primitives_g4box-box-20x30x40-v1_native"
 
-        # Try to read companion JSON for authoritative metadata.
-        json_path = png_path.with_suffix(".json")
-        # JSON files may live in a sibling directory (mesh_dir) or the same dir.
-        fixture_id   = stem
-        geant4_class = ""
-        label        = ""
-        if json_path.exists():
-            try:
-                data         = json.loads(json_path.read_text(encoding="utf-8"))
-                fixture_id   = data.get("fixture_id",   stem)
-                geant4_class = data.get("geant4_class", "")
-                label        = data.get("label",        "")
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        # Fall back to parsing the filename when JSON is absent.
-        if not label:
-            if stem.endswith("_native"):
-                label = "native"
-            elif stem.endswith("_imported"):
-                label = "imported"
+        # Infer label from the filename suffix; use the full stem as the
+        # display fixture_id (SafeFilename in C++ maps '/' → '_', so the
+        # exact family/id boundary is not reliably recoverable from the name).
+        fixture_id = stem
+        label      = ""
+        if stem.endswith("_native"):
+            label = "native"
+        elif stem.endswith("_imported"):
+            label = "imported"
 
         items.append({
             "fixture_id":   fixture_id,
-            "geant4_class": geant4_class,
+            "geant4_class": "",
             "label":        label,
-            "png_rel":      str(rel_prefix / png_path.name).replace("\\", "/"),
+            "image_rel":    str(rel_prefix / img_path.name).replace("\\", "/"),
         })
     return items
 

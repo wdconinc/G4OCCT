@@ -98,7 +98,7 @@
         <span class="fixture-id">{{ item.fixture_id }}</span>
         <span class="label {{ item.label }}">{{ item.label }}</span>
       </div>
-      <img src="{{ item.png_rel }}" alt="{{ item.fixture_id }} {{ item.label }}" loading="lazy">
+      <img src="{{ item.image_rel }}" alt="{{ item.fixture_id }} {{ item.label }}" loading="lazy">
       <div class="card-footer">{{ item.geant4_class }}</div>
     </div>
     {% endfor %}

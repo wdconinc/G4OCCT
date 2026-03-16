@@ -104,10 +104,19 @@ jobs:
               echo "bench_assembly_navigator not built (Geant4 GDML support absent)"
             fi
 
-            # ── Export G4Polyhedron mesh JSON for all fixture solids ────────
-            ./build/src/tests/render_geometry_fixtures \
-              geometry_meshes/ \
-              src/tests/fixtures/geometry/manifest.yaml
+            # ── Render fixture solids to JPEG via Geant4 RayTracer ──────────
+            # render_geometry_fixtures uses G4VisExecutive (/vis/open RT) to
+            # trace rays through Geant4's navigation infrastructure, producing
+            # JPEG images that reflect how each solid is interpreted by Geant4.
+            # The binary is only built when G4VisExecutive is available.
+            mkdir -p reports/geometry-images
+            if [ -x ./build/src/tests/render_geometry_fixtures ]; then
+              ./build/src/tests/render_geometry_fixtures \
+                reports/geometry-images \
+                src/tests/fixtures/geometry/manifest.yaml
+            else
+              echo "WARNING: render_geometry_fixtures not built (G4VisExecutive unavailable)"
+            fi
 
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
@@ -155,7 +164,7 @@ jobs:
       - name: Generate Markdown reports
         if: always()
         run: |
-          pip3 install --quiet jinja2 matplotlib
+          pip3 install --quiet jinja2
           python3 .github/scripts/generate_test_report.py \
             test-results.xml reports/test-results.md
           python3 .github/scripts/generate_bench_report.py \
@@ -168,8 +177,6 @@ jobs:
             point_clouds/ reports/point_cloud_viewer.html
           python3 .github/scripts/generate_example_report.py \
             example_logs/ reports/example-logs.md
-          python3 .github/scripts/render_geometry_images.py \
-            geometry_meshes/ reports/geometry-images/
           python3 .github/scripts/generate_geometry_image_report.py \
             reports/geometry-images/ reports/geometry-images.html
 
