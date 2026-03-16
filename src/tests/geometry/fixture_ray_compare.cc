@@ -378,9 +378,10 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
           message << "Ray " << ray_index << " SurfaceNormal mismatch for fixture '"
                   << request.fixture.id
                   << "': native=" << ToString(native_surface_normals[i])
+                  << " at native_point=" << ToString(agreed_hits[i].native_point)
                   << ", imported=" << ToString(imported_surface_normals[i])
-                  << ", dot=" << dot
-                  << ", point=" << ToString(agreed_hits[i].native_point);
+                  << " at imported_point=" << ToString(agreed_hits[i].imported_point)
+                  << ", dot=" << dot;
           report.AddError("fixture.surface_normal_mismatch", message.str(), provenance_path);
         }
       }

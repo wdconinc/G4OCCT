@@ -112,13 +112,20 @@ std::string ToString(ValidationSeverity severity);
 /**
  * Reclassify non-equivalence error diagnostics as expected-failure warnings.
  *
- * Only errors whose codes are in the non-equivalence allowlist (e.g.,
- * `fixture.volume_mismatch`, `fixture.ray_origin_state_mismatch`,
- * `fixture.ray_intersection_mismatch`, `fixture.ray_distance_mismatch`,
- * `fixture.surface_normal_mismatch`) are
- * demoted to warnings with an `xfail.` prefix.  Structural and IO errors
- * (missing files, STEP read/transfer failures, etc.) are kept as errors even
- * when the fixture is marked as an expected failure.
+ * Only errors whose codes are in the non-equivalence allowlist are demoted to
+ * warnings with an `xfail.` prefix.  The allowlist currently contains:
+ *  - `fixture.volume_mismatch`
+ *  - `fixture.ray_origin_state_mismatch`
+ *  - `fixture.ray_intersection_mismatch`
+ *  - `fixture.ray_distance_mismatch`
+ *  - `fixture.ray_normal_mismatch`
+ *  - `fixture.surface_normal_mismatch`
+ *  - `fixture.inside_classification_mismatch`
+ *  - `fixture.safety_in_distance_mismatch`
+ *  - `fixture.safety_out_distance_mismatch`
+ *
+ * Structural and IO errors (missing files, STEP read/transfer failures, etc.)
+ * are kept as errors even when the fixture is marked as an expected failure.
  *
  * @param report Source report to rewrite.
  * @param reason Human-readable explanation attached to downgraded messages.

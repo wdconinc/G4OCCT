@@ -19,7 +19,9 @@ namespace g4occt::tests::geometry {
 struct FixtureRayComparisonOptions {
   /// Number of deterministic ray directions to compare.
   std::size_t ray_count{2048};
-  /// Maximum number of detailed mismatch diagnostics to emit per fixture.
+  /// Maximum number of detailed mismatch diagnostics to emit per fixture per
+  /// mismatch category (ray intersection, ray distance, ray normal, and
+  /// SurfaceNormal each have their own independent cap at this limit).
   std::size_t max_reported_mismatches{8};
   /// Output directory for per-fixture point-cloud JSON files; empty means skip.
   std::filesystem::path point_cloud_dir;
