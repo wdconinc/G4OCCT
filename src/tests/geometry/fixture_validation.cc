@@ -71,6 +71,7 @@ static const std::set<std::string> kNonEquivalenceCodes = {
     "fixture.volume_mismatch",           "fixture.ray_origin_state_mismatch",
     "fixture.ray_intersection_mismatch", "fixture.ray_distance_mismatch",
     "fixture.ray_normal_mismatch",       "fixture.inside_classification_mismatch",
+    "fixture.safety_in_distance_mismatch", "fixture.safety_out_distance_mismatch",
 };
 
 ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,

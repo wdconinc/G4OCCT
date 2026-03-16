@@ -2,6 +2,7 @@
 // Copyright (C) 2024 G4OCCT Contributors
 
 #include "geometry/fixture_ray_compare.hh"
+#include "geometry/fixture_safety_compare.hh"
 #include "geometry/fixture_manifest.hh"
 #include "geometry/fixture_validation.hh"
 
@@ -91,13 +92,18 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
   ValidationReport aggregate_report;
   aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
 
-  std::size_t validated_fixture_count = 0;
-  std::size_t geometry_checked_count  = 0;
-  std::size_t ray_compared_count      = 0;
-  std::size_t expected_failure_count  = 0;
-  double total_native_ms              = 0.0;
-  double total_imported_ms            = 0.0;
-  bool matched_fixture                = false;
+  std::size_t validated_fixture_count  = 0;
+  std::size_t geometry_checked_count   = 0;
+  std::size_t ray_compared_count       = 0;
+  std::size_t safety_compared_count    = 0;
+  std::size_t expected_failure_count   = 0;
+  double total_native_ms               = 0.0;
+  double total_imported_ms             = 0.0;
+  double total_safety_in_native_ms     = 0.0;
+  double total_safety_in_imported_ms   = 0.0;
+  double total_safety_out_native_ms    = 0.0;
+  double total_safety_out_imported_ms  = 0.0;
+  bool matched_fixture                 = false;
 
   for (const auto& family : repository_manifest.families) {
     const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
@@ -164,6 +170,20 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
         total_imported_ms += ray_summary.imported_elapsed_ms;
       }
 
+      FixtureSafetyComparisonSummary safety_summary;
+      ValidationReport safety_report = CompareFixtureSafety(request, {}, &safety_summary);
+      if (expected_failure.enabled) {
+        safety_report = ReclassifyExpectedFailures(safety_report, expected_failure.reason);
+      }
+      aggregate_report.Append(safety_report);
+      if (safety_summary.point_count > 0U) {
+        ++safety_compared_count;
+        total_safety_in_native_ms += safety_summary.native_safety_in_ms;
+        total_safety_in_imported_ms += safety_summary.imported_safety_in_ms;
+        total_safety_out_native_ms += safety_summary.native_safety_out_ms;
+        total_safety_out_imported_ms += safety_summary.imported_safety_out_ms;
+      }
+
       if (!fixture_filter.empty()) {
         break; // Found and processed the requested fixture; skip remaining fixtures.
       }
@@ -212,8 +232,16 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
     }
     std::cout << '\n';
   }
+  if (safety_compared_count > 0U) {
+    std::cout << "Safety comparison summary: " << safety_compared_count << " fixtures";
+    std::cout << "; DistanceToIn: native=" << total_safety_in_native_ms
+              << " ms, imported=" << total_safety_in_imported_ms << " ms";
+    std::cout << "; DistanceToOut: native=" << total_safety_out_native_ms
+              << " ms, imported=" << total_safety_out_imported_ms << " ms";
+    std::cout << '\n';
+  }
   if (expected_failure_count > 0U) {
-    std::cout << "Expected ray/volume failures: " << expected_failure_count << " fixtures\n";
+    std::cout << "Expected ray/volume/safety failures: " << expected_failure_count << " fixtures\n";
   }
   return HasErrors(aggregate_report) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
