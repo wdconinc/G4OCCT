@@ -224,6 +224,27 @@ namespace {
                << "(possibly headless environment). Skipping renders." << G4endl;
         return false;
       }
+      // G4RTMessenger::SetNewValue performs dynamic_cast<G4RayTracerViewer*> on
+      // the current viewer.  If /vis/open produced a different viewer type the
+      // cast returns null, the messenger falls back to a default G4RayTracer,
+      // and that default tracer crashes because no camera has been configured.
+      // Guard against this by verifying the graphics-system nickname.
+      const auto* sh = vis_manager->GetCurrentViewer()->GetSceneHandler();
+      if (sh == nullptr) {
+        G4cerr << "render_geometry_fixtures: no scene handler on current viewer. Skipping."
+               << G4endl;
+        return false;
+      }
+      const auto* gs = sh->GetGraphicsSystem();
+      if (gs == nullptr || gs->GetNickname() != "RayTracer") {
+        const G4String gsName = gs ? gs->GetNickname() : "<none>";
+        G4cerr << "render_geometry_fixtures: /vis/open RayTracer opened an unexpected "
+               << "viewer type '" << gsName << "'. Skipping renders." << G4endl;
+        return false;
+      }
+      // Add the world volume to the auto-created scene once so the viewer has
+      // proper scene extents for camera placement.
+      ui->ApplyCommand("/vis/scene/add/volume");
     } else {
       // destroyFirst=true → G4SolidStore::Clean() + Construct() rebuild.
       runManager->ReinitializeGeometry(/*destroyFirst=*/true, /*prop=*/false);
@@ -241,9 +262,11 @@ namespace {
       stem.resize(stem.size() - 5);
     }
 
-    // Create a fresh scene with the new geometry and render.
-    ui->ApplyCommand("/vis/scene/create");
-    ui->ApplyCommand("/vis/scene/add/volume");
+    // Render: G4RayTracer traces through G4Navigator which always reflects the
+    // current world geometry (set by Initialize/ReinitializeGeometry), so no
+    // per-render /vis/scene/create is needed — and creating a new scene per
+    // render would detach the viewer from G4RTMessenger's scanner, causing a
+    // "No valid current viewer" error and crash.
     ui->ApplyCommand("/vis/viewer/set/viewpointThetaPhi 45 45");
     ui->ApplyCommand(G4String("/vis/rayTracer/setFileName ") + G4String(stem));
     ui->ApplyCommand("/vis/rayTracer/trace");
