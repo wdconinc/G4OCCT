@@ -158,10 +158,10 @@ namespace {
       return EXIT_FAILURE;
     }
 
-    double total_inside_native_ms           = 0.0;
-    double total_inside_imported_ms         = 0.0;
-    std::size_t total_inside_mismatches     = 0;
-    std::size_t total_inside_ambiguities    = 0;
+    double total_inside_native_ms        = 0.0;
+    double total_inside_imported_ms      = 0.0;
+    std::size_t total_inside_mismatches  = 0;
+    std::size_t total_inside_ambiguities = 0;
 
     std::cout << "\n=== Fixture Inside Benchmark Results ===\n";
     for (const auto& s : inside_summaries) {
