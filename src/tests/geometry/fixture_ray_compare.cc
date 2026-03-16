@@ -930,13 +930,15 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
                   << ", direction=" << ToString(directions[index]);
           report.AddError("fixture.ray_distance_mismatch", message.str(), provenance_path);
         }
+        continue;
       }
 
       if (native_sample.validNorm && imported_sample.validNorm) {
         const G4double normal_dot = native_sample.normal.dot(imported_sample.normal);
         if (normal_dot < kNormalAgreementThreshold) {
           ++local_summary.normal_mismatch_count;
-          if (local_summary.normal_mismatch_count <= options.max_reported_mismatches) {
+          ++local_summary.mismatch_count;
+          if (local_summary.mismatch_count <= options.max_reported_mismatches) {
             std::ostringstream message;
             message << "Ray " << index << " normal mismatch for fixture '" << request.fixture.id
                     << "': native=" << ToString(native_sample.normal)
