@@ -215,6 +215,11 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
     // ── Time imported Inside() ────────────────────────────────────────────
     std::vector<EInside> imported_results;
     imported_results.reserve(test_points.size());
+    if (!test_points.empty()) {
+      // Exclude the first-call classifier initialization from the steady-state
+      // imported `Inside()` timing without changing the timed sample set.
+      (void)imported_solid->Inside(test_points.front());
+    }
     const auto imported_begin = std::chrono::steady_clock::now();
     for (const auto& point : test_points) {
       imported_results.push_back(imported_solid->Inside(point));
