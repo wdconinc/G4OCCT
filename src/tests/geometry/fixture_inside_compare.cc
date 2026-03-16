@@ -87,7 +87,7 @@ namespace {
     std::vector<G4ThreeVector> points;
     points.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
-      const int i   = static_cast<int>(index) + 1; // Halton is 1-indexed conventionally
+      const int i    = static_cast<int>(index) + 1; // Halton is 1-indexed conventionally
       const double x = bb_min.x() + Halton(i, kHaltonBaseX) * extents.x();
       const double y = bb_min.y() + Halton(i, kHaltonBaseY) * extents.y();
       const double z = bb_min.z() + Halton(i, kHaltonBaseZ) * extents.z();
@@ -171,18 +171,15 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
   local_summary.fixture_id = request.manifest.family + "/" + request.fixture.id;
 
   try {
-    const auto provenance_path             = ResolveFixtureProvenancePath(request.manifest,
-                                                                          request.fixture);
-    const FixtureProvenance provenance     = ParseFixtureProvenance(provenance_path);
-    local_summary.geant4_class             = Geant4Class(provenance);
+    const auto provenance_path = ResolveFixtureProvenancePath(request.manifest, request.fixture);
+    const FixtureProvenance provenance = ParseFixtureProvenance(provenance_path);
+    local_summary.geant4_class         = Geant4Class(provenance);
 
     std::unique_ptr<G4VSolid> native_solid = BuildNativeSolid(provenance);
     auto imported_solid =
-        std::make_unique<G4OCCTSolid>(request.fixture.id + "_imported",
-                                      LoadImportedShape(request));
+        std::make_unique<G4OCCTSolid>(request.fixture.id + "_imported", LoadImportedShape(request));
 
-    const G4double tolerance =
-        G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
+    const G4double tolerance = G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
 
     // ── Generate test points ──────────────────────────────────────────────
     // ~50% bounding-box points, ~50% near-surface points.
@@ -204,7 +201,7 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
     for (const auto& point : test_points) {
       native_results.push_back(native_solid->Inside(point));
     }
-    const auto native_end          = std::chrono::steady_clock::now();
+    const auto native_end = std::chrono::steady_clock::now();
     local_summary.native_elapsed_ms =
         std::chrono::duration<double, std::milli>(native_end - native_begin).count();
 
@@ -215,7 +212,7 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
     for (const auto& point : test_points) {
       imported_results.push_back(imported_solid->Inside(point));
     }
-    const auto imported_end          = std::chrono::steady_clock::now();
+    const auto imported_end = std::chrono::steady_clock::now();
     local_summary.imported_elapsed_ms =
         std::chrono::duration<double, std::milli>(imported_end - imported_begin).count();
 
@@ -233,8 +230,7 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
         if (local_summary.mismatch_count < options.max_reported_mismatches) {
           std::ostringstream message;
           message << "Point " << index << " surface-boundary ambiguity for fixture '"
-                  << request.fixture.id
-                  << "': native=" << ToString(native_state)
+                  << request.fixture.id << "': native=" << ToString(native_state)
                   << ", imported=" << ToString(imported_state)
                   << ", point=" << ToString(test_points[index]);
           report.AddWarning("fixture.inside_surface_ambiguity", message.str(), provenance_path);
@@ -248,8 +244,7 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
       if (local_summary.mismatch_count <= options.max_reported_mismatches) {
         std::ostringstream message;
         message << "Point " << index << " classification mismatch for fixture '"
-                << request.fixture.id
-                << "': native=" << ToString(native_state)
+                << request.fixture.id << "': native=" << ToString(native_state)
                 << ", imported=" << ToString(imported_state)
                 << ", point=" << ToString(test_points[index]);
         report.AddError("fixture.inside_classification_mismatch", message.str(), provenance_path);

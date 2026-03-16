@@ -15,12 +15,12 @@
 namespace g4occt::benchmarks {
 namespace {
 
-  using g4occt::tests::geometry::CompareFixtureRays;
   using g4occt::tests::geometry::CompareFixtureInside;
+  using g4occt::tests::geometry::CompareFixtureRays;
   using g4occt::tests::geometry::DefaultRepositoryManifestPath;
-  using g4occt::tests::geometry::FixtureManifest;
   using g4occt::tests::geometry::FixtureInsideComparisonOptions;
   using g4occt::tests::geometry::FixtureInsideComparisonSummary;
+  using g4occt::tests::geometry::FixtureManifest;
   using g4occt::tests::geometry::FixtureRayComparisonOptions;
   using g4occt::tests::geometry::FixtureRayComparisonSummary;
   using g4occt::tests::geometry::FixtureRepositoryManifest;
@@ -158,8 +158,8 @@ namespace {
       return EXIT_FAILURE;
     }
 
-    double total_inside_native_ms    = 0.0;
-    double total_inside_imported_ms  = 0.0;
+    double total_inside_native_ms       = 0.0;
+    double total_inside_imported_ms     = 0.0;
     std::size_t total_inside_mismatches = 0;
 
     std::cout << "\n=== Fixture Inside Benchmark Results ===\n";
@@ -167,17 +167,15 @@ namespace {
       total_inside_native_ms += s.native_elapsed_ms;
       total_inside_imported_ms += s.imported_elapsed_ms;
       total_inside_mismatches += s.mismatch_count;
-      std::cout << s.fixture_id << " (" << s.geant4_class
-                << "): native=" << s.native_elapsed_ms
-                << " ms, imported=" << s.imported_elapsed_ms
-                << " ms, points=" << s.point_count
+      std::cout << s.fixture_id << " (" << s.geant4_class << "): native=" << s.native_elapsed_ms
+                << " ms, imported=" << s.imported_elapsed_ms << " ms, points=" << s.point_count
                 << ", mismatches=" << s.mismatch_count << "\n";
     }
     std::cout << "Aggregate native   : " << total_inside_native_ms << " ms\n";
     std::cout << "Aggregate imported : " << total_inside_imported_ms << " ms\n";
     if (total_inside_imported_ms > 0.0) {
-      std::cout << "Native/imported ratio: "
-                << total_inside_native_ms / total_inside_imported_ms << "\n";
+      std::cout << "Native/imported ratio: " << total_inside_native_ms / total_inside_imported_ms
+                << "\n";
     }
     std::cout << "Total mismatches: " << total_inside_mismatches << "\n";
     return EXIT_SUCCESS;

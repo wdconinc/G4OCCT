@@ -179,8 +179,8 @@ namespace {
   // ──────────────────────────────────────────────────────────────────────────
 
   std::unique_ptr<G4VSolid> BuildBooleanBoxSolid(const std::string& geant4_class,
-                                                  const std::string& name, const YAML::Node& shape,
-                                                  const std::string& context) {
+                                                 const std::string& name, const YAML::Node& shape,
+                                                 const std::string& context) {
     if (geant4_class == "G4UnionSolid" || geant4_class == "G4IntersectionSolid") {
       if (geant4_class == "G4IntersectionSolid" && HasNode(shape, "overlap_box_mm")) {
         const YAML::Node overlap         = RequireNode(shape, "overlap_box_mm", context);
@@ -223,10 +223,9 @@ namespace {
       if (outer.size() != 3U || removed_min.size() != 3U || removed_size.size() != 3U) {
         throw std::runtime_error(context + ": subtraction-solid box metadata must be 3-vectors");
       }
-      auto* outer_box =
-          new G4Box(name + "_outer", 0.5 * outer[0], 0.5 * outer[1], 0.5 * outer[2]);
-      auto* removed_box = new G4Box(name + "_removed", 0.5 * removed_size[0],
-                                    0.5 * removed_size[1], 0.5 * removed_size[2]);
+      auto* outer_box = new G4Box(name + "_outer", 0.5 * outer[0], 0.5 * outer[1], 0.5 * outer[2]);
+      auto* removed_box = new G4Box(name + "_removed", 0.5 * removed_size[0], 0.5 * removed_size[1],
+                                    0.5 * removed_size[2]);
       const G4ThreeVector outer_center(0.5 * outer[0], 0.5 * outer[1], 0.5 * outer[2]);
       const G4ThreeVector removed_center(removed_min[0] + 0.5 * removed_size[0],
                                          removed_min[1] + 0.5 * removed_size[1],
@@ -246,8 +245,8 @@ namespace {
       const YAML::Node box_node   = boxes[index];
       const G4ThreeVector minimum = RequireVector3(box_node, "min", context);
       const G4ThreeVector size    = RequireVector3(box_node, "size", context);
-      auto* box = new G4Box(name + "_box_" + std::to_string(index), 0.5 * size.x(),
-                            0.5 * size.y(), 0.5 * size.z());
+      auto* box = new G4Box(name + "_box_" + std::to_string(index), 0.5 * size.x(), 0.5 * size.y(),
+                            0.5 * size.z());
       G4Transform3D transform(G4RotationMatrix(), minimum + 0.5 * size);
       solid->AddNode(*box, transform);
     }
@@ -279,8 +278,7 @@ namespace {
   }
 
   void AddOrientedTriangle(G4TessellatedSolid* solid, const G4ThreeVector& center,
-                           const G4ThreeVector& a, const G4ThreeVector& b,
-                           const G4ThreeVector& c) {
+                           const G4ThreeVector& a, const G4ThreeVector& b, const G4ThreeVector& c) {
     const G4ThreeVector face_center = (a + b + c) / 3.0;
     const G4ThreeVector normal      = (b - a).cross(c - a);
     if (normal.dot(face_center - center) < 0.0) {
@@ -490,7 +488,8 @@ std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance) 
                                               RequireDouble(ctor, "dz_mm", context));
   }
   if (geant4_class == "G4GenericPolycone") {
-    const std::vector<G4TwoVector> rz_points = RequirePlanarPointList(ctor, "rz_points_mm", context);
+    const std::vector<G4TwoVector> rz_points =
+        RequirePlanarPointList(ctor, "rz_points_mm", context);
     std::vector<G4double> r;
     std::vector<G4double> z;
     r.reserve(rz_points.size());
@@ -544,11 +543,11 @@ std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance) 
     const std::vector<double> z       = RequireDoubleList(ctor, "zPlane_mm", context);
     const std::vector<double> r_inner = RequireDoubleList(ctor, "rInner_mm", context);
     const std::vector<double> r_outer = RequireDoubleList(ctor, "rOuter_mm", context);
-    return std::make_unique<G4Polyhedra>(
-        name, RequireDouble(ctor, "phiStart_deg", context) * deg,
-        RequireDouble(ctor, "phiTotal_deg", context) * deg,
-        static_cast<int>(RequireDouble(ctor, "numSides", context)), static_cast<int>(z.size()),
-        z.data(), r_inner.data(), r_outer.data());
+    return std::make_unique<G4Polyhedra>(name, RequireDouble(ctor, "phiStart_deg", context) * deg,
+                                         RequireDouble(ctor, "phiTotal_deg", context) * deg,
+                                         static_cast<int>(RequireDouble(ctor, "numSides", context)),
+                                         static_cast<int>(z.size()), z.data(), r_inner.data(),
+                                         r_outer.data());
   }
   if (geant4_class == "G4Tet") {
     const std::vector<G4ThreeVector> vertices = RequirePointList(shape, "vertices_mm", context);
@@ -562,10 +561,10 @@ std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance) 
     return BuildExtrudedSolid(name, shape, context);
   }
   if (geant4_class == "G4TwistedBox") {
-    return std::make_unique<G4TwistedBox>(
-        name, RequireDouble(ctor, "phi_twist_deg", context) * deg,
-        RequireDouble(ctor, "dx_mm", context), RequireDouble(ctor, "dy_mm", context),
-        RequireDouble(ctor, "dz_mm", context));
+    return std::make_unique<G4TwistedBox>(name, RequireDouble(ctor, "phi_twist_deg", context) * deg,
+                                          RequireDouble(ctor, "dx_mm", context),
+                                          RequireDouble(ctor, "dy_mm", context),
+                                          RequireDouble(ctor, "dz_mm", context));
   }
   if (geant4_class == "G4TwistedTrap") {
     return std::make_unique<G4TwistedTrap>(
@@ -577,16 +576,14 @@ std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance) 
     return std::make_unique<G4TwistedTrd>(
         name, RequireDouble(ctor, "dx1_mm", context), RequireDouble(ctor, "dx2_mm", context),
         RequireDouble(ctor, "dy1_mm", context), RequireDouble(ctor, "dy2_mm", context),
-        RequireDouble(ctor, "dz_mm", context),
-        RequireDouble(ctor, "phi_twist_deg", context) * deg);
+        RequireDouble(ctor, "dz_mm", context), RequireDouble(ctor, "phi_twist_deg", context) * deg);
   }
   if (geant4_class == "G4TwistedTubs") {
-    return std::make_unique<G4TwistedTubs>(name,
-                                           RequireDouble(ctor, "phi_twist_deg", context) * deg,
-                                           RequireDouble(ctor, "end_inner_rad_mm", context),
-                                           RequireDouble(ctor, "end_outer_rad_mm", context),
-                                           RequireDouble(ctor, "half_z_mm", context),
-                                           RequireDouble(ctor, "dphi_deg", context) * deg);
+    return std::make_unique<G4TwistedTubs>(
+        name, RequireDouble(ctor, "phi_twist_deg", context) * deg,
+        RequireDouble(ctor, "end_inner_rad_mm", context),
+        RequireDouble(ctor, "end_outer_rad_mm", context), RequireDouble(ctor, "half_z_mm", context),
+        RequireDouble(ctor, "dphi_deg", context) * deg);
   }
   if (geant4_class == "G4VTwistedFaceted") {
     return BuildVTwistedFacetedFallback(name, ctor, context);
@@ -679,9 +676,8 @@ std::vector<G4ThreeVector> GenerateDirections(const std::size_t count) {
   std::vector<G4ThreeVector> directions;
   directions.reserve(count);
   const std::array<G4ThreeVector, 6> cardinal = {
-      G4ThreeVector(1.0, 0.0, 0.0), G4ThreeVector(-1.0, 0.0, 0.0),
-      G4ThreeVector(0.0, 1.0, 0.0), G4ThreeVector(0.0, -1.0, 0.0),
-      G4ThreeVector(0.0, 0.0, 1.0), G4ThreeVector(0.0, 0.0, -1.0)};
+      G4ThreeVector(1.0, 0.0, 0.0),  G4ThreeVector(-1.0, 0.0, 0.0), G4ThreeVector(0.0, 1.0, 0.0),
+      G4ThreeVector(0.0, -1.0, 0.0), G4ThreeVector(0.0, 0.0, 1.0),  G4ThreeVector(0.0, 0.0, -1.0)};
   for (std::size_t index = 0; index < count && index < cardinal.size(); ++index) {
     directions.push_back(cardinal[index]);
   }

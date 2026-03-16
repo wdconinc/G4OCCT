@@ -68,12 +68,9 @@ const std::vector<ValidationMessage>& ValidationReport::Messages() const { retur
 /// These are the only codes that may be demoted to warnings when a fixture is
 /// marked as an expected failure; structural and IO errors are always kept as errors.
 static const std::set<std::string> kNonEquivalenceCodes = {
-    "fixture.volume_mismatch",
-    "fixture.ray_origin_state_mismatch",
-    "fixture.ray_intersection_mismatch",
-    "fixture.ray_distance_mismatch",
-    "fixture.ray_normal_mismatch",
-    "fixture.inside_classification_mismatch",
+    "fixture.volume_mismatch",           "fixture.ray_origin_state_mismatch",
+    "fixture.ray_intersection_mismatch", "fixture.ray_distance_mismatch",
+    "fixture.ray_normal_mismatch",       "fixture.inside_classification_mismatch",
 };
 
 ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
