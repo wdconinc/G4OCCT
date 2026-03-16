@@ -202,6 +202,10 @@ namespace {
       ui->ApplyCommand("/tracking/verbose 0");
       ui->ApplyCommand("/vis/verbose quiet");
 
+      // Mark geometry as initialized here so any early return below does
+      // not cause subsequent calls to re-invoke runManager->Initialize().
+      initialized = true;
+
       // Open the RayTracer driver once; it persists for all subsequent renders.
       // Use the full registered name "RayTracer" (the alias "RT" is not valid
       // in all Geant4 builds).
@@ -212,11 +216,21 @@ namespace {
                << "). Skipping render." << G4endl;
         return false;
       }
-
-      initialized = true;
+      // G4UImanager::ApplyCommand returns 0 when the command is dispatched,
+      // not when the vis system's SetNewValue succeeds.  A viewer may silently
+      // fail to be created even with rc==0.  Verify explicitly.
+      if (vis_manager->GetCurrentViewer() == nullptr) {
+        G4cerr << "render_geometry_fixtures: /vis/open RayTracer did not create a viewer "
+               << "(possibly headless environment). Skipping renders." << G4endl;
+        return false;
+      }
     } else {
       // destroyFirst=true → G4SolidStore::Clean() + Construct() rebuild.
       runManager->ReinitializeGeometry(/*destroyFirst=*/true, /*prop=*/false);
+      // If the vis setup failed on the first call, skip subsequent renders too.
+      if (vis_manager->GetCurrentViewer() == nullptr) {
+        return false;
+      }
     }
 
     std::filesystem::create_directories(output_path.parent_path());
