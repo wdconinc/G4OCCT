@@ -3,6 +3,7 @@
 
 #include "geometry/fixture_ray_compare.hh"
 #include "geometry/fixture_inside_compare.hh"
+#include "geometry/fixture_safety_compare.hh"
 
 #include <cstdlib>
 #include <algorithm>
@@ -17,6 +18,7 @@ namespace {
 
   using g4occt::tests::geometry::CompareFixtureInside;
   using g4occt::tests::geometry::CompareFixtureRays;
+  using g4occt::tests::geometry::CompareFixtureSafety;
   using g4occt::tests::geometry::DefaultRepositoryManifestPath;
   using g4occt::tests::geometry::FixtureInsideComparisonOptions;
   using g4occt::tests::geometry::FixtureInsideComparisonSummary;
@@ -24,6 +26,8 @@ namespace {
   using g4occt::tests::geometry::FixtureRayComparisonOptions;
   using g4occt::tests::geometry::FixtureRayComparisonSummary;
   using g4occt::tests::geometry::FixtureRepositoryManifest;
+  using g4occt::tests::geometry::FixtureSafetyComparisonOptions;
+  using g4occt::tests::geometry::FixtureSafetyComparisonSummary;
   using g4occt::tests::geometry::FixtureValidationRequest;
   using g4occt::tests::geometry::ParseFixtureManifestFile;
   using g4occt::tests::geometry::ParseFixtureRepositoryManifest;
@@ -69,9 +73,12 @@ namespace {
     // already probes boundary behaviour, while boundary-adjacent `Inside()`
     // queries can wedge OCCT's imported-solid classifier for some fixtures.
     inside_options.include_near_surface_points = false;
+    FixtureSafetyComparisonOptions safety_options;
+    safety_options.point_count = ray_count;
 
     std::vector<FixtureRayComparisonSummary> summaries;
     std::vector<FixtureInsideComparisonSummary> inside_summaries;
+    std::vector<FixtureSafetyComparisonSummary> safety_summaries;
     std::size_t expected_failure_count = 0;
     for (const auto& family : repository_manifest.families) {
       const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
@@ -126,6 +133,18 @@ namespace {
         aggregate_report.Append(inside_report);
         if (inside_summary.point_count > 0U) {
           inside_summaries.push_back(inside_summary);
+        }
+
+        FixtureSafetyComparisonSummary safety_summary;
+        ValidationReport safety_report =
+            CompareFixtureSafety(request, safety_options, &safety_summary);
+        if (expected_failure.enabled) {
+          safety_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
+              safety_report, expected_failure.reason);
+        }
+        aggregate_report.Append(safety_report);
+        if (safety_summary.point_count > 0U) {
+          safety_summaries.push_back(safety_summary);
         }
       }
     }
@@ -189,6 +208,44 @@ namespace {
     }
     std::cout << "Total hard mismatches: " << total_inside_mismatches << "\n";
     std::cout << "Total surface ambiguities: " << total_inside_ambiguities << "\n";
+
+    double total_safety_in_native_ms        = 0.0;
+    double total_safety_in_imported_ms      = 0.0;
+    double total_safety_out_native_ms       = 0.0;
+    double total_safety_out_imported_ms     = 0.0;
+    std::size_t total_safety_in_mismatches  = 0;
+    std::size_t total_safety_out_mismatches = 0;
+
+    std::cout << "\n=== Fixture Safety Distance Benchmark Results ===\n";
+    for (const auto& s : safety_summaries) {
+      total_safety_in_native_ms += s.native_safety_in_ms;
+      total_safety_in_imported_ms += s.imported_safety_in_ms;
+      total_safety_out_native_ms += s.native_safety_out_ms;
+      total_safety_out_imported_ms += s.imported_safety_out_ms;
+      total_safety_in_mismatches += s.safety_in_mismatch_count;
+      total_safety_out_mismatches += s.safety_out_mismatch_count;
+      std::cout << s.fixture_id << " (" << s.geant4_class << "): points=" << s.point_count
+                << "; DistanceToIn: native=" << s.native_safety_in_ms
+                << " ms, imported=" << s.imported_safety_in_ms
+                << " ms, mismatches=" << s.safety_in_mismatch_count
+                << "; DistanceToOut: native=" << s.native_safety_out_ms
+                << " ms, imported=" << s.imported_safety_out_ms
+                << " ms, mismatches=" << s.safety_out_mismatch_count << "\n";
+    }
+    std::cout << "Aggregate DistanceToIn  native   : " << total_safety_in_native_ms << " ms\n";
+    std::cout << "Aggregate DistanceToIn  imported : " << total_safety_in_imported_ms << " ms\n";
+    if (total_safety_in_imported_ms > 0.0) {
+      std::cout << "DistanceToIn  native/imported ratio: "
+                << total_safety_in_native_ms / total_safety_in_imported_ms << "\n";
+    }
+    std::cout << "Aggregate DistanceToOut native   : " << total_safety_out_native_ms << " ms\n";
+    std::cout << "Aggregate DistanceToOut imported : " << total_safety_out_imported_ms << " ms\n";
+    if (total_safety_out_imported_ms > 0.0) {
+      std::cout << "DistanceToOut native/imported ratio: "
+                << total_safety_out_native_ms / total_safety_out_imported_ms << "\n";
+    }
+    std::cout << "Total DistanceToIn  mismatches: " << total_safety_in_mismatches << "\n";
+    std::cout << "Total DistanceToOut mismatches: " << total_safety_out_mismatches << "\n";
     return EXIT_SUCCESS;
   }
 
