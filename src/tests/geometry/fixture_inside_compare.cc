@@ -49,6 +49,11 @@ namespace {
   // Halton low-discrepancy sequence for deterministic bounding-box sampling
   // ──────────────────────────────────────────────────────────────────────────
 
+  /// Prime bases for the 3-D Halton sequence; coprime bases give low discrepancy.
+  constexpr int kHaltonBaseX = 2;
+  constexpr int kHaltonBaseY = 3;
+  constexpr int kHaltonBaseZ = 5;
+
   /// Compute the i-th term of the Halton sequence in the given base.
   double Halton(int index, int base) {
     double result   = 0.0;
@@ -83,9 +88,9 @@ namespace {
     points.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
       const int i   = static_cast<int>(index) + 1; // Halton is 1-indexed conventionally
-      const double x = bb_min.x() + Halton(i, 2) * extents.x();
-      const double y = bb_min.y() + Halton(i, 3) * extents.y();
-      const double z = bb_min.z() + Halton(i, 5) * extents.z();
+      const double x = bb_min.x() + Halton(i, kHaltonBaseX) * extents.x();
+      const double y = bb_min.y() + Halton(i, kHaltonBaseY) * extents.y();
+      const double z = bb_min.z() + Halton(i, kHaltonBaseZ) * extents.z();
       points.emplace_back(x, y, z);
     }
     return points;
