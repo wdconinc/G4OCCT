@@ -35,7 +35,8 @@
             function redirectStandalonePage() {
               var hash = window.location.hash;
               if (hash.startsWith('#/api/') || standaloneHtmlPattern.test(hash)) {
-                window.location.replace(window.location.pathname + hash.replace('#/', ''));
+                var base = window.location.pathname.replace(/[^\/]*$/, '');
+                window.location.replace(base + hash.replace('#/', ''));
               }
             }
             redirectStandalonePage();
