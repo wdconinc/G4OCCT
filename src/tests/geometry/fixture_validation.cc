@@ -105,8 +105,9 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
   if (geant4_class == "G4TwistedBox" || geant4_class == "G4TwistedTrd" ||
       geant4_class == "G4TwistedTrap" || geant4_class == "G4TwistedTubs" ||
       geant4_class == "G4VTwistedFaceted") {
-    return {true, "fixture STEP is generated from an OCCT ruled-loft surrogate rather than the "
-                  "exact Geant4 twisted solid"};
+    return {true,
+            "fixture STEP files are built from the old ruled-loft generator and must be "
+            "regenerated with the updated B-spline loft construction before validation passes"};
   }
 
   if (geant4_class == "G4Hype" || geant4_class == "G4Paraboloid") {
