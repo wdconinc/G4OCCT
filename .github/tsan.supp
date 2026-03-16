@@ -28,7 +28,9 @@ race:Standard_MMgrRaw
 race:Standard_MMgrOpt
 
 # ── PTL (Parallel Task Library) internal races ───────────────────────────────
-# PTL::UserTaskQueue::ExecuteOnAllThreads manages a per-thread map that is
-# accessed from both worker threads and the main thread during teardown.
-# This is a known Geant4-internal race, not caused by G4OCCT code.
+# PTL::UserTaskQueue manages an internal lock-free task queue whose allocation
+# and deallocation paths race between worker threads and the main thread.
+# All of the following are known Geant4-internal races, not caused by G4OCCT code.
 race:PTL::UserTaskQueue::ExecuteOnAllThreads
+race:PTL::UserTaskQueue::GetTask
+race:PTL::UserTaskQueue::InsertTask

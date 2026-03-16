@@ -71,7 +71,8 @@ namespace {
 #define G4OCCT_TEST_SOURCE_DIR "."
 #endif
 
-  constexpr double kGoldenAngle = 2.39996322972865332;
+  constexpr double kGoldenAngle              = 2.39996322972865332;
+  constexpr double kNormalAgreementThreshold = 1.0 - 1e-3; // dot product threshold (~2.6°)
 
   struct FixtureProvenance {
     std::filesystem::path source_path;
@@ -81,6 +82,8 @@ namespace {
   struct RaySample {
     bool intersects{false};
     G4double distance{kInfinity};
+    G4ThreeVector normal;
+    G4bool validNorm{false};
   };
 
   std::string ToString(const G4ThreeVector& vector) {
@@ -728,8 +731,12 @@ namespace {
   RaySample TraceRay(const G4VSolid& solid, const G4ThreeVector& origin, const EInside state,
                      const G4ThreeVector& direction) {
     RaySample sample;
-    sample.distance   = (state == kOutside) ? solid.DistanceToIn(origin, direction)
-                                            : solid.DistanceToOut(origin, direction);
+    if (state == kOutside) {
+      sample.distance = solid.DistanceToIn(origin, direction);
+    } else {
+      sample.distance =
+          solid.DistanceToOut(origin, direction, true, &sample.validNorm, &sample.normal);
+    }
     sample.intersects = !std::isinf(sample.distance);
     return sample;
   }
@@ -923,6 +930,23 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
                   << ", direction=" << ToString(directions[index]);
           report.AddError("fixture.ray_distance_mismatch", message.str(), provenance_path);
         }
+        continue;
+      }
+
+      if (native_sample.validNorm && imported_sample.validNorm) {
+        const G4double normal_dot = native_sample.normal.dot(imported_sample.normal);
+        if (normal_dot < kNormalAgreementThreshold) {
+          ++local_summary.normal_mismatch_count;
+          ++local_summary.mismatch_count;
+          if (local_summary.mismatch_count <= options.max_reported_mismatches) {
+            std::ostringstream message;
+            message << "Ray " << index << " normal mismatch for fixture '" << request.fixture.id
+                    << "': native=" << ToString(native_sample.normal)
+                    << ", imported=" << ToString(imported_sample.normal) << ", dot=" << normal_dot
+                    << ", direction=" << ToString(directions[index]);
+            report.AddError("fixture.ray_normal_mismatch", message.str(), provenance_path);
+          }
+        }
       }
     }
 
@@ -932,7 +956,8 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
                    << ") with tolerance " << local_summary.distance_tolerance
                    << " mm; native=" << local_summary.native_elapsed_ms
                    << " ms, imported=" << local_summary.imported_elapsed_ms
-                   << " ms, mismatches=" << local_summary.mismatch_count;
+                   << " ms, mismatches=" << local_summary.mismatch_count
+                   << ", normal_mismatches=" << local_summary.normal_mismatch_count;
     report.AddInfo("fixture.ray_compare_summary", timing_summary.str(), provenance_path);
 
     if (!options.point_cloud_dir.empty()) {
