@@ -5,9 +5,14 @@
 
 import re
 import sys
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
+
+try:
+    _TZ = ZoneInfo("America/New_York")
+except ZoneInfoNotFoundError:
+    _TZ = timezone.utc
 
 
 def _parse_bench_output(text: str) -> dict:
@@ -84,7 +89,7 @@ def _md_escape(text: str) -> str:
 
 def _render_report(data: dict) -> str:
     """Render the Markdown string for benchmark data."""
-    timestamp = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d %H:%M %Z")
+    timestamp = datetime.now(_TZ).strftime("%Y-%m-%d %H:%M %Z")
     agg       = data.get("aggregate", {})
     ray_count = data.get("ray_count", "?")
     fixtures  = data.get("fixtures", [])
@@ -146,7 +151,7 @@ def _render_report(data: dict) -> str:
 
 def _render_error(message: str) -> str:
     """Render a minimal Markdown error report."""
-    timestamp = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d %H:%M %Z")
+    timestamp = datetime.now(_TZ).strftime("%Y-%m-%d %H:%M %Z")
     return (
         "# G4OCCT Benchmark Results\n\n"
         f"Generated: {timestamp}\n\n"
