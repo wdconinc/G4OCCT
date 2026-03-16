@@ -112,9 +112,10 @@ namespace {
       return EXIT_FAILURE;
     }
 
-    double total_native_ms       = 0.0;
-    double total_imported_ms     = 0.0;
-    std::size_t total_mismatches = 0;
+    double total_native_ms              = 0.0;
+    double total_imported_ms            = 0.0;
+    std::size_t total_mismatches        = 0;
+    std::size_t total_normal_mismatches = 0;
 
     std::cout << "\n=== Fixture Ray Benchmark Results ===\n";
     std::cout << "Rays per fixture: " << ray_count << "\n";
@@ -122,10 +123,12 @@ namespace {
       total_native_ms += summary.native_elapsed_ms;
       total_imported_ms += summary.imported_elapsed_ms;
       total_mismatches += summary.mismatch_count;
+      total_normal_mismatches += summary.normal_mismatch_count;
       std::cout << summary.fixture_id << " (" << summary.geant4_class
                 << "): native=" << summary.native_elapsed_ms
                 << " ms, imported=" << summary.imported_elapsed_ms
-                << " ms, mismatches=" << summary.mismatch_count << "\n";
+                << " ms, mismatches=" << summary.mismatch_count
+                << ", normal_mismatches=" << summary.normal_mismatch_count << "\n";
     }
 
     std::cout << "Aggregate native   : " << total_native_ms << " ms\n";
@@ -134,6 +137,7 @@ namespace {
       std::cout << "Native/imported ratio: " << total_native_ms / total_imported_ms << "\n";
     }
     std::cout << "Total mismatches: " << total_mismatches << "\n";
+    std::cout << "Total normal mismatches: " << total_normal_mismatches << "\n";
     if (expected_failure_count > 0U) {
       std::cout << "Expected failures: " << expected_failure_count << "\n";
     }
