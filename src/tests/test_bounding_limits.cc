@@ -55,12 +55,42 @@ void TestCylinderBoundingLimits() {
                    G4ThreeVector(25.0 * mm, 25.0 * mm, 40.0 * mm), kBoundingTolerance);
 }
 
+void TestBoundsRecomputedAfterSetOCCTShape() {
+  BoxFixture box("ReplacedShape", 10.0 * mm, 20.0 * mm, 30.0 * mm);
+
+  {
+    G4ThreeVector min;
+    G4ThreeVector max;
+    box.solid.BoundingLimits(min, max);
+    ExpectVectorNear("initial box minimum bound", min,
+                     G4ThreeVector(-10.0 * mm, -20.0 * mm, -30.0 * mm), kBoundingTolerance);
+    ExpectVectorNear("initial box maximum bound", max,
+                     G4ThreeVector(10.0 * mm, 20.0 * mm, 30.0 * mm), kBoundingTolerance);
+  }
+
+  // Replace the shape with a sphere of radius 50 mm and verify bounds update.
+  const TopoDS_Shape sphereShape =
+      BRepPrimAPI_MakeSphere(gp_Pnt(0.0, 0.0, 0.0), 50.0 * mm).Shape();
+  box.solid.SetOCCTShape(sphereShape);
+
+  {
+    G4ThreeVector min;
+    G4ThreeVector max;
+    box.solid.BoundingLimits(min, max);
+    ExpectVectorNear("updated sphere minimum bound after SetOCCTShape", min,
+                     G4ThreeVector(-50.0 * mm, -50.0 * mm, -50.0 * mm), kBoundingTolerance);
+    ExpectVectorNear("updated sphere maximum bound after SetOCCTShape", max,
+                     G4ThreeVector(50.0 * mm, 50.0 * mm, 50.0 * mm), kBoundingTolerance);
+  }
+}
+
 } // namespace
 
 int main() {
   TestBoxBoundingLimits();
   TestSphereBoundingLimits();
   TestCylinderBoundingLimits();
+  TestBoundsRecomputedAfterSetOCCTShape();
 
   std::cout << "\nAll test_bounding_limits tests passed.\n";
   return 0;
