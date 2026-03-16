@@ -70,8 +70,8 @@ def _render_mesh(faces: list, title: str, output_path: Path) -> None:
 
 
 def _process_file(json_path: Path, images_dir: Path) -> bool:
-    """Read one mesh JSON file and write the corresponding PNG.  Returns True
-    on success."""
+    """Read one mesh JSON file and write the corresponding PNG and a metadata
+    copy.  Returns True on success."""
     try:
         data = json.loads(json_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
@@ -90,6 +90,13 @@ def _process_file(json_path: Path, images_dir: Path) -> bool:
     title      = f"{fixture_id} ({geant4_class})\n[{label}]"
     output_png = images_dir / (json_path.stem + ".png")
     _render_mesh(faces, title, output_png)
+
+    # Copy a minimal metadata JSON alongside the PNG so the gallery generator
+    # can read fixture_id, geant4_class, and label without needing mesh_dir.
+    meta = {k: data.get(k) for k in ("fixture_id", "geant4_class", "label") if k in data}
+    meta_path = images_dir / (json_path.stem + ".json")
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
     return True
 
 

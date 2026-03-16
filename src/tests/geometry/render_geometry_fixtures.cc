@@ -43,7 +43,6 @@
 
 #include <G4Polyhedron.hh>
 #include <G4VSolid.hh>
-#include <HepPolyhedron.h>
 
 #include <cstdlib>
 #include <exception>
@@ -104,8 +103,10 @@ namespace {
   bool WriteMeshJson(const std::filesystem::path& output_path, const G4VSolid& solid,
                      const std::string& fixture_id, const std::string& geant4_class,
                      const std::string& label) {
-    // Use a finer tessellation for smooth solids (spheres, tori, etc.).
-    G4Polyhedron::SetNumberOfRotationSteps(72);
+    // 72 steps → 5° angular resolution, giving smooth tessellation for
+    // curved solids (spheres, tori, cylinders) visible in rendered images.
+    constexpr G4int kRotationSteps = 72;
+    G4Polyhedron::SetNumberOfRotationSteps(kRotationSteps);
     const std::unique_ptr<G4Polyhedron> poly(solid.CreatePolyhedron());
     if (!poly) {
       return false;

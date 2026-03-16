@@ -61,6 +61,8 @@
 namespace g4occt::tests::geometry {
 namespace {
 
+  // Golden angle in radians (2π/φ²) used for Fibonacci sphere point distribution.
+  // This precision matches double-precision floating point capabilities.
   constexpr double kGoldenAngle = 2.39996322972865332;
 
   // ──────────────────────────────────────────────────────────────────────────

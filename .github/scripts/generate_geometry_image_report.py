@@ -28,8 +28,17 @@ from report_utils import timestamp, write_report
 _SCRIPTS_DIR = Path(__file__).parent
 
 
-def _load_metadata(images_dir: Path) -> list:
-    """Return a list of dicts describing each PNG in images_dir."""
+def _load_metadata(images_dir: Path, html_path: Path) -> list:
+    """Return a list of dicts describing each PNG in images_dir.
+
+    ``png_rel`` is the path to each image relative to the HTML output file.
+    """
+    try:
+        rel_prefix = images_dir.resolve().relative_to(html_path.resolve().parent)
+    except ValueError:
+        # If images_dir is not under html's parent, fall back to just the name.
+        rel_prefix = Path(images_dir.name)
+
     items = []
     for png_path in sorted(images_dir.glob("*.png")):
         stem = png_path.stem  # e.g. "direct-primitives_g4box-box-20x30x40-v1_native"
@@ -55,15 +64,12 @@ def _load_metadata(images_dir: Path) -> list:
                 label = "native"
             elif stem.endswith("_imported"):
                 label = "imported"
-        if not geant4_class and "_" in fixture_id:
-            # Best-effort: geant4_class is embedded in the fixture id slug.
-            pass
 
         items.append({
             "fixture_id":   fixture_id,
             "geant4_class": geant4_class,
             "label":        label,
-            "png_rel":      png_path.name,
+            "png_rel":      str(rel_prefix / png_path.name).replace("\\", "/"),
         })
     return items
 
@@ -106,7 +112,7 @@ def main() -> None:
               file=sys.stderr)
         return
 
-    items = _load_metadata(images_dir)
+    items = _load_metadata(images_dir, html_path)
     html  = _render_gallery(items)
     write_report(html_path, html, label="Geometry image gallery", suffix=f" ({len(items)} images)")
 
