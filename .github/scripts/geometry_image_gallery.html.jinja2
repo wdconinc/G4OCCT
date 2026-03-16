@@ -1,0 +1,137 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2024 G4OCCT Contributors -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>G4OCCT — Geometry Fixture Images</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --card: #16213e;
+      --accent: #4c9fde;
+      --text: #e0e0e0;
+      --muted: #888;
+      --border: #2a3a5c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 1rem;
+    }
+    h1 { font-size: 1.4rem; color: var(--accent); margin-bottom: 0.25rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 1.5rem; }
+    .filter-bar {
+      display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center;
+    }
+    .filter-bar label { font-size: 0.85rem; color: var(--muted); }
+    .filter-bar input, .filter-bar select {
+      background: var(--card); color: var(--text);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 0.3rem 0.5rem; font-size: 0.85rem;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .card-header {
+      padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .card-header .fixture-id { font-size: 0.85rem; font-weight: 600; word-break: break-all; }
+    .card-header .label {
+      font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 3px;
+      background: #1a4f7a; color: var(--accent); white-space: nowrap; margin-left: 0.5rem;
+    }
+    .card-header .label.imported { background: #2a4a1a; color: #7ecf4c; }
+    .card img {
+      width: 100%; display: block; background: #0d1522;
+    }
+    .card-footer {
+      padding: 0.4rem 0.75rem; font-size: 0.75rem; color: var(--muted);
+    }
+    .empty { text-align: center; color: var(--muted); padding: 3rem; }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f5f7fa; --card: #fff; --text: #222; --muted: #666; --border: #d0d8e8; }
+      .card-header .label { background: #dbeeff; color: #1a6aaa; }
+      .card-header .label.imported { background: #d8f0d0; color: #2a7a1a; }
+    }
+  </style>
+</head>
+<body>
+  <h1>G4OCCT — Geometry Fixture Images</h1>
+  <span class="meta">Generated: {{ timestamp }} · {{ count_str }}</span>
+
+  <div class="filter-bar">
+    <label for="search-input">Search:</label>
+    <input id="search-input" type="text" placeholder="fixture id or class…" style="width:18rem">
+    <label for="class-filter">Class:</label>
+    <select id="class-filter">
+      <option value="">All classes</option>
+      {% for cls in classes | sort %}
+      <option value="{{ cls }}">{{ cls }}</option>
+      {% endfor %}
+    </select>
+    <label for="label-filter">Label:</label>
+    <select id="label-filter">
+      <option value="">All</option>
+      <option value="native">native</option>
+      <option value="imported">imported</option>
+    </select>
+  </div>
+
+  <div class="gallery" id="gallery">
+    {% for item in items %}
+    <div class="card"
+         data-fixture="{{ item.fixture_id }}"
+         data-class="{{ item.geant4_class }}"
+         data-label="{{ item.label }}">
+      <div class="card-header">
+        <span class="fixture-id">{{ item.fixture_id }}</span>
+        <span class="label {{ item.label }}">{{ item.label }}</span>
+      </div>
+      <img src="{{ item.png_rel }}" alt="{{ item.fixture_id }} {{ item.label }}" loading="lazy">
+      <div class="card-footer">{{ item.geant4_class }}</div>
+    </div>
+    {% endfor %}
+    {% if not items %}
+    <div class="empty" style="grid-column:1/-1">No geometry images found.</div>
+    {% endif %}
+  </div>
+
+  <script>
+    (function () {
+      const gallery      = document.getElementById("gallery");
+      const searchInput  = document.getElementById("search-input");
+      const classFilter  = document.getElementById("class-filter");
+      const labelFilter  = document.getElementById("label-filter");
+      const cards        = Array.from(gallery.querySelectorAll(".card"));
+
+      function applyFilters() {
+        const q     = searchInput.value.toLowerCase();
+        const cls   = classFilter.value;
+        const label = labelFilter.value;
+        cards.forEach(card => {
+          const matchQ = !q ||
+            card.dataset.fixture.toLowerCase().includes(q) ||
+            card.dataset.class.toLowerCase().includes(q);
+          const matchC = !cls   || card.dataset.class === cls;
+          const matchL = !label || card.dataset.label === label;
+          card.style.display = (matchQ && matchC && matchL) ? "" : "none";
+        });
+      }
+      searchInput.addEventListener("input",  applyFilters);
+      classFilter.addEventListener("change", applyFilters);
+      labelFilter.addEventListener("change", applyFilters);
+    })();
+  </script>
+</body>
+</html>

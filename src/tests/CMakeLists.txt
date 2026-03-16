@@ -141,6 +141,21 @@ set_tests_properties(
   "test_geometry_validation/nist-ctc-02-v1"
   "test_geometry_validation/nist-ctc-07-v1" PROPERTIES DISABLED TRUE)
 
+# ─── render_geometry_fixtures ────────────────────────────────────────────────
+# Exports a G4Polyhedron mesh JSON file for every fixture solid (both the
+# native Geant4 solid and the imported G4OCCTSolid).  The JSON files are then
+# consumed by a companion Python script that renders PNG images using the mesh
+# data.  The test is considered passing when the exit code is zero, which
+# happens whenever at least one fixture is rendered and no fatal errors occur.
+add_executable(render_geometry_fixtures geometry/render_geometry_fixtures.cc)
+target_include_directories(render_geometry_fixtures
+                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(render_geometry_fixtures PRIVATE G4OCCTFixtureSupport)
+add_test(
+  NAME render_geometry_fixtures
+  COMMAND render_geometry_fixtures ${CMAKE_BINARY_DIR}/geometry_meshes
+          ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml)
+
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
 # Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified
 # Test Case (CTC) geometry-only STEP files.  One CTest sub-test is registered
