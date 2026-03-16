@@ -805,7 +805,7 @@ namespace {
                            const std::vector<G4ThreeVector>& imported_hits) {
     // Use output_path.string() so gzopen receives a char* on all platforms.
     const std::string path_str = output_path.string();
-    gzFile gz = gzopen(path_str.c_str(), "wb");
+    gzFile gz                  = gzopen(path_str.c_str(), "wb");
     if (!gz) {
       throw std::runtime_error("Cannot open point-cloud output file: " + path_str);
     }
