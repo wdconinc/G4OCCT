@@ -7,6 +7,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build-test-benchmark:
@@ -20,43 +21,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Restore NIST CTC STEP fixtures cache
-        id: cache-nist-ctc
-        uses: actions/cache/restore@v5
-        with:
-          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
-
-      - name: Download NIST CTC STEP fixtures
-        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
-        run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
-        continue-on-error: true
-
-      - name: Verify NIST CTC STEP fixtures
-        id: verify-nist-ctc
-        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
-        run: |
-          missing=0
-          for i in $(seq -w 1 11); do
-            f="src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-${i}-v1/shape.step"
-            if [[ ! -f "${f}" ]]; then
-              echo "Missing: ${f}" >&2
-              missing=$((missing + 1))
-            fi
-          done
-          if [[ "${missing}" -eq 0 ]]; then
-            echo "nist_ctc_complete=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "WARNING: ${missing} NIST CTC STEP file(s) missing; skipping cache save." >&2
-            echo "nist_ctc_complete=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Save NIST CTC STEP fixtures cache
-        if: steps.verify-nist-ctc.outputs.nist_ctc_complete == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+      - name: Fetch NIST CTC STEP fixtures
+        uses: ./.github/actions/fetch-nist-ctc
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
@@ -124,6 +90,7 @@ jobs:
           name: ci-reports
           path: reports/
           if-no-files-found: ignore
+          retention-days: 1
 
       - name: Generate PR diff for clang-tidy
         if: ${{ github.event_name == 'pull_request' }}
@@ -193,43 +160,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Restore NIST CTC STEP fixtures cache
-        id: cache-nist-ctc
-        uses: actions/cache/restore@v5
-        with:
-          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
-
-      - name: Download NIST CTC STEP fixtures
-        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
-        run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
-        continue-on-error: true
-
-      - name: Verify NIST CTC STEP fixtures
-        id: verify-nist-ctc
-        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
-        run: |
-          missing=0
-          for i in $(seq -w 1 11); do
-            f="src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-${i}-v1/shape.step"
-            if [[ ! -f "${f}" ]]; then
-              echo "Missing: ${f}" >&2
-              missing=$((missing + 1))
-            fi
-          done
-          if [[ "${missing}" -eq 0 ]]; then
-            echo "nist_ctc_complete=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "WARNING: ${missing} NIST CTC STEP file(s) missing; skipping cache save." >&2
-            echo "nist_ctc_complete=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Save NIST CTC STEP fixtures cache
-        if: steps.verify-nist-ctc.outputs.nist_ctc_complete == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+      - name: Fetch NIST CTC STEP fixtures
+        uses: ./.github/actions/fetch-nist-ctc
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
@@ -272,43 +204,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Restore NIST CTC STEP fixtures cache
-        id: cache-nist-ctc
-        uses: actions/cache/restore@v4
-        with:
-          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
-
-      - name: Download NIST CTC STEP fixtures
-        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
-        run: bash src/tests/fixtures/geometry/nist-ctc/fetch.sh
-        continue-on-error: true
-
-      - name: Verify NIST CTC STEP fixtures
-        id: verify-nist-ctc
-        if: steps.cache-nist-ctc.outputs.cache-hit != 'true'
-        run: |
-          missing=0
-          for i in $(seq -w 1 11); do
-            f="src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid/nist-ctc-${i}-v1/shape.step"
-            if [[ ! -f "${f}" ]]; then
-              echo "Missing: ${f}" >&2
-              missing=$((missing + 1))
-            fi
-          done
-          if [[ "${missing}" -eq 0 ]]; then
-            echo "nist_ctc_complete=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "WARNING: ${missing} NIST CTC STEP file(s) missing; skipping cache save." >&2
-            echo "nist_ctc_complete=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Save NIST CTC STEP fixtures cache
-        if: steps.verify-nist-ctc.outputs.nist_ctc_complete == 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid
-          key: nist-ctc-step-v2-${{ hashFiles('src/tests/fixtures/geometry/nist-ctc/fetch.sh') }}
+      - name: Fetch NIST CTC STEP fixtures
+        uses: ./.github/actions/fetch-nist-ctc
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
@@ -339,3 +236,75 @@ jobs:
             ./build/src/examples/B1/exampleB1 \
               "${PWD}/src/examples/B1/run.mac" \
               $(nproc)
+
+  # ── Build Doxygen API reference ─────────────────────────────────────────────
+  doxygen:
+    name: Build Doxygen API reference
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [build-test-benchmark]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Doxygen
+        run: sudo apt-get install -y doxygen
+
+      - name: Generate API documentation
+        run: doxygen Doxyfile
+
+      - name: Upload API docs artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: doxygen-api
+          path: docs/api/
+          retention-days: 1
+
+  # ── Deploy docsify + Doxygen + reports to GitHub Pages ──────────────────────
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [build-test-benchmark, doxygen]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: "pages"
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download Doxygen API docs
+        uses: actions/download-artifact@v8
+        with:
+          name: doxygen-api
+          path: docs/api/
+
+      - name: Download test and benchmark reports
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-reports
+          path: docs/reports/
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
