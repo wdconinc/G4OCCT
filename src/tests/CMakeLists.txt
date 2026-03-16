@@ -162,7 +162,7 @@ if(G4_VIS_EXECUTIVE_HH)
 else()
   message(
     STATUS
-    "G4VisExecutive.hh not found; render_geometry_fixtures will not be built")
+      "G4VisExecutive.hh not found; render_geometry_fixtures will not be built")
 endif()
 
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────

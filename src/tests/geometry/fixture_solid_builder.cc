@@ -93,8 +93,7 @@ namespace {
   /// that it lies within [0, @p vertex_count).  Throws @c std::runtime_error
   /// with @p context information on any validation failure.
   std::size_t ParseFacetIndex(const YAML::Node& node, std::size_t vertex_count,
-                              std::size_t facet_index, int component,
-                              const std::string& context) {
+                              std::size_t facet_index, int component, const std::string& context) {
     const std::string raw = node.as<std::string>();
     std::size_t pos       = 0;
     long long value       = 0;
@@ -116,8 +115,8 @@ namespace {
     if (idx >= vertex_count) {
       throw std::runtime_error(context + ": facet[" + std::to_string(facet_index) + "][" +
                                std::to_string(component) + "] index " + raw +
-                               " is out of range (vertex count: " +
-                               std::to_string(vertex_count) + ")");
+                               " is out of range (vertex count: " + std::to_string(vertex_count) +
+                               ")");
     }
     return idx;
   }
@@ -308,8 +307,8 @@ namespace {
       const std::size_t i0 = ParseFacetIndex(indices[0], vertices.size(), facet_index, 0, context);
       const std::size_t i1 = ParseFacetIndex(indices[1], vertices.size(), facet_index, 1, context);
       const std::size_t i2 = ParseFacetIndex(indices[2], vertices.size(), facet_index, 2, context);
-      solid->AddFacet(new G4TriangularFacet(vertices.at(i0), vertices.at(i1), vertices.at(i2),
-                                            ABSOLUTE));
+      solid->AddFacet(
+          new G4TriangularFacet(vertices.at(i0), vertices.at(i1), vertices.at(i2), ABSOLUTE));
     }
     solid->SetSolidClosed(true);
     return solid;

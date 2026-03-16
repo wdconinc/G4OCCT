@@ -112,8 +112,8 @@ namespace {
       G4VSolid* solid = nullptr;
       if (fRequest.use_imported) {
         FixtureValidationRequest val_req;
-        val_req.manifest = fRequest.manifest;
-        val_req.fixture  = fRequest.fixture;
+        val_req.manifest         = fRequest.manifest;
+        val_req.fixture          = fRequest.fixture;
         const TopoDS_Shape shape = LoadImportedShape(val_req);
         // Ownership is transferred to G4SolidStore via G4VSolid's constructor.
         solid = new G4OCCTSolid(fRequest.name, shape);
@@ -127,9 +127,9 @@ namespace {
       G4ThreeVector bmax;
       solid->BoundingLimits(bmin, bmax);
       const G4ThreeVector center = 0.5 * (bmin + bmax);
-      const G4double span        = std::max({bmax.x() - bmin.x(), bmax.y() - bmin.y(),
-                                             bmax.z() - bmin.z(), kMinimumSpan});
-      const G4double half        = span * kWorldHalfSpanFactor;
+      const G4double span =
+          std::max({bmax.x() - bmin.x(), bmax.y() - bmin.y(), bmax.z() - bmin.z(), kMinimumSpan});
+      const G4double half = span * kWorldHalfSpanFactor;
 
       auto* vacuum = G4NistManager::Instance()->FindOrBuildMaterial("G4_Galactic");
       auto* air    = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
@@ -250,7 +250,7 @@ namespace {
     runManager->SetUserInitialization(detector);
     runManager->SetUserInitialization(new MinimalPhysicsList());
 
-    G4UImanager* ui          = G4UImanager::GetUIpointer();
+    G4UImanager* ui             = G4UImanager::GetUIpointer();
     G4VisExecutive* vis_manager = nullptr;
     bool initialized            = false;
 
