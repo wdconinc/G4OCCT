@@ -25,7 +25,16 @@ TMP_DIR="$(mktemp -d)"
 ZIP_FILE="${TMP_DIR}/NIST-PMI-STEP-Files.zip"
 EXTRACT_DIR="${TMP_DIR}/extracted"
 
+make_tree_user_writable() {
+  local path="$1"
+
+  if [[ -e "${path}" ]]; then
+    chmod -R u+rwX "${path}"
+  fi
+}
+
 cleanup() {
+  make_tree_user_writable "${TMP_DIR}"
   rm -rf "${TMP_DIR}"
 }
 trap cleanup EXIT
@@ -44,6 +53,9 @@ fi
 echo "Extracting ZIP ..."
 mkdir -p "${EXTRACT_DIR}"
 unzip -q "${ZIP_FILE}" -d "${EXTRACT_DIR}"
+# The archive stores extracted directories as read-only, which prevents later
+# file removal (including trap cleanup) unless we normalize permissions first.
+make_tree_user_writable "${EXTRACT_DIR}"
 
 # Locate the "AP203 geometry only" directory (case-insensitive match).
 AP203_DIR=""
