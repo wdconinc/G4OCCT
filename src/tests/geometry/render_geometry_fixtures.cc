@@ -5,7 +5,7 @@
  * @file render_geometry_fixtures.cc
  *
  * Renders each geometry fixture solid to a JPEG image using Geant4's built-in
- * RayTracer visualisation driver (@c /vis/open @c RT).  The RayTracer traces
+ * RayTracer visualisation driver (@c /vis/open @c RayTracer).  The RayTracer traces
  * rays through Geant4's own navigation infrastructure (G4Navigator), so the
  * resulting images reflect how each solid is interpreted by Geant4 — not a
  * separate mesh approximation.
@@ -203,7 +203,15 @@ namespace {
       ui->ApplyCommand("/vis/verbose quiet");
 
       // Open the RayTracer driver once; it persists for all subsequent renders.
-      ui->ApplyCommand("/vis/open RT " + std::to_string(kRenderResolution));
+      // Use the full registered name "RayTracer" (the alias "RT" is not valid
+      // in all Geant4 builds).
+      const int vis_open_rc =
+          ui->ApplyCommand("/vis/open RayTracer " + std::to_string(kRenderResolution));
+      if (vis_open_rc != 0) {
+        G4cerr << "render_geometry_fixtures: /vis/open RayTracer failed (rc=" << vis_open_rc
+               << "). Skipping render." << G4endl;
+        return false;
+      }
 
       initialized = true;
     } else {
