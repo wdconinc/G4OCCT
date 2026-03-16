@@ -209,10 +209,10 @@ namespace {
     std::cout << "Total hard mismatches: " << total_inside_mismatches << "\n";
     std::cout << "Total surface ambiguities: " << total_inside_ambiguities << "\n";
 
-    double total_safety_in_native_ms   = 0.0;
-    double total_safety_in_imported_ms = 0.0;
-    double total_safety_out_native_ms  = 0.0;
-    double total_safety_out_imported_ms = 0.0;
+    double total_safety_in_native_ms        = 0.0;
+    double total_safety_in_imported_ms      = 0.0;
+    double total_safety_out_native_ms       = 0.0;
+    double total_safety_out_imported_ms     = 0.0;
     std::size_t total_safety_in_mismatches  = 0;
     std::size_t total_safety_out_mismatches = 0;
 

@@ -92,18 +92,18 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
   ValidationReport aggregate_report;
   aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
 
-  std::size_t validated_fixture_count  = 0;
-  std::size_t geometry_checked_count   = 0;
-  std::size_t ray_compared_count       = 0;
-  std::size_t safety_compared_count    = 0;
-  std::size_t expected_failure_count   = 0;
-  double total_native_ms               = 0.0;
-  double total_imported_ms             = 0.0;
-  double total_safety_in_native_ms     = 0.0;
-  double total_safety_in_imported_ms   = 0.0;
-  double total_safety_out_native_ms    = 0.0;
-  double total_safety_out_imported_ms  = 0.0;
-  bool matched_fixture                 = false;
+  std::size_t validated_fixture_count = 0;
+  std::size_t geometry_checked_count  = 0;
+  std::size_t ray_compared_count      = 0;
+  std::size_t safety_compared_count   = 0;
+  std::size_t expected_failure_count  = 0;
+  double total_native_ms              = 0.0;
+  double total_imported_ms            = 0.0;
+  double total_safety_in_native_ms    = 0.0;
+  double total_safety_in_imported_ms  = 0.0;
+  double total_safety_out_native_ms   = 0.0;
+  double total_safety_out_imported_ms = 0.0;
+  bool matched_fixture                = false;
 
   for (const auto& family : repository_manifest.families) {
     const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);

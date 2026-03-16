@@ -113,8 +113,7 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
     auto imported_solid =
         std::make_unique<G4OCCTSolid>(request.fixture.id + "_imported", LoadImportedShape(request));
 
-    const G4double surface_tolerance =
-        G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
+    const G4double surface_tolerance = G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
 
     // ── Generate test points ──────────────────────────────────────────────
     const std::vector<G4ThreeVector> all_points =
