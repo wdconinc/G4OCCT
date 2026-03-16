@@ -152,8 +152,8 @@ void G4OCCTSolid::ComputeBounds() {
   Standard_Real zMax = 0.0;
   boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
 
-  fCachedBounds = AxisAlignedBounds{G4ThreeVector(xMin, yMin, zMin),
-                                    G4ThreeVector(xMax, yMax, zMax)};
+  fCachedBounds =
+      AxisAlignedBounds{G4ThreeVector(xMin, yMin, zMin), G4ThreeVector(xMax, yMax, zMax)};
 }
 
 BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {

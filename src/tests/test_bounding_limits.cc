@@ -69,8 +69,7 @@ void TestBoundsRecomputedAfterSetOCCTShape() {
   }
 
   // Replace the shape with a sphere of radius 50 mm and verify bounds update.
-  const TopoDS_Shape sphereShape =
-      BRepPrimAPI_MakeSphere(gp_Pnt(0.0, 0.0, 0.0), 50.0 * mm).Shape();
+  const TopoDS_Shape sphereShape = BRepPrimAPI_MakeSphere(gp_Pnt(0.0, 0.0, 0.0), 50.0 * mm).Shape();
   box.solid.SetOCCTShape(sphereShape);
 
   {
