@@ -86,7 +86,14 @@ function fixtureIdFromHash() {
   }
   const params  = new URLSearchParams(hash);
   const fixture = params.get('fixture');
-  return fixture ? fixture : decodeURIComponent(hash);
+  if (fixture) {
+    return fixture;
+  }
+  try {
+    return decodeURIComponent(hash);
+  } catch (_) {
+    return hash;
+  }
 }
 
 function setHashForFixture(fixtureId) {

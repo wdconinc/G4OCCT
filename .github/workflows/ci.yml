@@ -84,7 +84,7 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -f reports/point_cloud_viewer.html ]; then
-            echo "[Point-cloud viewer](./reports/point_cloud_viewer.html)" >> "$GITHUB_STEP_SUMMARY"
+            echo "Point-cloud viewer is available in the \`ci-reports\` artifact — download and open \`point_cloud_viewer.html\` locally." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload test and benchmark reports as artifact
