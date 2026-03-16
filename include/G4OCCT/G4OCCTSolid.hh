@@ -113,6 +113,13 @@ public:
   /// Read access to the underlying OCCT shape.
   const TopoDS_Shape& GetOCCTShape() const { return fShape; }
 
+  /// Ensure the per-thread classifier cache for `Inside()` queries is loaded.
+  ///
+  /// This is useful when benchmarks want to measure steady-state query cost
+  /// without charging the first timed call for the one-time OCCT
+  /// `BRepClass3d_SolidClassifier::Load()` setup.
+  void WarmInsideCache() const { (void)GetOrCreateClassifier(); }
+
   /// Replace the underlying OCCT shape.
   /// @note Increments an internal generation counter so that every worker
   ///       thread automatically reloads its per-thread classifier and
