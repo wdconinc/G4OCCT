@@ -6,6 +6,7 @@
 import re
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 from report_utils import md_escape, timestamp, write_report
 
@@ -77,7 +78,12 @@ def _parse_bench_output(text: str) -> dict:
     return {"ray_count": ray_count, "fixtures": fixtures, "aggregate": aggregate}
 
 
-def _render_report(data: dict) -> str:
+def _fixture_viewer_link(fixture_id: str, viewer_path: str) -> str:
+    """Return a point-cloud viewer deep link for one fixture."""
+    return f"{viewer_path}#fixture={quote(fixture_id, safe='')}"
+
+
+def _render_report(data: dict, viewer_path: str) -> str:
     """Render the Markdown string for benchmark data."""
     ts        = timestamp()
     agg       = data.get("aggregate", {})
@@ -101,6 +107,8 @@ def _render_report(data: dict) -> str:
         "",
         meta_line,
         "",
+        f"[Open point-cloud viewer]({viewer_path})",
+        "",
         "## Aggregate Results",
         "",
         "| Native (ms) | Imported (ms) | Native/Imported Ratio | Total Mismatches |",
@@ -123,8 +131,9 @@ def _render_report(data: dict) -> str:
         ]
         for f in fixtures:
             fix_ratio = (f["native_ms"] / f["imported_ms"]) if f["imported_ms"] > 0 else 0.0
+            fixture_link = _fixture_viewer_link(f["id"], viewer_path)
             lines.append(
-                f"| {md_escape(f['id'])} | {md_escape(f['class'])} "
+                f"| [{md_escape(f['id'])}]({fixture_link}) | {md_escape(f['class'])} "
                 f"| {f['native_ms']:.2f} | {f['imported_ms']:.2f} "
                 f"| {fix_ratio:.3f} | {f['mismatches']} |"
             )
@@ -149,11 +158,13 @@ def _render_error(message: str) -> str:
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <bench-results.txt> <output.md>", file=sys.stderr)
+    if len(sys.argv) not in (3, 4):
+        print(f"Usage: {sys.argv[0]} <bench-results.txt> <output.md> [viewer-path]",
+              file=sys.stderr)
         sys.exit(1)
 
     txt_path, md_path = sys.argv[1], sys.argv[2]
+    viewer_path       = sys.argv[3] if len(sys.argv) == 4 else "point_cloud_viewer.html"
 
     try:
         text = Path(txt_path).read_text(encoding="utf-8")
@@ -163,7 +174,7 @@ def main() -> None:
         return
 
     data = _parse_bench_output(text)
-    md   = _render_report(data)
+    md   = _render_report(data, viewer_path)
     write_report(Path(md_path), md, label="Benchmark report")
 
 

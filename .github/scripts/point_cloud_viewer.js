@@ -78,6 +78,26 @@ function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function fixtureIdFromHash() {
+  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1)
+                                                    : window.location.hash;
+  if (!hash) {
+    return '';
+  }
+  const params  = new URLSearchParams(hash);
+  const fixture = params.get('fixture');
+  return fixture ? fixture : decodeURIComponent(hash);
+}
+
+function setHashForFixture(fixtureId) {
+  const nextHash = fixtureId ? `#fixture=${encodeURIComponent(fixtureId)}` : '';
+  if (window.location.hash === nextHash) {
+    return;
+  }
+  const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+  window.history.replaceState(null, '', nextUrl);
+}
+
 // Apply a small displacement to the imported cloud so that both point clouds
 // remain visually distinct when they are in perfect positional agreement.
 // The offset is only active while both clouds are simultaneously visible; when
@@ -182,12 +202,32 @@ function populateSelect() {
 
 populateSelect();
 if (ALL_FIXTURES.length > 0) {
-  loadFixture(ALL_FIXTURES[0]);
+  const requestedFixture = fixtureIdFromHash();
+  const initialFixture   = ALL_FIXTURES.find(x => x.fixture_id === requestedFixture) || ALL_FIXTURES[0];
+  selectEl.value         = initialFixture.fixture_id;
+  loadFixture(initialFixture);
+  setHashForFixture(initialFixture.fixture_id);
 }
 
 selectEl.addEventListener('change', () => {
   const f = ALL_FIXTURES.find(x => x.fixture_id === selectEl.value);
   loadFixture(f || null);
+  if (f) {
+    setHashForFixture(f.fixture_id);
+  }
+});
+
+window.addEventListener('hashchange', () => {
+  const fixtureId = fixtureIdFromHash();
+  if (!fixtureId || fixtureId === selectEl.value) {
+    return;
+  }
+  const fixture = ALL_FIXTURES.find(x => x.fixture_id === fixtureId);
+  if (!fixture) {
+    return;
+  }
+  selectEl.value = fixture.fixture_id;
+  loadFixture(fixture);
 });
 
 // ── Toggle buttons ────────────────────────────────────────────────────────────
