@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2024 G4OCCT Contributors
 
-"""Generate a three.js point-cloud viewer (requires CDN access) from per-fixture JSON.GZ files.
+"""Generate a three.js point-cloud viewer (requires CDN access) from per-fixture .json.gz files.
 
 Usage:
     python generate_point_cloud_report.py <point-cloud-dir> <output.html>
 
-Each JSON.GZ file in <point-cloud-dir> must contain:
+Each .json.gz file in <point-cloud-dir> must contain:
     fixture_id                  – qualified fixture path (family/id)
     geant4_class                – Geant4 solid class name
     ray_count                   – number of rays fired
@@ -34,7 +34,7 @@ def _load_fixture_data(point_cloud_dir: Path) -> list:
     for gz_path in sorted(point_cloud_dir.glob("*.json.gz")):
         try:
             with gzip.open(gz_path, "rt", encoding="utf-8") as f:
-                data = json.loads(f.read())
+                data = json.load(f)
             for key in ("fixture_id", "geant4_class", "ray_count",
                         "native_pre_step_origin", "imported_pre_step_origin",
                         "native_post_step_hits", "imported_post_step_hits"):

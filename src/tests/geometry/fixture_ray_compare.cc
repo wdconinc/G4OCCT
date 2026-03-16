@@ -803,37 +803,68 @@ namespace {
                            const G4ThreeVector& native_origin, const G4ThreeVector& imported_origin,
                            const std::vector<G4ThreeVector>& native_hits,
                            const std::vector<G4ThreeVector>& imported_hits) {
-    std::ostringstream buf;
-    buf << "{\n";
-    buf << "  \"fixture_id\": " << JsonString(fixture_id) << ",\n";
-    buf << "  \"geant4_class\": " << JsonString(geant4_class) << ",\n";
-    buf << "  \"ray_count\": " << ray_count << ",\n";
-    buf << std::setprecision(15);
-    buf << "  \"native_pre_step_origin\": [" << native_origin.x() << ',' << native_origin.y() << ','
-        << native_origin.z() << "],\n";
-    buf << "  \"imported_pre_step_origin\": [" << imported_origin.x() << ',' << imported_origin.y()
-        << ',' << imported_origin.z() << "],\n";
-    buf << "  \"native_post_step_hits\": ";
-    WriteJsonVectorArray(buf, native_hits);
-    buf << ",\n";
-    buf << "  \"imported_post_step_hits\": ";
-    WriteJsonVectorArray(buf, imported_hits);
-    buf << "\n}\n";
-
-    const std::string json_str = buf.str();
-    if (json_str.size() > static_cast<std::size_t>(std::numeric_limits<unsigned int>::max())) {
-      throw std::runtime_error("Point-cloud JSON exceeds gzwrite size limit: " +
-                               output_path.string());
-    }
-    gzFile gz = gzopen(output_path.c_str(), "wb");
+    // Use output_path.string() so gzopen receives a char* on all platforms.
+    const std::string path_str = output_path.string();
+    gzFile gz = gzopen(path_str.c_str(), "wb");
     if (!gz) {
-      throw std::runtime_error("Cannot open point-cloud output file: " + output_path.string());
+      throw std::runtime_error("Cannot open point-cloud output file: " + path_str);
     }
-    const int written = gzwrite(gz, json_str.data(), static_cast<unsigned int>(json_str.size()));
-    const bool write_ok = (written == static_cast<int>(json_str.size()));
-    gzclose(gz);
-    if (!write_ok) {
-      throw std::runtime_error("Failed to write gzip data to: " + output_path.string());
+
+    // Write a string chunk to gz; guards against INT_MAX overflow (gzwrite return type is int).
+    auto write_gz = [&gz, &path_str](const std::string& s) {
+      if (s.empty()) {
+        return;
+      }
+      if (s.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        throw std::runtime_error("Chunk too large for gzwrite: " + path_str);
+      }
+      const int written = gzwrite(gz, s.data(), static_cast<unsigned int>(s.size()));
+      if (written != static_cast<int>(s.size())) {
+        throw std::runtime_error("Failed to write gzip data to: " + path_str);
+      }
+    };
+
+    // Write a JSON array of 3-vectors incrementally, one point at a time, to
+    // avoid buffering the entire array in memory before compressing.
+    auto write_gz_vector_array = [&write_gz](const std::vector<G4ThreeVector>& points) {
+      write_gz("[");
+      for (std::size_t i = 0; i < points.size(); ++i) {
+        if (i > 0) {
+          write_gz(",");
+        }
+        std::ostringstream oss;
+        oss << std::setprecision(15) << '[' << points[i].x() << ',' << points[i].y() << ','
+            << points[i].z() << ']';
+        write_gz(oss.str());
+      }
+      write_gz("]");
+    };
+
+    try {
+      std::ostringstream header;
+      header << "{\n";
+      header << "  \"fixture_id\": " << JsonString(fixture_id) << ",\n";
+      header << "  \"geant4_class\": " << JsonString(geant4_class) << ",\n";
+      header << "  \"ray_count\": " << ray_count << ",\n";
+      header << std::setprecision(15);
+      header << "  \"native_pre_step_origin\": [" << native_origin.x() << ',' << native_origin.y()
+             << ',' << native_origin.z() << "],\n";
+      header << "  \"imported_pre_step_origin\": [" << imported_origin.x() << ','
+             << imported_origin.y() << ',' << imported_origin.z() << "],\n";
+      header << "  \"native_post_step_hits\": ";
+      write_gz(header.str());
+      write_gz_vector_array(native_hits);
+      write_gz(",\n  \"imported_post_step_hits\": ");
+      write_gz_vector_array(imported_hits);
+      write_gz("\n}\n");
+    } catch (...) {
+      gzclose(gz);
+      throw;
+    }
+
+    const int close_ret = gzclose(gz);
+    if (close_ret != Z_OK) {
+      throw std::runtime_error("Failed to finalise gzip file: " + path_str);
     }
   }
 
