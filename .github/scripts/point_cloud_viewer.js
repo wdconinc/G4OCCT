@@ -78,6 +78,25 @@ function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Apply a small displacement to the imported cloud so that both point clouds
+// remain visually distinct when they are in perfect positional agreement.
+// The offset is only active while both clouds are simultaneously visible; when
+// the native cloud is hidden the imported cloud is shown at its true position.
+function updateImportedOffset() {
+  if (!importedCloud) {
+    return;
+  }
+  if (showNative && nativeCloud) {
+    const box    = new THREE.Box3().setFromObject(nativeCloud);
+    const size   = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 1e-3);
+    const offset = maxDim * 0.01;
+    importedCloud.position.set(offset, offset, offset);
+  } else {
+    importedCloud.position.set(0, 0, 0);
+  }
+}
+
 function loadFixture(fixture) {
   clearClouds();
   if (!fixture) {
@@ -94,6 +113,7 @@ function loadFixture(fixture) {
     importedCloud.visible = showImported;
     scene.add(importedCloud);
   }
+  updateImportedOffset();
 
   // Fit camera to the bounding box of visible hits.  Prefer a visible cloud so
   // the camera doesn't move based on a currently-hidden dataset.
@@ -177,6 +197,7 @@ btnNative.addEventListener('click', () => {
   if (nativeCloud) {
     nativeCloud.visible = showNative;
   }
+  updateImportedOffset();
 });
 btnImp.addEventListener('click', () => {
   showImported = !showImported;
