@@ -182,8 +182,18 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     return kOutside;
   }
 
+  const G4double tolerance = IntersectionTolerance();
+  if (fCachedBounds.has_value()) {
+    const AxisAlignedBounds& bounds = *fCachedBounds;
+    if (p.x() < bounds.min.x() - tolerance || p.x() > bounds.max.x() + tolerance ||
+        p.y() < bounds.min.y() - tolerance || p.y() > bounds.max.y() + tolerance ||
+        p.z() < bounds.min.z() - tolerance || p.z() > bounds.max.z() + tolerance) {
+      return kOutside;
+    }
+  }
+
   BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
-  classifier.Perform(ToPoint(p), IntersectionTolerance());
+  classifier.Perform(ToPoint(p), tolerance);
   return ToG4Inside(classifier.State());
 }
 
