@@ -5,14 +5,9 @@
 
 import re
 import sys
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
 
-try:
-    _TZ = ZoneInfo("America/New_York")
-except ZoneInfoNotFoundError:
-    _TZ = timezone.utc
+from report_utils import md_escape, timestamp, write_report
 
 
 def _parse_bench_output(text: str) -> dict:
@@ -82,14 +77,9 @@ def _parse_bench_output(text: str) -> dict:
     return {"ray_count": ray_count, "fixtures": fixtures, "aggregate": aggregate}
 
 
-def _md_escape(text: str) -> str:
-    """Escape characters that break Markdown table cells."""
-    return text.replace("|", "\\|").replace("\n", " ").replace("\r", "")
-
-
 def _render_report(data: dict) -> str:
     """Render the Markdown string for benchmark data."""
-    timestamp = datetime.now(_TZ).strftime("%Y-%m-%d %H:%M %Z")
+    ts        = timestamp()
     agg       = data.get("aggregate", {})
     ray_count = data.get("ray_count", "?")
     fixtures  = data.get("fixtures", [])
@@ -102,7 +92,7 @@ def _render_report(data: dict) -> str:
 
     ratio_str = f"{ratio:.3f}" if ratio else "N/A"
 
-    meta_line = f"Generated: {timestamp}"
+    meta_line = f"Generated: {ts}"
     if ray_count:
         meta_line += f" · Rays per fixture: {ray_count}"
 
@@ -134,7 +124,7 @@ def _render_report(data: dict) -> str:
         for f in fixtures:
             fix_ratio = (f["native_ms"] / f["imported_ms"]) if f["imported_ms"] > 0 else 0.0
             lines.append(
-                f"| {_md_escape(f['id'])} | {_md_escape(f['class'])} "
+                f"| {md_escape(f['id'])} | {md_escape(f['class'])} "
                 f"| {f['native_ms']:.2f} | {f['imported_ms']:.2f} "
                 f"| {fix_ratio:.3f} | {f['mismatches']} |"
             )
@@ -151,10 +141,9 @@ def _render_report(data: dict) -> str:
 
 def _render_error(message: str) -> str:
     """Render a minimal Markdown error report."""
-    timestamp = datetime.now(_TZ).strftime("%Y-%m-%d %H:%M %Z")
     return (
         "# G4OCCT Benchmark Results\n\n"
-        f"Generated: {timestamp}\n\n"
+        f"Generated: {timestamp()}\n\n"
         f"❌ Could not generate report: {message}\n"
     )
 
@@ -165,20 +154,17 @@ def main() -> None:
         sys.exit(1)
 
     txt_path, md_path = sys.argv[1], sys.argv[2]
-    Path(md_path).parent.mkdir(parents=True, exist_ok=True)
 
     try:
         text = Path(txt_path).read_text(encoding="utf-8")
     except (FileNotFoundError, OSError) as exc:
         print(f"Warning: {exc}", file=sys.stderr)
-        Path(md_path).write_text(_render_error(str(exc)), encoding="utf-8")
-        print(f"Benchmark report written to: {md_path}")
+        write_report(Path(md_path), _render_error(str(exc)), label="Benchmark report")
         return
 
     data = _parse_bench_output(text)
     md   = _render_report(data)
-    Path(md_path).write_text(md, encoding="utf-8")
-    print(f"Benchmark report written to: {md_path}")
+    write_report(Path(md_path), md, label="Benchmark report")
 
 
 if __name__ == "__main__":
