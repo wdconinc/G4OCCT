@@ -52,13 +52,6 @@ constexpr G4double kFallbackExtentMin = -1.0;
 /// Fall-back maximum extent coordinate used when the shape is null or void.
 constexpr G4double kFallbackExtentMax = 1.0;
 
-/// Axis-aligned bounding box with a flag indicating a null/void result.
-struct AxisAlignedBounds {
-  G4ThreeVector min;
-  G4ThreeVector max;
-  bool isVoid;
-};
-
 /// Convert a Geant4 three-vector to an OCCT point.
 gp_Pnt ToPoint(const G4ThreeVector& point) { return gp_Pnt(point.x(), point.y(), point.z()); }
 
@@ -90,32 +83,6 @@ EInside ToG4Inside(const TopAbs_State state) {
 
 /// Return the canonical fall-back surface normal (positive Z axis).
 G4ThreeVector FallbackNormal() { return G4ThreeVector(0.0, 0.0, 1.0); }
-
-/// Compute the axis-aligned bounding box of @p shape.
-/// Returns a void result if @p shape is null or has no geometry.
-AxisAlignedBounds ComputeAxisAlignedBounds(const TopoDS_Shape& shape) {
-  if (shape.IsNull()) {
-    return {G4ThreeVector(kFallbackExtentMin, kFallbackExtentMin, kFallbackExtentMin),
-            G4ThreeVector(kFallbackExtentMax, kFallbackExtentMax, kFallbackExtentMax), true};
-  }
-
-  Bnd_Box boundingBox;
-  BRepBndLib::Add(shape, boundingBox);
-  if (boundingBox.IsVoid()) {
-    return {G4ThreeVector(kFallbackExtentMin, kFallbackExtentMin, kFallbackExtentMin),
-            G4ThreeVector(kFallbackExtentMax, kFallbackExtentMax, kFallbackExtentMax), true};
-  }
-
-  Standard_Real xMin = 0.0;
-  Standard_Real yMin = 0.0;
-  Standard_Real zMin = 0.0;
-  Standard_Real xMax = 0.0;
-  Standard_Real yMax = 0.0;
-  Standard_Real zMax = 0.0;
-  boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
-
-  return {G4ThreeVector(xMin, yMin, zMin), G4ThreeVector(xMax, yMax, zMax), false};
-}
 
 /// Compute the shortest distance from @p point to the surface of @p shape.
 /// Returns kInfinity if the shape is null or the calculation fails.
@@ -154,9 +121,36 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
 } // namespace
 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
-    : G4VSolid(name), fShape(shape) {}
+    : G4VSolid(name), fShape(shape) {
+  ComputeBounds();
+}
 
 // ── G4OCCTSolid private helpers ───────────────────────────────────────────────
+
+void G4OCCTSolid::ComputeBounds() {
+  if (fShape.IsNull()) {
+    fCachedBounds = std::nullopt;
+    return;
+  }
+
+  Bnd_Box boundingBox;
+  BRepBndLib::Add(fShape, boundingBox);
+  if (boundingBox.IsVoid()) {
+    fCachedBounds = std::nullopt;
+    return;
+  }
+
+  Standard_Real xMin = 0.0;
+  Standard_Real yMin = 0.0;
+  Standard_Real zMin = 0.0;
+  Standard_Real xMax = 0.0;
+  Standard_Real yMax = 0.0;
+  Standard_Real zMax = 0.0;
+  boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
+
+  fCachedBounds =
+      AxisAlignedBounds{G4ThreeVector(xMin, yMin, zMin), G4ThreeVector(xMax, yMax, zMax)};
+}
 
 BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {
   ClassifierCache& cache         = fClassifierCache.Get();
@@ -356,31 +350,33 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 
 G4VisExtent G4OCCTSolid::GetExtent() const {
-  const AxisAlignedBounds bounds = ComputeAxisAlignedBounds(fShape);
-  if (bounds.isVoid) {
+  if (!fCachedBounds) {
     return G4VisExtent(kFallbackExtentMin, kFallbackExtentMax, kFallbackExtentMin,
                        kFallbackExtentMax, kFallbackExtentMin, kFallbackExtentMax);
   }
 
-  return G4VisExtent(bounds.min.x(), bounds.max.x(), bounds.min.y(), bounds.max.y(), bounds.min.z(),
-                     bounds.max.z());
+  return G4VisExtent(fCachedBounds->min.x(), fCachedBounds->max.x(), fCachedBounds->min.y(),
+                     fCachedBounds->max.y(), fCachedBounds->min.z(), fCachedBounds->max.z());
 }
 
 void G4OCCTSolid::BoundingLimits(G4ThreeVector& pMin, G4ThreeVector& pMax) const {
-  const AxisAlignedBounds bounds = ComputeAxisAlignedBounds(fShape);
-  pMin                           = bounds.min;
-  pMax                           = bounds.max;
+  if (!fCachedBounds) {
+    pMin = G4ThreeVector(kFallbackExtentMin, kFallbackExtentMin, kFallbackExtentMin);
+    pMax = G4ThreeVector(kFallbackExtentMax, kFallbackExtentMax, kFallbackExtentMax);
+    return;
+  }
+  pMin = fCachedBounds->min;
+  pMax = fCachedBounds->max;
 }
 
 G4bool G4OCCTSolid::CalculateExtent(const EAxis pAxis, const G4VoxelLimits& pVoxelLimit,
                                     const G4AffineTransform& pTransform, G4double& pMin,
                                     G4double& pMax) const {
-  const AxisAlignedBounds bounds = ComputeAxisAlignedBounds(fShape);
-  if (bounds.isVoid) {
+  if (!fCachedBounds) {
     return false;
   }
 
-  const G4BoundingEnvelope envelope(bounds.min, bounds.max);
+  const G4BoundingEnvelope envelope(fCachedBounds->min, fCachedBounds->max);
   return envelope.CalculateExtent(pAxis, pVoxelLimit, G4Transform3D(pTransform), pMin, pMax);
 }
 

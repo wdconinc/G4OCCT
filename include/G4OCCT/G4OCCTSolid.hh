@@ -121,10 +121,17 @@ public:
   ///       this while a simulation run is in progress.
   void SetOCCTShape(const TopoDS_Shape& shape) {
     fShape = shape;
+    ComputeBounds();
     fShapeGeneration.fetch_add(1, std::memory_order_release);
   }
 
 private:
+  /// Axis-aligned bounding box: minimum and maximum corners.
+  struct AxisAlignedBounds {
+    G4ThreeVector min;
+    G4ThreeVector max;
+  };
+
   /// Per-thread classifier cache entry: generation stamp + lazily-built classifier.
   ///
   /// The `generation` field is compared against `fShapeGeneration` on every
@@ -148,6 +155,11 @@ private:
   };
 
   TopoDS_Shape fShape;
+
+  /// Cached axis-aligned bounding box; computed eagerly in the constructor and
+  /// recomputed by `ComputeBounds()` whenever `SetOCCTShape()` is called.
+  /// `std::nullopt` when the shape is null or has no geometry.
+  std::optional<AxisAlignedBounds> fCachedBounds;
 
   /// Monotonically increasing counter; incremented by each `SetOCCTShape()` call.
   /// Read (acquire) in `GetOrCreateClassifier()` and `GetOrCreateIntersector()` const;
@@ -173,6 +185,11 @@ private:
   /// Return a reference to the per-thread intersector, (re-)initialising it from
   /// @c fShape whenever the cached generation does not match @c fShapeGeneration.
   IntCurvesFace_ShapeIntersector& GetOrCreateIntersector() const;
+
+  /// Compute the axis-aligned bounding box of @c fShape and store it in
+  /// @c fCachedBounds.  Sets @c fCachedBounds to @c std::nullopt when the shape
+  /// is null or has no geometry.  Called from the constructor and @c SetOCCTShape().
+  void ComputeBounds();
 };
 
 #endif // G4OCCT_G4OCCTSolid_hh
