@@ -693,4 +693,42 @@ std::vector<G4ThreeVector> GenerateDirections(const std::size_t count) {
   return directions;
 }
 
+namespace {
+  /// Prime bases for the 3-D Halton sequence; coprime bases give low discrepancy.
+  constexpr std::size_t kHaltonBaseX = 2U;
+  constexpr std::size_t kHaltonBaseY = 3U;
+  constexpr std::size_t kHaltonBaseZ = 5U;
+
+  /// Compute the i-th term of the Halton sequence in the given base.
+  double Halton(std::size_t index, std::size_t base) {
+    double result   = 0.0;
+    double fraction = 1.0;
+    while (index > 0U) {
+      fraction /= static_cast<double>(base);
+      result += fraction * static_cast<double>(index % base);
+      index /= base;
+    }
+    return result;
+  }
+} // namespace
+
+std::vector<G4ThreeVector> GenerateBoundingBoxPoints(const G4VSolid& solid,
+                                                     const std::size_t count) {
+  G4ThreeVector bb_min;
+  G4ThreeVector bb_max;
+  solid.BoundingLimits(bb_min, bb_max);
+  const G4ThreeVector extents = bb_max - bb_min;
+
+  std::vector<G4ThreeVector> points;
+  points.reserve(count);
+  for (std::size_t index = 0; index < count; ++index) {
+    const std::size_t i = index + 1U; // Halton is 1-indexed conventionally
+    const double x      = bb_min.x() + Halton(i, kHaltonBaseX) * extents.x();
+    const double y      = bb_min.y() + Halton(i, kHaltonBaseY) * extents.y();
+    const double z      = bb_min.z() + Halton(i, kHaltonBaseZ) * extents.z();
+    points.emplace_back(x, y, z);
+  }
+  return points;
+}
+
 } // namespace g4occt::tests::geometry

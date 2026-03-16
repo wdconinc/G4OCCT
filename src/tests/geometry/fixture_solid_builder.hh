@@ -97,6 +97,20 @@ G4ThreeVector FixtureComparisonOrigin(const FixtureProvenance& provenance, const
  */
 std::vector<G4ThreeVector> GenerateDirections(std::size_t count);
 
+/**
+ * Generate bounding-box sample points using a 3-D Halton low-discrepancy sequence.
+ *
+ * Points are distributed deterministically and approximately uniformly across
+ * the axis-aligned bounding box of @p solid, as defined by its
+ * `BoundingLimits()` method.  The Halton sequence uses bases 2, 3, and 5 for
+ * the three spatial dimensions.
+ *
+ * @param solid  Solid whose `BoundingLimits()` defines the sampling volume.
+ * @param count  Number of points to generate.
+ * @return       Vector of @p count 3-D points distributed across the bounding box.
+ */
+std::vector<G4ThreeVector> GenerateBoundingBoxPoints(const G4VSolid& solid, std::size_t count);
+
 } // namespace g4occt::tests::geometry
 
 #endif

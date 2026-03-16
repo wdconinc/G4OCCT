@@ -12,6 +12,7 @@
 #include <G4GeometryTolerance.hh>
 #include <G4ThreeVector.hh>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <memory>
@@ -43,50 +44,37 @@ namespace {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Halton low-discrepancy sequence for deterministic bounding-box sampling
+  // Safety-distance comparison helper
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// Prime bases for the 3-D Halton sequence; coprime bases give low discrepancy.
-  constexpr std::size_t kHaltonBaseX = 2U;
-  constexpr std::size_t kHaltonBaseY = 3U;
-  constexpr std::size_t kHaltonBaseZ = 5U;
-
-  /// Compute the i-th term of the Halton sequence in the given base.
-  double Halton(std::size_t index, std::size_t base) {
-    double result   = 0.0;
-    double fraction = 1.0;
-    while (index > 0U) {
-      fraction /= static_cast<double>(base);
-      result += fraction * static_cast<double>(index % base);
-      index /= base;
-    }
-    return result;
-  }
-
   /**
-   * Generate bounding-box sample points using a 3-D Halton sequence.
+   * Determine whether two safety-distance values are a mismatch.
    *
-   * @param solid  Solid whose BoundingLimits() defines the sampling volume.
-   * @param count  Number of points to produce.
-   * @return       Vector of 3-D points distributed across the bounding box.
+   * Two values match when:
+   *  - Both are infinite (both solids agree the point is far from a surface), or
+   *  - `|native - imported| ≤ max(kSurfaceTolerance, 0.01 * max(native, imported))`.
+   *
+   * Explicitly treats the case where exactly one value is infinite as a mismatch,
+   * avoiding the degenerate `∞ > ∞` comparison that would otherwise suppress the error.
+   *
+   * @param native_dist    Safety distance from the native Geant4 solid.
+   * @param imported_dist  Safety distance from the imported OCCT solid.
+   * @param surface_tol    Geant4 surface tolerance (absolute floor for the tolerance).
+   * @return True when the two values are considered a mismatch.
    */
-  std::vector<G4ThreeVector> GenerateBoundingBoxPoints(const G4VSolid& solid,
-                                                       const std::size_t count) {
-    G4ThreeVector bb_min;
-    G4ThreeVector bb_max;
-    solid.BoundingLimits(bb_min, bb_max);
-    const G4ThreeVector extents = bb_max - bb_min;
-
-    std::vector<G4ThreeVector> points;
-    points.reserve(count);
-    for (std::size_t index = 0; index < count; ++index) {
-      const std::size_t i = index + 1U; // Halton is 1-indexed conventionally
-      const double x      = bb_min.x() + Halton(i, kHaltonBaseX) * extents.x();
-      const double y      = bb_min.y() + Halton(i, kHaltonBaseY) * extents.y();
-      const double z      = bb_min.z() + Halton(i, kHaltonBaseZ) * extents.z();
-      points.emplace_back(x, y, z);
+  bool IsSafetyMismatch(const G4double native_dist, const G4double imported_dist,
+                        const G4double surface_tol) {
+    const bool native_inf   = std::isinf(native_dist);
+    const bool imported_inf = std::isinf(imported_dist);
+    if (native_inf && imported_inf) {
+      return false; // both infinite — agree
     }
-    return points;
+    if (native_inf != imported_inf) {
+      return true; // exactly one infinite — disagree
+    }
+    const G4double max_dist  = std::max(native_dist, imported_dist);
+    const G4double tolerance = std::max(surface_tol, 0.01 * max_dist);
+    return std::fabs(native_dist - imported_dist) > tolerance;
   }
 
 } // namespace
@@ -183,18 +171,15 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
     for (std::size_t index = 0; index < outside_points.size(); ++index) {
       const G4double native_dist   = native_safety_in[index];
       const G4double imported_dist = imported_safety_in[index];
-      const G4double max_dist      = std::max(native_dist, imported_dist);
-      const G4double tolerance     = std::max(surface_tolerance, 0.01 * max_dist);
-      const G4double delta         = std::fabs(native_dist - imported_dist);
-      if (delta > tolerance) {
+      if (IsSafetyMismatch(native_dist, imported_dist, surface_tolerance)) {
         ++local_summary.safety_in_mismatch_count;
         if (reported_in_mismatches < options.max_reported_mismatches) {
           ++reported_in_mismatches;
           std::ostringstream message;
           message << "Point " << index << " DistanceToIn(p) mismatch for fixture '"
                   << request.fixture.id << "': native=" << DistanceString(native_dist)
-                  << ", imported=" << DistanceString(imported_dist) << ", |delta|=" << delta
-                  << ", tolerance=" << tolerance << ", point=" << ToString(outside_points[index]);
+                  << ", imported=" << DistanceString(imported_dist)
+                  << ", point=" << ToString(outside_points[index]);
           report.AddError("fixture.safety_in_distance_mismatch", message.str(), provenance_path);
         }
       }
@@ -205,18 +190,15 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
     for (std::size_t index = 0; index < inside_points.size(); ++index) {
       const G4double native_dist   = native_safety_out[index];
       const G4double imported_dist = imported_safety_out[index];
-      const G4double max_dist      = std::max(native_dist, imported_dist);
-      const G4double tolerance     = std::max(surface_tolerance, 0.01 * max_dist);
-      const G4double delta         = std::fabs(native_dist - imported_dist);
-      if (delta > tolerance) {
+      if (IsSafetyMismatch(native_dist, imported_dist, surface_tolerance)) {
         ++local_summary.safety_out_mismatch_count;
         if (reported_out_mismatches < options.max_reported_mismatches) {
           ++reported_out_mismatches;
           std::ostringstream message;
           message << "Point " << index << " DistanceToOut(p) mismatch for fixture '"
                   << request.fixture.id << "': native=" << DistanceString(native_dist)
-                  << ", imported=" << DistanceString(imported_dist) << ", |delta|=" << delta
-                  << ", tolerance=" << tolerance << ", point=" << ToString(inside_points[index]);
+                  << ", imported=" << DistanceString(imported_dist)
+                  << ", point=" << ToString(inside_points[index]);
           report.AddError("fixture.safety_out_distance_mismatch", message.str(), provenance_path);
         }
       }

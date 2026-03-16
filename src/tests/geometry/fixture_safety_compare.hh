@@ -46,10 +46,10 @@ struct FixtureSafetyComparisonSummary {
  * Build both fixture models, evaluate the isotropic safety-distance overloads
  * `DistanceToIn(p)` and `DistanceToOut(p)`, compare values, and collect timings.
  *
- * Test points are generated from the axis-aligned bounding box using a
- * deterministic Halton low-discrepancy sequence (reusing the point-generation
- * utilities from Phase 2).  Each point is then classified with `Inside(p)` on
- * the native solid:
+ * Test points are generated from the axis-aligned bounding box using the
+ * shared `GenerateBoundingBoxPoints` utility (a 3-D Halton low-discrepancy
+ * sequence defined in `fixture_solid_builder`).  Each point is then
+ * classified with `Inside(p)` on the native solid:
  *
  *  - `kOutside` points → `DistanceToIn(p)` is timed and compared.
  *  - `kInside`  points → `DistanceToOut(p)` is timed and compared.
