@@ -34,11 +34,11 @@
 #include <G4Material.hh>
 #include <G4NistManager.hh>
 #include <G4PVPlacement.hh>
+#include <G4RunManager.hh>
 #include <G4RunManagerFactory.hh>
 #include <G4SystemOfUnits.hh>
 #include <G4ThreeVector.hh>
 #include <G4UImanager.hh>
-#include <G4VRunManager.hh>
 #include <G4VUserDetectorConstruction.hh>
 #include <G4VUserPhysicsList.hh>
 #include <G4VisAttributes.hh>
@@ -183,7 +183,7 @@ namespace {
    *
    * @return @c true when the JPEG was successfully written.
    */
-  bool RenderFixture(G4VRunManager* runManager, FixtureDetectorConstruction* detector,
+  bool RenderFixture(G4RunManager* runManager, FixtureDetectorConstruction* detector,
                      G4VisExecutive*& vis_manager, G4UImanager* ui,
                      const FixtureDetectorConstruction::Request& req,
                      const std::filesystem::path& output_path, bool& initialized) {
@@ -234,7 +234,7 @@ namespace {
                 const std::filesystem::path& repository_manifest_path) {
     std::filesystem::create_directories(output_dir);
 
-    auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
+    auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::Serial);
     runManager->SetVerboseLevel(0);
 
     auto* detector = new FixtureDetectorConstruction();
