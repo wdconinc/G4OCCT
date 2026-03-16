@@ -14,4 +14,5 @@
 - **CI Reports**
   - [Test Results](reports/test-results.md)
   - [Benchmark Results](reports/bench-results.md)
+  - [Point Cloud Viewer](reports/point_cloud_viewer.html)
 - [API Reference](https://wdconinc.github.io/G4OCCT/api/index.html)
