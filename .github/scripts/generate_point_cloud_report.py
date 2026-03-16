@@ -93,15 +93,16 @@ def main() -> None:
     html_path = Path(sys.argv[2])
 
     if not cloud_dir.is_dir():
-        write_report(html_path, _render_error(f"Directory not found: {cloud_dir}"),
-                     label="Point-cloud viewer")
+        html_path.parent.mkdir(parents=True, exist_ok=True)
+        html_path.write_text(_render_error(f"Directory not found: {cloud_dir}"), encoding="utf-8")
         print(f"Warning: {cloud_dir} is not a directory — wrote error page to {html_path}",
               file=sys.stderr)
         return
 
     fixtures = _load_fixture_data(cloud_dir)
     html     = _render_report(fixtures)
-    write_report(html_path, html, label="Point-cloud viewer")
+    write_report(html_path, html, label="Point-cloud viewer",
+                 suffix=f" ({len(fixtures)} fixture(s))")
 
 
 if __name__ == "__main__":

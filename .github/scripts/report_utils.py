@@ -23,8 +23,9 @@ def md_escape(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ").replace("\r", "")
 
 
-def write_report(output_path: Path, content: str, label: str = "Report") -> None:
+def write_report(output_path: Path, content: str, label: str = "Report",
+                 suffix: str = "") -> None:
     """Ensure parent directory exists, write content, and print confirmation."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(content, encoding="utf-8")
-    print(f"{label} written to: {output_path}")
+    print(f"{label} written to: {output_path}{suffix}")
