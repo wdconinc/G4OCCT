@@ -29,6 +29,10 @@
 
 namespace {
 
+/// Number of cross-sections for B-spline lofting through twisted profiles.
+/// 64 sections give sub-degree angular steps for the 30° twist used in all fixtures.
+constexpr int kLoftSectionCount = 64;
+
 struct SectionPoint {
   double x;
   double y;
@@ -54,14 +58,15 @@ TopoDS_Wire MakePolygonWire(const std::vector<SectionPoint>& section, const doub
   return polygon.Wire();
 }
 
-TopoDS_Shape MakeRuledSolid(const TopoDS_Wire& bottom, const TopoDS_Wire& top) {
-  BRepOffsetAPI_ThruSections loft(true, true);
+TopoDS_Shape MakeBSplineLoftSolid(const std::vector<TopoDS_Wire>& wires) {
+  BRepOffsetAPI_ThruSections loft(/*isSolid=*/true, /*isRuled=*/false);
   loft.CheckCompatibility(false);
-  loft.AddWire(bottom);
-  loft.AddWire(top);
+  for (const auto& wire : wires) {
+    loft.AddWire(wire);
+  }
   loft.Build();
   if (!loft.IsDone()) {
-    throw std::runtime_error("Failed to build ruled loft solid");
+    throw std::runtime_error("Failed to build B-spline loft solid");
   }
   return loft.Shape();
 }
@@ -98,8 +103,15 @@ TopoDS_Shape MakeTwistedBox() {
   const double dz  = 20.0;
   const double phi = 30.0;
   const std::vector<SectionPoint> section{{-10.0, -8.0}, {10.0, -8.0}, {10.0, 8.0}, {-10.0, 8.0}};
-  return MakeRuledSolid(MakePolygonWire(section, -dz, -phi / 2.0),
-                        MakePolygonWire(section, dz, phi / 2.0));
+  std::vector<TopoDS_Wire> wires;
+  wires.reserve(kLoftSectionCount);
+  for (int i = 0; i < kLoftSectionCount; ++i) {
+    const double t       = static_cast<double>(i) / (kLoftSectionCount - 1);
+    const double z_i     = -dz + t * 2.0 * dz;
+    const double theta_i = phi * z_i / (2.0 * dz);
+    wires.push_back(MakePolygonWire(section, z_i, theta_i));
+  }
+  return MakeBSplineLoftSolid(wires);
 }
 
 TopoDS_Shape MakeTwistedTrd() {
@@ -107,16 +119,35 @@ TopoDS_Shape MakeTwistedTrd() {
   const double phi = 30.0;
   const std::vector<SectionPoint> bottom{{-10.0, -8.0}, {10.0, -8.0}, {10.0, 8.0}, {-10.0, 8.0}};
   const std::vector<SectionPoint> top{{-16.0, -14.0}, {16.0, -14.0}, {16.0, 14.0}, {-16.0, 14.0}};
-  return MakeRuledSolid(MakePolygonWire(bottom, -dz, -phi / 2.0),
-                        MakePolygonWire(top, dz, phi / 2.0));
+  std::vector<TopoDS_Wire> wires;
+  wires.reserve(kLoftSectionCount);
+  for (int i = 0; i < kLoftSectionCount; ++i) {
+    const double t       = static_cast<double>(i) / (kLoftSectionCount - 1);
+    const double z_i     = -dz + t * 2.0 * dz;
+    const double theta_i = phi * z_i / (2.0 * dz);
+    std::vector<SectionPoint> section(bottom.size());
+    for (std::size_t j = 0; j < bottom.size(); ++j) {
+      section[j] = {bottom[j].x + t * (top[j].x - bottom[j].x),
+                    bottom[j].y + t * (top[j].y - bottom[j].y)};
+    }
+    wires.push_back(MakePolygonWire(section, z_i, theta_i));
+  }
+  return MakeBSplineLoftSolid(wires);
 }
 
 TopoDS_Shape MakeTwistedTrap() {
   const double dz  = 18.0;
   const double phi = 30.0;
   const std::vector<SectionPoint> section{{-7.0, -9.0}, {7.0, -9.0}, {13.0, 9.0}, {-13.0, 9.0}};
-  return MakeRuledSolid(MakePolygonWire(section, -dz, -phi / 2.0),
-                        MakePolygonWire(section, dz, phi / 2.0));
+  std::vector<TopoDS_Wire> wires;
+  wires.reserve(kLoftSectionCount);
+  for (int i = 0; i < kLoftSectionCount; ++i) {
+    const double t       = static_cast<double>(i) / (kLoftSectionCount - 1);
+    const double z_i     = -dz + t * 2.0 * dz;
+    const double theta_i = phi * z_i / (2.0 * dz);
+    wires.push_back(MakePolygonWire(section, z_i, theta_i));
+  }
+  return MakeBSplineLoftSolid(wires);
 }
 
 TopoDS_Shape MakeGenericTwistedFaceted() {
@@ -134,8 +165,20 @@ TopoDS_Shape MakeGenericTwistedFaceted() {
                                       {7.0 - 10.0 * std::tan(alpha), -10.0},
                                       {13.0 + 10.0 * std::tan(alpha), 10.0},
                                       {-13.0 + 10.0 * std::tan(alpha), 10.0}};
-  return MakeRuledSolid(MakePolygonWire(bottom, -dz, -phi / 2.0),
-                        MakePolygonWire(top, dz, phi / 2.0, shift_x, shift_y));
+  std::vector<TopoDS_Wire> wires;
+  wires.reserve(kLoftSectionCount);
+  for (int i = 0; i < kLoftSectionCount; ++i) {
+    const double t       = static_cast<double>(i) / (kLoftSectionCount - 1);
+    const double z_i     = -dz + t * 2.0 * dz;
+    const double theta_i = phi * z_i / (2.0 * dz);
+    std::vector<SectionPoint> section(bottom.size());
+    for (std::size_t j = 0; j < bottom.size(); ++j) {
+      section[j] = {bottom[j].x + t * (top[j].x - bottom[j].x),
+                    bottom[j].y + t * (top[j].y - bottom[j].y)};
+    }
+    wires.push_back(MakePolygonWire(section, z_i, theta_i, t * shift_x, t * shift_y));
+  }
+  return MakeBSplineLoftSolid(wires);
 }
 
 TopoDS_Shape MakeTwistedTubs() {
@@ -144,8 +187,15 @@ TopoDS_Shape MakeTwistedTubs() {
   const double dphi = 210.0;
   const double rmin = 6.0;
   const double rmax = 12.0;
-  return MakeRuledSolid(MakeTwistedTubsWire(-dz, -phi / 2.0, rmin, rmax, dphi),
-                        MakeTwistedTubsWire(dz, phi / 2.0, rmin, rmax, dphi));
+  std::vector<TopoDS_Wire> wires;
+  wires.reserve(kLoftSectionCount);
+  for (int i = 0; i < kLoftSectionCount; ++i) {
+    const double t              = static_cast<double>(i) / (kLoftSectionCount - 1);
+    const double z_i            = -dz + t * 2.0 * dz;
+    const double angle_offset_i = phi * z_i / (2.0 * dz);
+    wires.push_back(MakeTwistedTubsWire(z_i, angle_offset_i, rmin, rmax, dphi));
+  }
+  return MakeBSplineLoftSolid(wires);
 }
 
 TopoDS_Shape MakeFixture(const std::string& fixture_name) {

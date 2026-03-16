@@ -102,13 +102,6 @@ ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
 FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest& request) {
   const std::string& geant4_class = request.fixture.geant4_class;
 
-  if (geant4_class == "G4TwistedBox" || geant4_class == "G4TwistedTrd" ||
-      geant4_class == "G4TwistedTrap" || geant4_class == "G4TwistedTubs" ||
-      geant4_class == "G4VTwistedFaceted") {
-    return {true, "fixture STEP is generated from an OCCT ruled-loft surrogate rather than the "
-                  "exact Geant4 twisted solid"};
-  }
-
   if (geant4_class == "G4Hype" || geant4_class == "G4Paraboloid") {
     return {true, "fixture STEP uses a faceted profile-loft approximation instead of the analytic "
                   "Geant4 surface"};
