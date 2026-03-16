@@ -88,6 +88,12 @@ file(
 list(SORT _geometry_family_manifests)
 set(_geometry_fixture_ids)
 foreach(_family_manifest IN LISTS _geometry_family_manifests)
+  # Depend on manifest file contents so fixture ID changes trigger reconfigure.
+  set_property(
+    DIRECTORY
+    APPEND
+    PROPERTY CMAKE_CONFIGURE_DEPENDS
+             "${CMAKE_CURRENT_SOURCE_DIR}/${_family_manifest}")
   file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${_family_manifest}"
        _family_fixture_lines REGEX "^  - id: ")
   foreach(_fixture_line IN LISTS _family_fixture_lines)

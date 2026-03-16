@@ -133,6 +133,9 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
       ++validated_fixture_count;
 
       if (!layout_report.Ok()) {
+        if (!fixture_filter.empty()) {
+          break;
+        }
         continue;
       }
 
@@ -160,6 +163,14 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
         total_native_ms += ray_summary.native_elapsed_ms;
         total_imported_ms += ray_summary.imported_elapsed_ms;
       }
+
+      if (!fixture_filter.empty()) {
+        break; // Found and processed the requested fixture; skip remaining fixtures.
+      }
+    }
+
+    if (!fixture_filter.empty() && matched_fixture) {
+      break; // Found the fixture in this family; skip remaining families.
     }
   }
 
@@ -188,9 +199,8 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
               << validated_fixture_count << " fixture entries, and " << geometry_checked_count
               << " imported STEP geometries.\n";
   } else {
-    std::cout << "Validated requested fixture '" << fixture_filter << "' across "
-              << repository_manifest.families.size() << " fixture families, "
-              << validated_fixture_count << " fixture entries, and " << geometry_checked_count
+    std::cout << "Validated requested fixture '" << fixture_filter
+              << "': " << validated_fixture_count << " fixture entries, " << geometry_checked_count
               << " imported STEP geometries.\n";
   }
   if (ray_compared_count > 0U) {
