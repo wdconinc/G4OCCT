@@ -136,7 +136,7 @@ G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector
 /// Evaluate the outward surface normal on @p face at parameters (@p u, @p v).
 /// Returns the normal vector on success, or std::nullopt if the normal is undefined.
 std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
-                                                  const Standard_Real v) {
+                                                 const Standard_Real v) {
   BRepAdaptor_Surface surface(face);
   BRepLProp_SLProps props(surface, u, v, 1, IntersectionTolerance());
   if (!props.IsNormalDefined()) {
@@ -321,9 +321,9 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
 
   if (calcNorm && validNorm != nullptr && n != nullptr &&
       intersector.State(minIndex) == TopAbs_IN) {
-    if (auto outNorm = TryGetOutwardNormal(intersector.Face(minIndex),
-                                            intersector.UParameter(minIndex),
-                                            intersector.VParameter(minIndex))) {
+    if (auto outNorm =
+            TryGetOutwardNormal(intersector.Face(minIndex), intersector.UParameter(minIndex),
+                                intersector.VParameter(minIndex))) {
       *n         = *outNorm;
       *validNorm = true;
     }
