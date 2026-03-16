@@ -79,8 +79,8 @@ function escHtml(s) {
 }
 
 function fixtureIdFromHash() {
-  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1)
-                                                    : window.location.hash;
+  const hash =
+      window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
   if (!hash) {
     return '';
   }
@@ -203,8 +203,9 @@ function populateSelect() {
 populateSelect();
 if (ALL_FIXTURES.length > 0) {
   const requestedFixture = fixtureIdFromHash();
-  const initialFixture   = ALL_FIXTURES.find(x => x.fixture_id === requestedFixture) || ALL_FIXTURES[0];
-  selectEl.value         = initialFixture.fixture_id;
+  const initialFixture =
+      ALL_FIXTURES.find(x => x.fixture_id === requestedFixture) || ALL_FIXTURES[0];
+  selectEl.value = initialFixture.fixture_id;
   loadFixture(initialFixture);
   setHashForFixture(initialFixture.fixture_id);
 }
