@@ -199,8 +199,8 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
               << validated_fixture_count << " fixture entries, and " << geometry_checked_count
               << " imported STEP geometries.\n";
   } else {
-    std::cout << "Validated requested fixture '" << fixture_filter << "': "
-              << validated_fixture_count << " fixture entries, " << geometry_checked_count
+    std::cout << "Validated requested fixture '" << fixture_filter
+              << "': " << validated_fixture_count << " fixture entries, " << geometry_checked_count
               << " imported STEP geometries.\n";
   }
   if (ray_compared_count > 0U) {
