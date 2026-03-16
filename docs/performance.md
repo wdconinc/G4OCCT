@@ -6,7 +6,8 @@
 This document discusses the performance characteristics of G4OCCT, with
 particular attention to the cost of instantiating OCCT algorithm objects
 and the ability to run in a multi-threaded Geant4 environment.  The first
-two caching optimisations outlined later in this document (Section 7) —
+two caching optimisations outlined later in this document (Section 7 —
+Optimisation Roadmap) —
 per-thread caching of `BRepClass3d_SolidClassifier` (PR #45) and
 `IntCurvesFace_ShapeIntersector` (PR #47) via `G4Cache` — have been
 implemented and are live on `main`.
@@ -50,22 +51,25 @@ classifier.Perform(ToPoint(p), IntersectionTolerance());
 
 `BRepClass3d_SolidClassifier` requires a one-time shape-level preparation
 (face triangulation look-up, winding analysis) before it can answer queries.
-This O(N_faces) cost is now paid only once per thread (and once again whenever
-`SetOCCTShape()` is called); subsequent calls on the same thread go directly
-to `Perform`, making the classifier step O(1) per call after the first.
+This O(N_faces) cost is now paid only once per thread; subsequent calls on the
+same thread go directly to `Perform`, making the classifier step O(1) per call
+after the first.  If `SetOCCTShape()` is called, the generation counter is
+incremented and each thread lazily rebuilds its classifier on its next
+navigation call (threads that never call these methods again pay no cost).
 
 ### 2.2 `DistanceToIn(p, v)` and `DistanceToOut(p, v)` — `IntCurvesFace_ShapeIntersector`
 
 ```cpp
 // Current implementation (G4OCCTSolid.cc) — cached via G4Cache
 IntCurvesFace_ShapeIntersector& intersector = GetOrCreateIntersector();  // per-thread cache
-intersector.Perform(ray, /* pmin */, /* pmax */);
+intersector.Perform(ray, IntersectionTolerance(), Precision::Infinite());
 ```
 
 `Load` builds an internal face-interference data structure over all faces of
-the shape.  This O(N_faces) cost is now paid only once per thread (and once
-again whenever `SetOCCTShape()` is called); each subsequent ray query on the
-same thread goes directly to `Perform`.
+the shape.  This O(N_faces) cost is now paid only once per thread; each
+subsequent ray query on the same thread goes directly to `Perform`.  If
+`SetOCCTShape()` is called, the generation counter is incremented and each
+thread lazily rebuilds its intersector on its next navigation call.
 
 ### 2.3 `DistanceToIn(p)` — Classification Then Distance Query
 
@@ -167,8 +171,12 @@ for storing per-thread auxiliary data alongside a geometry object that is
 itself shared across threads.  Both `fClassifierCache` and `fIntersectorCache`
 are implemented using this mechanism.
 
-The actual implementation uses a generation-counter pattern to allow
-`SetOCCTShape()` to invalidate all per-thread caches atomically:
+The actual implementation uses a generation-counter pattern so that
+`SetOCCTShape()` can mark all per-thread caches as stale: it atomically
+increments `fShapeGeneration`, and each thread lazily rebuilds its cached
+object on its next navigation call.  Note that `SetOCCTShape()` also mutates
+`fShape` directly, so it must not be called concurrently with any ongoing
+navigation (see the note in the header).
 
 ```cpp
 // In G4OCCTSolid.hh
@@ -272,7 +280,7 @@ the qualitative difference:
 | `DistanceToIn(p, v)` | O(1) analytic | O(N_faces) ray test (load amortised per thread) | O(N_faces) ray test |
 | `DistanceToOut(p, v)` | O(1) analytic | O(N_faces) ray test (load amortised per thread) | O(N_faces) ray test |
 | `DistanceToIn(p)` | O(1) analytic | O(1) classify + O(N_faces) distance | O(N_faces) `BRepExtrema_DistShapeShape` uncached |
-| `DistanceToOut(p)` | O(1) analytic | O(N_faces²) per-face distance objects | O(N_faces) single distance object (planned) |
+| `DistanceToOut(p)` | O(1) analytic | O(N_faces) per-face distance objects | O(N_faces) single distance object (planned) |
 | `BoundingLimits` | O(1) stored | O(N_faces) BBox recomputed | O(1) cached BBox (planned) |
 
 > **Note:** The classifier and intersector construction costs are amortised via per-thread `G4Cache`
@@ -311,7 +319,7 @@ benchmark should be run:
 
 ---
 
-## 7. Planned Optimisations
+## 7. Optimisation Roadmap
 
 The optimisations below are listed in approximate priority order.  Each
 item references the relevant section of this document.
