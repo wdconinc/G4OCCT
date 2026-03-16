@@ -68,7 +68,7 @@ jobs:
           python3 .github/scripts/generate_test_report.py \
             test-results.xml reports/test-results.md
           python3 .github/scripts/generate_bench_report.py \
-            bench_results.txt reports/bench-results.md
+            bench_results.txt reports/bench-results.md point_cloud_viewer.html
           python3 .github/scripts/generate_point_cloud_report.py \
             point_clouds/ reports/point_cloud_viewer.html
 
@@ -81,6 +81,10 @@ jobs:
           fi
           if [ -f reports/bench-results.md ]; then
             cat reports/bench-results.md >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f reports/point_cloud_viewer.html ]; then
+            echo "[Point-cloud viewer](./reports/point_cloud_viewer.html)" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload test and benchmark reports as artifact
