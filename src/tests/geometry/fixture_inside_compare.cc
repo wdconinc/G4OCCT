@@ -50,15 +50,15 @@ namespace {
   // ──────────────────────────────────────────────────────────────────────────
 
   /// Prime bases for the 3-D Halton sequence; coprime bases give low discrepancy.
-  constexpr int kHaltonBaseX = 2;
-  constexpr int kHaltonBaseY = 3;
-  constexpr int kHaltonBaseZ = 5;
+  constexpr std::size_t kHaltonBaseX = 2U;
+  constexpr std::size_t kHaltonBaseY = 3U;
+  constexpr std::size_t kHaltonBaseZ = 5U;
 
   /// Compute the i-th term of the Halton sequence in the given base.
-  double Halton(int index, int base) {
+  double Halton(std::size_t index, std::size_t base) {
     double result   = 0.0;
     double fraction = 1.0;
-    while (index > 0) {
+    while (index > 0U) {
       fraction /= static_cast<double>(base);
       result += fraction * static_cast<double>(index % base);
       index /= base;
@@ -87,10 +87,10 @@ namespace {
     std::vector<G4ThreeVector> points;
     points.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
-      const int i    = static_cast<int>(index) + 1; // Halton is 1-indexed conventionally
-      const double x = bb_min.x() + Halton(i, kHaltonBaseX) * extents.x();
-      const double y = bb_min.y() + Halton(i, kHaltonBaseY) * extents.y();
-      const double z = bb_min.z() + Halton(i, kHaltonBaseZ) * extents.z();
+      const std::size_t i = index + 1U; // Halton is 1-indexed conventionally
+      const double x      = bb_min.x() + Halton(i, kHaltonBaseX) * extents.x();
+      const double y      = bb_min.y() + Halton(i, kHaltonBaseY) * extents.y();
+      const double z      = bb_min.z() + Halton(i, kHaltonBaseZ) * extents.z();
       points.emplace_back(x, y, z);
     }
     return points;
@@ -121,13 +121,14 @@ namespace {
       return;
     }
 
-    const G4ThreeVector center = BoundingBoxCenter(solid);
-    const EInside center_state = solid.Inside(center);
+    const std::size_t start_size = out.size();
+    const G4ThreeVector center   = BoundingBoxCenter(solid);
+    const EInside center_state   = solid.Inside(center);
 
     const std::vector<G4ThreeVector> directions = GenerateDirections(ray_count);
 
     for (const auto& direction : directions) {
-      if (out.size() >= max_points) {
+      if (out.size() - start_size >= max_points) {
         break;
       }
 
@@ -145,11 +146,11 @@ namespace {
       const G4ThreeVector hit = center + distance * direction;
 
       // Point offset inward (toward centre) — subtract one tolerance step.
-      if (out.size() < max_points) {
+      if (out.size() - start_size < max_points) {
         out.push_back(hit - tolerance * direction);
       }
       // Point offset outward (away from centre) — add one tolerance step.
-      if (out.size() < max_points) {
+      if (out.size() - start_size < max_points) {
         out.push_back(hit + tolerance * direction);
       }
     }
@@ -217,6 +218,8 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
         std::chrono::duration<double, std::milli>(imported_end - imported_begin).count();
 
     // ── Compare results ───────────────────────────────────────────────────
+    std::size_t reported_hard_mismatches = 0;
+    std::size_t reported_ambiguities     = 0;
     for (std::size_t index = 0; index < test_points.size(); ++index) {
       const EInside native_state   = native_results[index];
       const EInside imported_state = imported_results[index];
@@ -227,7 +230,9 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
 
       // kSurface vs kInside / kOutside: ambiguous boundary → warning only.
       if (native_state == kSurface || imported_state == kSurface) {
-        if (local_summary.mismatch_count < options.max_reported_mismatches) {
+        ++local_summary.surface_ambiguity_count;
+        if (reported_ambiguities < options.max_reported_mismatches) {
+          ++reported_ambiguities;
           std::ostringstream message;
           message << "Point " << index << " surface-boundary ambiguity for fixture '"
                   << request.fixture.id << "': native=" << ToString(native_state)
@@ -235,13 +240,13 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
                   << ", point=" << ToString(test_points[index]);
           report.AddWarning("fixture.inside_surface_ambiguity", message.str(), provenance_path);
         }
-        ++local_summary.mismatch_count;
         continue;
       }
 
       // kInside vs kOutside: hard disagreement → error.
       ++local_summary.mismatch_count;
-      if (local_summary.mismatch_count <= options.max_reported_mismatches) {
+      if (reported_hard_mismatches < options.max_reported_mismatches) {
+        ++reported_hard_mismatches;
         std::ostringstream message;
         message << "Point " << index << " classification mismatch for fixture '"
                 << request.fixture.id << "': native=" << ToString(native_state)
@@ -257,7 +262,8 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
                    << request.fixture.id << "' (" << local_summary.geant4_class
                    << "); native=" << local_summary.native_elapsed_ms
                    << " ms, imported=" << local_summary.imported_elapsed_ms
-                   << " ms, mismatches=" << local_summary.mismatch_count;
+                   << " ms, hard_mismatches=" << local_summary.mismatch_count
+                   << ", surface_ambiguities=" << local_summary.surface_ambiguity_count;
     report.AddInfo("fixture.inside_compare_summary", timing_summary.str(), provenance_path);
 
   } catch (const std::exception& error) {

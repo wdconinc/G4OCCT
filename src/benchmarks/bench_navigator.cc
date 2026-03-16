@@ -158,18 +158,21 @@ namespace {
       return EXIT_FAILURE;
     }
 
-    double total_inside_native_ms       = 0.0;
-    double total_inside_imported_ms     = 0.0;
-    std::size_t total_inside_mismatches = 0;
+    double total_inside_native_ms           = 0.0;
+    double total_inside_imported_ms         = 0.0;
+    std::size_t total_inside_mismatches     = 0;
+    std::size_t total_inside_ambiguities    = 0;
 
     std::cout << "\n=== Fixture Inside Benchmark Results ===\n";
     for (const auto& s : inside_summaries) {
       total_inside_native_ms += s.native_elapsed_ms;
       total_inside_imported_ms += s.imported_elapsed_ms;
       total_inside_mismatches += s.mismatch_count;
+      total_inside_ambiguities += s.surface_ambiguity_count;
       std::cout << s.fixture_id << " (" << s.geant4_class << "): native=" << s.native_elapsed_ms
                 << " ms, imported=" << s.imported_elapsed_ms << " ms, points=" << s.point_count
-                << ", mismatches=" << s.mismatch_count << "\n";
+                << ", hard_mismatches=" << s.mismatch_count
+                << ", surface_ambiguities=" << s.surface_ambiguity_count << "\n";
     }
     std::cout << "Aggregate native   : " << total_inside_native_ms << " ms\n";
     std::cout << "Aggregate imported : " << total_inside_imported_ms << " ms\n";
@@ -177,7 +180,8 @@ namespace {
       std::cout << "Native/imported ratio: " << total_inside_native_ms / total_inside_imported_ms
                 << "\n";
     }
-    std::cout << "Total mismatches: " << total_inside_mismatches << "\n";
+    std::cout << "Total hard mismatches: " << total_inside_mismatches << "\n";
+    std::cout << "Total surface ambiguities: " << total_inside_ambiguities << "\n";
     return EXIT_SUCCESS;
   }
 

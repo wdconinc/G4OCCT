@@ -29,8 +29,10 @@ struct FixtureInsideComparisonSummary {
   std::string geant4_class;
   /// Total number of test points classified.
   std::size_t point_count{0};
-  /// Number of `kInside`-vs-`kOutside` hard mismatches found.
+  /// Number of `kInside`-vs-`kOutside` hard mismatches (errors).
   std::size_t mismatch_count{0};
+  /// Number of `kSurface`-vs-`kInside/kOutside` boundary ambiguities (warnings).
+  std::size_t surface_ambiguity_count{0};
   /// Elapsed time for all native `Inside()` calls (milliseconds).
   double native_elapsed_ms{0.0};
   /// Elapsed time for all imported `Inside()` calls (milliseconds).
