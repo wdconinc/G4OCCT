@@ -105,17 +105,16 @@ jobs:
             fi
 
             # ── Render fixture solids to JPEG via Geant4 RayTracer ──────────
-            # render_geometry_fixtures uses G4VisExecutive (/vis/open RT) to
-            # trace rays through Geant4's navigation infrastructure, producing
-            # JPEG images that reflect how each solid is interpreted by Geant4.
+            # render_geometry_fixtures produces JPEGs during the ctest run
+            # above (output goes to build/geometry_renders/).  Copy them to
+            # reports/geometry-images/ so the gallery generator can find them.
             # The binary is only built when G4VisExecutive is available.
             mkdir -p reports/geometry-images
-            if [ -x ./build/src/tests/render_geometry_fixtures ]; then
-              ./build/src/tests/render_geometry_fixtures \
-                reports/geometry-images \
-                src/tests/fixtures/geometry/manifest.yaml
+            if [ -d build/geometry_renders ] && \
+               [ -n "$(ls build/geometry_renders/*.jpeg 2>/dev/null)" ]; then
+              cp build/geometry_renders/*.jpeg reports/geometry-images/
             else
-              echo "WARNING: render_geometry_fixtures not built (G4VisExecutive unavailable)"
+              echo "WARNING: no JPEG images found in build/geometry_renders (render_geometry_fixtures may not have been built)"
             fi
 
             # ── Install ────────────────────────────────────────────────────

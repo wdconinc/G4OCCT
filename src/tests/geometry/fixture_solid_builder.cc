@@ -89,6 +89,39 @@ namespace {
     }
   }
 
+  /// Parse a YAML node as a non-negative integer facet vertex index and check
+  /// that it lies within [0, @p vertex_count).  Throws @c std::runtime_error
+  /// with @p context information on any validation failure.
+  std::size_t ParseFacetIndex(const YAML::Node& node, std::size_t vertex_count,
+                              std::size_t facet_index, int component,
+                              const std::string& context) {
+    const std::string raw = node.as<std::string>();
+    std::size_t pos       = 0;
+    long long value       = 0;
+    try {
+      value = std::stoll(raw, &pos);
+    } catch (const std::exception&) {
+      throw std::runtime_error(context + ": facet[" + std::to_string(facet_index) + "][" +
+                               std::to_string(component) + "] is not an integer: '" + raw + "'");
+    }
+    if (pos != raw.size()) {
+      throw std::runtime_error(context + ": facet[" + std::to_string(facet_index) + "][" +
+                               std::to_string(component) + "] is not an integer: '" + raw + "'");
+    }
+    if (value < 0) {
+      throw std::runtime_error(context + ": facet[" + std::to_string(facet_index) + "][" +
+                               std::to_string(component) + "] index is negative: " + raw);
+    }
+    const auto idx = static_cast<std::size_t>(value);
+    if (idx >= vertex_count) {
+      throw std::runtime_error(context + ": facet[" + std::to_string(facet_index) + "][" +
+                               std::to_string(component) + "] index " + raw +
+                               " is out of range (vertex count: " +
+                               std::to_string(vertex_count) + ")");
+    }
+    return idx;
+  }
+
   std::string RequireString(const YAML::Node& parent, const std::string& key,
                             const std::string& context) {
     return RequireNode(parent, key, context).as<std::string>();
@@ -272,12 +305,11 @@ namespace {
         throw std::runtime_error(context +
                                  ": triangular_facets entries must contain exactly 3 indices");
       }
-      const int i0 = static_cast<int>(ParseDouble(indices[0], context));
-      const int i1 = static_cast<int>(ParseDouble(indices[1], context));
-      const int i2 = static_cast<int>(ParseDouble(indices[2], context));
-      solid->AddFacet(new G4TriangularFacet(vertices.at(static_cast<std::size_t>(i0)),
-                                            vertices.at(static_cast<std::size_t>(i1)),
-                                            vertices.at(static_cast<std::size_t>(i2)), ABSOLUTE));
+      const std::size_t i0 = ParseFacetIndex(indices[0], vertices.size(), facet_index, 0, context);
+      const std::size_t i1 = ParseFacetIndex(indices[1], vertices.size(), facet_index, 1, context);
+      const std::size_t i2 = ParseFacetIndex(indices[2], vertices.size(), facet_index, 2, context);
+      solid->AddFacet(new G4TriangularFacet(vertices.at(i0), vertices.at(i1), vertices.at(i2),
+                                            ABSOLUTE));
     }
     solid->SetSolidClosed(true);
     return solid;

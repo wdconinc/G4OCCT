@@ -67,6 +67,16 @@ namespace {
     void ConstructProcess() override {}
   };
 
+  // ── Named constants ───────────────────────────────────────────────────────
+
+  /// Minimum bounding-box span (mm) to prevent degenerate world volumes for
+  /// point-like or extremely small solids.
+  constexpr G4double kMinimumSpan = 1.0 * mm;
+  /// Edge half-length of the world box expressed as a multiple of the solid span.
+  constexpr G4double kWorldHalfSpanFactor = 2.0;
+  /// Image resolution (pixels) passed to the RayTracer driver.
+  constexpr int kRenderResolution = 512;
+
   // ── Detector construction that builds a fixture solid on demand ───────────
 
   /**
@@ -142,15 +152,6 @@ namespace {
   };
 
   // ── Filename sanitiser ────────────────────────────────────────────────────
-
-  // Named constants for render geometry setup.
-  /// Minimum bounding-box span (mm) to prevent degenerate world volumes for
-  /// point-like or extremely small solids.
-  constexpr G4double kMinimumSpan = 1.0 * mm;
-  /// Edge half-length of the world box expressed as a multiple of the solid span.
-  constexpr G4double kWorldHalfSpanFactor = 2.0;
-  /// Image resolution (pixels) passed to the RayTracer driver.
-  constexpr int kRenderResolution = 512;
 
   std::string SafeFilename(const std::string& fixture_id) {
     std::string safe = fixture_id;

@@ -12,8 +12,7 @@ render_geometry_fixtures:
     <safe_fixture_id>_native.jpeg
     <safe_fixture_id>_imported.jpeg
 
-The fixture_id, geant4_class, and label are inferred from the filename when
-no companion metadata is available.
+The fixture_id and label are inferred from the filename.
 """
 
 import sys
@@ -41,15 +40,17 @@ def _load_metadata(images_dir: Path, html_path: Path) -> list:
     for img_path in sorted(images_dir.glob("*.jpeg")):
         stem = img_path.stem  # e.g. "direct-primitives_g4box-box-20x30x40-v1_native"
 
-        # Infer label from the filename suffix; use the full stem as the
-        # display fixture_id (SafeFilename in C++ maps '/' → '_', so the
-        # exact family/id boundary is not reliably recoverable from the name).
+        # Infer label and fixture_id from the filename suffix.  The suffix
+        # _native or _imported is stripped so fixture_id contains only the
+        # safe-encoded fixture identifier (SafeFilename in C++ maps '/' → '_').
         fixture_id = stem
         label      = ""
         if stem.endswith("_native"):
-            label = "native"
+            label      = "native"
+            fixture_id = stem[: -len("_native")]
         elif stem.endswith("_imported"):
-            label = "imported"
+            label      = "imported"
+            fixture_id = stem[: -len("_imported")]
 
         items.append({
             "fixture_id":   fixture_id,
