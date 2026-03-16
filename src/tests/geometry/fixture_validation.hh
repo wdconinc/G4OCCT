@@ -114,7 +114,8 @@ std::string ToString(ValidationSeverity severity);
  *
  * Only errors whose codes are in the non-equivalence allowlist (e.g.,
  * `fixture.volume_mismatch`, `fixture.ray_origin_state_mismatch`,
- * `fixture.ray_intersection_mismatch`, `fixture.ray_distance_mismatch`) are
+ * `fixture.ray_intersection_mismatch`, `fixture.ray_distance_mismatch`,
+ * `fixture.surface_normal_mismatch`) are
  * demoted to warnings with an `xfail.` prefix.  Structural and IO errors
  * (missing files, STEP read/transfer failures, etc.) are kept as errors even
  * when the fixture is marked as an expected failure.

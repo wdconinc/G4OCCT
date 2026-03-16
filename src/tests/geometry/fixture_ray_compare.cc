@@ -312,6 +312,108 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
       }
     }
 
+    // ── Surface-normal benchmark at ray hit points ────────────────────────
+    // Collect agreed hit points: rays where both solids agree on intersection
+    // and the distance is within tolerance.
+    /// A ray hit point where both native and imported solids agreed on
+    /// intersection and distance (within tolerance).
+    struct AgreedHit {
+      std::size_t ray_index;
+      G4ThreeVector native_point;
+      G4ThreeVector imported_point;
+    };
+    std::vector<AgreedHit> agreed_hits;
+    agreed_hits.reserve(directions.size());
+
+    for (std::size_t index = 0; index < directions.size(); ++index) {
+      const RaySample& native_sample   = native_samples[index];
+      const RaySample& imported_sample = imported_samples[index];
+      if (!native_sample.intersects || !imported_sample.intersects) {
+        continue;
+      }
+      const G4double distance_delta =
+          std::fabs(native_sample.distance - imported_sample.distance);
+      if (distance_delta > local_summary.distance_tolerance) {
+        continue;
+      }
+      agreed_hits.push_back(
+          {index,
+           local_summary.native_origin + native_sample.distance * directions[index],
+           local_summary.imported_origin + imported_sample.distance * directions[index]});
+    }
+    local_summary.surface_normal_count = agreed_hits.size();
+
+    // Time native SurfaceNormal(p) calls.
+    std::vector<G4ThreeVector> native_surface_normals(agreed_hits.size());
+    const auto sn_native_begin = std::chrono::steady_clock::now();
+    for (std::size_t i = 0; i < agreed_hits.size(); ++i) {
+      native_surface_normals[i] = native_solid->SurfaceNormal(agreed_hits[i].native_point);
+    }
+    const auto sn_native_end = std::chrono::steady_clock::now();
+    local_summary.native_surface_normal_ms =
+        std::chrono::duration<double, std::milli>(sn_native_end - sn_native_begin).count();
+
+    // Time imported SurfaceNormal(p) calls.
+    std::vector<G4ThreeVector> imported_surface_normals(agreed_hits.size());
+    const auto sn_imported_begin = std::chrono::steady_clock::now();
+    for (std::size_t i = 0; i < agreed_hits.size(); ++i) {
+      imported_surface_normals[i] =
+          imported_solid->SurfaceNormal(agreed_hits[i].imported_point);
+    }
+    const auto sn_imported_end = std::chrono::steady_clock::now();
+    local_summary.imported_surface_normal_ms =
+        std::chrono::duration<double, std::milli>(sn_imported_end - sn_imported_begin).count();
+
+    // Compare native vs imported SurfaceNormal(p).
+    std::size_t reported_sn_mismatches = 0;
+    for (std::size_t i = 0; i < agreed_hits.size(); ++i) {
+      const G4double dot =
+          native_surface_normals[i].dot(imported_surface_normals[i]);
+      if (dot < kNormalAgreementThreshold) {
+        ++local_summary.surface_normal_mismatch_count;
+        if (reported_sn_mismatches < options.max_reported_mismatches) {
+          ++reported_sn_mismatches;
+          const std::size_t ray_index = agreed_hits[i].ray_index;
+          std::ostringstream message;
+          message << "Ray " << ray_index << " SurfaceNormal mismatch for fixture '"
+                  << request.fixture.id
+                  << "': native=" << ToString(native_surface_normals[i])
+                  << ", imported=" << ToString(imported_surface_normals[i])
+                  << ", dot=" << dot
+                  << ", point=" << ToString(agreed_hits[i].native_point);
+          report.AddError("fixture.surface_normal_mismatch", message.str(), provenance_path);
+        }
+      }
+    }
+
+    // Cross-validate: for rays where DistanceToOut provided a valid exit normal,
+    // verify that SurfaceNormal(hit_point) agrees (internal consistency check).
+    // This check is performed on both native and imported solids independently.
+    auto cross_validate = [&](const std::string& label,
+                               const std::vector<RaySample>& samples,
+                               const std::vector<G4ThreeVector>& sn_normals) {
+      for (std::size_t i = 0; i < agreed_hits.size(); ++i) {
+        const std::size_t ray_index   = agreed_hits[i].ray_index;
+        const RaySample& sample       = samples[ray_index];
+        if (!sample.validNorm) {
+          continue;
+        }
+        const G4double dot = sn_normals[i].dot(sample.normal);
+        if (dot < kNormalAgreementThreshold) {
+          std::ostringstream message;
+          message << "Ray " << ray_index
+                  << " SurfaceNormal vs DistanceToOut cross-validation mismatch (" << label
+                  << ") for fixture '" << request.fixture.id
+                  << "': SurfaceNormal=" << ToString(sn_normals[i])
+                  << ", DistanceToOut normal=" << ToString(sample.normal) << ", dot=" << dot;
+          report.AddInfo("fixture.surface_normal_crossval_mismatch", message.str(),
+                         provenance_path);
+        }
+      }
+    };
+    cross_validate("native", native_samples, native_surface_normals);
+    cross_validate("imported", imported_samples, imported_surface_normals);
+
     std::ostringstream timing_summary;
     timing_summary << "Compared " << local_summary.ray_count << " rays for fixture '"
                    << request.fixture.id << "' (" << local_summary.geant4_class
@@ -319,7 +421,11 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
                    << " mm; native=" << local_summary.native_elapsed_ms
                    << " ms, imported=" << local_summary.imported_elapsed_ms
                    << " ms, mismatches=" << local_summary.mismatch_count
-                   << ", normal_mismatches=" << local_summary.normal_mismatch_count;
+                   << ", normal_mismatches=" << local_summary.normal_mismatch_count
+                   << "; SurfaceNormal(" << local_summary.surface_normal_count
+                   << " points): native=" << local_summary.native_surface_normal_ms
+                   << " ms, imported=" << local_summary.imported_surface_normal_ms
+                   << " ms, mismatches=" << local_summary.surface_normal_mismatch_count;
     report.AddInfo("fixture.ray_compare_summary", timing_summary.str(), provenance_path);
 
     if (!options.point_cloud_dir.empty()) {
