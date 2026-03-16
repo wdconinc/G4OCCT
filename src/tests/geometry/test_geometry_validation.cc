@@ -10,7 +10,9 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace g4occt::tests::geometry {
 
@@ -21,6 +23,52 @@ namespace {
                        [](const ValidationMessage& message) {
                          return message.severity == ValidationSeverity::kError;
                        });
+  }
+
+  struct CommandLineOptions {
+    std::filesystem::path manifest_path{DefaultRepositoryManifestPath()};
+    std::string fixture_filter;
+  };
+
+  CommandLineOptions ParseCommandLine(int argc, char** argv) {
+    CommandLineOptions options;
+
+    for (int index = 1; index < argc; ++index) {
+      const std::string argument = argv[index];
+      if (argument == "--fixture") {
+        if (index + 1 >= argc) {
+          throw std::runtime_error("Missing fixture ID after --fixture");
+        }
+        options.fixture_filter = argv[++index];
+        continue;
+      }
+
+      if (argument.rfind("--fixture=", 0) == 0) {
+        options.fixture_filter = argument.substr(std::string("--fixture=").size());
+        continue;
+      }
+
+      if (argument == "--manifest") {
+        if (index + 1 >= argc) {
+          throw std::runtime_error("Missing manifest path after --manifest");
+        }
+        options.manifest_path = argv[++index];
+        continue;
+      }
+
+      if (argument.rfind("--manifest=", 0) == 0) {
+        options.manifest_path = argument.substr(std::string("--manifest=").size());
+        continue;
+      }
+
+      if (!argument.empty() && argument[0] == '-') {
+        throw std::runtime_error("Unknown option: " + argument);
+      }
+
+      options.manifest_path = argument;
+    }
+
+    return options;
   }
 
 } // namespace
@@ -35,7 +83,8 @@ void PrintReport(const ValidationReport& report) {
   }
 }
 
-int RunValidation(const std::filesystem::path& repository_manifest_path) {
+int RunValidation(const std::filesystem::path& repository_manifest_path,
+                  const std::string_view fixture_filter = {}) {
   const FixtureRepositoryManifest repository_manifest =
       ParseFixtureRepositoryManifest(repository_manifest_path);
 
@@ -48,6 +97,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
   std::size_t expected_failure_count  = 0;
   double total_native_ms              = 0.0;
   double total_imported_ms            = 0.0;
+  bool matched_fixture                = false;
 
   for (const auto& family : repository_manifest.families) {
     const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
@@ -67,6 +117,11 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
     aggregate_report.Append(ValidateManifestStructure(family_manifest));
 
     for (const auto& fixture : family_manifest.fixtures) {
+      if (!fixture_filter.empty() && fixture.id != fixture_filter) {
+        continue;
+      }
+
+      matched_fixture = true;
       FixtureValidationRequest request;
       request.manifest                              = family_manifest;
       request.fixture                               = fixture;
@@ -78,6 +133,9 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
       ++validated_fixture_count;
 
       if (!layout_report.Ok()) {
+        if (!fixture_filter.empty()) {
+          break;
+        }
         continue;
       }
 
@@ -105,25 +163,46 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
         total_native_ms += ray_summary.native_elapsed_ms;
         total_imported_ms += ray_summary.imported_elapsed_ms;
       }
+
+      if (!fixture_filter.empty()) {
+        break; // Found and processed the requested fixture; skip remaining fixtures.
+      }
+    }
+
+    if (!fixture_filter.empty() && matched_fixture) {
+      break; // Found the fixture in this family; skip remaining families.
     }
   }
 
-  if (validated_fixture_count == 0U) {
+  if (!fixture_filter.empty() && !matched_fixture) {
+    aggregate_report.AddError("fixture.not_found",
+                              "Requested fixture '" + std::string(fixture_filter) +
+                                  "' was not found in repository manifests",
+                              repository_manifest.source_path);
+  } else if (validated_fixture_count == 0U) {
     aggregate_report.AddInfo(
         "repository.fixtures_empty",
         "No fixture entries are registered yet; validated manifest and family layout only",
         repository_manifest.source_path);
   } else if (geometry_checked_count == 0U) {
-    aggregate_report.AddInfo(
-        "repository.geometry_skipped",
-        "Fixture entries were discovered but none reached OCCT geometry validation",
-        repository_manifest.source_path);
+    const std::string message =
+        fixture_filter.empty()
+            ? "Fixture entries were discovered but none reached OCCT geometry validation"
+            : "Requested fixture was discovered but did not reach OCCT geometry validation";
+    aggregate_report.AddInfo("repository.geometry_skipped", message,
+                             repository_manifest.source_path);
   }
 
   PrintReport(aggregate_report);
-  std::cout << "Validated " << repository_manifest.families.size() << " fixture families, "
-            << validated_fixture_count << " fixture entries, and " << geometry_checked_count
-            << " imported STEP geometries.\n";
+  if (fixture_filter.empty()) {
+    std::cout << "Validated " << repository_manifest.families.size() << " fixture families, "
+              << validated_fixture_count << " fixture entries, and " << geometry_checked_count
+              << " imported STEP geometries.\n";
+  } else {
+    std::cout << "Validated requested fixture '" << fixture_filter
+              << "': " << validated_fixture_count << " fixture entries, " << geometry_checked_count
+              << " imported STEP geometries.\n";
+  }
   if (ray_compared_count > 0U) {
     std::cout << "Ray comparison summary: " << ray_compared_count
               << " fixtures, native=" << total_native_ms << " ms, imported=" << total_imported_ms
@@ -143,10 +222,8 @@ int RunValidation(const std::filesystem::path& repository_manifest_path) {
 
 int main(int argc, char** argv) {
   try {
-    const std::filesystem::path manifest_path =
-        argc > 1 ? std::filesystem::path(argv[1])
-                 : g4occt::tests::geometry::DefaultRepositoryManifestPath();
-    return g4occt::tests::geometry::RunValidation(manifest_path);
+    const auto options = g4occt::tests::geometry::ParseCommandLine(argc, argv);
+    return g4occt::tests::geometry::RunValidation(options.manifest_path, options.fixture_filter);
   } catch (const std::exception& error) {
     std::cerr << "FAIL: geometry fixture validation threw an exception: " << error.what() << '\n';
     return EXIT_FAILURE;
