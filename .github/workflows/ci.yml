@@ -59,7 +59,19 @@ jobs:
             # ── Test ───────────────────────────────────────────────────────
             ctest --test-dir build --output-on-failure \
               --output-junit "${PWD}/test-results.xml" \
+              --exclude-regex "render_geometry_fixtures" \
               -j$(nproc)
+
+            # ── Render fixture solids to JPEG via Geant4 RayTracer ──────────
+            # Run the render test separately so a timeout or failure here does
+            # not affect the correctness test results above.  The RayTracer
+            # uses SerialOnly mode and runs alone (RUN_SERIAL) to stay within
+            # the CI memory budget.
+            mkdir -p build/geometry_renders
+            ctest --test-dir build --output-on-failure \
+              -R "render_geometry_fixtures" \
+              --timeout 900 \
+              || echo "WARNING: render_geometry_fixtures did not complete (non-critical)"
 
             # ── Benchmark + point-cloud export ─────────────────────────────
             # Write Google Benchmark JSON to a file (--benchmark_out) to avoid
@@ -104,17 +116,11 @@ jobs:
               echo "bench_assembly_navigator not built (Geant4 GDML support absent)"
             fi
 
-            # ── Render fixture solids to JPEG via Geant4 RayTracer ──────────
-            # render_geometry_fixtures produces JPEGs during the ctest run
-            # above (output goes to build/geometry_renders/).  Copy them to
-            # reports/geometry-images/ so the gallery generator can find them.
-            # The binary is only built when G4VisExecutive is available.
+            # ── Copy render output for report generation ────────────────────
             mkdir -p reports/geometry-images
             if [ -d build/geometry_renders ] && \
                [ -n "$(ls build/geometry_renders/*.jpeg 2>/dev/null)" ]; then
               cp build/geometry_renders/*.jpeg reports/geometry-images/
-            else
-              echo "WARNING: no JPEG images found in build/geometry_renders (render_geometry_fixtures may not have been built)"
             fi
 
             # ── Install ────────────────────────────────────────────────────

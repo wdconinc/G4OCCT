@@ -47,7 +47,6 @@
 #include <G4UImanager.hh>
 #include <G4VUserActionInitialization.hh>
 #include <G4VUserDetectorConstruction.hh>
-#include <G4UserWorkerInitialization.hh>
 #include <G4VUserPrimaryGeneratorAction.hh>
 #include <G4VUserPhysicsList.hh>
 #include <G4VisAttributes.hh>
@@ -115,16 +114,6 @@ namespace {
         return false;
       }
       return G4ExceptionHandler::Notify(originOfException, exceptionCode, severity, description);
-    }
-  };
-
-  class RayTracerWorkerInitialization : public G4UserWorkerInitialization {
-  public:
-    void WorkerInitialize() const override {
-      static G4ThreadLocal RayTracerWarningFilter* handler = nullptr;
-      if (handler == nullptr) {
-        handler = new RayTracerWarningFilter();
-      }
     }
   };
 
@@ -359,12 +348,13 @@ namespace {
                 const std::filesystem::path& repository_manifest_path) {
     std::filesystem::create_directories(output_dir);
 
+    // Use SerialOnly regardless of build type: the RayTracer visualisation
+    // driver does not benefit from worker threads, and a serial run manager
+    // has a significantly smaller memory footprint than an MT one (no
+    // per-worker geometry copies), which is important in CI environments with
+    // limited RAM.
     auto* runManager =
-#ifdef G4MULTITHREADED
-        G4RunManagerFactory::CreateRunManager(G4RunManagerType::MTOnly, 1);
-#else
         G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
-#endif
     runManager->SetVerboseLevel(0);
 
     auto* detector = new FixtureDetectorConstruction();
@@ -373,11 +363,6 @@ namespace {
     runManager->SetUserInitialization(new MinimalActionInitialization());
 
     RayTracerWarningFilter main_thread_warning_filter;
-#ifdef G4MULTITHREADED
-    if (auto* mt_run_manager = dynamic_cast<G4MTRunManager*>(runManager)) {
-      mt_run_manager->SetUserInitialization(new RayTracerWorkerInitialization());
-    }
-#endif
 
     G4UImanager* ui             = G4UImanager::GetUIpointer();
     G4VisExecutive* vis_manager = nullptr;

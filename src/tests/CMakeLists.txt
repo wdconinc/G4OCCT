@@ -159,6 +159,13 @@ if(G4_VIS_EXECUTIVE_HH)
     NAME render_geometry_fixtures
     COMMAND render_geometry_fixtures ${CMAKE_BINARY_DIR}/geometry_renders
             ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml)
+  # Run alone (not in the -j pool) so it doesn't compete for memory with
+  # other tests, and cap its wall-clock time to avoid hanging the CI runner.
+  set_tests_properties(
+    render_geometry_fixtures
+    PROPERTIES RUN_SERIAL TRUE
+               TIMEOUT 900
+               LABELS "visualization")
 else()
   message(
     STATUS
