@@ -32,20 +32,30 @@
 #include <G4Colour.hh>
 #include <G4LogicalVolume.hh>
 #include <G4Material.hh>
+#include <G4ParticleDefinition.hh>
+#include <G4ParticleTable.hh>
 #include <G4NistManager.hh>
 #include <G4PVPlacement.hh>
+#include <G4PrimaryParticle.hh>
+#include <G4PrimaryVertex.hh>
+#include <G4ExceptionHandler.hh>
 #include <G4RunManager.hh>
 #include <G4RunManagerFactory.hh>
+#include <G4StateManager.hh>
 #include <G4SystemOfUnits.hh>
 #include <G4ThreeVector.hh>
 #include <G4UImanager.hh>
+#include <G4VUserActionInitialization.hh>
 #include <G4VUserDetectorConstruction.hh>
+#include <G4UserWorkerInitialization.hh>
+#include <G4VUserPrimaryGeneratorAction.hh>
 #include <G4VUserPhysicsList.hh>
 #include <G4VisAttributes.hh>
 #include <G4VisExecutive.hh>
 #include <G4VSolid.hh>
 
 #include <algorithm>
+#include <cstring>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -63,8 +73,58 @@ namespace {
   class MinimalPhysicsList : public G4VUserPhysicsList {
   public:
     MinimalPhysicsList() : G4VUserPhysicsList() { SetVerboseLevel(0); }
-    void ConstructParticle() override {}
+    void ConstructParticle() override {
+      G4ParticleTable* particle_table = G4ParticleTable::GetParticleTable();
+      particle_table->FindParticle("geantino");
+      particle_table->FindParticle("chargedgeantino");
+    }
     void ConstructProcess() override {}
+  };
+
+  class DummyPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
+  public:
+    void GeneratePrimaries(G4Event* event) override {
+      G4ParticleDefinition* geantino = G4ParticleTable::GetParticleTable()->FindParticle("geantino");
+      if (geantino == nullptr) {
+        return;
+      }
+
+      auto* vertex = new G4PrimaryVertex(G4ThreeVector(), 0.0);
+      auto* particle = new G4PrimaryParticle(geantino);
+      particle->SetKineticEnergy(1.0 * GeV);
+      particle->SetMomentumDirection(G4ThreeVector(0.0, 0.0, 1.0));
+      vertex->SetPrimary(particle);
+      event->AddPrimaryVertex(vertex);
+    }
+  };
+
+  class MinimalActionInitialization : public G4VUserActionInitialization {
+  public:
+    void Build() const override { SetUserAction(new DummyPrimaryGeneratorAction()); }
+  };
+
+  class RayTracerWarningFilter final : public G4ExceptionHandler {
+  public:
+    G4bool Notify(const char* originOfException, const char* exceptionCode,
+                  G4ExceptionSeverity severity, const char* description) override {
+      if (severity == JustWarning && std::strcmp(exceptionCode, "GeomNav0003") == 0 &&
+          std::strcmp(originOfException, "G4Navigator::GetLocalExitNormal()") == 0 &&
+          std::strcmp(description, "Function called when *NOT* at a Boundary.\n"
+                                   "Exit Normal not calculated.\n") == 0) {
+        return false;
+      }
+      return G4ExceptionHandler::Notify(originOfException, exceptionCode, severity, description);
+    }
+  };
+
+  class RayTracerWorkerInitialization : public G4UserWorkerInitialization {
+  public:
+    void WorkerInitialize() const override {
+      static G4ThreadLocal RayTracerWarningFilter* handler = nullptr;
+      if (handler == nullptr) {
+        handler = new RayTracerWarningFilter();
+      }
+    }
   };
 
   // ── Named constants ───────────────────────────────────────────────────────
@@ -73,9 +133,18 @@ namespace {
   /// point-like or extremely small solids.
   constexpr G4double kMinimumSpan = 1.0 * mm;
   /// Edge half-length of the world box expressed as a multiple of the solid span.
-  constexpr G4double kWorldHalfSpanFactor = 2.0;
-  /// Image resolution (pixels) passed to the RayTracer driver.
-  constexpr int kRenderResolution = 512;
+  /// RayTracer camera placement can sit several radii away from the target; keep
+  /// the synthetic world comfortably larger so the eye remains inside it.
+  constexpr G4double kWorldHalfSpanFactor = 10.0;
+  /// Image resolution (pixels) passed to the RayTracer driver. Keep this tiny:
+  /// RayTracer launches one Geant4 event per pixel, and even an 8x8 run proved
+  /// too memory-hungry in practice. 4x4 keeps this harness as a minimal
+  /// smoke test intended to stay within an 8 GB CI memory budget.
+  constexpr int kRenderResolution = 4;
+
+  bool IsRayTracerNickname(const G4String& nickname) {
+    return nickname == "RayTracer" || nickname == "RT";
+  }
 
   // ── Detector construction that builds a fixture solid on demand ───────────
 
@@ -176,7 +245,9 @@ namespace {
    * used to cleanly swap the geometry.
    *
    * @p vis_manager and @p ui are set on the first call and remain valid for
-   * the lifetime of the loop.
+   * the lifetime of the loop.  @p visualization_ready is set only after the
+   * viewer has been validated as a RayTracer instance and the scene has been
+   * fully configured.
    *
    * G4RayTracer appends @c .jpeg to the stem passed to @c /vis/rayTracer/trace,
    * so @p output_path should include the @c .jpeg extension — the function
@@ -185,9 +256,10 @@ namespace {
    * @return @c true when the JPEG was successfully written.
    */
   bool RenderFixture(G4RunManager* runManager, FixtureDetectorConstruction* detector,
-                     G4VisExecutive*& vis_manager, G4UImanager* ui,
-                     const FixtureDetectorConstruction::Request& req,
-                     const std::filesystem::path& output_path, bool& initialized) {
+                      G4VisExecutive*& vis_manager, G4UImanager* ui,
+                      const FixtureDetectorConstruction::Request& req,
+                      const std::filesystem::path& output_path, bool& initialized,
+                      bool& visualization_ready) {
     detector->SetRequest(req);
 
     if (!initialized) {
@@ -207,8 +279,8 @@ namespace {
       initialized = true;
 
       // Open the RayTracer driver once; it persists for all subsequent renders.
-      // Use the full registered name "RayTracer" (the alias "RT" is not valid
-      // in all Geant4 builds).
+      // Use the full registered name "RayTracer"; Geant4 reports the opened
+      // graphics-system nickname as "RT" in current builds.
       const int vis_open_rc =
           ui->ApplyCommand("/vis/open RayTracer " + std::to_string(kRenderResolution));
       if (vis_open_rc != 0) {
@@ -236,42 +308,47 @@ namespace {
         return false;
       }
       const auto* gs = sh->GetGraphicsSystem();
-      if (gs == nullptr || gs->GetNickname() != "RayTracer") {
+      if (gs == nullptr || !IsRayTracerNickname(gs->GetNickname())) {
         const G4String gsName = gs ? gs->GetNickname() : "<none>";
         G4cerr << "render_geometry_fixtures: /vis/open RayTracer opened an unexpected "
-               << "viewer type '" << gsName << "'. Skipping renders." << G4endl;
+                << "viewer type '" << gsName << "'. Skipping renders." << G4endl;
         return false;
       }
       // Add the world volume to the auto-created scene once so the viewer has
       // proper scene extents for camera placement.
       ui->ApplyCommand("/vis/scene/add/volume");
+      visualization_ready = true;
     } else {
-      // destroyFirst=true → G4SolidStore::Clean() + Construct() rebuild.
-      runManager->ReinitializeGeometry(/*destroyFirst=*/true, /*prop=*/false);
       // If the vis setup failed on the first call, skip subsequent renders too.
-      if (vis_manager->GetCurrentViewer() == nullptr) {
+      if (!visualization_ready || vis_manager == nullptr || vis_manager->GetCurrentViewer() == nullptr) {
         return false;
       }
+      // destroyFirst=true → G4SolidStore::Clean() + Construct() rebuild.
+      runManager->ReinitializeGeometry(/*destroyFirst=*/true, /*prop=*/false);
     }
 
     std::filesystem::create_directories(output_path.parent_path());
 
-    // G4RayTracer appends ".jpeg"; strip it from the output path stem.
-    std::string stem = output_path.string();
-    if (stem.size() > 5 && stem.substr(stem.size() - 5) == ".jpeg") {
-      stem.resize(stem.size() - 5);
+    auto* viewer = vis_manager->GetCurrentViewer();
+    if (viewer == nullptr) {
+      return false;
     }
 
     // Render: G4RayTracer traces through G4Navigator which always reflects the
     // current world geometry (set by Initialize/ReinitializeGeometry), so no
     // per-render /vis/scene/create is needed — and creating a new scene per
-    // render would detach the viewer from G4RTMessenger's scanner, causing a
-    // "No valid current viewer" error and crash.
+    // render would detach the viewer from G4RTMessenger's scanner.  Prepare the
+    // viewer's scene/camera state explicitly before tracing so the RayTracer
+    // uses the active viewer instead of an unconfigured default tracer.
     ui->ApplyCommand("/vis/viewer/set/viewpointThetaPhi 45 45");
-    ui->ApplyCommand(G4String("/vis/rayTracer/setFileName ") + G4String(stem));
-    ui->ApplyCommand("/vis/rayTracer/trace");
+    viewer->NeedKernelVisit();
+    viewer->ProcessView();
+    viewer->SetView();
 
-    return std::filesystem::exists(std::filesystem::path(stem + ".jpeg"));
+    const std::string output_name = output_path.string();
+    ui->ApplyCommand(G4String("/vis/rayTracer/trace ") + G4String(output_name));
+
+    return std::filesystem::exists(output_path);
   }
 
   // ── Main render loop ──────────────────────────────────────────────────────
@@ -280,16 +357,30 @@ namespace {
                 const std::filesystem::path& repository_manifest_path) {
     std::filesystem::create_directories(output_dir);
 
-    auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::Serial);
+    auto* runManager =
+#ifdef G4MULTITHREADED
+        G4RunManagerFactory::CreateRunManager(G4RunManagerType::MTOnly, 1);
+#else
+        G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
+#endif
     runManager->SetVerboseLevel(0);
 
     auto* detector = new FixtureDetectorConstruction();
     runManager->SetUserInitialization(detector);
     runManager->SetUserInitialization(new MinimalPhysicsList());
+    runManager->SetUserInitialization(new MinimalActionInitialization());
+
+    RayTracerWarningFilter main_thread_warning_filter;
+#ifdef G4MULTITHREADED
+    if (auto* mt_run_manager = dynamic_cast<G4MTRunManager*>(runManager)) {
+      mt_run_manager->SetUserInitialization(new RayTracerWorkerInitialization());
+    }
+#endif
 
     G4UImanager* ui             = G4UImanager::GetUIpointer();
     G4VisExecutive* vis_manager = nullptr;
     bool initialized            = false;
+    bool visualization_ready    = false;
 
     const FixtureRepositoryManifest repository_manifest =
         ParseFixtureRepositoryManifest(repository_manifest_path);
@@ -335,7 +426,7 @@ namespace {
 
           const auto native_path = output_dir / (safe_id + "_native.jpeg");
           if (!RenderFixture(runManager, detector, vis_manager, ui, native_req, native_path,
-                             initialized)) {
+                             initialized, visualization_ready)) {
             std::cerr << "WARNING: " << qualified_id << ": native render produced no output\n";
             ++skipped_count;
             continue;
@@ -351,7 +442,7 @@ namespace {
 
           const auto imported_path = output_dir / (safe_id + "_imported.jpeg");
           if (!RenderFixture(runManager, detector, vis_manager, ui, imported_req, imported_path,
-                             initialized)) {
+                             initialized, visualization_ready)) {
             std::cerr << "WARNING: " << qualified_id << ": imported render produced no output\n";
             ++skipped_count;
             continue;
