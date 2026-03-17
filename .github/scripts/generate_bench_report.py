@@ -212,30 +212,49 @@ def _render_report(data: dict, viewer_path: str) -> str:
             "> ⚠️ No fixture results found in output.",
         ]
     else:
+        # Ordered list of (column_header, method_key, has_timing)
+        method_columns = [
+            ("DTI/DTO(p,v)",  "DistanceToIn/Out(p,v)", True),
+            ("Exit normals",  "Exit normals",           False),
+            ("Inside(p)",     "Inside(p)",              True),
+            ("DTI(p)",        "DistanceToIn(p)",        True),
+            ("DTO(p)",        "DistanceToOut(p)",       True),
+            ("SN(p)",         "SurfaceNormal(p)",       True),
+        ]
+
+        col_headers = " | ".join(h for h, _, _ in method_columns)
+        col_sep     = "|".join(":---:" for _ in method_columns)
+
         lines += [
             "",
             "## Per-Fixture Results",
             "",
-            "| Fixture | Geant4 Class | DistToIn/Out (native ms) | DistToIn/Out (imported ms)"
-            " | Ratio | Total Mismatches |",
-            "|---------|--------------|-------------------------:|---------------------------:"
-            "|------:|-----------------:|",
+            f"| Fixture | Geant4 Class | {col_headers} |",
+            f"|---------|:-------------|{col_sep}|",
         ]
+
         for f in fixtures:
-            ray_data    = f["methods"].get("DistanceToIn/Out(p,v)", {})
-            native_ms   = ray_data.get("native_ms")
-            imported_ms = ray_data.get("imported_ms")
-            ratio       = ray_data.get("ratio", "---")
-            total_mm    = sum(
-                v.get("mismatches", 0) for v in f["methods"].values()
-            )
-            native_str   = _format_timing(native_ms, precision=2)
-            imported_str = _format_timing(imported_ms, precision=2)
+            cells = []
+            for _, method_key, has_timing in method_columns:
+                data = f["methods"].get(method_key, {})
+                mm   = data.get("mismatches", 0) if data else 0
+                mm_str = "✅" if mm == 0 else f"{mm} ⚠️"
+                if has_timing and data:
+                    n = data.get("native_ms")
+                    i = data.get("imported_ms")
+                    r = data.get("ratio", "---")
+                    n_str = _format_timing(n, precision=2)
+                    i_str = _format_timing(i, precision=2)
+                    cells.append(f"{n_str} → {i_str} ({r}) [{mm_str}]")
+                else:
+                    cells.append(f"[{mm_str}]")
+
             fixture_link = _fixture_viewer_link(f["id"], viewer_path)
             ef_marker    = " ⚠️" if f["has_expected_failure"] else ""
+            cell_str = " | ".join(cells)
             lines.append(
-                f"| [{md_escape(f['id'])}]({fixture_link}){ef_marker} | {md_escape(f['class'])} "
-                f"| {native_str} | {imported_str} | {ratio} | {total_mm} |"
+                f"| [{md_escape(f['id'])}]({fixture_link}){ef_marker} "
+                f"| {md_escape(f['class'])} | {cell_str} |"
             )
 
     return "\n".join(lines) + "\n"
