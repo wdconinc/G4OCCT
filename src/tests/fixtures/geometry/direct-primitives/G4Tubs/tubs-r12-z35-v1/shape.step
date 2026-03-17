@@ -21,7 +21,7 @@ DATA;
 #9 = PRODUCT_DEFINITION_CONTEXT('part definition',#2,'design');
 #10 = ADVANCED_BREP_SHAPE_REPRESENTATION('',(#11,#15),#113);
 #11 = AXIS2_PLACEMENT_3D('',#12,#13,#14);
-#12 = CARTESIAN_POINT('',(0.,0.,-17.5));
+#12 = CARTESIAN_POINT('',(0.,0.,0.));
 #13 = DIRECTION('',(0.,0.,1.));
 #14 = DIRECTION('',(1.,0.,-0.));
 #15 = MANIFOLD_SOLID_BREP('',#16);
