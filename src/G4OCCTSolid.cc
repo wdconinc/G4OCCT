@@ -105,7 +105,33 @@ G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector
 std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
                                                  const Standard_Real v) {
   BRepAdaptor_Surface surface(face);
-  BRepLProp_SLProps props(surface, u, v, 1, IntersectionTolerance());
+  Standard_Real adjustedU = u;
+  Standard_Real adjustedV = v;
+  const Standard_Real tolerance = IntersectionTolerance();
+  if (surface.IsUPeriodic()) {
+    const Standard_Real uEpsilon =
+        std::max(surface.UResolution(tolerance), Precision::PConfusion());
+    const Standard_Real uFirst = surface.FirstUParameter();
+    const Standard_Real uLast  = surface.LastUParameter();
+    if (std::abs(adjustedU - uFirst) <= uEpsilon) {
+      adjustedU = uFirst + uEpsilon;
+    } else if (std::abs(adjustedU - uLast) <= uEpsilon) {
+      adjustedU = uLast - uEpsilon;
+    }
+  }
+  if (surface.IsVPeriodic()) {
+    const Standard_Real vEpsilon =
+        std::max(surface.VResolution(tolerance), Precision::PConfusion());
+    const Standard_Real vFirst = surface.FirstVParameter();
+    const Standard_Real vLast  = surface.LastVParameter();
+    if (std::abs(adjustedV - vFirst) <= vEpsilon) {
+      adjustedV = vFirst + vEpsilon;
+    } else if (std::abs(adjustedV - vLast) <= vEpsilon) {
+      adjustedV = vLast - vEpsilon;
+    }
+  }
+
+  BRepLProp_SLProps props(surface, adjustedU, adjustedV, 1, tolerance);
   if (!props.IsNormalDefined()) {
     return std::nullopt;
   }
@@ -116,6 +142,45 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
   }
 
   return G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
+}
+
+struct ClosestFaceMatch {
+  TopoDS_Face face;
+  G4double distance{kInfinity};
+};
+
+/// Find the closest trimmed face to @p point without triggering solid-level classification.
+std::optional<ClosestFaceMatch> TryFindClosestFace(const TopoDS_Shape& shape,
+                                                   const G4ThreeVector& point) {
+  if (shape.IsNull()) {
+    return std::nullopt;
+  }
+
+  const TopoDS_Vertex queryVertex = MakeVertex(point);
+  std::optional<ClosestFaceMatch> bestMatch;
+  for (TopExp_Explorer explorer(shape, TopAbs_FACE); explorer.More(); explorer.Next()) {
+    const TopoDS_Face face = TopoDS::Face(explorer.Current());
+    BRepExtrema_DistShapeShape distance(queryVertex, face);
+    if (!distance.IsDone() || distance.NbSolution() == 0) {
+      continue;
+    }
+
+    const G4double candidateDistance = distance.Value();
+    if (bestMatch.has_value() && candidateDistance >= bestMatch->distance) {
+      continue;
+    }
+
+    for (Standard_Integer solution = 1; solution <= distance.NbSolution(); ++solution) {
+      const BRepExtrema_SupportType supportType = distance.SupportTypeShape2(solution);
+      if (supportType != BRepExtrema_IsInFace && supportType != BRepExtrema_IsOnEdge) {
+        continue;
+      }
+      bestMatch = ClosestFaceMatch{face, candidateDistance};
+      break;
+    }
+  }
+
+  return bestMatch;
 }
 
 } // namespace
@@ -202,35 +267,27 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
     return FallbackNormal();
   }
 
-  BRepExtrema_DistShapeShape distance(MakeVertex(p), fShape);
-  if (!distance.IsDone() || distance.NbSolution() == 0) {
-    return FallbackNormal();
-  }
-
-  TopoDS_Face closestFace;
-  for (Standard_Integer solution = 1; solution <= distance.NbSolution(); ++solution) {
-    const TopoDS_Shape support = distance.SupportOnShape2(solution);
-    if (support.ShapeType() == TopAbs_FACE) {
-      closestFace = TopoDS::Face(support);
-      break;
-    }
-  }
-
-  if (closestFace.IsNull()) {
+  // Use face-local extrema + projection instead of a single solid-wide
+  // BRepExtrema_DistShapeShape(vertex, solid) query. On imported periodic
+  // surfaces (notably the torus seam hit at (15,0,0) in the geometry-fixture
+  // tests), the solid-wide path can descend into OCCT's 2D seam classifier and
+  // either wedge in boundary classification or report an edge-supported
+  // solution whose direct normal evaluation falls back to +Z. Face-local
+  // selection still identifies the nearest supporting face, while the explicit
+  // projection step recovers a usable (u,v) pair that we can nudge off exact
+  // periodic seams before asking OCCT for derivatives. Revisit this once the
+  // upstream periodic-classifier fix is available everywhere we build.
+  const auto closestFaceMatch = TryFindClosestFace(fShape, p);
+  if (!closestFaceMatch.has_value()) {
     return FallbackNormal();
   }
 
   TopLoc_Location loc;
-  const Handle(Geom_Surface) surface = BRep_Tool::Surface(closestFace, loc);
+  const Handle(Geom_Surface) surface = BRep_Tool::Surface(closestFaceMatch->face, loc);
   if (surface.IsNull()) {
     return FallbackNormal();
   }
 
-  // Transform the query point into the surface's local frame so that the
-  // projection and the subsequent adaptor evaluation share the same
-  // parametric domain (BRepAdaptor_Surface applies the location when
-  // evaluating derivatives, so the (u,v) parameters must be obtained from
-  // the unlocated surface with the point expressed in local coordinates).
   gp_Pnt pLocal = ToPoint(p);
   if (!loc.IsIdentity()) {
     pLocal.Transform(loc.Transformation().Inverted());
@@ -245,7 +302,8 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   Standard_Real v = 0.0;
   projection.LowerDistanceParameters(u, v);
 
-  const auto normal = TryGetOutwardNormal(closestFace, u, v);
+  const auto normal =
+      TryGetOutwardNormal(closestFaceMatch->face, u, v);
   return normal.value_or(FallbackNormal());
 }
 
