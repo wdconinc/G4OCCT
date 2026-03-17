@@ -128,8 +128,7 @@ unset(_geometry_fixture_ids)
 # until the performance issue is diagnosed and resolved.
 set_tests_properties(
   "test_geometry_validation/nist-ctc-02-v1"
-  "test_geometry_validation/nist-ctc-07-v1"
-  PROPERTIES DISABLED TRUE)
+  "test_geometry_validation/nist-ctc-07-v1" PROPERTIES DISABLED TRUE)
 
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
 # Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified
