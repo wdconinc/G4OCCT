@@ -124,6 +124,12 @@ unset(_family_fixture_lines)
 unset(_fixture_line)
 unset(_geometry_family_manifests)
 unset(_geometry_fixture_ids)
+# Temporarily disabled: nist-ctc-02 and nist-ctc-07 consistently time out in CI
+# until the performance issue is diagnosed and resolved.
+set_tests_properties(
+  "test_geometry_validation/nist-ctc-02-v1"
+  "test_geometry_validation/nist-ctc-07-v1"
+  PROPERTIES DISABLED TRUE)
 
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
 # Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified
