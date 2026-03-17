@@ -38,21 +38,18 @@
 #include <G4PVPlacement.hh>
 #include <G4PrimaryParticle.hh>
 #include <G4PrimaryVertex.hh>
-#include <G4ExceptionHandler.hh>
 #include <G4RunManager.hh>
 #include <G4RunManagerFactory.hh>
 #ifdef G4MULTITHREADED
 #include <G4MTRunManager.hh>
 #endif
-#include <G4StateManager.hh>
 #include <G4SystemOfUnits.hh>
 #include <G4ThreeVector.hh>
 #include <G4UImanager.hh>
-#include <G4UserWorkerInitialization.hh>
 #include <G4VUserActionInitialization.hh>
 #include <G4VUserDetectorConstruction.hh>
-#include <G4VUserPrimaryGeneratorAction.hh>
 #include <G4VUserPhysicsList.hh>
+#include <G4VUserPrimaryGeneratorAction.hh>
 #include <G4VisAttributes.hh>
 #include <G4VisExecutive.hh>
 #include <G4VSolid.hh>
@@ -70,10 +67,12 @@ namespace g4occt::tests::geometry {
 
 namespace {
 
-  // ── Minimal physics list (ray-tracing needs no particles) ─────────────────
+  // ── Minimal physics list ────────────────────────────────────────────────────
 
-  /// Empty physics list: no particles or processes are needed for geometry-only
-  /// ray-tracing via G4RayTracer.
+  /// Physics list for geometry-only ray-tracing with G4RayTracer.
+  /// G4RayTracer traces rays by simulating geantino particles; G4Transportation
+  /// must be registered so those particles can navigate the geometry step by
+  /// step.  Without it G4SteppingManager enters an infinite zero-step loop.
   class MinimalPhysicsList : public G4VUserPhysicsList {
   public:
     MinimalPhysicsList() : G4VUserPhysicsList() { SetVerboseLevel(0); }
@@ -82,7 +81,7 @@ namespace {
       particle_table->FindParticle("geantino");
       particle_table->FindParticle("chargedgeantino");
     }
-    void ConstructProcess() override {}
+    void ConstructProcess() override { AddTransportation(); }
   };
 
   class DummyPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
@@ -107,34 +106,6 @@ namespace {
   public:
     void Build() const override { SetUserAction(new DummyPrimaryGeneratorAction()); }
   };
-
-  class RayTracerWarningFilter final : public G4ExceptionHandler {
-  public:
-    G4bool Notify(const char* originOfException, const char* exceptionCode,
-                  G4ExceptionSeverity severity, const char* description) override {
-      if (severity == JustWarning && std::strcmp(exceptionCode, "GeomNav0003") == 0 &&
-          std::strcmp(originOfException, "G4Navigator::GetLocalExitNormal()") == 0 &&
-          std::strcmp(description, "Function called when *NOT* at a Boundary.\n"
-                                   "Exit Normal not calculated.\n") == 0) {
-        return false;
-      }
-      return G4ExceptionHandler::Notify(originOfException, exceptionCode, severity, description);
-    }
-  };
-
-#ifdef G4MULTITHREADED
-  /// Installs the warning filter on every worker thread so RayTracer
-  /// G4Navigator warnings are suppressed in worker thread output too.
-  class RayTracerWorkerInitialization : public G4UserWorkerInitialization {
-  public:
-    void WorkerInitialize() const override {
-      static G4ThreadLocal RayTracerWarningFilter* handler = nullptr;
-      if (handler == nullptr) {
-        handler = new RayTracerWarningFilter();
-      }
-    }
-  };
-#endif
 
   // ── Named constants ───────────────────────────────────────────────────────
 
@@ -323,9 +294,15 @@ namespace {
                << "viewer type '" << gsName << "'. Skipping renders." << G4endl;
         return false;
       }
-      // Add the world volume to the auto-created scene once so the viewer has
-      // proper scene extents for camera placement.
-      ui->ApplyCommand("/vis/scene/add/volume");
+      // Add the fixture solid (not the world) to the scene so the scene extent
+      // is computed from the solid's bounding box rather than the world box.
+      // This keeps the camera inside the world volume: the camera distance
+      // computed from the solid extent is ~3.7 × solid_radius, while the
+      // world half-span is kWorldHalfSpanFactor(10) × max_solid_dimension,
+      // so the camera at ~3.7 × solid_radius is always well inside the world.
+      // (Using the world extent instead results in the camera being placed
+      // ~3.7 × world_radius = ~36 × max_solid_dimension outside the world.)
+      ui->ApplyCommand("/vis/scene/add/volume " + G4String(req.name) + "_pv");
       visualization_ready = true;
     } else {
       // If the vis setup failed on the first call, skip subsequent renders too.
@@ -444,13 +421,6 @@ namespace {
     runManager->SetUserInitialization(detector);
     runManager->SetUserInitialization(new MinimalPhysicsList());
     runManager->SetUserInitialization(new MinimalActionInitialization());
-
-    RayTracerWarningFilter main_thread_warning_filter;
-#ifdef G4MULTITHREADED
-    if (auto* mt_run_manager = dynamic_cast<G4MTRunManager*>(runManager)) {
-      mt_run_manager->SetUserInitialization(new RayTracerWorkerInitialization());
-    }
-#endif
 
     G4UImanager* ui             = G4UImanager::GetUIpointer();
     G4VisExecutive* vis_manager = nullptr;
