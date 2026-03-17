@@ -5,5 +5,5 @@ pload ALL
 
 set script_dir [file normalize [file dirname [info script]]]
 
-box seed_box 20 30 40
+box seed_box -10 -15 -20 20 30 40
 stepwrite a seed_box [file join $script_dir shape.step]

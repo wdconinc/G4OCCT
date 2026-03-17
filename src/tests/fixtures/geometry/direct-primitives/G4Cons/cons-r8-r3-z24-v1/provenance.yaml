@@ -9,7 +9,7 @@ generator:
   script: generate.tcl
 shape:
   geant4_class: G4Cons
-  draw_command: pcone seed_cons 8 3 24
+  draw_command: "pcone seed_cons 8 3 24; translate seed_cons 0 0 -12"
   bottom_outer_radius_mm: 8.0
   top_outer_radius_mm: 3.0
   bottom_inner_radius_mm: 0.0

@@ -6,4 +6,5 @@ pload ALL
 set script_dir [file normalize [file dirname [info script]]]
 
 pcone seed_cons 8 3 24
+translate seed_cons 0 0 -12
 stepwrite a seed_cons [file join $script_dir shape.step]
