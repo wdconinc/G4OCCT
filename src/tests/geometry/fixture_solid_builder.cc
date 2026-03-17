@@ -3,6 +3,8 @@
 
 #include "geometry/fixture_solid_builder.hh"
 
+#include "G4OCCT/G4OCCTSolid.hh"
+
 #include "geometry/fixture_manifest.hh"
 
 #include <IFSelect_ReturnStatus.hxx>
@@ -636,6 +638,15 @@ TopoDS_Shape LoadImportedShape(const FixtureValidationRequest& request) {
   return shape;
 }
 
+std::unique_ptr<G4VSolid> BuildNativeSolidForRequest(const FixtureValidationRequest& request,
+                                                     const FixtureProvenance& provenance) {
+  if (Geant4Class(provenance) == "G4OCCTSolid") {
+    return std::make_unique<G4OCCTSolid>(request.fixture.id + "_native",
+                                         LoadImportedShape(request));
+  }
+  return BuildNativeSolid(provenance);
+}
+
 G4ThreeVector BoundingBoxCenter(const G4VSolid& solid) {
   G4ThreeVector minimum;
   G4ThreeVector maximum;
@@ -646,6 +657,11 @@ G4ThreeVector BoundingBoxCenter(const G4VSolid& solid) {
 G4ThreeVector FixtureComparisonOrigin(const FixtureProvenance& provenance, const G4VSolid& solid) {
   const YAML::Node shape         = ShapeNode(provenance);
   const std::string geant4_class = Geant4Class(provenance);
+
+  // G4OCCTSolid fixtures have no generator YAML block; use the bounding-box centre.
+  if (geant4_class == "G4OCCTSolid") {
+    return BoundingBoxCenter(solid);
+  }
 
   if (geant4_class == "G4Tet") {
     const std::vector<G4ThreeVector> vertices =
