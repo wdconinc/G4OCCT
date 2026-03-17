@@ -105,8 +105,8 @@ G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector
 std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
                                                  const Standard_Real v) {
   BRepAdaptor_Surface surface(face);
-  Standard_Real adjustedU = u;
-  Standard_Real adjustedV = v;
+  Standard_Real adjustedU       = u;
+  Standard_Real adjustedV       = v;
   const Standard_Real tolerance = IntersectionTolerance();
   if (surface.IsUPeriodic()) {
     const Standard_Real uEpsilon =
@@ -302,8 +302,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   Standard_Real v = 0.0;
   projection.LowerDistanceParameters(u, v);
 
-  const auto normal =
-      TryGetOutwardNormal(closestFaceMatch->face, u, v);
+  const auto normal = TryGetOutwardNormal(closestFaceMatch->face, u, v);
   return normal.value_or(FallbackNormal());
 }
 
