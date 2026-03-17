@@ -639,7 +639,7 @@ TopoDS_Shape LoadImportedShape(const FixtureValidationRequest& request) {
 }
 
 std::unique_ptr<G4VSolid> BuildNativeSolidForRequest(const FixtureValidationRequest& request,
-                                                      const FixtureProvenance& provenance) {
+                                                     const FixtureProvenance& provenance) {
   if (Geant4Class(provenance) == "G4OCCTSolid") {
     return std::make_unique<G4OCCTSolid>(request.fixture.id + "_native",
                                          LoadImportedShape(request));

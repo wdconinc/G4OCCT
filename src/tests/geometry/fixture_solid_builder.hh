@@ -69,7 +69,7 @@ std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance);
  * @throws std::runtime_error if the STEP file is missing or a required YAML key is absent.
  */
 std::unique_ptr<G4VSolid> BuildNativeSolidForRequest(const FixtureValidationRequest& request,
-                                                      const FixtureProvenance& provenance);
+                                                     const FixtureProvenance& provenance);
 
 /**
  * Load the STEP file for a fixture and return its OCCT shape.
