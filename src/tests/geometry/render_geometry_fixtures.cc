@@ -353,8 +353,7 @@ namespace {
     // has a significantly smaller memory footprint than an MT one (no
     // per-worker geometry copies), which is important in CI environments with
     // limited RAM.
-    auto* runManager =
-        G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
+    auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
     runManager->SetVerboseLevel(0);
 
     auto* detector = new FixtureDetectorConstruction();
