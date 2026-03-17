@@ -303,8 +303,9 @@ benchmarks and validates all navigator-critical `G4VSolid` methods across
 every fixture registered in the repository manifest.  For each fixture it
 builds both a native Geant4 solid and an equivalent `G4OCCTSolid`-wrapped
 shape, runs each method against a set of deterministically generated test
-points, reports per-method wall-clock time and the native-to-imported speed
-ratio, and flags any correctness mismatches between the two solids.
+points, reports per-method wall-clock time and the imported-to-native speed
+ratio (how many times slower the imported solid is), and flags any correctness
+mismatches between the two solids.
 
 ```
 ./bench_navigator [ray_count [manifest_path [point_cloud_dir]]]
@@ -322,9 +323,11 @@ The following methods are benchmarked in a single pass:
 | `DistanceToOut(p)` | Isotropic safety distance from inside points |
 | `SurfaceNormal(p)` | Surface normal at agreed ray hit points |
 
-Each row in the per-fixture output shows native time, imported time, the
-speed ratio (imported ÷ native), and the number of correctness mismatches.
-An aggregate summary table across all fixtures is printed at the end.
+Most rows in the per-fixture output show native time, imported time, the
+imported-to-native speed ratio, and the number of correctness mismatches.
+The "Exit normals" row is an exception: exit normals are validated as part of
+`DistanceToOut(p, v)` and carry no separate timing entry (those columns show
+`---`).  An aggregate summary table across all fixtures is printed at the end.
 
 This benchmark should be run:
 
