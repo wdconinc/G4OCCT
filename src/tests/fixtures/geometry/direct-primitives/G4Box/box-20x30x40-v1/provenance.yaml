@@ -9,7 +9,7 @@ generator:
   script: generate.tcl
 shape:
   geant4_class: G4Box
-  draw_command: box seed_box 20 30 40
+  draw_command: "box seed_box -10 -15 -20 20 30 40"
   dimensions_mm: [20.0, 30.0, 40.0]
 validation:
   expected_volume_mm3: 24000.0
