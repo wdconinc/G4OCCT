@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2024 G4OCCT Contributors
 
+#include "geometry/fixture_navigation_summary.hh"
 #include "geometry/fixture_ray_compare.hh"
 #include "geometry/fixture_inside_compare.hh"
 #include "geometry/fixture_safety_compare.hh"
@@ -9,7 +10,9 @@
 #include <algorithm>
 #include <exception>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -21,13 +24,11 @@ namespace {
   using g4occt::tests::geometry::CompareFixtureSafety;
   using g4occt::tests::geometry::DefaultRepositoryManifestPath;
   using g4occt::tests::geometry::FixtureInsideComparisonOptions;
-  using g4occt::tests::geometry::FixtureInsideComparisonSummary;
   using g4occt::tests::geometry::FixtureManifest;
+  using g4occt::tests::geometry::FixtureNavigationSummary;
   using g4occt::tests::geometry::FixtureRayComparisonOptions;
-  using g4occt::tests::geometry::FixtureRayComparisonSummary;
   using g4occt::tests::geometry::FixtureRepositoryManifest;
   using g4occt::tests::geometry::FixtureSafetyComparisonOptions;
-  using g4occt::tests::geometry::FixtureSafetyComparisonSummary;
   using g4occt::tests::geometry::FixtureValidationRequest;
   using g4occt::tests::geometry::ParseFixtureManifestFile;
   using g4occt::tests::geometry::ParseFixtureRepositoryManifest;
@@ -56,6 +57,97 @@ namespace {
     }
   }
 
+  /// Format a millisecond value as a right-aligned field (2 decimal places, no padding).
+  std::string FormatMs(const double ms) {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2) << ms;
+    return oss.str();
+  }
+
+  /// Format a performance ratio as "NNN.Nx" — imported divided by native (how many times slower
+  /// the imported solid is relative to the native solid). Returns "---" when native time is zero.
+  std::string FormatRatio(const double native_ms, const double imported_ms) {
+    if (native_ms <= 0.0) {
+      return "---";
+    }
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(1) << (imported_ms / native_ms) << "x";
+    return oss.str();
+  }
+
+  /// Print one row of the per-fixture method table.
+  void PrintMethodRow(const std::string& label, const double native_ms, const double imported_ms,
+                      const std::size_t mismatches, const bool has_timing = true) {
+    std::cout << "  " << std::left << std::setw(24) << label << ": ";
+    if (has_timing) {
+      std::cout << "native=" << std::right << std::setw(8) << FormatMs(native_ms) << "ms"
+                << "  imported=" << std::setw(8) << FormatMs(imported_ms) << "ms"
+                << "  ratio=" << std::setw(8) << FormatRatio(native_ms, imported_ms);
+    } else {
+      // Exit normals are computed as part of DistanceToOut — no separate timing.
+      std::cout << "native=" << std::right << std::setw(8) << "---" << "ms"
+                << "  imported=" << std::setw(8) << "---" << "ms"
+                << "  ratio=" << std::setw(8) << "---";
+    }
+    std::cout << "  mismatches=" << mismatches << "\n";
+  }
+
+  /// Print one row of the aggregate summary table.
+  void PrintAggregateRow(const std::string& label, const double native_ms, const double imported_ms,
+                         const std::size_t mismatches, const std::size_t exp_failures,
+                         const bool has_timing = true) {
+    std::cout << "  " << std::left << std::setw(24) << label;
+    if (has_timing) {
+      std::cout << std::right << std::setw(12) << FormatMs(native_ms) << std::setw(14)
+                << FormatMs(imported_ms) << std::setw(10) << FormatRatio(native_ms, imported_ms);
+    } else {
+      std::cout << std::right << std::setw(12) << "---" << std::setw(14) << "---" << std::setw(10)
+                << "---";
+    }
+    std::cout << std::setw(13) << mismatches << std::setw(14) << exp_failures << "\n";
+  }
+
+  /// Return the number of ray distance/intersection mismatches, excluding exit-normal mismatches
+  /// (which are counted separately in normal_mismatch_count but also added to mismatch_count).
+  std::size_t RayOnlyMismatches(const g4occt::tests::geometry::FixtureRayComparisonSummary& ray) {
+    return ray.mismatch_count >= ray.normal_mismatch_count
+               ? ray.mismatch_count - ray.normal_mismatch_count
+               : 0U;
+  }
+
+  void PrintFixtureSummary(const FixtureNavigationSummary& s) {
+    std::cout << s.fixture_id << " (" << s.geant4_class << ")";
+    if (s.has_expected_failure) {
+      std::cout << "  [expected failure]";
+    }
+    std::cout << ":\n";
+
+    // Row 1: DistanceToIn/Out(p,v) — ray intersection+distance timing.
+    PrintMethodRow("DistanceToIn/Out(p,v)", s.ray.native_elapsed_ms, s.ray.imported_elapsed_ms,
+                   RayOnlyMismatches(s.ray));
+
+    // Row 2: Exit normals — computed inside DistanceToOut; no separate timing available.
+    PrintMethodRow("Exit normals", 0.0, 0.0, s.ray.normal_mismatch_count, /*has_timing=*/false);
+
+    // Row 3: Inside(p) classification.
+    PrintMethodRow("Inside(p)", s.inside.native_elapsed_ms, s.inside.imported_elapsed_ms,
+                   s.inside.mismatch_count);
+
+    // Row 4: DistanceToIn(p) safety distance (outside points).
+    PrintMethodRow("DistanceToIn(p)", s.safety.native_safety_in_ms, s.safety.imported_safety_in_ms,
+                   s.safety.safety_in_mismatch_count);
+
+    // Row 5: DistanceToOut(p) safety distance (inside points).
+    PrintMethodRow("DistanceToOut(p)", s.safety.native_safety_out_ms,
+                   s.safety.imported_safety_out_ms, s.safety.safety_out_mismatch_count);
+
+    // Row 6: SurfaceNormal(p) post-hoc benchmark at agreed hit points.
+    PrintMethodRow("SurfaceNormal(p)", s.ray.native_surface_normal_ms,
+                   s.ray.imported_surface_normal_ms, s.ray.surface_normal_mismatch_count);
+
+    std::cout << "\n";
+  }
+
   int RunBenchmark(const std::filesystem::path& repository_manifest_path,
                    const std::size_t ray_count, const std::filesystem::path& point_cloud_dir) {
     const FixtureRepositoryManifest repository_manifest =
@@ -76,10 +168,8 @@ namespace {
     FixtureSafetyComparisonOptions safety_options;
     safety_options.point_count = ray_count;
 
-    std::vector<FixtureRayComparisonSummary> summaries;
-    std::vector<FixtureInsideComparisonSummary> inside_summaries;
-    std::vector<FixtureSafetyComparisonSummary> safety_summaries;
-    std::size_t expected_failure_count = 0;
+    std::vector<FixtureNavigationSummary> nav_summaries;
+
     for (const auto& family : repository_manifest.families) {
       const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
       if (!std::filesystem::exists(family_manifest_path)) {
@@ -111,91 +201,55 @@ namespace {
           continue;
         }
 
-        FixtureRayComparisonSummary summary;
-        ValidationReport ray_report = CompareFixtureRays(request, options, &summary);
+        FixtureNavigationSummary nav;
+        nav.fixture_id           = family_manifest.family + "/" + fixture.id;
+        nav.has_expected_failure = expected_failure.enabled;
+
+        ValidationReport ray_report = CompareFixtureRays(request, options, &nav.ray);
         if (expected_failure.enabled) {
-          ++expected_failure_count;
           ray_report = g4occt::tests::geometry::ReclassifyExpectedFailures(ray_report,
                                                                            expected_failure.reason);
         }
         aggregate_report.Append(ray_report);
-        if (summary.ray_count > 0U) {
-          summaries.push_back(summary);
-        }
 
-        FixtureInsideComparisonSummary inside_summary;
-        ValidationReport inside_report =
-            CompareFixtureInside(request, inside_options, &inside_summary);
+        ValidationReport inside_report = CompareFixtureInside(request, inside_options, &nav.inside);
         if (expected_failure.enabled) {
           inside_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
               inside_report, expected_failure.reason);
         }
         aggregate_report.Append(inside_report);
-        if (inside_summary.point_count > 0U) {
-          inside_summaries.push_back(inside_summary);
-        }
 
-        FixtureSafetyComparisonSummary safety_summary;
-        ValidationReport safety_report =
-            CompareFixtureSafety(request, safety_options, &safety_summary);
+        ValidationReport safety_report = CompareFixtureSafety(request, safety_options, &nav.safety);
         if (expected_failure.enabled) {
           safety_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
               safety_report, expected_failure.reason);
         }
         aggregate_report.Append(safety_report);
-        if (safety_summary.point_count > 0U) {
-          safety_summaries.push_back(safety_summary);
+
+        // Use the geant4_class from whichever sub-summary is populated.
+        if (!nav.ray.geant4_class.empty()) {
+          nav.geant4_class = nav.ray.geant4_class;
+        } else if (!nav.inside.geant4_class.empty()) {
+          nav.geant4_class = nav.inside.geant4_class;
+        } else if (!nav.safety.geant4_class.empty()) {
+          nav.geant4_class = nav.safety.geant4_class;
+        }
+
+        const bool any_data =
+            nav.ray.ray_count > 0U || nav.inside.point_count > 0U || nav.safety.point_count > 0U;
+        if (any_data) {
+          nav_summaries.push_back(nav);
         }
       }
     }
 
-    double total_native_ms              = 0.0;
-    double total_imported_ms            = 0.0;
-    std::size_t total_mismatches        = 0;
-    std::size_t total_normal_mismatches = 0;
-    double total_sn_native_ms           = 0.0;
-    double total_sn_imported_ms         = 0.0;
-    std::size_t total_sn_mismatches     = 0;
-    std::size_t total_sn_count          = 0;
+    // ── Per-fixture unified table ─────────────────────────────────────────
+    std::cout << "\n=== Fixture Navigation Benchmark Results ===\n";
+    std::cout << "Rays: " << ray_count << "  |  Inside points: " << inside_options.point_count
+              << "  |  Safety points: " << safety_options.point_count << "\n\n";
 
-    std::cout << "\n=== Fixture Ray Benchmark Results ===\n";
-    std::cout << "Rays per fixture: " << ray_count << "\n";
-    for (const auto& summary : summaries) {
-      total_native_ms += summary.native_elapsed_ms;
-      total_imported_ms += summary.imported_elapsed_ms;
-      total_mismatches += summary.mismatch_count;
-      total_normal_mismatches += summary.normal_mismatch_count;
-      total_sn_native_ms += summary.native_surface_normal_ms;
-      total_sn_imported_ms += summary.imported_surface_normal_ms;
-      total_sn_mismatches += summary.surface_normal_mismatch_count;
-      total_sn_count += summary.surface_normal_count;
-      std::cout << summary.fixture_id << " (" << summary.geant4_class
-                << "): native=" << summary.native_elapsed_ms
-                << " ms, imported=" << summary.imported_elapsed_ms
-                << " ms, mismatches=" << summary.mismatch_count
-                << ", normal_mismatches=" << summary.normal_mismatch_count << "; SurfaceNormal("
-                << summary.surface_normal_count
-                << " points): native=" << summary.native_surface_normal_ms
-                << " ms, imported=" << summary.imported_surface_normal_ms
-                << " ms, mismatches=" << summary.surface_normal_mismatch_count << "\n";
-    }
-
-    std::cout << "Aggregate native   : " << total_native_ms << " ms\n";
-    std::cout << "Aggregate imported : " << total_imported_ms << " ms\n";
-    if (total_imported_ms > 0.0) {
-      std::cout << "Native/imported ratio: " << total_native_ms / total_imported_ms << "\n";
-    }
-    std::cout << "Total mismatches: " << total_mismatches << "\n";
-    std::cout << "Total normal mismatches: " << total_normal_mismatches << "\n";
-    std::cout << "SurfaceNormal aggregate (" << total_sn_count
-              << " points): native=" << total_sn_native_ms
-              << " ms, imported=" << total_sn_imported_ms << " ms";
-    if (total_sn_imported_ms > 0.0) {
-      std::cout << ", native/imported ratio=" << total_sn_native_ms / total_sn_imported_ms;
-    }
-    std::cout << "\nTotal SurfaceNormal mismatches: " << total_sn_mismatches << "\n";
-    if (expected_failure_count > 0U) {
-      std::cout << "Expected failures: " << expected_failure_count << "\n";
+    for (const auto& s : nav_summaries) {
+      PrintFixtureSummary(s);
     }
 
     PrintReportMessages(aggregate_report);
@@ -203,68 +257,102 @@ namespace {
       return EXIT_FAILURE;
     }
 
-    double total_inside_native_ms        = 0.0;
-    double total_inside_imported_ms      = 0.0;
-    std::size_t total_inside_mismatches  = 0;
-    std::size_t total_inside_ambiguities = 0;
+    // ── Aggregate totals per method ───────────────────────────────────────
+    double agg_ray_native_ms         = 0.0;
+    double agg_ray_imported_ms       = 0.0;
+    std::size_t agg_ray_mismatches   = 0;
+    std::size_t agg_ray_exp_failures = 0;
 
-    std::cout << "\n=== Fixture Inside Benchmark Results ===\n";
-    for (const auto& s : inside_summaries) {
-      total_inside_native_ms += s.native_elapsed_ms;
-      total_inside_imported_ms += s.imported_elapsed_ms;
-      total_inside_mismatches += s.mismatch_count;
-      total_inside_ambiguities += s.surface_ambiguity_count;
-      std::cout << s.fixture_id << " (" << s.geant4_class << "): native=" << s.native_elapsed_ms
-                << " ms, imported=" << s.imported_elapsed_ms << " ms, points=" << s.point_count
-                << ", hard_mismatches=" << s.mismatch_count
-                << ", surface_ambiguities=" << s.surface_ambiguity_count << "\n";
-    }
-    std::cout << "Aggregate native   : " << total_inside_native_ms << " ms\n";
-    std::cout << "Aggregate imported : " << total_inside_imported_ms << " ms\n";
-    if (total_inside_imported_ms > 0.0) {
-      std::cout << "Native/imported ratio: " << total_inside_native_ms / total_inside_imported_ms
-                << "\n";
-    }
-    std::cout << "Total hard mismatches: " << total_inside_mismatches << "\n";
-    std::cout << "Total surface ambiguities: " << total_inside_ambiguities << "\n";
+    // Exit normals are computed as part of DistanceToOut; no separate timing.
+    std::size_t agg_exit_mismatches   = 0;
+    std::size_t agg_exit_exp_failures = 0;
 
-    double total_safety_in_native_ms        = 0.0;
-    double total_safety_in_imported_ms      = 0.0;
-    double total_safety_out_native_ms       = 0.0;
-    double total_safety_out_imported_ms     = 0.0;
-    std::size_t total_safety_in_mismatches  = 0;
-    std::size_t total_safety_out_mismatches = 0;
+    double agg_inside_native_ms         = 0.0;
+    double agg_inside_imported_ms       = 0.0;
+    std::size_t agg_inside_mismatches   = 0;
+    std::size_t agg_inside_exp_failures = 0;
 
-    std::cout << "\n=== Fixture Safety Distance Benchmark Results ===\n";
-    for (const auto& s : safety_summaries) {
-      total_safety_in_native_ms += s.native_safety_in_ms;
-      total_safety_in_imported_ms += s.imported_safety_in_ms;
-      total_safety_out_native_ms += s.native_safety_out_ms;
-      total_safety_out_imported_ms += s.imported_safety_out_ms;
-      total_safety_in_mismatches += s.safety_in_mismatch_count;
-      total_safety_out_mismatches += s.safety_out_mismatch_count;
-      std::cout << s.fixture_id << " (" << s.geant4_class << "): points=" << s.point_count
-                << "; DistanceToIn: native=" << s.native_safety_in_ms
-                << " ms, imported=" << s.imported_safety_in_ms
-                << " ms, mismatches=" << s.safety_in_mismatch_count
-                << "; DistanceToOut: native=" << s.native_safety_out_ms
-                << " ms, imported=" << s.imported_safety_out_ms
-                << " ms, mismatches=" << s.safety_out_mismatch_count << "\n";
+    double agg_dti_native_ms         = 0.0;
+    double agg_dti_imported_ms       = 0.0;
+    std::size_t agg_dti_mismatches   = 0;
+    std::size_t agg_dti_exp_failures = 0;
+
+    double agg_dto_native_ms         = 0.0;
+    double agg_dto_imported_ms       = 0.0;
+    std::size_t agg_dto_mismatches   = 0;
+    std::size_t agg_dto_exp_failures = 0;
+
+    double agg_sn_native_ms         = 0.0;
+    double agg_sn_imported_ms       = 0.0;
+    std::size_t agg_sn_mismatches   = 0;
+    std::size_t agg_sn_exp_failures = 0;
+
+    for (const auto& s : nav_summaries) {
+      if (s.ray.ray_count > 0U) {
+        agg_ray_native_ms += s.ray.native_elapsed_ms;
+        agg_ray_imported_ms += s.ray.imported_elapsed_ms;
+        agg_ray_mismatches += RayOnlyMismatches(s.ray);
+        if (s.has_expected_failure) {
+          ++agg_ray_exp_failures;
+        }
+
+        // Exit normals are extracted from the ray data.
+        agg_exit_mismatches += s.ray.normal_mismatch_count;
+        if (s.has_expected_failure) {
+          ++agg_exit_exp_failures;
+        }
+
+        // SurfaceNormal(p) is benchmarked at agreed ray hit points.
+        agg_sn_native_ms += s.ray.native_surface_normal_ms;
+        agg_sn_imported_ms += s.ray.imported_surface_normal_ms;
+        agg_sn_mismatches += s.ray.surface_normal_mismatch_count;
+        if (s.has_expected_failure) {
+          ++agg_sn_exp_failures;
+        }
+      }
+
+      if (s.inside.point_count > 0U) {
+        agg_inside_native_ms += s.inside.native_elapsed_ms;
+        agg_inside_imported_ms += s.inside.imported_elapsed_ms;
+        agg_inside_mismatches += s.inside.mismatch_count;
+        if (s.has_expected_failure) {
+          ++agg_inside_exp_failures;
+        }
+      }
+
+      if (s.safety.point_count > 0U) {
+        agg_dti_native_ms += s.safety.native_safety_in_ms;
+        agg_dti_imported_ms += s.safety.imported_safety_in_ms;
+        agg_dti_mismatches += s.safety.safety_in_mismatch_count;
+        agg_dto_native_ms += s.safety.native_safety_out_ms;
+        agg_dto_imported_ms += s.safety.imported_safety_out_ms;
+        agg_dto_mismatches += s.safety.safety_out_mismatch_count;
+        if (s.has_expected_failure) {
+          ++agg_dti_exp_failures;
+          ++agg_dto_exp_failures;
+        }
+      }
     }
-    std::cout << "Aggregate DistanceToIn  native   : " << total_safety_in_native_ms << " ms\n";
-    std::cout << "Aggregate DistanceToIn  imported : " << total_safety_in_imported_ms << " ms\n";
-    if (total_safety_in_imported_ms > 0.0) {
-      std::cout << "DistanceToIn  native/imported ratio: "
-                << total_safety_in_native_ms / total_safety_in_imported_ms << "\n";
-    }
-    std::cout << "Aggregate DistanceToOut native   : " << total_safety_out_native_ms << " ms\n";
-    std::cout << "Aggregate DistanceToOut imported : " << total_safety_out_imported_ms << " ms\n";
-    if (total_safety_out_imported_ms > 0.0) {
-      std::cout << "DistanceToOut native/imported ratio: "
-                << total_safety_out_native_ms / total_safety_out_imported_ms << "\n";
-    }
-    std::cout << "Total DistanceToIn  mismatches: " << total_safety_in_mismatches << "\n";
-    std::cout << "Total DistanceToOut mismatches: " << total_safety_out_mismatches << "\n";
+
+    std::cout << "Aggregate:\n";
+    std::cout << "  " << std::left << std::setw(24) << "Method" << std::right << std::setw(12)
+              << "Native(ms)" << std::setw(14) << "Imported(ms)" << std::setw(10) << "Ratio"
+              << std::setw(13) << "Mismatches" << std::setw(14) << "Exp. Failures" << "\n";
+    std::cout << "  " << std::string(85, '-') << "\n";
+
+    PrintAggregateRow("DistanceToIn/Out(p,v)", agg_ray_native_ms, agg_ray_imported_ms,
+                      agg_ray_mismatches, agg_ray_exp_failures);
+    PrintAggregateRow("Exit normals", 0.0, 0.0, agg_exit_mismatches, agg_exit_exp_failures,
+                      /*has_timing=*/false);
+    PrintAggregateRow("Inside(p)", agg_inside_native_ms, agg_inside_imported_ms,
+                      agg_inside_mismatches, agg_inside_exp_failures);
+    PrintAggregateRow("DistanceToIn(p)", agg_dti_native_ms, agg_dti_imported_ms, agg_dti_mismatches,
+                      agg_dti_exp_failures);
+    PrintAggregateRow("DistanceToOut(p)", agg_dto_native_ms, agg_dto_imported_ms,
+                      agg_dto_mismatches, agg_dto_exp_failures);
+    PrintAggregateRow("SurfaceNormal(p)", agg_sn_native_ms, agg_sn_imported_ms, agg_sn_mismatches,
+                      agg_sn_exp_failures);
+
     return EXIT_SUCCESS;
   }
 
