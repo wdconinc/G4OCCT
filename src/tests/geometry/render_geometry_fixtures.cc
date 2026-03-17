@@ -41,10 +41,14 @@
 #include <G4ExceptionHandler.hh>
 #include <G4RunManager.hh>
 #include <G4RunManagerFactory.hh>
+#ifdef G4MULTITHREADED
+#include <G4MTRunManager.hh>
+#endif
 #include <G4StateManager.hh>
 #include <G4SystemOfUnits.hh>
 #include <G4ThreeVector.hh>
 #include <G4UImanager.hh>
+#include <G4UserWorkerInitialization.hh>
 #include <G4VUserActionInitialization.hh>
 #include <G4VUserDetectorConstruction.hh>
 #include <G4VUserPrimaryGeneratorAction.hh>
@@ -59,6 +63,7 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <set>
 #include <string>
 
 namespace g4occt::tests::geometry {
@@ -116,6 +121,20 @@ namespace {
       return G4ExceptionHandler::Notify(originOfException, exceptionCode, severity, description);
     }
   };
+
+#ifdef G4MULTITHREADED
+  /// Installs the warning filter on every worker thread so RayTracer
+  /// G4Navigator warnings are suppressed in worker thread output too.
+  class RayTracerWorkerInitialization : public G4UserWorkerInitialization {
+  public:
+    void WorkerInitialize() const override {
+      static G4ThreadLocal RayTracerWarningFilter* handler = nullptr;
+      if (handler == nullptr) {
+        handler = new RayTracerWarningFilter();
+      }
+    }
+  };
+#endif
 
   // ── Named constants ───────────────────────────────────────────────────────
 
@@ -348,12 +367,16 @@ namespace {
                 const std::filesystem::path& repository_manifest_path) {
     std::filesystem::create_directories(output_dir);
 
-    // Use SerialOnly regardless of build type: the RayTracer visualisation
-    // driver does not benefit from worker threads, and a serial run manager
-    // has a significantly smaller memory footprint than an MT one (no
-    // per-worker geometry copies), which is important in CI environments with
-    // limited RAM.
-    auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
+    // G4TheMTRayTracer (used by /vis/open RayTracer in MT-built Geant4) requires
+    // G4MTRunManager::GetMasterRunManager() != nullptr.  Use MTOnly with one
+    // worker so the requirement is satisfied while keeping the thread count (and
+    // therefore per-worker geometry-copy memory) as low as possible.
+    auto* runManager =
+#ifdef G4MULTITHREADED
+        G4RunManagerFactory::CreateRunManager(G4RunManagerType::MTOnly, 1);
+#else
+        G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
+#endif
     runManager->SetVerboseLevel(0);
 
     auto* detector = new FixtureDetectorConstruction();
@@ -362,6 +385,11 @@ namespace {
     runManager->SetUserInitialization(new MinimalActionInitialization());
 
     RayTracerWarningFilter main_thread_warning_filter;
+#ifdef G4MULTITHREADED
+    if (auto* mt_run_manager = dynamic_cast<G4MTRunManager*>(runManager)) {
+      mt_run_manager->SetUserInitialization(new RayTracerWorkerInitialization());
+    }
+#endif
 
     G4UImanager* ui             = G4UImanager::GetUIpointer();
     G4VisExecutive* vis_manager = nullptr;
@@ -378,6 +406,16 @@ namespace {
     for (const auto& family : repository_manifest.families) {
       const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
       if (!std::filesystem::exists(family_manifest_path)) {
+        continue;
+      }
+
+      // Skip families whose fixtures are large multi-body assemblies: loading
+      // and duplicating their geometry for every render call exceeds the CI
+      // memory budget and takes hundreds of seconds per fixture.  Those families
+      // are exercised by dedicated correctness tests instead.
+      static const std::set<std::string> kSkipFamilies = {"nist-ctc"};
+      if (kSkipFamilies.count(family) != 0) {
+        std::cout << "Skipping family '" << family << "' (excluded from smoke-test renders)\n";
         continue;
       }
 
