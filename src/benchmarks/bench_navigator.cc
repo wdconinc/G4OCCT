@@ -42,8 +42,9 @@ namespace {
   // the same G4OCCTSolid loaded from the same STEP file (i.e., NIST CTC
   // fixtures whose geant4_class is G4OCCTSolid).  Navigation comparison on
   // these very large compound assemblies is extremely slow and produces
-  // G4Exceptions; geometry import and volume checks are still performed via
-  // test_geometry_validation and test_nist_ctc_inside_volume.
+  // G4Exceptions; geometry import and volume checks are covered by
+  // test_nist_ctc_inside_volume (test_geometry_validation/nist-ctc-* is
+  // temporarily disabled in CI).
   bool IsImportedSelfComparisonFixture(const g4occt::tests::geometry::FixtureReference& fixture) {
     return fixture.geant4_class == "G4OCCTSolid";
   }
@@ -218,9 +219,10 @@ namespace {
         // Skip navigation comparisons for imported-only fixtures (G4OCCTSolid /
         // NIST CTC).  These are large, complex AP203 assemblies: navigation is
         // very slow and triggers G4Exceptions.  Geometry import and volume
-        // checks are covered by test_geometry_validation and
-        // test_nist_ctc_inside_volume; navigation benchmarking will be re-enabled
-        // once a per-fixture timeout mechanism is in place.
+        // checks are covered by test_nist_ctc_inside_volume
+        // (test_geometry_validation/nist-ctc-* is temporarily disabled in CI);
+        // navigation benchmarking will be re-enabled once a per-fixture timeout
+        // mechanism is in place.
         if (!IsImportedSelfComparisonFixture(fixture)) {
           ValidationReport ray_report = CompareFixtureRays(request, options, &nav.ray);
           if (expected_failure.enabled) {
