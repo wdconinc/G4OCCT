@@ -26,6 +26,26 @@ namespace {
                        });
   }
 
+  bool IsImportedSelfComparisonFixture(const FixtureReference& fixture) {
+    return fixture.geant4_class == "G4OCCTSolid";
+  }
+
+  void ReportSkippedImportedSelfComparisonNavigation(const FixtureValidationRequest& request,
+                                                    ValidationReport* report) {
+    if (report == nullptr || !IsImportedSelfComparisonFixture(request.fixture)) {
+      return;
+    }
+
+    report->AddInfo(
+        "fixture.navigation_self_compare_skipped",
+        "Skipping ray and safety navigation comparisons for imported-only G4OCCTSolid fixture '" +
+            request.fixture.id +
+            "' because this path compares two imports of the same STEP geometry; imported-solid "
+            "coverage is provided by geometry import/volume validation and the dedicated NIST "
+            "inside-volume test.",
+        ResolveFixtureProvenancePath(request.manifest, request.fixture));
+  }
+
   struct CommandLineOptions {
     std::filesystem::path manifest_path{DefaultRepositoryManifestPath()};
     std::string fixture_filter;
@@ -160,32 +180,38 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
       }
 
       FixtureRayComparisonSummary ray_summary;
-      ValidationReport ray_report = CompareFixtureRays(request, {}, &ray_summary);
-      if (expected_failure.enabled) {
-        ++expected_failure_count;
-        ray_report = ReclassifyExpectedFailures(ray_report, expected_failure.reason);
-      }
-      aggregate_report.Append(ray_report);
-      if (ray_summary.ray_count > 0U) {
-        ++ray_compared_count;
-        total_native_ms += ray_summary.native_elapsed_ms;
-        total_imported_ms += ray_summary.imported_elapsed_ms;
-        total_sn_native_ms += ray_summary.native_surface_normal_ms;
-        total_sn_imported_ms += ray_summary.imported_surface_normal_ms;
+      if (IsImportedSelfComparisonFixture(request.fixture)) {
+        ReportSkippedImportedSelfComparisonNavigation(request, &aggregate_report);
+      } else {
+        ValidationReport ray_report = CompareFixtureRays(request, {}, &ray_summary);
+        if (expected_failure.enabled) {
+          ++expected_failure_count;
+          ray_report = ReclassifyExpectedFailures(ray_report, expected_failure.reason);
+        }
+        aggregate_report.Append(ray_report);
+        if (ray_summary.ray_count > 0U) {
+          ++ray_compared_count;
+          total_native_ms += ray_summary.native_elapsed_ms;
+          total_imported_ms += ray_summary.imported_elapsed_ms;
+          total_sn_native_ms += ray_summary.native_surface_normal_ms;
+          total_sn_imported_ms += ray_summary.imported_surface_normal_ms;
+        }
       }
 
       FixtureSafetyComparisonSummary safety_summary;
-      ValidationReport safety_report = CompareFixtureSafety(request, {}, &safety_summary);
-      if (expected_failure.enabled) {
-        safety_report = ReclassifyExpectedFailures(safety_report, expected_failure.reason);
-      }
-      aggregate_report.Append(safety_report);
-      if (safety_summary.point_count > 0U) {
-        ++safety_compared_count;
-        total_safety_in_native_ms += safety_summary.native_safety_in_ms;
-        total_safety_in_imported_ms += safety_summary.imported_safety_in_ms;
-        total_safety_out_native_ms += safety_summary.native_safety_out_ms;
-        total_safety_out_imported_ms += safety_summary.imported_safety_out_ms;
+      if (!IsImportedSelfComparisonFixture(request.fixture)) {
+        ValidationReport safety_report = CompareFixtureSafety(request, {}, &safety_summary);
+        if (expected_failure.enabled) {
+          safety_report = ReclassifyExpectedFailures(safety_report, expected_failure.reason);
+        }
+        aggregate_report.Append(safety_report);
+        if (safety_summary.point_count > 0U) {
+          ++safety_compared_count;
+          total_safety_in_native_ms += safety_summary.native_safety_in_ms;
+          total_safety_in_imported_ms += safety_summary.imported_safety_in_ms;
+          total_safety_out_native_ms += safety_summary.native_safety_out_ms;
+          total_safety_out_imported_ms += safety_summary.imported_safety_out_ms;
+        }
       }
 
       if (!fixture_filter.empty()) {
