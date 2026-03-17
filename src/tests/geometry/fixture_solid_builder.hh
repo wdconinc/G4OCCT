@@ -56,6 +56,22 @@ std::string Geant4Class(const FixtureProvenance& provenance);
 std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance);
 
 /**
+ * Construct the native benchmark solid for a fixture.
+ *
+ * For most fixtures this delegates to `BuildNativeSolid`.  For `G4OCCTSolid`
+ * fixtures, which have no separate native Geant4 class, a second `G4OCCTSolid`
+ * instance is created from the same imported STEP file so that benchmark timing
+ * and point-cloud generation can run without a native counterpart.
+ *
+ * @param request    Validation request that specifies the fixture asset paths.
+ * @param provenance Parsed provenance document.
+ * @return Heap-allocated Geant4 solid owned by the caller.
+ * @throws std::runtime_error if the STEP file is missing or a required YAML key is absent.
+ */
+std::unique_ptr<G4VSolid> BuildNativeSolidForRequest(const FixtureValidationRequest& request,
+                                                      const FixtureProvenance& provenance);
+
+/**
  * Load the STEP file for a fixture and return its OCCT shape.
  *
  * @param request Validation request that specifies the fixture asset paths.
@@ -75,6 +91,7 @@ G4ThreeVector BoundingBoxCenter(const G4VSolid& solid);
 /**
  * Choose the fixture-class-specific comparison origin for ray tests.
  *
+ * - `G4OCCTSolid`: the centre of the axis-aligned bounding box.
  * - `G4Tet`: centroid of the four vertices from the fixture provenance.
  * - Ellipsoidal and twisted solids: the coordinate origin `(0, 0, 0)`.
  * - All other solids: the centre of the axis-aligned bounding box.

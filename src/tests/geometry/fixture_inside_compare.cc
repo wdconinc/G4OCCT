@@ -129,7 +129,7 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
     const FixtureProvenance provenance = ParseFixtureProvenance(provenance_path);
     local_summary.geant4_class         = Geant4Class(provenance);
 
-    std::unique_ptr<G4VSolid> native_solid = BuildNativeSolid(provenance);
+    std::unique_ptr<G4VSolid> native_solid = BuildNativeSolidForRequest(request, provenance);
     auto imported_solid =
         std::make_unique<G4OCCTSolid>(request.fixture.id + "_imported", LoadImportedShape(request));
 
