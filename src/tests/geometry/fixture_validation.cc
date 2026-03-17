@@ -108,14 +108,6 @@ ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
 FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest& request) {
   const std::string& geant4_class = request.fixture.geant4_class;
 
-  if (geant4_class == "G4TwistedBox" || geant4_class == "G4TwistedTrd" ||
-      geant4_class == "G4TwistedTrap" || geant4_class == "G4TwistedTubs" ||
-      geant4_class == "G4VTwistedFaceted") {
-    return {true,
-            "fixture STEP files are built from the old ruled-loft generator and must be "
-            "regenerated with the updated B-spline loft construction before validation passes"};
-  }
-
   if (geant4_class == "G4Hype" || geant4_class == "G4Paraboloid") {
     return {true, "fixture STEP uses a faceted profile-loft approximation instead of the analytic "
                   "Geant4 surface"};
