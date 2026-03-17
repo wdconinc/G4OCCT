@@ -99,6 +99,8 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
   std::size_t expected_failure_count  = 0;
   double total_native_ms              = 0.0;
   double total_imported_ms            = 0.0;
+  double total_sn_native_ms           = 0.0;
+  double total_sn_imported_ms         = 0.0;
   double total_safety_in_native_ms    = 0.0;
   double total_safety_in_imported_ms  = 0.0;
   double total_safety_out_native_ms   = 0.0;
@@ -168,6 +170,8 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
         ++ray_compared_count;
         total_native_ms += ray_summary.native_elapsed_ms;
         total_imported_ms += ray_summary.imported_elapsed_ms;
+        total_sn_native_ms += ray_summary.native_surface_normal_ms;
+        total_sn_imported_ms += ray_summary.imported_surface_normal_ms;
       }
 
       FixtureSafetyComparisonSummary safety_summary;
@@ -229,6 +233,12 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
               << " ms";
     if (total_imported_ms > 0.0) {
       std::cout << ", native/imported ratio=" << total_native_ms / total_imported_ms;
+    }
+    std::cout << '\n';
+    std::cout << "SurfaceNormal summary: native=" << total_sn_native_ms
+              << " ms, imported=" << total_sn_imported_ms << " ms";
+    if (total_sn_imported_ms > 0.0) {
+      std::cout << ", native/imported ratio=" << total_sn_native_ms / total_sn_imported_ms;
     }
     std::cout << '\n';
   }

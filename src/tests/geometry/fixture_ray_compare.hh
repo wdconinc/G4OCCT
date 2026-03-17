@@ -19,7 +19,9 @@ namespace g4occt::tests::geometry {
 struct FixtureRayComparisonOptions {
   /// Number of deterministic ray directions to compare.
   std::size_t ray_count{2048};
-  /// Maximum number of detailed mismatch diagnostics to emit per fixture.
+  /// Maximum number of detailed mismatch diagnostics to emit per fixture per
+  /// mismatch category (ray intersection, ray distance, ray normal, and
+  /// SurfaceNormal each have their own independent cap at this limit).
   std::size_t max_reported_mismatches{8};
   /// Output directory for per-fixture point-cloud JSON files; empty means skip.
   std::filesystem::path point_cloud_dir;
@@ -39,6 +41,14 @@ struct FixtureRayComparisonSummary {
   EInside imported_origin_state{kOutside};
   double native_elapsed_ms{0.0};
   double imported_elapsed_ms{0.0};
+  /// Number of agreed hit points where SurfaceNormal(p) was evaluated.
+  std::size_t surface_normal_count{0};
+  /// Number of hit points where native and imported SurfaceNormal(p) disagreed.
+  std::size_t surface_normal_mismatch_count{0};
+  /// Elapsed time for all native SurfaceNormal(p) calls (milliseconds).
+  double native_surface_normal_ms{0.0};
+  /// Elapsed time for all imported SurfaceNormal(p) calls (milliseconds).
+  double imported_surface_normal_ms{0.0};
 };
 
 /** Return the default repository fixture manifest path for tests and benchmarks. */
@@ -50,6 +60,21 @@ G4double DefaultRayComparisonTolerance();
 /**
  * Build both fixture models, compare ray hits from a fixture-class-specific
  * comparison origin, and collect timings.
+ *
+ * After the ray comparison, `SurfaceNormal(p)` is benchmarked at all agreed
+ * hit points (rays where both solids agreed on intersection and distance).
+ * Native and imported calls are timed separately and their normals are
+ * compared with the same dot-product threshold used for ray normals.  For
+ * rays that originated inside the solid (DistanceToOut path), the exit normal
+ * from Phase 1 is cross-validated against the SurfaceNormal result as an
+ * internal consistency check.
+ *
+ * Validation codes produced by this function include:
+ *  - `fixture.ray_origin_state_mismatch` — origin classification differs.
+ *  - `fixture.ray_intersection_mismatch` — one solid hits, the other misses.
+ *  - `fixture.ray_distance_mismatch`     — hit distances disagree beyond tolerance.
+ *  - `fixture.ray_normal_mismatch`       — DistanceToOut exit normals disagree.
+ *  - `fixture.surface_normal_mismatch`   — SurfaceNormal(p) normals disagree.
  *
  * The comparison origin is chosen as follows:
  * - `G4Tet`: centroid of the four vertices from the fixture provenance.
