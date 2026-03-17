@@ -229,6 +229,14 @@ def _render_report(data: dict, viewer_path: str) -> str:
             "",
             "## Per-Fixture Results",
             "",
+            "Each cell shows `native ms → imported ms (ratio) [mismatches]`."
+            " ✅ = no mismatches; N ⚠️ = N result mismatches between native and imported."
+            " Exit normals has no timing (rays that miss the solid are skipped)."
+            " Column abbreviations: **DTI/DTO(p,v)** = DistanceToIn/Out(p,v),"
+            " **DTI(p)** = DistanceToIn safety, **DTO(p)** = DistanceToOut safety,"
+            " **SN(p)** = SurfaceNormal."
+            " Fixtures marked ⚠️ are expected failures and do not block CI.",
+            "",
             f"| Fixture | Geant4 Class | {col_headers} |",
             f"|---------|:-------------|{col_sep}|",
         ]
