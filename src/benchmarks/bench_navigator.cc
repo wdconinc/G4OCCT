@@ -64,13 +64,14 @@ namespace {
     return oss.str();
   }
 
-  /// Format a performance ratio as "NNN.Nx" (or "---" when denominator is zero).
+  /// Format a performance ratio as "NNN.Nx" — imported divided by native (how many times slower
+  /// the imported solid is relative to the native solid). Returns "---" when native time is zero.
   std::string FormatRatio(const double native_ms, const double imported_ms) {
-    if (imported_ms <= 0.0) {
+    if (native_ms <= 0.0) {
       return "---";
     }
     std::ostringstream oss;
-    oss << std::fixed << std::setprecision(1) << (native_ms / imported_ms) << "x";
+    oss << std::fixed << std::setprecision(1) << (imported_ms / native_ms) << "x";
     return oss.str();
   }
 
@@ -84,7 +85,9 @@ namespace {
                 << "  ratio=" << std::setw(8) << FormatRatio(native_ms, imported_ms);
     } else {
       // Exit normals are computed as part of DistanceToOut — no separate timing.
-      std::cout << std::string(51, ' ');
+      std::cout << "native=" << std::right << std::setw(8) << "---" << "ms"
+                << "  imported=" << std::setw(8) << "---" << "ms"
+                << "  ratio=" << std::setw(8) << "---";
     }
     std::cout << "  mismatches=" << mismatches << "\n";
   }
@@ -166,7 +169,6 @@ namespace {
     safety_options.point_count = ray_count;
 
     std::vector<FixtureNavigationSummary> nav_summaries;
-    std::size_t expected_failure_count = 0;
 
     for (const auto& family : repository_manifest.families) {
       const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
@@ -200,11 +202,8 @@ namespace {
         }
 
         FixtureNavigationSummary nav;
-        nav.fixture_id           = fixture.id;
+        nav.fixture_id           = family_manifest.family + "/" + fixture.id;
         nav.has_expected_failure = expected_failure.enabled;
-        if (expected_failure.enabled) {
-          ++expected_failure_count;
-        }
 
         ValidationReport ray_report = CompareFixtureRays(request, options, &nav.ray);
         if (expected_failure.enabled) {
@@ -262,48 +261,77 @@ namespace {
     double agg_ray_native_ms       = 0.0;
     double agg_ray_imported_ms     = 0.0;
     std::size_t agg_ray_mismatches = 0;
+    std::size_t agg_ray_exp_failures = 0;
 
     // Exit normals are computed as part of DistanceToOut; no separate timing.
-    std::size_t agg_exit_mismatches = 0;
+    std::size_t agg_exit_mismatches    = 0;
+    std::size_t agg_exit_exp_failures  = 0;
 
-    double agg_inside_native_ms       = 0.0;
-    double agg_inside_imported_ms     = 0.0;
-    std::size_t agg_inside_mismatches = 0;
+    double agg_inside_native_ms          = 0.0;
+    double agg_inside_imported_ms        = 0.0;
+    std::size_t agg_inside_mismatches    = 0;
+    std::size_t agg_inside_exp_failures  = 0;
 
-    double agg_dti_native_ms       = 0.0;
-    double agg_dti_imported_ms     = 0.0;
-    std::size_t agg_dti_mismatches = 0;
+    double agg_dti_native_ms         = 0.0;
+    double agg_dti_imported_ms       = 0.0;
+    std::size_t agg_dti_mismatches   = 0;
+    std::size_t agg_dti_exp_failures = 0;
 
-    double agg_dto_native_ms       = 0.0;
-    double agg_dto_imported_ms     = 0.0;
-    std::size_t agg_dto_mismatches = 0;
+    double agg_dto_native_ms         = 0.0;
+    double agg_dto_imported_ms       = 0.0;
+    std::size_t agg_dto_mismatches   = 0;
+    std::size_t agg_dto_exp_failures = 0;
 
-    double agg_sn_native_ms       = 0.0;
-    double agg_sn_imported_ms     = 0.0;
-    std::size_t agg_sn_mismatches = 0;
+    double agg_sn_native_ms        = 0.0;
+    double agg_sn_imported_ms      = 0.0;
+    std::size_t agg_sn_mismatches  = 0;
+    std::size_t agg_sn_exp_failures = 0;
 
     for (const auto& s : nav_summaries) {
-      agg_ray_native_ms += s.ray.native_elapsed_ms;
-      agg_ray_imported_ms += s.ray.imported_elapsed_ms;
-      agg_ray_mismatches += RayOnlyMismatches(s.ray);
+      if (s.ray.ray_count > 0U) {
+        agg_ray_native_ms += s.ray.native_elapsed_ms;
+        agg_ray_imported_ms += s.ray.imported_elapsed_ms;
+        agg_ray_mismatches += RayOnlyMismatches(s.ray);
+        if (s.has_expected_failure) {
+          ++agg_ray_exp_failures;
+        }
 
-      agg_exit_mismatches += s.ray.normal_mismatch_count;
+        // Exit normals are extracted from the ray data.
+        agg_exit_mismatches += s.ray.normal_mismatch_count;
+        if (s.has_expected_failure) {
+          ++agg_exit_exp_failures;
+        }
 
-      agg_inside_native_ms += s.inside.native_elapsed_ms;
-      agg_inside_imported_ms += s.inside.imported_elapsed_ms;
-      agg_inside_mismatches += s.inside.mismatch_count;
+        // SurfaceNormal(p) is benchmarked at agreed ray hit points.
+        agg_sn_native_ms += s.ray.native_surface_normal_ms;
+        agg_sn_imported_ms += s.ray.imported_surface_normal_ms;
+        agg_sn_mismatches += s.ray.surface_normal_mismatch_count;
+        if (s.has_expected_failure) {
+          ++agg_sn_exp_failures;
+        }
+      }
 
-      agg_dti_native_ms += s.safety.native_safety_in_ms;
-      agg_dti_imported_ms += s.safety.imported_safety_in_ms;
-      agg_dti_mismatches += s.safety.safety_in_mismatch_count;
+      if (s.inside.point_count > 0U) {
+        agg_inside_native_ms += s.inside.native_elapsed_ms;
+        agg_inside_imported_ms += s.inside.imported_elapsed_ms;
+        agg_inside_mismatches += s.inside.mismatch_count;
+        if (s.has_expected_failure) {
+          ++agg_inside_exp_failures;
+        }
+      }
 
-      agg_dto_native_ms += s.safety.native_safety_out_ms;
-      agg_dto_imported_ms += s.safety.imported_safety_out_ms;
-      agg_dto_mismatches += s.safety.safety_out_mismatch_count;
-
-      agg_sn_native_ms += s.ray.native_surface_normal_ms;
-      agg_sn_imported_ms += s.ray.imported_surface_normal_ms;
-      agg_sn_mismatches += s.ray.surface_normal_mismatch_count;
+      if (s.safety.point_count > 0U) {
+        agg_dti_native_ms += s.safety.native_safety_in_ms;
+        agg_dti_imported_ms += s.safety.imported_safety_in_ms;
+        agg_dti_mismatches += s.safety.safety_in_mismatch_count;
+        agg_dto_native_ms += s.safety.native_safety_out_ms;
+        agg_dto_imported_ms += s.safety.imported_safety_out_ms;
+        agg_dto_mismatches += s.safety.safety_out_mismatch_count;
+        if (s.has_expected_failure) {
+          ++agg_dti_exp_failures;
+          ++agg_dto_exp_failures;
+        }
+      }
     }
 
     std::cout << "Aggregate:\n";
@@ -313,17 +341,17 @@ namespace {
     std::cout << "  " << std::string(85, '-') << "\n";
 
     PrintAggregateRow("DistanceToIn/Out(p,v)", agg_ray_native_ms, agg_ray_imported_ms,
-                      agg_ray_mismatches, expected_failure_count);
-    PrintAggregateRow("Exit normals", 0.0, 0.0, agg_exit_mismatches, expected_failure_count,
+                      agg_ray_mismatches, agg_ray_exp_failures);
+    PrintAggregateRow("Exit normals", 0.0, 0.0, agg_exit_mismatches, agg_exit_exp_failures,
                       /*has_timing=*/false);
     PrintAggregateRow("Inside(p)", agg_inside_native_ms, agg_inside_imported_ms,
-                      agg_inside_mismatches, expected_failure_count);
+                      agg_inside_mismatches, agg_inside_exp_failures);
     PrintAggregateRow("DistanceToIn(p)", agg_dti_native_ms, agg_dti_imported_ms, agg_dti_mismatches,
-                      expected_failure_count);
+                      agg_dti_exp_failures);
     PrintAggregateRow("DistanceToOut(p)", agg_dto_native_ms, agg_dto_imported_ms,
-                      agg_dto_mismatches, expected_failure_count);
+                      agg_dto_mismatches, agg_dto_exp_failures);
     PrintAggregateRow("SurfaceNormal(p)", agg_sn_native_ms, agg_sn_imported_ms, agg_sn_mismatches,
-                      expected_failure_count);
+                      agg_sn_exp_failures);
 
     return EXIT_SUCCESS;
   }
