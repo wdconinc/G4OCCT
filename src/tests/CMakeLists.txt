@@ -113,8 +113,9 @@ unset(_family_fixture_lines)
 unset(_fixture_line)
 unset(_geometry_family_manifests)
 unset(_geometry_fixture_ids)
-# Temporarily disabled: nist-ctc-02 and nist-ctc-07 consistently time out in CI
-# until the performance issue is diagnosed and resolved.
+# Temporarily disabled: nist-ctc-02-v1 and nist-ctc-07-v1 consistently time out
+# in CI (see https://github.com/wdconinc/G4OCCT/actions/runs/23174161275/job/67332574303)
+# until the underlying performance issue is diagnosed and resolved.
 set_tests_properties(
   "test_geometry_validation/nist-ctc-02-v1"
   "test_geometry_validation/nist-ctc-07-v1" PROPERTIES DISABLED TRUE)
