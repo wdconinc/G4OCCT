@@ -81,6 +81,9 @@ target_include_directories(test_geometry_validation
                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(test_geometry_validation PRIVATE G4OCCTFixtureSupport)
 add_test(NAME test_geometry_validation COMMAND test_geometry_validation)
+# The aggregate validation binary remains available for manual runs, but default
+# ctest execution should use the per-fixture tests for clearer CI reporting.
+set_tests_properties(test_geometry_validation PROPERTIES DISABLED TRUE)
 file(
   GLOB _geometry_family_manifests CONFIGURE_DEPENDS
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
