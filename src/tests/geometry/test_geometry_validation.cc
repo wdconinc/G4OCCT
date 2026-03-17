@@ -31,7 +31,7 @@ namespace {
   }
 
   void ReportSkippedImportedSelfComparisonNavigation(const FixtureValidationRequest& request,
-                                                    ValidationReport* report) {
+                                                     ValidationReport* report) {
     if (report == nullptr || !IsImportedSelfComparisonFixture(request.fixture)) {
       return;
     }
