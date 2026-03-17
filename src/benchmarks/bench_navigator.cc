@@ -90,16 +90,16 @@ namespace {
   }
 
   /// Print one row of the aggregate summary table.
-  void PrintAggregateRow(const std::string& label, const double native_ms,
-                         const double imported_ms, const std::size_t mismatches,
-                         const std::size_t exp_failures, const bool has_timing = true) {
+  void PrintAggregateRow(const std::string& label, const double native_ms, const double imported_ms,
+                         const std::size_t mismatches, const std::size_t exp_failures,
+                         const bool has_timing = true) {
     std::cout << "  " << std::left << std::setw(24) << label;
     if (has_timing) {
       std::cout << std::right << std::setw(12) << FormatMs(native_ms) << std::setw(14)
                 << FormatMs(imported_ms) << std::setw(10) << FormatRatio(native_ms, imported_ms);
     } else {
-      std::cout << std::right << std::setw(12) << "---" << std::setw(14) << "---"
-                << std::setw(10) << "---";
+      std::cout << std::right << std::setw(12) << "---" << std::setw(14) << "---" << std::setw(10)
+                << "---";
     }
     std::cout << std::setw(13) << mismatches << std::setw(14) << exp_failures << "\n";
   }
@@ -213,16 +213,14 @@ namespace {
         }
         aggregate_report.Append(ray_report);
 
-        ValidationReport inside_report =
-            CompareFixtureInside(request, inside_options, &nav.inside);
+        ValidationReport inside_report = CompareFixtureInside(request, inside_options, &nav.inside);
         if (expected_failure.enabled) {
           inside_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
               inside_report, expected_failure.reason);
         }
         aggregate_report.Append(inside_report);
 
-        ValidationReport safety_report =
-            CompareFixtureSafety(request, safety_options, &nav.safety);
+        ValidationReport safety_report = CompareFixtureSafety(request, safety_options, &nav.safety);
         if (expected_failure.enabled) {
           safety_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
               safety_report, expected_failure.reason);
@@ -238,8 +236,8 @@ namespace {
           nav.geant4_class = nav.safety.geant4_class;
         }
 
-        const bool any_data = nav.ray.ray_count > 0U || nav.inside.point_count > 0U ||
-                              nav.safety.point_count > 0U;
+        const bool any_data =
+            nav.ray.ray_count > 0U || nav.inside.point_count > 0U || nav.safety.point_count > 0U;
         if (any_data) {
           nav_summaries.push_back(nav);
         }
@@ -316,8 +314,8 @@ namespace {
 
     PrintAggregateRow("DistanceToIn/Out(p,v)", agg_ray_native_ms, agg_ray_imported_ms,
                       agg_ray_mismatches, expected_failure_count);
-    PrintAggregateRow("Exit normals", 0.0, 0.0, agg_exit_mismatches,
-                      expected_failure_count, /*has_timing=*/false);
+    PrintAggregateRow("Exit normals", 0.0, 0.0, agg_exit_mismatches, expected_failure_count,
+                      /*has_timing=*/false);
     PrintAggregateRow("Inside(p)", agg_inside_native_ms, agg_inside_imported_ms,
                       agg_inside_mismatches, expected_failure_count);
     PrintAggregateRow("DistanceToIn(p)", agg_dti_native_ms, agg_dti_imported_ms, agg_dti_mismatches,
