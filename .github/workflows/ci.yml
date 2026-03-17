@@ -59,19 +59,18 @@ jobs:
             # ── Test ───────────────────────────────────────────────────────
             ctest --test-dir build --output-on-failure \
               --output-junit "${PWD}/test-results.xml" \
-              --exclude-regex "render_geometry_fixtures" \
+              --exclude-regex "^render_geometry_fixtures" \
               -j$(nproc)
 
             # ── Render fixture solids to JPEG via Geant4 RayTracer ──────────
-            # Run the render test separately so a timeout or failure here does
-            # not affect the correctness test results above.  The RayTracer
-            # uses SerialOnly mode and runs alone (RUN_SERIAL) to stay within
-            # the CI memory budget.
+            # Per-fixture render tests (render_geometry_fixtures/<family>/<id>)
+            # run serially (RUN_SERIAL) with a 120 s per-fixture timeout so a
+            # slow or stuck fixture doesn't block CI.  The overall invocation
+            # uses || echo so a failed render does not fail the CI step.
             mkdir -p build/geometry_renders
             ctest --test-dir build --output-on-failure \
-              -R "render_geometry_fixtures" \
-              --timeout 900 \
-              || echo "WARNING: render_geometry_fixtures did not complete (non-critical)"
+              -R "^render_geometry_fixtures/" \
+              || echo "WARNING: one or more render_geometry_fixtures tests did not complete (non-critical)"
 
             # ── Benchmark + point-cloud export ─────────────────────────────
             # Write Google Benchmark JSON to a file (--benchmark_out) to avoid

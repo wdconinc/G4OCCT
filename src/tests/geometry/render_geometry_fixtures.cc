@@ -258,9 +258,9 @@ namespace {
    * viewer has been validated as a RayTracer instance and the scene has been
    * fully configured.
    *
-   * G4RayTracer appends @c .jpeg to the stem passed to @c /vis/rayTracer/trace,
-   * so @p output_path should include the @c .jpeg extension — the function
-   * strips it before issuing the command and then verifies the output file.
+   * G4RayTracer writes the JPEG at the exact path passed to
+   * @c /vis/rayTracer/trace (no extension is appended by the Geant4 code),
+   * so @p output_path should already end in @c .jpeg.
    *
    * @return @c true when the JPEG was successfully written.
    */
@@ -347,24 +347,85 @@ namespace {
     // Render: G4RayTracer traces through G4Navigator which always reflects the
     // current world geometry (set by Initialize/ReinitializeGeometry), so no
     // per-render /vis/scene/create is needed — and creating a new scene per
-    // render would detach the viewer from G4RTMessenger's scanner.  Prepare the
-    // viewer's scene/camera state explicitly before tracing so the RayTracer
-    // uses the active viewer instead of an unconfigured default tracer.
+    // render would detach the viewer from G4RTMessenger's scanner.
+    //
+    // Do NOT call viewer->NeedKernelVisit() + viewer->ProcessView() before
+    // tracing.  G4RayTracerViewer::DrawView() (called by ProcessView) writes a
+    // JPEG to the current working directory under an auto-generated name and
+    // invalidates the viewer state for the subsequent /vis/rayTracer/trace
+    // command, causing G4RTMessenger to fall back to an unconfigured default
+    // tracer.
+    //
+    // Instead: set the viewpoint direction via the vis-command, then call
+    // viewer->SetView() to push the computed eye/target parameters onto the
+    // tracer, and finally issue /vis/rayTracer/trace which calls
+    // viewer_tracer->Trace(path) directly.  G4RayTracer writes the file at the
+    // exact path given (no extension is appended).
     ui->ApplyCommand("/vis/viewer/set/viewpointThetaPhi 45 45");
-    viewer->NeedKernelVisit();
-    viewer->ProcessView();
     viewer->SetView();
 
+    // G4RayTracer uses the filename as-is (no extension appended).
     const std::string output_name = output_path.string();
     ui->ApplyCommand(G4String("/vis/rayTracer/trace ") + G4String(output_name));
 
     return std::filesystem::exists(output_path);
   }
 
+  // ── Command-line options ─────────────────────────────────────────────────
+
+  struct CommandLineOptions {
+    std::filesystem::path output_dir{"geometry_renders"};
+    std::filesystem::path manifest_path{DefaultRepositoryManifestPath()};
+    /// Optional filter: only render this qualified fixture ID ("family/id").
+    /// Empty string means render all fixtures.
+    std::string fixture_filter;
+  };
+
+  CommandLineOptions ParseCommandLine(int argc, char** argv) {
+    CommandLineOptions opts;
+    for (int i = 1; i < argc; ++i) {
+      const std::string arg = argv[i];
+      if (arg == "--fixture" || arg == "--fixture-id") {
+        if (i + 1 >= argc) {
+          throw std::runtime_error("Missing value after " + arg);
+        }
+        opts.fixture_filter = argv[++i];
+      } else if (arg.rfind("--fixture=", 0) == 0) {
+        opts.fixture_filter = arg.substr(std::string("--fixture=").size());
+      } else if (arg == "--output-dir") {
+        if (i + 1 >= argc) {
+          throw std::runtime_error("Missing value after --output-dir");
+        }
+        opts.output_dir = argv[++i];
+      } else if (arg.rfind("--output-dir=", 0) == 0) {
+        opts.output_dir = arg.substr(std::string("--output-dir=").size());
+      } else if (arg == "--manifest") {
+        if (i + 1 >= argc) {
+          throw std::runtime_error("Missing value after --manifest");
+        }
+        opts.manifest_path = argv[++i];
+      } else if (arg.rfind("--manifest=", 0) == 0) {
+        opts.manifest_path = arg.substr(std::string("--manifest=").size());
+      } else if (!arg.empty() && arg[0] != '-') {
+        // Legacy positional arguments: <output_dir> [<manifest_path>]
+        if (opts.output_dir == std::filesystem::path{"geometry_renders"} &&
+            opts.manifest_path == DefaultRepositoryManifestPath()) {
+          opts.output_dir = arg;
+        } else {
+          opts.manifest_path = arg;
+        }
+      } else {
+        throw std::runtime_error("Unknown argument: " + arg);
+      }
+    }
+    return opts;
+  }
+
   // ── Main render loop ──────────────────────────────────────────────────────
 
   int RunRender(const std::filesystem::path& output_dir,
-                const std::filesystem::path& repository_manifest_path) {
+                const std::filesystem::path& repository_manifest_path,
+                const std::string& fixture_filter = {}) {
     std::filesystem::create_directories(output_dir);
 
     // G4TheMTRayTracer (used by /vis/open RayTracer in MT-built Geant4) requires
@@ -402,20 +463,23 @@ namespace {
     std::size_t rendered_count = 0;
     std::size_t skipped_count  = 0;
     std::size_t failed_count   = 0;
+    bool done                  = false;
 
     for (const auto& family : repository_manifest.families) {
+      if (done) break;
       const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
       if (!std::filesystem::exists(family_manifest_path)) {
         continue;
       }
 
-      // Skip families whose fixtures are large multi-body assemblies: loading
-      // and duplicating their geometry for every render call exceeds the CI
-      // memory budget and takes hundreds of seconds per fixture.  Those families
-      // are exercised by dedicated correctness tests instead.
-      static const std::set<std::string> kSkipFamilies = {"nist-ctc"};
-      if (kSkipFamilies.count(family) != 0) {
-        std::cout << "Skipping family '" << family << "' (excluded from smoke-test renders)\n";
+      // In aggregate (no filter) mode skip families whose fixtures are large
+      // multi-body assemblies.  Per-fixture tests registered in CMakeLists
+      // simply never include nist-ctc, so this guard is only reached during
+      // manual all-fixture runs.
+      static const std::set<std::string> kSkipFamiliesAggregate = {"nist-ctc"};
+      if (fixture_filter.empty() && kSkipFamiliesAggregate.count(family) != 0) {
+        std::cout << "Skipping family '" << family
+                  << "' (excluded from aggregate smoke-test renders)\n";
         continue;
       }
 
@@ -429,6 +493,13 @@ namespace {
       }
 
       for (const auto& fixture : family_manifest.fixtures) {
+        const std::string qualified_id = family + "/" + fixture.id;
+
+        // When a fixture filter is active, skip everything that doesn't match.
+        if (!fixture_filter.empty() && qualified_id != fixture_filter) {
+          continue;
+        }
+
         const auto step_path       = ResolveFixtureStepPath(family_manifest, fixture);
         const auto provenance_path = ResolveFixtureProvenancePath(family_manifest, fixture);
         if (!std::filesystem::exists(step_path) || !std::filesystem::exists(provenance_path)) {
@@ -436,8 +507,7 @@ namespace {
           continue;
         }
 
-        const std::string qualified_id = family + "/" + fixture.id;
-        const std::string safe_id      = SafeFilename(qualified_id);
+        const std::string safe_id = SafeFilename(qualified_id);
 
         try {
           // ── Native solid ─────────────────────────────────────────────────
@@ -453,6 +523,7 @@ namespace {
                              initialized, visualization_ready)) {
             std::cerr << "WARNING: " << qualified_id << ": native render produced no output\n";
             ++skipped_count;
+            done = !fixture_filter.empty();
             continue;
           }
 
@@ -469,6 +540,7 @@ namespace {
                              initialized, visualization_ready)) {
             std::cerr << "WARNING: " << qualified_id << ": imported render produced no output\n";
             ++skipped_count;
+            done = !fixture_filter.empty();
             continue;
           }
 
@@ -478,12 +550,22 @@ namespace {
           std::cerr << "ERROR: " << qualified_id << ": " << error.what() << '\n';
           ++failed_count;
         }
+
+        // In single-fixture mode stop after the first (and only) match.
+        if (!fixture_filter.empty()) {
+          done = true;
+          break;
+        }
       }
     }
 
     delete vis_manager;
     delete runManager;
 
+    if (!fixture_filter.empty() && rendered_count == 0 && failed_count == 0) {
+      std::cerr << "ERROR: fixture '" << fixture_filter << "' not found in manifest.\n";
+      return EXIT_FAILURE;
+    }
     std::cout << "Render summary: " << rendered_count << " rendered, " << skipped_count
               << " skipped, " << failed_count << " failed.\n";
     return (failed_count > 0U) ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -495,12 +577,9 @@ namespace {
 
 int main(int argc, char** argv) {
   try {
-    const std::filesystem::path output_dir =
-        argc > 1 ? std::filesystem::path(argv[1]) : std::filesystem::path("geometry_renders");
-    const std::filesystem::path manifest_path =
-        argc > 2 ? std::filesystem::path(argv[2])
-                 : g4occt::tests::geometry::DefaultRepositoryManifestPath();
-    return g4occt::tests::geometry::RunRender(output_dir, manifest_path);
+    const auto opts = g4occt::tests::geometry::ParseCommandLine(argc, argv);
+    return g4occt::tests::geometry::RunRender(opts.output_dir, opts.manifest_path,
+                                              opts.fixture_filter);
   } catch (const std::exception& error) {
     std::cerr << "FAIL: render_geometry_fixtures threw an exception: " << error.what() << '\n';
     return EXIT_FAILURE;
