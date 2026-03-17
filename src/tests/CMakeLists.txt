@@ -159,9 +159,10 @@ if(G4_VIS_EXECUTIVE_HH)
   # ── Aggregate test (disabled in default ctest runs) ──────────────────────
   add_test(
     NAME render_geometry_fixtures
-    COMMAND render_geometry_fixtures
-            --output-dir ${CMAKE_BINARY_DIR}/geometry_renders
-            --manifest ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml)
+    COMMAND
+      render_geometry_fixtures --output-dir
+      ${CMAKE_BINARY_DIR}/geometry_renders --manifest
+      ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml)
   # Keep the aggregate binary available for manual runs; per-fixture tests are
   # registered below for CI-friendly individual reporting.
   set_tests_properties(render_geometry_fixtures PROPERTIES DISABLED TRUE)
@@ -205,16 +206,14 @@ if(G4_VIS_EXECUTIVE_HH)
   foreach(_qualified_id IN LISTS _render_qualified_ids)
     add_test(
       NAME "render_geometry_fixtures/${_qualified_id}"
-      COMMAND render_geometry_fixtures
-              --output-dir ${CMAKE_BINARY_DIR}/geometry_renders
-              --manifest ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml
-              --fixture ${_qualified_id})
+      COMMAND
+        render_geometry_fixtures --output-dir
+        ${CMAKE_BINARY_DIR}/geometry_renders --manifest
+        ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml --fixture
+        ${_qualified_id})
     set_tests_properties(
       "render_geometry_fixtures/${_qualified_id}"
-      PROPERTIES
-        RUN_SERIAL TRUE
-        TIMEOUT 120
-        LABELS "visualization")
+      PROPERTIES RUN_SERIAL TRUE TIMEOUT 120 LABELS "visualization")
   endforeach()
   unset(_render_skip_families)
   unset(_render_family_manifests)

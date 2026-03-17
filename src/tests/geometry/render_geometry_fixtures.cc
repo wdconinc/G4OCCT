@@ -466,7 +466,8 @@ namespace {
     bool done                  = false;
 
     for (const auto& family : repository_manifest.families) {
-      if (done) break;
+      if (done)
+        break;
       const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
       if (!std::filesystem::exists(family_manifest_path)) {
         continue;
