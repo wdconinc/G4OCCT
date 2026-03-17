@@ -258,19 +258,19 @@ namespace {
     }
 
     // ── Aggregate totals per method ───────────────────────────────────────
-    double agg_ray_native_ms       = 0.0;
-    double agg_ray_imported_ms     = 0.0;
-    std::size_t agg_ray_mismatches = 0;
+    double agg_ray_native_ms         = 0.0;
+    double agg_ray_imported_ms       = 0.0;
+    std::size_t agg_ray_mismatches   = 0;
     std::size_t agg_ray_exp_failures = 0;
 
     // Exit normals are computed as part of DistanceToOut; no separate timing.
-    std::size_t agg_exit_mismatches    = 0;
-    std::size_t agg_exit_exp_failures  = 0;
+    std::size_t agg_exit_mismatches   = 0;
+    std::size_t agg_exit_exp_failures = 0;
 
-    double agg_inside_native_ms          = 0.0;
-    double agg_inside_imported_ms        = 0.0;
-    std::size_t agg_inside_mismatches    = 0;
-    std::size_t agg_inside_exp_failures  = 0;
+    double agg_inside_native_ms         = 0.0;
+    double agg_inside_imported_ms       = 0.0;
+    std::size_t agg_inside_mismatches   = 0;
+    std::size_t agg_inside_exp_failures = 0;
 
     double agg_dti_native_ms         = 0.0;
     double agg_dti_imported_ms       = 0.0;
@@ -282,9 +282,9 @@ namespace {
     std::size_t agg_dto_mismatches   = 0;
     std::size_t agg_dto_exp_failures = 0;
 
-    double agg_sn_native_ms        = 0.0;
-    double agg_sn_imported_ms      = 0.0;
-    std::size_t agg_sn_mismatches  = 0;
+    double agg_sn_native_ms         = 0.0;
+    double agg_sn_imported_ms       = 0.0;
+    std::size_t agg_sn_mismatches   = 0;
     std::size_t agg_sn_exp_failures = 0;
 
     for (const auto& s : nav_summaries) {
