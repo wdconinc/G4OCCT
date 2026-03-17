@@ -84,12 +84,13 @@ namespace {
   class DummyPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
   public:
     void GeneratePrimaries(G4Event* event) override {
-      G4ParticleDefinition* geantino = G4ParticleTable::GetParticleTable()->FindParticle("geantino");
+      G4ParticleDefinition* geantino =
+          G4ParticleTable::GetParticleTable()->FindParticle("geantino");
       if (geantino == nullptr) {
         return;
       }
 
-      auto* vertex = new G4PrimaryVertex(G4ThreeVector(), 0.0);
+      auto* vertex   = new G4PrimaryVertex(G4ThreeVector(), 0.0);
       auto* particle = new G4PrimaryParticle(geantino);
       particle->SetKineticEnergy(1.0 * GeV);
       particle->SetMomentumDirection(G4ThreeVector(0.0, 0.0, 1.0));
@@ -256,10 +257,10 @@ namespace {
    * @return @c true when the JPEG was successfully written.
    */
   bool RenderFixture(G4RunManager* runManager, FixtureDetectorConstruction* detector,
-                      G4VisExecutive*& vis_manager, G4UImanager* ui,
-                      const FixtureDetectorConstruction::Request& req,
-                      const std::filesystem::path& output_path, bool& initialized,
-                      bool& visualization_ready) {
+                     G4VisExecutive*& vis_manager, G4UImanager* ui,
+                     const FixtureDetectorConstruction::Request& req,
+                     const std::filesystem::path& output_path, bool& initialized,
+                     bool& visualization_ready) {
     detector->SetRequest(req);
 
     if (!initialized) {
@@ -311,7 +312,7 @@ namespace {
       if (gs == nullptr || !IsRayTracerNickname(gs->GetNickname())) {
         const G4String gsName = gs ? gs->GetNickname() : "<none>";
         G4cerr << "render_geometry_fixtures: /vis/open RayTracer opened an unexpected "
-                << "viewer type '" << gsName << "'. Skipping renders." << G4endl;
+               << "viewer type '" << gsName << "'. Skipping renders." << G4endl;
         return false;
       }
       // Add the world volume to the auto-created scene once so the viewer has
@@ -320,7 +321,8 @@ namespace {
       visualization_ready = true;
     } else {
       // If the vis setup failed on the first call, skip subsequent renders too.
-      if (!visualization_ready || vis_manager == nullptr || vis_manager->GetCurrentViewer() == nullptr) {
+      if (!visualization_ready || vis_manager == nullptr ||
+          vis_manager->GetCurrentViewer() == nullptr) {
         return false;
       }
       // destroyFirst=true → G4SolidStore::Clean() + Construct() rebuild.
