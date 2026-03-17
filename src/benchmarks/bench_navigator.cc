@@ -44,7 +44,7 @@ namespace {
   // these very large compound assemblies is extremely slow and produces
   // G4Exceptions; geometry import and volume checks are covered by
   // test_nist_ctc_inside_volume (test_geometry_validation/nist-ctc-* is
-  // temporarily disabled in CI).
+  // temporarily disabled).
   bool IsImportedSelfComparisonFixture(const g4occt::tests::geometry::FixtureReference& fixture) {
     return fixture.geant4_class == "G4OCCTSolid";
   }
@@ -220,7 +220,7 @@ namespace {
         // NIST CTC).  These are large, complex AP203 assemblies: navigation is
         // very slow and triggers G4Exceptions.  Geometry import and volume
         // checks are covered by test_nist_ctc_inside_volume
-        // (test_geometry_validation/nist-ctc-* is temporarily disabled in CI);
+        // (test_geometry_validation/nist-ctc-* is temporarily disabled);
         // navigation benchmarking will be re-enabled once a per-fixture timeout
         // mechanism is in place.
         if (!IsImportedSelfComparisonFixture(fixture)) {
