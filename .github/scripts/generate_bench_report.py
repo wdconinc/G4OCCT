@@ -101,7 +101,7 @@ def _parse_bench_output(text: str) -> dict:
                             "exp_failures": exp_failures,
                         })
                     except (ValueError, IndexError):
-                        pass
+                        print(f"Warning: could not parse aggregate row: {line!r}", file=sys.stderr)
             continue
 
         # ── Per-fixture header ───────────────────────────────────────────
@@ -231,7 +231,7 @@ def _render_report(data: dict, viewer_path: str) -> str:
             "",
             "Each cell shows `native ms → imported ms (ratio) [mismatches]`."
             " ✅ = no mismatches; N ⚠️ = N result mismatches between native and imported."
-            " Exit normals has no timing (rays that miss the solid are skipped)."
+            " Exit normals has no separate timing (normals are computed as part of DistanceToOut)."
             " Column abbreviations: **DTI/DTO(p,v)** = DistanceToIn/Out(p,v),"
             " **DTI(p)** = DistanceToIn safety, **DTO(p)** = DistanceToOut safety,"
             " **SN(p)** = SurfaceNormal."
@@ -244,10 +244,13 @@ def _render_report(data: dict, viewer_path: str) -> str:
         for f in fixtures:
             cells = []
             for _, method_key, has_timing in method_columns:
-                data = f["methods"].get(method_key, {})
-                mm   = data.get("mismatches", 0) if data else 0
+                data = f["methods"].get(method_key)
+                if data is None:
+                    cells.append("---")
+                    continue
+                mm     = data.get("mismatches", 0)
                 mm_str = "✅" if mm == 0 else f"{mm} ⚠️"
-                if has_timing and data:
+                if has_timing:
                     n = data.get("native_ms")
                     i = data.get("imported_ms")
                     r = data.get("ratio", "---")
