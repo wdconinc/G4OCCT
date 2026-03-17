@@ -299,20 +299,42 @@ navigation, not a fixable deficiency.
 ## 6. Benchmarking
 
 The `bench_navigator` executable (built with `-DBUILD_BENCHMARKS=ON`)
-measures geantino tracking throughput for both a native Geant4 geometry
-and an equivalent `G4OCCTSolid`-wrapped geometry:
+benchmarks and validates all navigator-critical `G4VSolid` methods across
+every fixture registered in the repository manifest.  For each fixture it
+builds both a native Geant4 solid and an equivalent `G4OCCTSolid`-wrapped
+shape, runs each method against a set of deterministically generated test
+points, reports per-method wall-clock time and the imported-to-native speed
+ratio (how many times slower the imported solid is), and flags any correctness
+mismatches between the two solids.
 
 ```
-./bench_navigator [N_geantinos]   # default: 10000
+./bench_navigator [ray_count [manifest_path [point_cloud_dir]]]
+#                  default: 2048
 ```
 
-It reports wall-clock time and the native-to-OCCT speed ratio.  This
-benchmark should be run:
+The following methods are benchmarked in a single pass:
+
+| Method | Description |
+|---|---|
+| `DistanceToIn/Out(p, v)` | Directional ray intersection and distance |
+| Exit normals | `DistanceToOut(p, v, calcNorm=true)` exit-normal validation |
+| `Inside(p)` | Point-in-solid classification |
+| `DistanceToIn(p)` | Isotropic safety distance from outside points |
+| `DistanceToOut(p)` | Isotropic safety distance from inside points |
+| `SurfaceNormal(p)` | Surface normal at agreed ray hit points |
+
+Most rows in the per-fixture output show native time, imported time, the
+imported-to-native speed ratio, and the number of correctness mismatches.
+The "Exit normals" row is an exception: exit normals are validated as part of
+`DistanceToOut(p, v)` and carry no separate timing entry (those columns show
+`---`).  An aggregate summary table across all fixtures is printed at the end.
+
+This benchmark should be run:
 
 * Before and after changes to navigation methods that are expected to
   impact performance (new caching, algorithm substitutions, etc.).
-* On representative shapes from the target use case (not only the
-  primitive box/sphere/cylinder in the current benchmark).
+* On representative shapes from the target use case (complex STEP-derived
+  solids with many faces, not only simple primitives).
 
 > **Note:** The benchmark is not registered as a CTest test.  Run it
 > manually after a release build (`-DCMAKE_BUILD_TYPE=Release`).
