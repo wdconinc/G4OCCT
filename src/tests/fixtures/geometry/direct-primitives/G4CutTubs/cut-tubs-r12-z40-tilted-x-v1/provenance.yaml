@@ -18,10 +18,11 @@ shape:
     low_norm: [0.19611613513818404, 0.0, -0.9805806756909202]
     high_norm: [-0.09950371902099892, 0.0, 0.9950371902099892]
   draw_commands:
-    - pcylinder raw_tube 12 40
-    - translate raw_tube 0 0 -20
-    - polyline slab_bottom -50 -50 -30 50 -50 -10 50 50 -10 -50 50 -30 -50 -50 -30
-    - polyline slab_top -50 -50 15 50 -50 25 50 50 25 -50 50 15 -50 -50 15
+    - pcylinder raw_tube 12 60
+    - "# slab planes shifted +25 mm; translate_step.py corrects by -25 mm (DRAWEXE translate"
+    - "# does not persist a TopLoc_Location through bcommon in batch mode)"
+    - polyline slab_bottom -50 -50 -5 50 -50 15 50 50 15 -50 50 -5 -50 -50 -5
+    - polyline slab_top -50 -50 40 50 -50 50 50 50 50 -50 50 40 -50 -50 40
     - thrusections cut_slab 1 1 slab_bottom slab_top -safe
     - bcommon seed_shape raw_tube cut_slab
 validation:

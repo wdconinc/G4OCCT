@@ -120,11 +120,6 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
             "strict native-to-STEP ray-frame alignment for this fixture is not implemented yet"};
   }
 
-  if (geant4_class == "G4CutTubs") {
-    return {true, "strict native-to-STEP ray-frame alignment for the tilted cut-tubs fixture is "
-                  "not implemented yet"};
-  }
-
   return {};
 }
 
