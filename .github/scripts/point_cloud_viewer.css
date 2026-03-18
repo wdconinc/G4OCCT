@@ -39,6 +39,7 @@ html, body {
   padding: 6px 8px; font-size: 0.82rem; margin-bottom: 12px;
 }
 .toggle-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.offset-row { margin-top: 6px; }
 .toggle-btn {
   flex: 1; padding: 6px 0; border: none; border-radius: 4px;
   cursor: pointer; font-size: 0.8rem; font-weight: 600;

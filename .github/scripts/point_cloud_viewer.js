@@ -19,6 +19,7 @@ const sidebarEl     = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const offsetSlider  = document.getElementById('offset-slider');
 const offsetValue   = document.getElementById('offset-value');
+offsetValue.textContent = `${parseFloat(offsetSlider.value).toFixed(1)}%`;
 
 // ── Three.js setup ────────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
@@ -113,12 +114,12 @@ function setHashForFixture(fixtureId) {
 // Apply a small displacement to the imported cloud so that both point clouds
 // remain visually distinct when they are in perfect positional agreement.
 // The offset is only active while both clouds are simultaneously visible; when
-// the native cloud is hidden the imported cloud is shown at its true position.
+// either cloud is hidden the imported cloud is shown at its true position.
 function updateImportedOffset() {
   if (!importedCloud) {
     return;
   }
-  if (showNative && nativeCloud) {
+  if (showNative && showImported && nativeCloud) {
     const box      = new THREE.Box3().setFromObject(nativeCloud);
     const size     = box.getSize(new THREE.Vector3());
     const maxDim   = Math.max(size.x, size.y, size.z, 1e-3);
@@ -259,6 +260,7 @@ btnImp.addEventListener('click', () => {
   if (importedCloud) {
     importedCloud.visible = showImported;
   }
+  updateImportedOffset();
 });
 
 offsetSlider.addEventListener('input', () => {
