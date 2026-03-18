@@ -274,7 +274,7 @@ s = max(0, mesh_distance − δ)
 
 When `BRepMesh_IncrementalMesh` is invoked with linear deflection `d`, the
 OCCT default guarantees `δ ≤ d`.  Setting `d` equal to
-`IntersectionTolerance()` (= 0.5 × `G4GeometryTolerance::GetSurfaceTolerance()`,
+`IntersectionTolerance()` (= 0.5 × `G4GeometryTolerance::GetInstance()->GetSurfaceTolerance()`,
 as used in `src/G4OCCTSolid.cc`) ensures the correction stays at tolerance
 scale and the result remains a valid lower bound.
 
