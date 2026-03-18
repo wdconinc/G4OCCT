@@ -59,10 +59,32 @@ private:
   std::vector<ValidationMessage> messages_;
 };
 
-/** Description of a known expected-failure fixture. */
+/**
+ * Known expected-failure policy for a geometry fixture.
+ *
+ * Two independent flags allow safety mismatches to be suppressed separately
+ * from ray / inside / volume mismatches.  A fixture may have either or both
+ * flags set.
+ *
+ * When `enabled` is true ALL non-equivalence error codes are demoted to
+ * warnings (existing behaviour).  When only `safety_enabled` is true, only
+ * `fixture.safety_in_distance_mismatch` and
+ * `fixture.safety_out_distance_mismatch` are demoted; ray, inside, and volume
+ * errors remain hard failures.  This reflects the physics fact that safety
+ * distances are allowed to be conservative — a larger-than-exact value is
+ * valid — so mismatches between Geant4 and OCCT implementations need not
+ * indicate a correctness bug.
+ */
 struct FixtureExpectedFailure {
+  /// Reclassify all non-equivalence errors (ray, inside, volume, safety) as xfail warnings.
   bool enabled{false};
+  /// Human-readable reason for the full expected failure.
   std::string reason;
+
+  /// Reclassify only safety scalar distance errors as xfail warnings.
+  bool safety_enabled{false};
+  /// Human-readable reason for the safety-only expected failure.
+  std::string safety_reason;
 };
 
 /** File-level validation request for a single fixture entry. */
@@ -112,27 +134,33 @@ std::string ToString(ValidationSeverity severity);
 /**
  * Reclassify non-equivalence error diagnostics as expected-failure warnings.
  *
- * Only errors whose codes are in the non-equivalence allowlist are demoted to
- * warnings with an `xfail.` prefix.  The allowlist currently contains:
- *  - `fixture.volume_mismatch`
- *  - `fixture.ray_origin_state_mismatch`
- *  - `fixture.ray_intersection_mismatch`
- *  - `fixture.ray_distance_mismatch`
- *  - `fixture.ray_normal_mismatch`
- *  - `fixture.surface_normal_mismatch`
- *  - `fixture.inside_classification_mismatch`
- *  - `fixture.safety_in_distance_mismatch`
- *  - `fixture.safety_out_distance_mismatch`
+ * Errors whose codes are in the applicable allowlists are demoted to
+ * warnings with an `xfail.` prefix according to the policy in @p failure:
+ *
+ *  - Non-equivalence (applied when `failure.enabled` is true):
+ *    - `fixture.volume_mismatch`
+ *    - `fixture.ray_origin_state_mismatch`
+ *    - `fixture.ray_intersection_mismatch`
+ *    - `fixture.ray_distance_mismatch`
+ *    - `fixture.ray_normal_mismatch`
+ *    - `fixture.surface_normal_mismatch`
+ *    - `fixture.inside_classification_mismatch`
+ *    - `fixture.safety_in_distance_mismatch`
+ *    - `fixture.safety_out_distance_mismatch`
+ *  - Safety-only (applied when `failure.safety_enabled` is true, unless already
+ *    demoted by `failure.enabled`):
+ *    - `fixture.safety_in_distance_mismatch`
+ *    - `fixture.safety_out_distance_mismatch`
  *
  * Structural and IO errors (missing files, STEP read/transfer failures, etc.)
- * are kept as errors even when the fixture is marked as an expected failure.
+ * are kept as errors regardless of the failure policy.
  *
  * @param report Source report to rewrite.
- * @param reason Human-readable explanation attached to downgraded messages.
+ * @param failure Expected-failure policy describing which codes to demote and why.
  * @return A copy with allowlisted error severities demoted to warnings and `xfail.` code prefixes.
  */
 ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
-                                            const std::string& reason);
+                                            const FixtureExpectedFailure& failure);
 
 /**
  * Return the known expected-failure policy for a fixture.
