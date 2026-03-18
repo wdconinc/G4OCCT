@@ -200,6 +200,8 @@ jobs:
 
             # ── Annotate ───────────────────────────────────────────────────
             mkdir -p reports
+            # Copy the raw callgrind output for offline analysis with kcachegrind.
+            cp callgrind.out reports/callgrind_${{ matrix.fixture.name }}.out
             callgrind_annotate --auto=yes callgrind.out \
               > reports/callgrind_annotate_${{ matrix.fixture.name }}.txt
             # Print a short summary to the step log for quick inspection
@@ -211,7 +213,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: callgrind-reports-${{ matrix.fixture.name }}
-          path: reports/callgrind_annotate_${{ matrix.fixture.name }}.txt
+          path: |
+            reports/callgrind_annotate_${{ matrix.fixture.name }}.txt
+            reports/callgrind_${{ matrix.fixture.name }}.out
           if-no-files-found: warn
           retention-days: 7
 
