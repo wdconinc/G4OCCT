@@ -180,11 +180,17 @@ complex fixtures.
 #### Background: what Geant4 requires
 
 The isotropic safety methods `DistanceToIn(p)` and `DistanceToOut(p)` need only
-return a **conservative underestimate** of the true distance from `p` to the
-nearest surface.  Geant4 explicitly allows any non-negative value ≤ the true
-minimum distance; it never assumes the returned value is exact.  This opens the
-door to fast lower-bound algorithms that are much cheaper than exact OCCT
-distance queries.
+return a **conservative lower bound** (never an overestimate) of the true
+distance from `p` to the nearest surface.  Formally, the returned value `s`
+must satisfy:
+
+```
+0 ≤ s ≤ true minimum distance to nearest surface
+```
+
+Geant4 never assumes the returned value is exact; any non-negative value
+satisfying the inequality above is valid.  This opens the door to fast
+lower-bound algorithms that are much cheaper than exact OCCT distance queries.
 
 #### Current implementation and its cost
 
@@ -250,10 +256,27 @@ traverses the BVH using:
 - `BVH_Tools::PointTriangleSquareDistance` at leaf nodes for the exact
   distance to each triangle.
 
-The result is the exact distance to the tessellation.  Because OCCT's default
-deflection-based mesher places triangle vertices on or inside the true
-analytical surface, the tessellation distance is a valid underestimate of the
-true surface distance.
+The result is the exact distance to the tessellation.  However, this is **not**
+automatically a valid lower bound on the true analytical surface distance.  On
+convex surface patches, chordal facets sit inside the true surface, so the
+distance from an exterior point to the triangulated mesh can be *larger* than
+the distance to the actual surface — an overestimate that would violate Geant4
+safety semantics.
+
+To obtain a conservative lower bound, the mesh distance must be reduced by a
+proven deflection bound `δ` (the Hausdorff distance between the analytical
+surface and its tessellation, bounded by the mesher's linear deflection
+parameter) and then clamped to zero:
+
+```
+s = max(0, mesh_distance − δ)
+```
+
+When `BRepMesh_IncrementalMesh` is invoked with linear deflection `d`, the
+OCCT default guarantees `δ ≤ d`.  Setting `d` equal to
+`IntersectionTolerance()` (= 0.5 × `G4GeometryTolerance::GetInstance()->GetSurfaceTolerance()`,
+as used in `src/G4OCCTSolid.cc`) ensures the correction stays at tolerance
+scale and the result remains a valid lower bound.
 
 The framework for this traversal already exists in OCCT's own code:
 `BRepExtrema_ProximityDistTool` (`src/ModelingAlgorithms/TKTopAlgo/BRepExtrema/`)
@@ -294,7 +317,7 @@ public:
   }
 
 private:
-  occ::handle<BRepExtrema_TriangleSet> mySet;
+  Handle(BRepExtrema_TriangleSet) mySet;
 };
 ```
 
@@ -314,7 +337,11 @@ PointToMeshDistance solver;
 solver.SetObject(BVH_Vec3d(p.x(), p.y(), p.z()));
 solver.SetBVHSet(fTriangleSet.get());
 double dist = solver.ComputeDistance();
-// dist <= true surface distance: valid conservative safety
+// Apply deflection correction to ensure a strict lower bound:
+// subtract the linear deflection used during BRepMesh_IncrementalMesh
+// (here: IntersectionTolerance()) and clamp to zero.
+double delta = IntersectionTolerance();
+double safetyLowerBound = std::max(0.0, dist - delta);
 ```
 
 **Tier 2 — Precomputed signed distance field (O(1) queries)**
@@ -336,11 +363,28 @@ copies of the same solid.
 
 #### Correctness guarantee
 
-The tessellation lower bound is conservative as long as the OCCT mesh was
-generated with `BRepMesh_IncrementalMesh` at a deflection ≤ `kCarTolerance`.
-Because Geant4 validates safety values only against `kCarTolerance`-level
-discrepancies, this is safe in practice.  Exact classification or ray queries
-should still be used for `Inside(p)` and the directional variants.
+A valid Geant4 safety lower bound `s` must satisfy `0 ≤ s ≤ true distance`.
+The mesh-BVH approach produces a conservative lower bound when the deflection
+correction described above is applied:
+
+```
+s = max(0, mesh_distance − δ)    where δ ≤ linear deflection parameter d
+```
+
+In G4OCCT, the reference deflection is `IntersectionTolerance()` = 0.5 ×
+`G4GeometryTolerance::GetInstance()->GetSurfaceTolerance()` (see
+`src/G4OCCTSolid.cc`).  The safety validation fixture (`fixture_safety_compare.cc`)
+accepts a mismatch between native and imported solids if it satisfies:
+
+```
+|native − imported| ≤ max(G4GeometryTolerance::GetInstance()->GetSurfaceTolerance(),
+                          0.01 × max(native, imported))
+```
+
+Tier-0 bounds (AABB and enclosing sphere) are always conservative: they derive
+purely from bounding geometry and require no deflection correction.  Exact
+classification or ray queries should still be used for `Inside(p)` and the
+directional variants.
 
 #### Summary of safety-distance approach by tier
 
@@ -348,7 +392,7 @@ should still be used for `Inside(p)` and the directional variants.
 |------|--------|-------|-----------|--------------|
 | 0 | AABB (`BVH_Tools::PointBoxSquareDistance`) | O(F) once | O(1) | Yes |
 | 0 | Enclosing sphere (`Bnd_Sphere`) | O(F) once | O(1) | Yes (min) |
-| 1 | Mesh BVH (`BRepExtrema_TriangleSet`) | O(T log T) once | O(log T) | Yes |
+| 1 | Mesh BVH (`BRepExtrema_TriangleSet`) | O(T log T) once | O(log T) | Yes (with δ correction) |
 | 2 | Distance field (`BVH_DistanceField`) | O(T·G³) once | O(1) | Yes (approx) |
 | — | Current exact (`BRepExtrema_DistShapeShape`) | none | O(F·exact) | Exact |
 
