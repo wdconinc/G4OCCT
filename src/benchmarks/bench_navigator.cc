@@ -227,7 +227,7 @@ namespace {
           ValidationReport ray_report = CompareFixtureRays(request, options, &nav.ray);
           if (expected_failure.enabled) {
             ray_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
-                ray_report, expected_failure.reason);
+                ray_report, expected_failure);
           }
           aggregate_report.Append(ray_report);
 
@@ -235,7 +235,7 @@ namespace {
               CompareFixtureInside(request, inside_options, &nav.inside);
           if (expected_failure.enabled) {
             inside_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
-                inside_report, expected_failure.reason);
+                inside_report, expected_failure);
           }
           aggregate_report.Append(inside_report);
 
@@ -243,7 +243,7 @@ namespace {
               CompareFixtureSafety(request, safety_options, &nav.safety);
           if (expected_failure.enabled) {
             safety_report = g4occt::tests::geometry::ReclassifyExpectedFailures(
-                safety_report, expected_failure.reason);
+                safety_report, expected_failure);
           }
           aggregate_report.Append(safety_report);
         }

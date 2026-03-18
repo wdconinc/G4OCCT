@@ -15,9 +15,9 @@ shape:
     - bfuse union_shape left_box right_box
     - copytranslate final_shape union_shape -10 -10 -10
   component_boxes_mm:
-    - min: [0.0, 0.0, 0.0]
+    - min: [-10.0, -10.0, -10.0]
       size: [20.0, 20.0, 20.0]
-    - min: [10.0, 0.0, 0.0]
+    - min: [0.0, -10.0, -10.0]
       size: [20.0, 20.0, 20.0]
 validation:
   expected_volume_mm3: 12000.0
