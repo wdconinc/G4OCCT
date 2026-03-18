@@ -42,6 +42,8 @@
 #include <G4VGraphicsScene.hh>
 #include <G4VisExtent.hh>
 
+#include <algorithm>
+#include <cmath>
 #include <optional>
 #include <utility>
 
@@ -113,27 +115,27 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
   // classifier; for non-periodic surfaces with degenerate boundary edges
   // (e.g. the poles of a sphere) this ensures IsNormalDefined() returns true.
   {
-    const Standard_Real uEpsilon =
-        std::max(surface.UResolution(tolerance), Precision::PConfusion());
-    const Standard_Real uFirst = surface.FirstUParameter();
-    const Standard_Real uLast  = surface.LastUParameter();
+    const Standard_Real uFirst   = surface.FirstUParameter();
+    const Standard_Real uLast    = surface.LastUParameter();
+    const Standard_Real uEpsilon = std::min(
+        std::max(surface.UResolution(tolerance), Precision::PConfusion()), 0.5 * (uLast - uFirst));
     if (std::abs(adjustedU - uFirst) <= uEpsilon) {
-      adjustedU = uFirst + uEpsilon;
+      adjustedU = std::min(uFirst + uEpsilon, uLast);
     } else if (std::abs(adjustedU - uLast) <= uEpsilon) {
-      adjustedU = uLast - uEpsilon;
+      adjustedU = std::max(uLast - uEpsilon, uFirst);
     }
   }
   // Nudge V away from parametric boundaries.  Non-periodic V boundaries
   // include degenerate pole edges on spheres (V = ±π/2) and cone apices.
   {
-    const Standard_Real vEpsilon =
-        std::max(surface.VResolution(tolerance), Precision::PConfusion());
-    const Standard_Real vFirst = surface.FirstVParameter();
-    const Standard_Real vLast  = surface.LastVParameter();
+    const Standard_Real vFirst   = surface.FirstVParameter();
+    const Standard_Real vLast    = surface.LastVParameter();
+    const Standard_Real vEpsilon = std::min(
+        std::max(surface.VResolution(tolerance), Precision::PConfusion()), 0.5 * (vLast - vFirst));
     if (std::abs(adjustedV - vFirst) <= vEpsilon) {
-      adjustedV = vFirst + vEpsilon;
+      adjustedV = std::min(vFirst + vEpsilon, vLast);
     } else if (std::abs(adjustedV - vLast) <= vEpsilon) {
-      adjustedV = vLast - vEpsilon;
+      adjustedV = std::max(vLast - vEpsilon, vFirst);
     }
   }
 
@@ -147,13 +149,12 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
     const Standard_Real vLast  = surface.LastVParameter();
     const Standard_Real vMid   = 0.5 * (vFirst + vLast);
     const bool nearVFirst      = (adjustedV < vMid);
-    const Standard_Real vBase  = nearVFirst ? vFirst : vLast;
-    for (int attempt = 1; attempt <= 8 && !props.IsNormalDefined(); ++attempt) {
-      const Standard_Real scale = std::pow(10.0, static_cast<Standard_Real>(attempt) - 4.0);
-      const Standard_Real nudge =
-          scale * std::max(surface.VResolution(tolerance), Precision::PConfusion());
-      const Standard_Real retryV =
-          nearVFirst ? std::min(vBase + nudge, vMid) : std::max(vBase - nudge, vMid);
+    const Standard_Real vRes   = std::max(surface.VResolution(tolerance), Precision::PConfusion());
+    for (int attempt = 0; attempt < 8 && !props.IsNormalDefined(); ++attempt) {
+      const Standard_Real scale  = std::pow(10.0, static_cast<Standard_Real>(attempt));
+      const Standard_Real nudge  = scale * vRes;
+      const Standard_Real retryV = nearVFirst ? std::min(adjustedV + nudge, vMid)
+                                              : std::max(adjustedV - nudge, vMid);
       props = BRepLProp_SLProps(surface, adjustedU, retryV, 1, tolerance);
     }
     if (!props.IsNormalDefined()) {
