@@ -5,8 +5,8 @@ pload ALL
 
 set script_dir [file normalize [file dirname [info script]]]
 pcone lower_segment 8 14 20
-translate lower_segment 0 0 -22.5
+copytranslate lower_translated lower_segment 0 0 -22.5
 pcone upper_segment 14 5 25
-translate upper_segment 0 0 -2.5
-bfuse seed_shape lower_segment upper_segment
+copytranslate upper_translated upper_segment 0 0 -2.5
+bfuse seed_shape lower_translated upper_translated
 stepwrite a seed_shape [file join $script_dir shape.step]

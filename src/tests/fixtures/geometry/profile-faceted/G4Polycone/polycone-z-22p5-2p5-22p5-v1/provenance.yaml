@@ -17,12 +17,12 @@ shape:
     rOuter_mm: [8.0, 14.0, 5.0]
   draw_commands:
     - pcone lower_segment 8 14 20
-    - translate lower_segment 0 0 -22.5
+    - copytranslate lower_translated lower_segment 0 0 -22.5
     - pcone upper_segment 14 5 25
-    - translate upper_segment 0 0 -2.5
-    - bfuse seed_shape lower_segment upper_segment
+    - copytranslate upper_translated upper_segment 0 0 -2.5
+    - bfuse seed_shape lower_translated upper_translated
 validation:
-  expected_volume_mm3: 10211.562578834109
+  expected_volume_mm3: 15409.511965857935
   analytic_volume_mm3: 15409.511965857935
 notes:
   - The fixture uses two conical segments fused across the shared z=-2.5 mm section.

@@ -21,7 +21,7 @@ shape:
   draw_commands:
     - pcone base_cone 24 8 30
     - scalexyz scaled_cone base_cone 1 0.625 1
-    - translate scaled_cone 0 0 -15
+    - copytranslate final_cone scaled_cone 0 0 -15
 validation:
   expected_volume_mm3: 16464.18134144224
   analytic_volume_mm3: 16336.281798666922
