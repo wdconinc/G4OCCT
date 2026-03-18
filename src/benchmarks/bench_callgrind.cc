@@ -30,14 +30,14 @@
 // Callgrind instrumentation macros.  When the binary runs outside valgrind, or
 // when the valgrind headers are absent at build time, these expand to no-ops.
 #ifdef HAVE_VALGRIND_CALLGRIND_H
-#  include <valgrind/callgrind.h>
+#include <valgrind/callgrind.h>
 #else
-#  define CALLGRIND_START_INSTRUMENTATION \
-    do {                                  \
-    } while (0)
-#  define CALLGRIND_STOP_INSTRUMENTATION \
-    do {                                 \
-    } while (0)
+#define CALLGRIND_START_INSTRUMENTATION                                                            \
+  do {                                                                                             \
+  } while (0)
+#define CALLGRIND_STOP_INSTRUMENTATION                                                             \
+  do {                                                                                             \
+  } while (0)
 #endif
 
 #include "G4OCCT/G4OCCTSolid.hh"
@@ -118,13 +118,13 @@ namespace {
 
     // ── Build solids (setup – excluded from callgrind profile) ────────────
     std::cout << "Loading fixture assets...\n";
-    const auto provenance_path = g4occt::tests::geometry::ResolveFixtureProvenancePath(
-        family_manifest, fixture);
+    const auto provenance_path =
+        g4occt::tests::geometry::ResolveFixtureProvenancePath(family_manifest, fixture);
     const auto provenance = ParseFixtureProvenance(provenance_path);
 
-    std::unique_ptr<G4VSolid> native_solid   = BuildNativeSolidForRequest(request, provenance);
-    std::unique_ptr<G4VSolid> imported_solid = std::make_unique<G4OCCTSolid>(
-        fixture.id + "_imported", LoadImportedShape(request));
+    std::unique_ptr<G4VSolid> native_solid = BuildNativeSolidForRequest(request, provenance);
+    std::unique_ptr<G4VSolid> imported_solid =
+        std::make_unique<G4OCCTSolid>(fixture.id + "_imported", LoadImportedShape(request));
 
     // ── Generate test data ────────────────────────────────────────────────
     const G4ThreeVector native_origin   = FixtureComparisonOrigin(provenance, *native_solid);
@@ -148,14 +148,14 @@ namespace {
         (void)native_solid->DistanceToIn(native_origin, directions[i]);
       } else {
         G4ThreeVector norm;
-        G4bool        validNorm = false;
+        G4bool validNorm = false;
         (void)native_solid->DistanceToOut(native_origin, directions[i], true, &validNorm, &norm);
       }
       if (imported_origin_state == kOutside) {
         (void)imported_solid->DistanceToIn(imported_origin, directions[i]);
       } else {
         G4ThreeVector norm;
-        G4bool        validNorm = false;
+        G4bool validNorm = false;
         (void)imported_solid->DistanceToOut(imported_origin, directions[i], true, &validNorm,
                                             &norm);
       }
@@ -178,7 +178,7 @@ namespace {
         (void)native_solid->DistanceToIn(native_origin, direction);
       } else {
         G4ThreeVector norm;
-        G4bool        validNorm = false;
+        G4bool validNorm = false;
         (void)native_solid->DistanceToOut(native_origin, direction, true, &validNorm, &norm);
       }
     }
@@ -187,7 +187,7 @@ namespace {
         (void)imported_solid->DistanceToIn(imported_origin, direction);
       } else {
         G4ThreeVector norm;
-        G4bool        validNorm = false;
+        G4bool validNorm = false;
         (void)imported_solid->DistanceToOut(imported_origin, direction, true, &validNorm, &norm);
       }
     }
