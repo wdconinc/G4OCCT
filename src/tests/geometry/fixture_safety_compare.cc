@@ -50,12 +50,22 @@ namespace {
   /**
    * Determine whether two safety-distance values are a mismatch.
    *
-   * Two values match when:
-   *  - Both are infinite (both solids agree the point is far from a surface), or
-   *  - `|native - imported| ≤ max(kSurfaceTolerance, 0.01 * max(native, imported))`.
+   * The Geant4 contract for DistanceToIn(p) and DistanceToOut(p) permits any
+   * underestimate of the true geometric surface distance (conservative safety).
+   * Native Geant4 primitive solids commonly underestimate near edges and corners by
+   * computing perpendicular distances to face *planes* rather than to the bounded
+   * face surface.  G4OCCTSolid uses BRepExtrema_DistShapeShape, which returns the
+   * exact closest-point distance and is therefore always ≥ the native plane-distance
+   * underestimate for convex solids.
    *
-   * Explicitly treats the case where exactly one value is infinite as a mismatch,
-   * avoiding the degenerate `∞ > ∞` comparison that would otherwise suppress the error.
+   * Consequently, `imported > native` is not a mismatch — it simply reflects that
+   * G4OCCT is geometrically more accurate.  A mismatch is only raised when
+   * `native - imported > tolerance`, i.e. when G4OCCT returns a value significantly
+   * *smaller* than the native solid's already-conservative underestimate, which
+   * would indicate G4OCCT is missing a nearby surface.
+   *
+   * Two values always match when both are infinite.  Exactly one infinite is always
+   * a mismatch.
    *
    * @param native_dist    Safety distance from the native Geant4 solid.
    * @param imported_dist  Safety distance from the imported OCCT solid.
@@ -72,9 +82,10 @@ namespace {
     if (native_inf != imported_inf) {
       return true; // exactly one infinite — disagree
     }
-    const G4double max_dist  = std::max(native_dist, imported_dist);
-    const G4double tolerance = std::max(surface_tol, 0.01 * max_dist);
-    return std::fabs(native_dist - imported_dist) > tolerance;
+    const G4double tolerance = std::max(surface_tol, 0.01 * native_dist);
+    // Only flag when G4OCCT underestimates relative to native (potential missing surface).
+    // imported > native is acceptable: native may underestimate near corners/edges.
+    return native_dist - imported_dist > tolerance;
   }
 
 } // namespace
