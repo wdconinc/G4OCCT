@@ -8,4 +8,5 @@ set script_dir [file normalize [file dirname [info script]]]
 box left_box 20 20 20
 box right_box -min 10 0 0 -size 20 20 20
 bcommon intersection_shape left_box right_box
-stepwrite a intersection_shape [file join $script_dir shape.step]
+copytranslate final_shape intersection_shape -15 -10 -10
+stepwrite a final_shape [file join $script_dir shape.step]
