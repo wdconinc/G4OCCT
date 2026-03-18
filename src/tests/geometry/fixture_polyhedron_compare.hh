@@ -68,10 +68,9 @@ struct FixturePolyhedronComparisonSummary {
  * @param summary  Optional output struct for timing and mesh-density counts.
  * @return         Validation report with info, warning, and error messages.
  */
-ValidationReport
-CompareFixturePolyhedron(const FixtureValidationRequest&           request,
-                         const FixturePolyhedronComparisonOptions& options = {},
-                         FixturePolyhedronComparisonSummary*       summary = nullptr);
+ValidationReport CompareFixturePolyhedron(const FixtureValidationRequest& request,
+                                          const FixturePolyhedronComparisonOptions& options = {},
+                                          FixturePolyhedronComparisonSummary* summary = nullptr);
 
 } // namespace g4occt::tests::geometry
 

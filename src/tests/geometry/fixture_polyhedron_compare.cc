@@ -19,17 +19,16 @@
 
 namespace g4occt::tests::geometry {
 
-ValidationReport
-CompareFixturePolyhedron(const FixtureValidationRequest&           request,
-                         const FixturePolyhedronComparisonOptions& /*options*/,
-                         FixturePolyhedronComparisonSummary*       summary) {
+ValidationReport CompareFixturePolyhedron(const FixtureValidationRequest& request,
+                                          const FixturePolyhedronComparisonOptions& /*options*/,
+                                          FixturePolyhedronComparisonSummary* summary) {
   ValidationReport report;
 
   FixturePolyhedronComparisonSummary local_summary;
   local_summary.fixture_id = request.manifest.family + "/" + request.fixture.id;
 
   try {
-    const auto       provenance_path = ResolveFixtureProvenancePath(request.manifest, request.fixture);
+    const auto provenance_path = ResolveFixtureProvenancePath(request.manifest, request.fixture);
     const FixtureProvenance provenance = ParseFixtureProvenance(provenance_path);
     local_summary.geant4_class         = Geant4Class(provenance);
 
@@ -50,8 +49,8 @@ CompareFixturePolyhedron(const FixtureValidationRequest&           request,
       local_summary.native_facets   = native_poly->GetNoFacets();
     } else {
       report.AddError("fixture.polyhedron_native_null",
-                      "Native CreatePolyhedron() returned null for fixture '" +
-                          request.fixture.id + "'",
+                      "Native CreatePolyhedron() returned null for fixture '" + request.fixture.id +
+                          "'",
                       provenance_path);
     }
 

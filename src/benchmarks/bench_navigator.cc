@@ -137,7 +137,8 @@ namespace {
     std::cout << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << ": ";
     std::cout << "native=" << std::right << std::setw(8) << FormatMs(poly.native_elapsed_ms) << "ms"
               << "  imported=" << std::setw(8) << FormatMs(poly.imported_elapsed_ms) << "ms"
-              << "  ratio=" << std::setw(8) << FormatRatio(poly.native_elapsed_ms, poly.imported_elapsed_ms);
+              << "  ratio=" << std::setw(8)
+              << FormatRatio(poly.native_elapsed_ms, poly.imported_elapsed_ms);
     std::cout << "  vertices=" << poly.native_vertices << "/" << poly.imported_vertices
               << "  facets=" << poly.native_facets << "/" << poly.imported_facets << "\n";
   }
@@ -278,8 +279,8 @@ namespace {
         }
 
         const bool any_data = nav.ray.ray_count > 0U || nav.inside.point_count > 0U ||
-                              nav.safety.point_count > 0U ||
-                              nav.polyhedron.native_valid || nav.polyhedron.imported_valid;
+                              nav.safety.point_count > 0U || nav.polyhedron.native_valid ||
+                              nav.polyhedron.imported_valid;
         if (any_data) {
           nav_summaries.push_back(nav);
         }
