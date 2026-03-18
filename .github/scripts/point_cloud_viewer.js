@@ -9,16 +9,16 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 const ALL_FIXTURES = JSON.parse(document.getElementById('fixture-data').textContent);
 
 // ── UI elements ──────────────────────────────────────────────────────────────
-const selectEl      = document.getElementById('fixture-select');
-const btnNative     = document.getElementById('btn-native');
-const btnImp        = document.getElementById('btn-imported');
-const statsEl       = document.getElementById('stats-body');
-const countEl       = document.getElementById('count-overlay');
-const emptyMsg      = document.getElementById('empty-msg');
-const sidebarEl     = document.getElementById('sidebar');
-const sidebarToggle = document.getElementById('sidebar-toggle');
-const offsetSlider  = document.getElementById('offset-slider');
-const offsetValue   = document.getElementById('offset-value');
+const selectEl          = document.getElementById('fixture-select');
+const btnNative         = document.getElementById('btn-native');
+const btnImp            = document.getElementById('btn-imported');
+const statsEl           = document.getElementById('stats-body');
+const countEl           = document.getElementById('count-overlay');
+const emptyMsg          = document.getElementById('empty-msg');
+const sidebarEl         = document.getElementById('sidebar');
+const sidebarToggle     = document.getElementById('sidebar-toggle');
+const offsetSlider      = document.getElementById('offset-slider');
+const offsetValue       = document.getElementById('offset-value');
 offsetValue.textContent = `${parseFloat(offsetSlider.value).toFixed(1)}%`;
 
 // ── Three.js setup ────────────────────────────────────────────────────────────
