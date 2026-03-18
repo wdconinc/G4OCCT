@@ -18,13 +18,13 @@ shape:
     low_norm: [0.19611613513818404, 0.0, -0.9805806756909202]
     high_norm: [-0.09950371902099892, 0.0, 0.9950371902099892]
   draw_commands:
-    - pcylinder raw_tube 12 40
-    - translate raw_tube 0 0 -20
-    - polyline slab_bottom -50 -50 -30 50 -50 -10 50 50 -10 -50 50 -30 -50 -50 -30
-    - polyline slab_top -50 -50 15 50 -50 25 50 50 25 -50 50 15 -50 -50 15
+    - pcylinder raw_tube 12 60
+    - polyline slab_bottom -50 -50 -5 50 -50 15 50 50 15 -50 50 -5 -50 -50 -5
+    - polyline slab_top -50 -50 40 50 -50 50 50 50 50 -50 50 40 -50 -50 40
     - thrusections cut_slab 1 1 slab_bottom slab_top -safe
     - bcommon seed_shape raw_tube cut_slab
 validation:
   expected_volume_mm3: 9047.786839
 notes:
   - The slab cross-sections are intentionally oversized so only the two tilted end planes clip the cylinder.
+  - DRAWEXE's translate command does not persist a TopLoc_Location through bcommon in batch mode, so the slab planes are shifted up by 25 mm instead of translating the cylinder. After the boolean, translate_step.py shifts the resulting STEP geometry down by 25 mm into the correct Geant4 reference frame.

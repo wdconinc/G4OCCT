@@ -27,9 +27,14 @@ A2P3D = re.compile(r"#(\d+)\s*=\s*AXIS2_PLACEMENT_3D\('',#(\d+)")
 
 
 def fmt(v: float) -> str:
-    s = repr(v)
+    # Use :.15g to avoid float repr noise (e.g. 21.200000000000003 vs 21.2).
+    s = f"{v:.15g}"
+    # Use uppercase E for scientific notation (STEP convention).
     s = s.replace("e", "E")
-    # STEP convention: trailing dot without zero ("0." not "0.0", "1.E+10" not "1.0E+10")
+    # STEP convention: integer values need a trailing dot ("12." not "12").
+    if "." not in s and "E" not in s:
+        s += "."
+    # STEP convention: strip ".0" before E ("1.E+10" not "1.0E+10").
     s = re.sub(r"\.0($|E)", r".\1", s)
     return s
 
