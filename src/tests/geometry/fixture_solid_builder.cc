@@ -665,7 +665,7 @@ G4ThreeVector FixtureComparisonOrigin(const FixtureProvenance& provenance, const
     return BoundingBoxCenter(solid);
   }
 
-  if (geant4_class == "G4Tet") {
+  if (geant4_class == "G4Tet" || geant4_class == "G4TessellatedSolid") {
     const std::vector<G4ThreeVector> vertices =
         RequirePointList(shape, "vertices_mm", provenance.source_path.string());
     G4ThreeVector centroid;
