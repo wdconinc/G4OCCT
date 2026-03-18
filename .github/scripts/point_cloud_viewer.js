@@ -17,6 +17,8 @@ const countEl       = document.getElementById('count-overlay');
 const emptyMsg      = document.getElementById('empty-msg');
 const sidebarEl     = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
+const offsetSlider  = document.getElementById('offset-slider');
+const offsetValue   = document.getElementById('offset-value');
 
 // ── Three.js setup ────────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
@@ -117,10 +119,11 @@ function updateImportedOffset() {
     return;
   }
   if (showNative && nativeCloud) {
-    const box    = new THREE.Box3().setFromObject(nativeCloud);
-    const size   = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z, 1e-3);
-    const offset = maxDim * 0.01;
+    const box      = new THREE.Box3().setFromObject(nativeCloud);
+    const size     = box.getSize(new THREE.Vector3());
+    const maxDim   = Math.max(size.x, size.y, size.z, 1e-3);
+    const fraction = parseFloat(offsetSlider.value) / 100.0;
+    const offset   = maxDim * fraction;
     importedCloud.position.set(offset, offset, offset);
   } else {
     importedCloud.position.set(0, 0, 0);
@@ -256,6 +259,11 @@ btnImp.addEventListener('click', () => {
   if (importedCloud) {
     importedCloud.visible = showImported;
   }
+});
+
+offsetSlider.addEventListener('input', () => {
+  offsetValue.textContent = `${parseFloat(offsetSlider.value).toFixed(1)}%`;
+  updateImportedOffset();
 });
 
 // ── Sidebar toggle ────────────────────────────────────────────────────────────
