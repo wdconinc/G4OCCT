@@ -25,9 +25,20 @@ add_executable(bench_callgrind bench_callgrind.cc)
 target_link_libraries(bench_callgrind PRIVATE G4OCCTFixtureSupport)
 
 # Detect whether the valgrind/callgrind.h header is available and, if so, enable
-# the CALLGRIND_START/STOP_INSTRUMENTATION macros in the source.
-include(CheckIncludeFileCXX)
-check_include_file_cxx("valgrind/callgrind.h" HAVE_VALGRIND_CALLGRIND_H)
-if(HAVE_VALGRIND_CALLGRIND_H)
+# the CALLGRIND_START/STOP_INSTRUMENTATION and CALLGRIND_TOGGLE_COLLECT macros in
+# the source.  Use find_path so the include directory is recorded and can be added
+# to the target; check_include_file_cxx only checks compilation but does not
+# expose the path needed for target_include_directories.
+#
+# To use headers from a non-standard location (e.g. when building inside a
+# container that does not have the valgrind dev package), set:
+#   cmake ... -DCMAKE_INCLUDE_PATH=<path-containing-valgrind-dir>
+find_path(VALGRIND_INCLUDE_DIR NAMES "valgrind/callgrind.h"
+          DOC "Directory containing valgrind/callgrind.h")
+if(VALGRIND_INCLUDE_DIR)
+  message(STATUS "Found valgrind/callgrind.h in: ${VALGRIND_INCLUDE_DIR}")
   target_compile_definitions(bench_callgrind PRIVATE HAVE_VALGRIND_CALLGRIND_H)
+  target_include_directories(bench_callgrind PRIVATE "${VALGRIND_INCLUDE_DIR}")
+else()
+  message(STATUS "valgrind/callgrind.h not found; CALLGRIND_* macros will be no-ops")
 endif()
