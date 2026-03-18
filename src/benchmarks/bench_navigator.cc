@@ -225,20 +225,20 @@ namespace {
         // mechanism is in place.
         if (!IsImportedSelfComparisonFixture(fixture)) {
           ValidationReport ray_report = CompareFixtureRays(request, options, &nav.ray);
-          ray_report = g4occt::tests::geometry::ReclassifyExpectedFailures(ray_report,
-                                                                           expected_failure);
+          ray_report =
+              g4occt::tests::geometry::ReclassifyExpectedFailures(ray_report, expected_failure);
           aggregate_report.Append(ray_report);
 
           ValidationReport inside_report =
               CompareFixtureInside(request, inside_options, &nav.inside);
-          inside_report = g4occt::tests::geometry::ReclassifyExpectedFailures(inside_report,
-                                                                              expected_failure);
+          inside_report =
+              g4occt::tests::geometry::ReclassifyExpectedFailures(inside_report, expected_failure);
           aggregate_report.Append(inside_report);
 
           ValidationReport safety_report =
               CompareFixtureSafety(request, safety_options, &nav.safety);
-          safety_report = g4occt::tests::geometry::ReclassifyExpectedFailures(safety_report,
-                                                                              expected_failure);
+          safety_report =
+              g4occt::tests::geometry::ReclassifyExpectedFailures(safety_report, expected_failure);
           aggregate_report.Append(safety_report);
         }
 
