@@ -5,7 +5,7 @@
 
 #include <G4SystemOfUnits.hh>
 
-#include <iostream>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -16,7 +16,7 @@ using g4occt::tests::navigation::ExpectVectorNear;
 
 constexpr G4double kTolerance = 1.0e-6 * mm;
 
-void TestDistanceToOutWithoutNormalRequest() {
+TEST(DistanceToOutRay, WithoutNormalRequest) {
   const BoxFixture box("DistanceToOutNoNormal");
 
   G4bool validNormal = true;
@@ -33,7 +33,7 @@ void TestDistanceToOutWithoutNormalRequest() {
                    kTolerance);
 }
 
-void TestDistanceToOutWithNormal() {
+TEST(DistanceToOutRay, WithNormal) {
   const BoxFixture box("DistanceToOutWithNormal");
 
   G4bool validNormal = false;
@@ -49,7 +49,7 @@ void TestDistanceToOutWithNormal() {
                    G4ThreeVector(1.0, 0.0, 0.0), kTolerance);
 }
 
-void TestDistanceToOutWithMissingNormalBuffer() {
+TEST(DistanceToOutRay, WithMissingNormalBuffer) {
   const BoxFixture box("DistanceToOutMissingNormalBuffer");
 
   G4bool validNormal = true;
@@ -62,7 +62,7 @@ void TestDistanceToOutWithMissingNormalBuffer() {
   ExpectTrue("DistanceToOut keeps validNorm false without a normal buffer", !validNormal);
 }
 
-void TestDistanceToOutWithNullNormalOutputs() {
+TEST(DistanceToOutRay, WithNullNormalOutputs) {
   const BoxFixture box("DistanceToOutNullOutputs");
 
   const G4double distance =
@@ -73,13 +73,3 @@ void TestDistanceToOutWithNullNormalOutputs() {
 }
 
 } // namespace
-
-int main() {
-  TestDistanceToOutWithoutNormalRequest();
-  TestDistanceToOutWithNormal();
-  TestDistanceToOutWithMissingNormalBuffer();
-  TestDistanceToOutWithNullNormalOutputs();
-
-  std::cout << "\nAll test_distance_to_out_ray tests passed.\n";
-  return 0;
-}

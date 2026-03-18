@@ -5,7 +5,7 @@
 
 #include <G4SystemOfUnits.hh>
 
-#include <iostream>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -16,7 +16,7 @@ using g4occt::tests::navigation::SphereFixture;
 
 constexpr G4double kBoundingTolerance = 1.0e-6 * mm;
 
-void TestBoxBoundingLimits() {
+TEST(BoundingLimits, Box) {
   const BoxFixture box("BoundingBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   G4ThreeVector min;
@@ -29,7 +29,7 @@ void TestBoxBoundingLimits() {
                    G4ThreeVector(10.0 * mm, 20.0 * mm, 30.0 * mm), kBoundingTolerance);
 }
 
-void TestSphereBoundingLimits() {
+TEST(BoundingLimits, Sphere) {
   const SphereFixture sphere("BoundingSphere", 50.0 * mm);
 
   G4ThreeVector min;
@@ -42,7 +42,7 @@ void TestSphereBoundingLimits() {
                    G4ThreeVector(50.0 * mm, 50.0 * mm, 50.0 * mm), kBoundingTolerance);
 }
 
-void TestCylinderBoundingLimits() {
+TEST(BoundingLimits, Cylinder) {
   const CylinderFixture cylinder("BoundingCylinder", 25.0 * mm, 40.0 * mm);
 
   G4ThreeVector min;
@@ -55,7 +55,7 @@ void TestCylinderBoundingLimits() {
                    G4ThreeVector(25.0 * mm, 25.0 * mm, 40.0 * mm), kBoundingTolerance);
 }
 
-void TestBoundsRecomputedAfterSetOCCTShape() {
+TEST(BoundingLimits, RecomputedAfterSetOCCTShape) {
   BoxFixture box("ReplacedShape", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   {
@@ -84,13 +84,3 @@ void TestBoundsRecomputedAfterSetOCCTShape() {
 }
 
 } // namespace
-
-int main() {
-  TestBoxBoundingLimits();
-  TestSphereBoundingLimits();
-  TestCylinderBoundingLimits();
-  TestBoundsRecomputedAfterSetOCCTShape();
-
-  std::cout << "\nAll test_bounding_limits tests passed.\n";
-  return 0;
-}

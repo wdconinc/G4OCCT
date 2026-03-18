@@ -5,7 +5,7 @@
 
 #include <G4SystemOfUnits.hh>
 
-#include <iostream>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -14,7 +14,7 @@ using g4occt::tests::navigation::CylinderFixture;
 using g4occt::tests::navigation::ExpectDistanceToOut;
 using g4occt::tests::navigation::SphereFixture;
 
-void TestBoxInsideSafety() {
+TEST(DistanceToOutSafety, Box) {
   const BoxFixture box("DistanceToOutBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   ExpectDistanceToOut("box center reaches closest x face", box.solid, box.Center(), 10.0 * mm);
@@ -22,7 +22,7 @@ void TestBoxInsideSafety() {
                       G4ThreeVector(2.0 * mm, 3.0 * mm, 4.0 * mm), 8.0 * mm);
 }
 
-void TestSphereInsideSafety() {
+TEST(DistanceToOutSafety, Sphere) {
   const SphereFixture sphere("DistanceToOutSphere", 50.0 * mm);
 
   ExpectDistanceToOut("sphere center reaches boundary at radius", sphere.solid, sphere.Center(),
@@ -31,7 +31,7 @@ void TestSphereInsideSafety() {
                       G4ThreeVector(12.0 * mm, 0.0 * mm, 0.0 * mm), 38.0 * mm);
 }
 
-void TestCylinderInsideSafety() {
+TEST(DistanceToOutSafety, Cylinder) {
   const CylinderFixture cylinder("DistanceToOutCylinder", 25.0 * mm, 40.0 * mm);
 
   ExpectDistanceToOut("cylinder center reaches radial wall first", cylinder.solid,
@@ -43,12 +43,3 @@ void TestCylinderInsideSafety() {
 }
 
 } // namespace
-
-int main() {
-  TestBoxInsideSafety();
-  TestSphereInsideSafety();
-  TestCylinderInsideSafety();
-
-  std::cout << "\nAll test_distance_to_out_safety tests passed.\n";
-  return 0;
-}

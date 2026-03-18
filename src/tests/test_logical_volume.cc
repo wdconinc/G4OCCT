@@ -15,19 +15,9 @@
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <TopoDS_Shape.hxx>
 
-#include <cassert>
-#include <cstdlib>
-#include <iostream>
+#include <gtest/gtest.h>
 
-static void check(bool condition, const char* msg) {
-  if (!condition) {
-    std::cerr << "FAIL: " << msg << "\n";
-    std::exit(1);
-  }
-  std::cout << "PASS: " << msg << "\n";
-}
-
-static void test_occt_logical_volume_with_occt_solid() {
+TEST(LogicalVolume, WithOCCTSolid) {
   // Create an OCCT box shape
   TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 20.0, 30.0).Shape();
 
@@ -39,41 +29,32 @@ static void test_occt_logical_volume_with_occt_solid() {
 
   G4OCCTLogicalVolume lv(solid, mat, "BoxLV", box);
 
-  check(lv.GetName() == "BoxLV", "logical volume name is 'BoxLV'");
-  check(lv.GetSolid() == solid, "logical volume solid pointer matches");
-  check(lv.GetMaterial() == mat, "logical volume material matches");
-  check(!lv.GetOCCTShape().IsNull(), "OCCT shape in logical volume is not null");
+  EXPECT_EQ(lv.GetName(), "BoxLV");
+  EXPECT_EQ(lv.GetSolid(), solid);
+  EXPECT_EQ(lv.GetMaterial(), mat);
+  EXPECT_FALSE(lv.GetOCCTShape().IsNull());
 }
 
-static void test_occt_logical_volume_default_shape() {
+TEST(LogicalVolume, DefaultShape) {
   G4Box* g4box    = new G4Box("G4Box", 5.0, 5.0, 5.0);
   G4Material* mat = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
 
   // No OCCT shape provided – defaults to null TopoDS_Shape
   G4OCCTLogicalVolume lv(g4box, mat, "DefaultShapeLV");
 
-  check(lv.GetOCCTShape().IsNull(), "default OCCT shape is null");
-  check(lv.GetName() == "DefaultShapeLV", "default logical volume name matches");
+  EXPECT_TRUE(lv.GetOCCTShape().IsNull());
+  EXPECT_EQ(lv.GetName(), "DefaultShapeLV");
 }
 
-static void test_occt_logical_volume_set_shape() {
+TEST(LogicalVolume, SetShape) {
   G4Box* g4box    = new G4Box("G4Box2", 5.0, 5.0, 5.0);
   G4Material* mat = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
   G4OCCTLogicalVolume lv(g4box, mat, "SetShapeLV");
 
-  check(lv.GetOCCTShape().IsNull(), "shape starts null");
+  EXPECT_TRUE(lv.GetOCCTShape().IsNull());
 
   TopoDS_Shape smallBox = BRepPrimAPI_MakeBox(1.0, 1.0, 1.0).Shape();
   lv.SetOCCTShape(smallBox);
 
-  check(!lv.GetOCCTShape().IsNull(), "shape is non-null after SetOCCTShape");
-}
-
-int main() {
-  test_occt_logical_volume_with_occt_solid();
-  test_occt_logical_volume_default_shape();
-  test_occt_logical_volume_set_shape();
-
-  std::cout << "\nAll test_logical_volume tests passed.\n";
-  return 0;
+  EXPECT_FALSE(lv.GetOCCTShape().IsNull());
 }

@@ -16,9 +16,9 @@
 
 #include <G4SystemOfUnits.hh>
 
+#include <gtest/gtest.h>
+
 #include <cmath>
-#include <cstdlib>
-#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -45,98 +45,70 @@ inline std::string ToString(const EInside classification) {
   return "<unknown EInside>";
 }
 
-[[noreturn]] inline void Fail(const std::string& message) {
-  std::cerr << "FAIL: " << message << "\n";
-  std::exit(EXIT_FAILURE);
+inline void ExpectTrue(const std::string& label, const bool condition) {
+  EXPECT_TRUE(condition) << label;
 }
 
-inline void Pass(const std::string& message) { std::cout << "PASS: " << message << "\n"; }
-
-inline void ExpectTrue(const std::string& message, const bool condition) {
-  if (!condition) {
-    Fail(message);
-  }
-
-  Pass(message);
-}
-
-inline void ExpectNear(const std::string& message, const G4double actual, const G4double expected,
+inline void ExpectNear(const std::string& label, const G4double actual, const G4double expected,
                        const G4double tolerance = kDefaultTolerance) {
   if (std::isinf(expected)) {
-    if (!std::isinf(actual)) {
-      Fail(message + ": expected infinity, got " + std::to_string(actual));
-    }
-
-    Pass(message);
+    EXPECT_TRUE(std::isinf(actual)) << label << ": expected infinity, got " << actual;
     return;
   }
-
-  if (std::fabs(actual - expected) > tolerance) {
-    std::ostringstream buffer;
-    buffer << message << ": expected " << expected << " ± " << tolerance << ", got " << actual;
-    Fail(buffer.str());
-  }
-
-  Pass(message);
+  EXPECT_NEAR(actual, expected, tolerance) << label;
 }
 
-inline void ExpectVectorNear(const std::string& message, const G4ThreeVector& actual,
+inline void ExpectVectorNear(const std::string& label, const G4ThreeVector& actual,
                              const G4ThreeVector& expected,
                              const G4double tolerance = kDefaultTolerance) {
-  if ((actual - expected).mag() > tolerance) {
-    Fail(message + ": expected " + ToString(expected) + ", got " + ToString(actual));
-  }
-
-  Pass(message);
+  EXPECT_LE((actual - expected).mag(), tolerance)
+      << label << ": expected " << ToString(expected) << ", got " << ToString(actual);
 }
 
-inline void ExpectInsideClassification(const std::string& message, const EInside actual,
+inline void ExpectInsideClassification(const std::string& label, const EInside actual,
                                        const EInside expected) {
-  if (actual != expected) {
-    Fail(message + ": expected " + ToString(expected) + ", got " + ToString(actual));
-  }
-
-  Pass(message);
+  EXPECT_EQ(actual, expected) << label << ": expected " << ToString(expected) << ", got "
+                              << ToString(actual);
 }
 
-inline void ExpectInside(const std::string& message, const G4OCCTSolid& solid,
+inline void ExpectInside(const std::string& label, const G4OCCTSolid& solid,
                          const G4ThreeVector& point, const EInside expected) {
-  ExpectInsideClassification(message, solid.Inside(point), expected);
+  ExpectInsideClassification(label, solid.Inside(point), expected);
 }
 
-inline void ExpectSurfaceNormal(const std::string& message, const G4OCCTSolid& solid,
+inline void ExpectSurfaceNormal(const std::string& label, const G4OCCTSolid& solid,
                                 const G4ThreeVector& point, const G4ThreeVector& expected,
                                 const G4double tolerance = kDefaultTolerance) {
-  ExpectVectorNear(message, solid.SurfaceNormal(point), expected, tolerance);
+  ExpectVectorNear(label, solid.SurfaceNormal(point), expected, tolerance);
 }
 
-inline void ExpectDistanceToIn(const std::string& message, const G4OCCTSolid& solid,
+inline void ExpectDistanceToIn(const std::string& label, const G4OCCTSolid& solid,
                                const G4ThreeVector& point, const G4double expected,
                                const G4double tolerance = kDefaultTolerance) {
-  ExpectNear(message, solid.DistanceToIn(point), expected, tolerance);
+  ExpectNear(label, solid.DistanceToIn(point), expected, tolerance);
 }
 
-inline void ExpectDistanceToIn(const std::string& message, const G4OCCTSolid& solid,
+inline void ExpectDistanceToIn(const std::string& label, const G4OCCTSolid& solid,
                                const G4ThreeVector& point, const G4ThreeVector& direction,
                                const G4double expected,
                                const G4double tolerance = kDefaultTolerance) {
-  ExpectNear(message, solid.DistanceToIn(point, direction), expected, tolerance);
+  ExpectNear(label, solid.DistanceToIn(point, direction), expected, tolerance);
 }
 
-inline void ExpectDistanceToOut(const std::string& message, const G4OCCTSolid& solid,
+inline void ExpectDistanceToOut(const std::string& label, const G4OCCTSolid& solid,
                                 const G4ThreeVector& point, const G4double expected,
                                 const G4double tolerance = kDefaultTolerance) {
-  ExpectNear(message, solid.DistanceToOut(point), expected, tolerance);
+  ExpectNear(label, solid.DistanceToOut(point), expected, tolerance);
 }
 
-inline void ExpectDistanceToOut(const std::string& message, const G4OCCTSolid& solid,
+inline void ExpectDistanceToOut(const std::string& label, const G4OCCTSolid& solid,
                                 const G4ThreeVector& point, const G4ThreeVector& direction,
                                 const G4double expected,
                                 const G4double tolerance = kDefaultTolerance) {
-  ExpectNear(message, solid.DistanceToOut(point, direction), expected, tolerance);
+  ExpectNear(label, solid.DistanceToOut(point, direction), expected, tolerance);
 }
 
-inline void ExpectDistanceToOutWithNormal(const std::string& message, const G4OCCTSolid& solid,
+inline void ExpectDistanceToOutWithNormal(const std::string& label, const G4OCCTSolid& solid,
                                           const G4ThreeVector& point,
                                           const G4ThreeVector& direction,
                                           const G4double expectedDistance,
@@ -146,9 +118,9 @@ inline void ExpectDistanceToOutWithNormal(const std::string& message, const G4OC
   G4ThreeVector normal;
   const G4double distance = solid.DistanceToOut(point, direction, true, &validNormal, &normal);
 
-  ExpectNear(message + " distance", distance, expectedDistance, tolerance);
-  ExpectTrue(message + " valid normal", validNormal);
-  ExpectVectorNear(message + " normal", normal, expectedNormal, tolerance);
+  ExpectNear(label + " distance", distance, expectedDistance, tolerance);
+  ExpectTrue(label + " valid normal", validNormal);
+  ExpectVectorNear(label + " normal", normal, expectedNormal, tolerance);
 }
 
 struct BoxFixture {

@@ -54,6 +54,22 @@ target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
 
 include(CTest)
 
+# ─── GoogleTest ───────────────────────────────────────────────────────────────
+
+if(BUILD_TESTING)
+  include(GoogleTest)
+  find_package(GTest QUIET)
+  if(NOT GTest_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+      googletest
+      URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
+      URL_HASH SHA256=8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7)
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+  endif()
+endif()
+
 # ─── Benchmarks ───────────────────────────────────────────────────────────────
 
 option(BUILD_BENCHMARKS "Build navigator benchmark programs" OFF)

@@ -14,72 +14,55 @@
 #include <TopoDS_Shape.hxx>
 #include <gp_Pnt.hxx>
 
-#include <cassert>
+#include <gtest/gtest.h>
+
 #include <cmath>
-#include <cstdlib>
-#include <iostream>
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-static void check(bool condition, const char* msg) {
-  if (!condition) {
-    std::cerr << "FAIL: " << msg << "\n";
-    std::exit(1);
-  }
-  std::cout << "PASS: " << msg << "\n";
-}
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-static void test_box_solid() {
+TEST(SolidBasicAPI, BoxSolid) {
   TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 20.0, 30.0).Shape();
   G4OCCTSolid solid("TestBox", box);
 
-  check(solid.GetName() == "TestBox", "solid name is 'TestBox'");
-  check(solid.GetEntityType() == "G4OCCTSolid", "entity type is G4OCCTSolid");
-  check(!solid.GetOCCTShape().IsNull(), "OCCT shape is not null");
+  EXPECT_EQ(solid.GetName(), "TestBox");
+  EXPECT_EQ(solid.GetEntityType(), "G4OCCTSolid");
+  EXPECT_FALSE(solid.GetOCCTShape().IsNull());
 
-  check(solid.Inside(G4ThreeVector(5.0, 10.0, 15.0)) == kInside,
-        "Inside returns kInside for an interior point");
-  check(solid.Inside(G4ThreeVector(0.0, 0.0, 0.0)) == kSurface,
-        "Inside returns kSurface for a corner point on the box");
+  EXPECT_EQ(solid.Inside(G4ThreeVector(5.0, 10.0, 15.0)), kInside);
+  EXPECT_EQ(solid.Inside(G4ThreeVector(0.0, 0.0, 0.0)), kSurface);
 
-  check(std::abs(solid.DistanceToIn(G4ThreeVector(100.0, 0.0, 0.0)) - 90.0) < 1.0e-9,
-        "DistanceToIn(p) returns the shortest distance for an outside point");
-
-  check(std::abs(solid.DistanceToOut(G4ThreeVector(5.0, 10.0, 15.0)) - 5.0) < 1.0e-9,
-        "DistanceToOut(p) returns the nearest face distance for an interior point");
+  EXPECT_NEAR(solid.DistanceToIn(G4ThreeVector(100.0, 0.0, 0.0)), 90.0, 1.0e-9);
+  EXPECT_NEAR(solid.DistanceToOut(G4ThreeVector(5.0, 10.0, 15.0)), 5.0, 1.0e-9);
 }
 
-static void test_sphere_solid() {
+TEST(SolidBasicAPI, SphereSolid) {
   TopoDS_Shape sphere = BRepPrimAPI_MakeSphere(50.0).Shape();
   G4OCCTSolid solid("TestSphere", sphere);
 
-  check(!solid.GetOCCTShape().IsNull(), "sphere shape is not null");
-  check(solid.GetEntityType() == "G4OCCTSolid", "sphere entity type is G4OCCTSolid");
+  EXPECT_FALSE(solid.GetOCCTShape().IsNull());
+  EXPECT_EQ(solid.GetEntityType(), "G4OCCTSolid");
 }
 
-static void test_cylinder_solid() {
+TEST(SolidBasicAPI, CylinderSolid) {
   TopoDS_Shape cyl = BRepPrimAPI_MakeCylinder(25.0, 100.0).Shape();
   G4OCCTSolid solid("TestCylinder", cyl);
 
-  check(!solid.GetOCCTShape().IsNull(), "cylinder shape is not null");
+  EXPECT_FALSE(solid.GetOCCTShape().IsNull());
 
   // Replace shape via setter
   TopoDS_Shape cyl2 = BRepPrimAPI_MakeCylinder(5.0, 10.0).Shape();
   solid.SetOCCTShape(cyl2);
-  check(!solid.GetOCCTShape().IsNull(), "replaced cylinder shape is not null");
+  EXPECT_FALSE(solid.GetOCCTShape().IsNull());
 }
 
-static void test_set_occt_shape_invalidates_cache() {
+TEST(SolidBasicAPI, SetOCCTShapeInvalidatesCache) {
   // Build a 10×10×10 box centred at the origin.
   TopoDS_Shape box1 = BRepPrimAPI_MakeBox(gp_Pnt(-5.0, -5.0, -5.0), gp_Pnt(5.0, 5.0, 5.0)).Shape();
   G4OCCTSolid solid("CacheInvalidateTest", box1);
 
   // Warm the per-thread classifier cache.
   const G4ThreeVector originPt(0.0, 0.0, 0.0);
-  check(solid.Inside(originPt) == kInside,
-        "cache-invalidate: Inside() kInside for box1 centre before SetOCCTShape");
+  EXPECT_EQ(solid.Inside(originPt), kInside);
 
   // Replace with a different box that does not contain the original test point.
   TopoDS_Shape box2 =
@@ -87,40 +70,25 @@ static void test_set_occt_shape_invalidates_cache() {
   solid.SetOCCTShape(box2);
 
   // After shape replacement the original point must be kOutside.
-  check(solid.Inside(originPt) == kOutside,
-        "cache-invalidate: Inside() kOutside after SetOCCTShape (cache must reload)");
+  EXPECT_EQ(solid.Inside(originPt), kOutside);
 
   // A point inside the new box must be kInside.
-  check(solid.Inside(G4ThreeVector(25.0, 25.0, 25.0)) == kInside,
-        "cache-invalidate: Inside() kInside for new box centre after SetOCCTShape");
+  EXPECT_EQ(solid.Inside(G4ThreeVector(25.0, 25.0, 25.0)), kInside);
 
   // DistanceToIn(p) must also reflect the new shape.
   // Nearest corner of the new box to origin is (20,20,20): distance = 20*sqrt(3) ~= 34.64
   const G4double expectedDist = 20.0 * std::sqrt(3.0);
   const G4double dist         = solid.DistanceToIn(originPt);
-  check(std::abs(dist - expectedDist) < 0.5,
-        "cache-invalidate: DistanceToIn(p) reflects new shape after SetOCCTShape");
+  EXPECT_NEAR(dist, expectedDist, 0.5);
 }
 
-static void test_surface_normal_box_face() {
+TEST(SolidBasicAPI, SurfaceNormalBoxFace) {
   TopoDS_Shape box =
       BRepPrimAPI_MakeBox(gp_Pnt(-10.0, -10.0, -10.0), gp_Pnt(10.0, 10.0, 10.0)).Shape();
   G4OCCTSolid solid("NormalTest", box);
 
   G4ThreeVector n = solid.SurfaceNormal(G4ThreeVector(10.0, 0.0, 0.0));
-  check((n - G4ThreeVector(1.0, 0.0, 0.0)).mag() < 1.0e-9,
-        "SurfaceNormal returns +x on centered box face");
-}
-
-// ── main ──────────────────────────────────────────────────────────────────────
-
-int main() {
-  test_box_solid();
-  test_sphere_solid();
-  test_cylinder_solid();
-  test_set_occt_shape_invalidates_cache();
-  test_surface_normal_box_face();
-
-  std::cout << "\nAll test_solid tests passed.\n";
-  return 0;
+  EXPECT_NEAR(n.x(), 1.0, 1.0e-9) << "SurfaceNormal +x component on centered box face";
+  EXPECT_NEAR(n.y(), 0.0, 1.0e-9) << "SurfaceNormal +y component on centered box face";
+  EXPECT_NEAR(n.z(), 0.0, 1.0e-9) << "SurfaceNormal +z component on centered box face";
 }

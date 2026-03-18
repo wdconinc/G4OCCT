@@ -5,75 +5,58 @@
 
 cmake_minimum_required(VERSION 3.16)
 
+# Helper macro: register a GTest-based unit test executable.
+# Usage: g4occt_gtest(target sources... LINK_LIBRARIES libs...)
+macro(g4occt_gtest _target)
+  cmake_parse_arguments(_arg "" "" "LINK_LIBRARIES" ${ARGN})
+  add_executable(${_target} ${_arg_UNPARSED_ARGUMENTS})
+  target_include_directories(${_target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(${_target} PRIVATE ${_arg_LINK_LIBRARIES} GTest::gtest_main)
+  gtest_discover_tests(${_target})
+endmacro()
+
 # ─── test_solid ───────────────────────────────────────────────────────────────
-add_executable(test_solid test_solid.cc)
-target_link_libraries(test_solid PRIVATE G4OCCT)
-add_test(NAME test_solid COMMAND test_solid)
+g4occt_gtest(test_solid test_solid.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_logical_volume ──────────────────────────────────────────────────────
-add_executable(test_logical_volume test_logical_volume.cc)
-target_link_libraries(test_logical_volume PRIVATE G4OCCT)
-add_test(NAME test_logical_volume COMMAND test_logical_volume)
+g4occt_gtest(test_logical_volume test_logical_volume.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_placement ───────────────────────────────────────────────────────────
-add_executable(test_placement test_placement.cc)
-target_link_libraries(test_placement PRIVATE G4OCCT)
-add_test(NAME test_placement COMMAND test_placement)
+g4occt_gtest(test_placement test_placement.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_navigation_harness ──────────────────────────────────────────────────
-add_executable(test_navigation_harness test_navigation_harness.cc)
-target_link_libraries(test_navigation_harness PRIVATE G4OCCT)
-add_test(NAME test_navigation_harness COMMAND test_navigation_harness)
+g4occt_gtest(test_navigation_harness test_navigation_harness.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_navigation_inside ───────────────────────────────────────────────────
-add_executable(test_navigation_inside test_navigation_inside.cc)
-target_link_libraries(test_navigation_inside PRIVATE G4OCCT)
-add_test(NAME test_navigation_inside COMMAND test_navigation_inside)
+g4occt_gtest(test_navigation_inside test_navigation_inside.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_surface_normal ──────────────────────────────────────────────────────
-add_executable(test_surface_normal test_surface_normal.cc)
-target_link_libraries(test_surface_normal PRIVATE G4OCCT)
-add_test(NAME test_surface_normal COMMAND test_surface_normal)
+g4occt_gtest(test_surface_normal test_surface_normal.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_distance_to_in_ray ──────────────────────────────────────────────────
-add_executable(test_distance_to_in_ray test_distance_to_in_ray.cc)
-target_link_libraries(test_distance_to_in_ray PRIVATE G4OCCT)
-add_test(NAME test_distance_to_in_ray COMMAND test_distance_to_in_ray)
+g4occt_gtest(test_distance_to_in_ray test_distance_to_in_ray.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_distance_to_in_safety ───────────────────────────────────────────────
-add_executable(test_distance_to_in_safety test_distance_to_in_safety.cc)
-target_link_libraries(test_distance_to_in_safety PRIVATE G4OCCT)
-add_test(NAME test_distance_to_in_safety COMMAND test_distance_to_in_safety)
+g4occt_gtest(test_distance_to_in_safety test_distance_to_in_safety.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_distance_to_out_ray ─────────────────────────────────────────────────
-add_executable(test_distance_to_out_ray test_distance_to_out_ray.cc)
-target_link_libraries(test_distance_to_out_ray PRIVATE G4OCCT)
-add_test(NAME test_distance_to_out_ray COMMAND test_distance_to_out_ray)
+g4occt_gtest(test_distance_to_out_ray test_distance_to_out_ray.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_distance_to_out_safety ──────────────────────────────────────────────
-add_executable(test_distance_to_out_safety test_distance_to_out_safety.cc)
-target_link_libraries(test_distance_to_out_safety PRIVATE G4OCCT)
-add_test(NAME test_distance_to_out_safety COMMAND test_distance_to_out_safety)
+g4occt_gtest(test_distance_to_out_safety test_distance_to_out_safety.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_get_extent ──────────────────────────────────────────────────────────
-add_executable(test_get_extent test_get_extent.cc)
-target_link_libraries(test_get_extent PRIVATE G4OCCT)
-add_test(NAME test_get_extent COMMAND test_get_extent)
+g4occt_gtest(test_get_extent test_get_extent.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_bounding_limits ─────────────────────────────────────────────────────
-add_executable(test_bounding_limits test_bounding_limits.cc)
-target_link_libraries(test_bounding_limits PRIVATE G4OCCT)
-add_test(NAME test_bounding_limits COMMAND test_bounding_limits)
+g4occt_gtest(test_bounding_limits test_bounding_limits.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_calculate_extent ────────────────────────────────────────────────────
-add_executable(test_calculate_extent test_calculate_extent.cc)
-target_link_libraries(test_calculate_extent PRIVATE G4OCCT)
-add_test(NAME test_calculate_extent COMMAND test_calculate_extent)
+g4occt_gtest(test_calculate_extent test_calculate_extent.cc LINK_LIBRARIES G4OCCT)
 
 # ─── test_create_polyhedron ───────────────────────────────────────────────────
-add_executable(test_create_polyhedron test_create_polyhedron.cc)
-target_link_libraries(test_create_polyhedron PRIVATE G4OCCT)
-add_test(NAME test_create_polyhedron COMMAND test_create_polyhedron)
+g4occt_gtest(test_create_polyhedron test_create_polyhedron.cc LINK_LIBRARIES G4OCCT)
+
 
 # ─── test_geometry_validation ────────────────────────────────────────────────
 add_executable(test_geometry_validation geometry/test_geometry_validation.cc)

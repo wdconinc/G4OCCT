@@ -8,7 +8,7 @@
 #include <G4SystemOfUnits.hh>
 #include <G4VoxelLimits.hh>
 
-#include <iostream>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -18,7 +18,7 @@ using g4occt::tests::navigation::ExpectTrue;
 
 constexpr G4double kExtentTolerance = 1.0e-6 * mm;
 
-void TestRotatedAndTranslatedExtent() {
+TEST(CalculateExtent, RotatedAndTranslatedExtent) {
   const BoxFixture box("CalculateExtentTransformBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   G4RotationMatrix rotation;
@@ -36,7 +36,7 @@ void TestRotatedAndTranslatedExtent() {
              kExtentTolerance);
 }
 
-void TestExtentClipping() {
+TEST(CalculateExtent, ExtentClipping) {
   const BoxFixture box("CalculateExtentClippedBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   G4VoxelLimits voxelLimits;
@@ -53,7 +53,7 @@ void TestExtentClipping() {
   ExpectNear("box x-max is clipped to voxel maximum", max, 6.0 * mm, kExtentTolerance);
 }
 
-void TestExtentRejectsDisjointVoxel() {
+TEST(CalculateExtent, RejectsDisjointVoxel) {
   const BoxFixture box("CalculateExtentDisjointBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   G4VoxelLimits voxelLimits;
@@ -68,12 +68,3 @@ void TestExtentRejectsDisjointVoxel() {
 }
 
 } // namespace
-
-int main() {
-  TestRotatedAndTranslatedExtent();
-  TestExtentClipping();
-  TestExtentRejectsDisjointVoxel();
-
-  std::cout << "\nAll test_calculate_extent tests passed.\n";
-  return 0;
-}

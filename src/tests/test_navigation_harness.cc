@@ -5,7 +5,7 @@
 
 #include <G4SystemOfUnits.hh>
 
-#include <iostream>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -17,7 +17,7 @@ using g4occt::tests::navigation::ExpectTrue;
 using g4occt::tests::navigation::ExpectVectorNear;
 using g4occt::tests::navigation::SphereFixture;
 
-void TestCanonicalBoxFixture() {
+TEST(NavigationHarness, CanonicalBoxFixture) {
   const BoxFixture box("HarnessBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   ExpectTrue("box fixture creates a shape", !box.shape.IsNull());
@@ -28,7 +28,7 @@ void TestCanonicalBoxFixture() {
   ExpectVectorNear("box center is origin", box.Center(), G4ThreeVector(0.0, 0.0, 0.0));
 }
 
-void TestCanonicalSphereFixture() {
+TEST(NavigationHarness, CanonicalSphereFixture) {
   const SphereFixture sphere("HarnessSphere", 50.0 * mm);
 
   ExpectTrue("sphere fixture creates a shape", !sphere.shape.IsNull());
@@ -37,7 +37,7 @@ void TestCanonicalSphereFixture() {
   ExpectNear("sphere outside point uses margin", sphere.OutsideX().x(), 55.0 * mm);
 }
 
-void TestCanonicalCylinderFixture() {
+TEST(NavigationHarness, CanonicalCylinderFixture) {
   const CylinderFixture cylinder("HarnessCylinder", 25.0 * mm, 40.0 * mm);
 
   ExpectTrue("cylinder fixture creates a shape", !cylinder.shape.IsNull());
@@ -48,7 +48,7 @@ void TestCanonicalCylinderFixture() {
   ExpectNear("cylinder outside radial point uses margin", cylinder.OutsideRadialX().x(), 30.0 * mm);
 }
 
-void TestAssertionHelpers() {
+TEST(NavigationHarness, AssertionHelpers) {
   ExpectNear("finite comparison accepts tolerance", 1.0 * mm + 5.0e-10 * mm, 1.0 * mm);
   ExpectNear("infinite comparison accepts kInfinity", kInfinity, kInfinity);
   ExpectVectorNear("vector comparison accepts tolerance",
@@ -58,13 +58,3 @@ void TestAssertionHelpers() {
 }
 
 } // namespace
-
-int main() {
-  TestCanonicalBoxFixture();
-  TestCanonicalSphereFixture();
-  TestCanonicalCylinderFixture();
-  TestAssertionHelpers();
-
-  std::cout << "\nAll test_navigation_harness tests passed.\n";
-  return 0;
-}
