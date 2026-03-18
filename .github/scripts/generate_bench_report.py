@@ -36,12 +36,14 @@ def _parse_bench_output(text: str) -> dict:
           DistanceToIn(p)         : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  mismatches=0
           DistanceToOut(p)        : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  mismatches=0
           SurfaceNormal(p)        : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  mismatches=0
+          CreatePolyhedron()      : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  vertices=8/12  facets=12/24
 
         Aggregate:
           Method                    Native(ms)  Imported(ms)     Ratio   Mismatches Exp. Failures
           ---------------------...
           DistanceToIn/Out(p,v)        1234.56       5678.90       4.6x           12             0
           ...
+          CreatePolyhedron()           1234.56       5678.90       4.6x          ---           ---
     """
     lines = text.splitlines()
 
@@ -90,8 +92,9 @@ def _parse_bench_output(text: str) -> dict:
                         native_ms    = _parse_timing_value(rest[0])
                         imported_ms  = _parse_timing_value(rest[1])
                         ratio        = rest[2]          # "3.7x" or "---"
-                        mismatches   = int(rest[3])
-                        exp_failures = int(rest[4]) if len(rest) > 4 else 0
+                        # mismatches and exp_failures may be "---" for CreatePolyhedron()
+                        mismatches   = None if rest[3] == "---" else int(rest[3])
+                        exp_failures = None if (len(rest) <= 4 or rest[4] == "---") else int(rest[4])
                         aggregate.append({
                             "method":       label,
                             "native_ms":    native_ms,
@@ -118,8 +121,31 @@ def _parse_bench_output(text: str) -> dict:
             continue
 
         # ── Per-fixture method row ───────────────────────────────────────
-        # Format: "  MethodName         : native=X.XXms  imported=Y.YYms  ratio=Z.Zx  mismatches=M"
         if current is not None:
+            # CreatePolyhedron() row has a different format: vertices=N/M  facets=N/M
+            # instead of mismatches=M.
+            m = re.match(
+                r"  (.+?)\s*: native=\s*([\d.]+|---)\s*ms\s+"
+                r"imported=\s*([\d.]+|---)\s*ms\s+"
+                r"ratio=\s*([\d.]+x?|---)\s+"
+                r"vertices=(\d+)/(\d+)\s+"
+                r"facets=(\d+)/(\d+)",
+                line,
+            )
+            if m:
+                method = m.group(1).strip()
+                current["methods"][method] = {
+                    "native_ms":        _parse_timing_value(m.group(2)),
+                    "imported_ms":      _parse_timing_value(m.group(3)),
+                    "ratio":            m.group(4),
+                    "native_vertices":  int(m.group(5)),
+                    "imported_vertices": int(m.group(6)),
+                    "native_facets":    int(m.group(7)),
+                    "imported_facets":  int(m.group(8)),
+                }
+                continue
+
+            # Standard row format: "  MethodName : native=X.XXms  imported=Y.YYms  ratio=Z.Zx  mismatches=M"
             m = re.match(
                 r"  (.+?)\s*: native=\s*([\d.]+|---)\s*ms\s+"
                 r"imported=\s*([\d.]+|---)\s*ms\s+"
@@ -189,13 +215,15 @@ def _render_report(data: dict, viewer_path: str) -> str:
         for row in aggregate:
             native_str   = _format_timing(row["native_ms"])
             imported_str = _format_timing(row["imported_ms"])
+            mm_str  = "---" if row["mismatches"] is None else str(row["mismatches"])
+            ef_str  = "---" if row["exp_failures"] is None else str(row["exp_failures"])
             lines.append(
                 f"| {md_escape(row['method'])} | {native_str} | {imported_str} "
-                f"| {row['ratio']} | {row['mismatches']} | {row['exp_failures']} |"
+                f"| {row['ratio']} | {mm_str} | {ef_str} |"
             )
             # All methods report the same exp_failures count (one per expected-failure
             # fixture); take the maximum to get the fixture-level count.
-            if row["exp_failures"] > total_exp_failures:
+            if row["exp_failures"] is not None and row["exp_failures"] > total_exp_failures:
                 total_exp_failures = row["exp_failures"]
 
         if total_exp_failures:
@@ -212,17 +240,18 @@ def _render_report(data: dict, viewer_path: str) -> str:
             "> ⚠️ No fixture results found in output.",
         ]
     else:
-        # Ordered list of (column_header, method_key, has_timing)
+        # Ordered list of (column_header, method_key, has_timing, is_polyhedron)
         method_columns = [
-            ("DTI/DTO(p,v)",  "DistanceToIn/Out(p,v)", True),
-            ("Exit normals",  "Exit normals",           False),
-            ("Inside(p)",     "Inside(p)",              True),
-            ("DTI(p)",        "DistanceToIn(p)",        True),
-            ("DTO(p)",        "DistanceToOut(p)",       True),
-            ("SN(p)",         "SurfaceNormal(p)",       True),
+            ("DTI/DTO(p,v)",   "DistanceToIn/Out(p,v)", True,  False),
+            ("Exit normals",   "Exit normals",           False, False),
+            ("Inside(p)",      "Inside(p)",              True,  False),
+            ("DTI(p)",         "DistanceToIn(p)",        True,  False),
+            ("DTO(p)",         "DistanceToOut(p)",       True,  False),
+            ("SN(p)",          "SurfaceNormal(p)",       True,  False),
+            ("Polyhedron",     "CreatePolyhedron()",     True,  True),
         ]
 
-        col_headers = " | ".join(h for h, _, _ in method_columns)
+        col_headers = " | ".join(h for h, _, _, _ in method_columns)
         col_sep     = "|".join(":---:" for _ in method_columns)
 
         lines += [
@@ -234,7 +263,8 @@ def _render_report(data: dict, viewer_path: str) -> str:
             " Exit normals has no separate timing (normals are computed as part of DistanceToOut)."
             " Column abbreviations: **DTI/DTO(p,v)** = DistanceToIn/Out(p,v),"
             " **DTI(p)** = DistanceToIn safety, **DTO(p)** = DistanceToOut safety,"
-            " **SN(p)** = SurfaceNormal."
+            " **SN(p)** = SurfaceNormal,"
+            " **Polyhedron** = CreatePolyhedron() timing with native/imported vertex and facet counts."
             " Fixtures marked ⚠️ are expected failures and do not block CI.",
             "",
             f"| Fixture | Geant4 Class | {col_headers} |",
@@ -243,21 +273,35 @@ def _render_report(data: dict, viewer_path: str) -> str:
 
         for f in fixtures:
             cells = []
-            for _, method_key, has_timing in method_columns:
-                data = f["methods"].get(method_key)
-                if data is None:
+            for _, method_key, has_timing, is_polyhedron in method_columns:
+                d = f["methods"].get(method_key)
+                if d is None:
                     cells.append("---")
                     continue
-                mm     = data.get("mismatches", 0)
-                mm_str = "✅" if mm == 0 else f"{mm} ⚠️"
-                if has_timing:
-                    n = data.get("native_ms")
-                    i = data.get("imported_ms")
-                    r = data.get("ratio", "---")
+                if is_polyhedron:
+                    # CreatePolyhedron() has no mismatch; show timing + mesh counts.
+                    n = d.get("native_ms")
+                    i = d.get("imported_ms")
+                    r = d.get("ratio", "---")
+                    nv             = d.get("native_vertices", 0)
+                    iv             = d.get("imported_vertices", 0)
+                    nf             = d.get("native_facets", 0)
+                    imported_facets = d.get("imported_facets", 0)
+                    n_str = _format_timing(n, precision=2)
+                    i_str = _format_timing(i, precision=2)
+                    cells.append(f"{n_str} → {i_str} ({r})<br/>{nv}/{iv} verts, {nf}/{imported_facets} facets")
+                elif has_timing:
+                    mm     = d.get("mismatches", 0)
+                    mm_str = "✅" if mm == 0 else f"{mm} ⚠️"
+                    n = d.get("native_ms")
+                    i = d.get("imported_ms")
+                    r = d.get("ratio", "---")
                     n_str = _format_timing(n, precision=2)
                     i_str = _format_timing(i, precision=2)
                     cells.append(f"{n_str} → {i_str} ({r}) [{mm_str}]")
                 else:
+                    mm     = d.get("mismatches", 0)
+                    mm_str = "✅" if mm == 0 else f"{mm} ⚠️"
                     cells.append(f"[{mm_str}]")
 
             fixture_link = _fixture_viewer_link(f["id"], viewer_path)

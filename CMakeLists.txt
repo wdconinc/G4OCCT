@@ -70,7 +70,8 @@ if(BUILD_TESTING OR BUILD_BENCHMARKS)
     src/tests/geometry/fixture_solid_builder.cc
     src/tests/geometry/fixture_ray_compare.cc
     src/tests/geometry/fixture_inside_compare.cc
-    src/tests/geometry/fixture_safety_compare.cc)
+    src/tests/geometry/fixture_safety_compare.cc
+    src/tests/geometry/fixture_polyhedron_compare.cc)
   target_include_directories(
     G4OCCTFixtureSupport
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/tests ${Geant4_INCLUDE_DIRS}
