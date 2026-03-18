@@ -13,8 +13,9 @@ shape:
     - box outer_box 30 30 30
     - box core_box -min 10 10 10 -size 10 10 10
     - bcut subtraction_shape outer_box core_box
+    - copytranslate final_shape subtraction_shape -15 -15 -15
   outer_box_mm: [30.0, 30.0, 30.0]
-  removed_box_min_mm: [10.0, 10.0, 10.0]
+  removed_box_min_mm: [-5.0, -5.0, -5.0]
   removed_box_size_mm: [10.0, 10.0, 10.0]
 validation:
   expected_volume_mm3: 26000.0

@@ -172,7 +172,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
       FixtureGeometryObservation observation;
       ValidationReport geometry_report = ValidateFixtureGeometry(request, geom_opts, &observation);
       if (expected_failure.enabled) {
-        geometry_report = ReclassifyExpectedFailures(geometry_report, expected_failure.reason);
+        geometry_report = ReclassifyExpectedFailures(geometry_report, expected_failure);
       }
       aggregate_report.Append(geometry_report);
       if (observation.imported) {
@@ -186,7 +186,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
         ValidationReport ray_report = CompareFixtureRays(request, {}, &ray_summary);
         if (expected_failure.enabled) {
           ++expected_failure_count;
-          ray_report = ReclassifyExpectedFailures(ray_report, expected_failure.reason);
+          ray_report = ReclassifyExpectedFailures(ray_report, expected_failure);
         }
         aggregate_report.Append(ray_report);
         if (ray_summary.ray_count > 0U) {
@@ -202,7 +202,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
       if (!IsImportedSelfComparisonFixture(request.fixture)) {
         ValidationReport safety_report = CompareFixtureSafety(request, {}, &safety_summary);
         if (expected_failure.enabled) {
-          safety_report = ReclassifyExpectedFailures(safety_report, expected_failure.reason);
+          safety_report = ReclassifyExpectedFailures(safety_report, expected_failure);
         }
         aggregate_report.Append(safety_report);
         if (safety_summary.point_count > 0U) {
