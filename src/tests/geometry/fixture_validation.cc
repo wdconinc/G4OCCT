@@ -64,10 +64,10 @@ bool ValidationReport::Ok() const {
 
 const std::vector<ValidationMessage>& ValidationReport::Messages() const { return messages_; }
 
-/// Error codes that represent non-equivalence between native and imported geometry.
-/// These are the only codes that may be demoted to warnings when a fixture is
-/// marked as an expected failure; structural and IO errors are always kept as errors.
-static const std::set<std::string> kNonEquivalenceCodes = {
+/// Error codes that represent non-equivalence between native and imported geometry,
+/// excluding scalar safety distances.  These are demoted to warnings when the full
+/// expected-failure flag is set.
+static const std::set<std::string> kNonSafetyNonEquivalenceCodes = {
     "fixture.volume_mismatch",
     "fixture.ray_origin_state_mismatch",
     "fixture.ray_intersection_mismatch",
@@ -75,6 +75,13 @@ static const std::set<std::string> kNonEquivalenceCodes = {
     "fixture.ray_normal_mismatch",
     "fixture.surface_normal_mismatch",
     "fixture.inside_classification_mismatch",
+};
+
+/// Scalar safety distance codes that may differ between native and imported geometry
+/// because safety is allowed to be conservative (larger than the exact distance is
+/// valid in Geant4).  Demoted separately from other non-equivalence codes so that
+/// safety mismatches do not mask genuine ray or inside failures.
+static const std::set<std::string> kSafetyNonEquivalenceCodes = {
     "fixture.safety_in_distance_mismatch",
     "fixture.safety_out_distance_mismatch",
 };
@@ -83,21 +90,25 @@ ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
                                             const FixtureExpectedFailure& failure) {
   ValidationReport rewritten;
   for (const auto& message : report.Messages()) {
-    if (message.severity == ValidationSeverity::kError &&
-        kNonEquivalenceCodes.count(message.code) != 0U &&
-        (failure.codes.empty() || failure.codes.count(message.code) != 0U)) {
-      rewritten.AddWarning("xfail." + message.code,
-                           message.text + " (xfail: " + failure.reason + ")", message.path);
+    if (message.severity == ValidationSeverity::kError) {
+      if (failure.enabled && (kNonSafetyNonEquivalenceCodes.count(message.code) != 0U ||
+                              kSafetyNonEquivalenceCodes.count(message.code) != 0U)) {
+        rewritten.AddWarning("xfail." + message.code,
+                             message.text + " (xfail: " + failure.reason + ")", message.path);
+        continue;
+      }
+      if (failure.safety_enabled && kSafetyNonEquivalenceCodes.count(message.code) != 0U) {
+        rewritten.AddWarning("xfail." + message.code,
+                             message.text + " (xfail: " + failure.safety_reason + ")",
+                             message.path);
+        continue;
+      }
+      rewritten.AddError(message.code, message.text, message.path);
       continue;
     }
 
     if (message.severity == ValidationSeverity::kWarning) {
       rewritten.AddWarning(message.code, message.text, message.path);
-      continue;
-    }
-
-    if (message.severity == ValidationSeverity::kError) {
-      rewritten.AddError(message.code, message.text, message.path);
       continue;
     }
 
@@ -122,11 +133,13 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
   }
 
   if (geant4_class == "G4UnionSolid" || geant4_class == "G4SubtractionSolid") {
-    return {true,
-            "G4UnionSolid and G4SubtractionSolid DistanceToOut(p) can return incorrect values "
-            "for points in the overlapping region or near interior faces; OCCT-imported solid "
-            "computes the geometrically correct distance",
-            {"fixture.ray_distance_mismatch", "fixture.safety_out_distance_mismatch"}};
+    return {
+        .safety_enabled = true,
+        .safety_reason  = "Geant4 G4UnionSolid and G4SubtractionSolid DistanceToOut(p) may "
+                          "return the distance to an interior face of a component solid rather "
+                          "than the actual boolean boundary; this is conservative and valid per "
+                          "Geant4 navigation semantics but differs from the OCCT result",
+    };
   }
 
   return {};

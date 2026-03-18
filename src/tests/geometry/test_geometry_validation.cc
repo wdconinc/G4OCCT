@@ -171,9 +171,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
       geom_opts.volume_unit = repository_manifest.policy.volume_unit;
       FixtureGeometryObservation observation;
       ValidationReport geometry_report = ValidateFixtureGeometry(request, geom_opts, &observation);
-      if (expected_failure.enabled) {
-        geometry_report = ReclassifyExpectedFailures(geometry_report, expected_failure);
-      }
+      geometry_report = ReclassifyExpectedFailures(geometry_report, expected_failure);
       aggregate_report.Append(geometry_report);
       if (observation.imported) {
         ++geometry_checked_count;
@@ -184,10 +182,10 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
         ReportSkippedImportedSelfComparisonNavigation(request, &aggregate_report);
       } else {
         ValidationReport ray_report = CompareFixtureRays(request, {}, &ray_summary);
-        if (expected_failure.enabled) {
+        if (expected_failure.enabled || expected_failure.safety_enabled) {
           ++expected_failure_count;
-          ray_report = ReclassifyExpectedFailures(ray_report, expected_failure);
         }
+        ray_report = ReclassifyExpectedFailures(ray_report, expected_failure);
         aggregate_report.Append(ray_report);
         if (ray_summary.ray_count > 0U) {
           ++ray_compared_count;
@@ -201,9 +199,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
       FixtureSafetyComparisonSummary safety_summary;
       if (!IsImportedSelfComparisonFixture(request.fixture)) {
         ValidationReport safety_report = CompareFixtureSafety(request, {}, &safety_summary);
-        if (expected_failure.enabled) {
-          safety_report = ReclassifyExpectedFailures(safety_report, expected_failure);
-        }
+        safety_report = ReclassifyExpectedFailures(safety_report, expected_failure);
         aggregate_report.Append(safety_report);
         if (safety_summary.point_count > 0U) {
           ++safety_compared_count;
@@ -277,7 +273,7 @@ int RunValidation(const std::filesystem::path& repository_manifest_path,
     std::cout << '\n';
   }
   if (expected_failure_count > 0U) {
-    std::cout << "Expected ray/volume/safety failures: " << expected_failure_count << " fixtures\n";
+    std::cout << "Expected failures (xfail): " << expected_failure_count << " fixtures\n";
   }
   return HasErrors(aggregate_report) ? EXIT_FAILURE : EXIT_SUCCESS;
 }

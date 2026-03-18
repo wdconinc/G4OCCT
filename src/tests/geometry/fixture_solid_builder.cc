@@ -228,12 +228,14 @@ namespace {
       auto* outer_box = new G4Box(name + "_outer", 0.5 * outer[0], 0.5 * outer[1], 0.5 * outer[2]);
       auto* removed_box = new G4Box(name + "_removed", 0.5 * removed_size[0], 0.5 * removed_size[1],
                                     0.5 * removed_size[2]);
-      const G4ThreeVector outer_center(0.5 * outer[0], 0.5 * outer[1], 0.5 * outer[2]);
+      // removed_box_min_mm stores the world-frame position of the removed box after the
+      // copytranslate that centres the overall shape. The outer_box is centred at the G4 origin,
+      // so the translation of the removed solid is just its own centre in world coordinates.
       const G4ThreeVector removed_center(removed_min[0] + 0.5 * removed_size[0],
                                          removed_min[1] + 0.5 * removed_size[1],
                                          removed_min[2] + 0.5 * removed_size[2]);
       return std::make_unique<G4SubtractionSolid>(name, outer_box, removed_box, nullptr,
-                                                  removed_center - outer_center);
+                                                  removed_center);
     }
 
     throw std::runtime_error("Unsupported boolean class in " + context + ": " + geant4_class);
