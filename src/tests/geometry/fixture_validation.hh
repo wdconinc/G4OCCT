@@ -7,6 +7,7 @@
 #include "geometry/fixture_manifest.hh"
 
 #include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -63,6 +64,10 @@ private:
 struct FixtureExpectedFailure {
   bool enabled{false};
   std::string reason;
+  /// When non-empty, only error codes in this set (intersected with the
+  /// non-equivalence allowlist) are demoted to warnings.  An empty set means
+  /// all allowlisted codes are demoted.
+  std::set<std::string> codes;
 };
 
 /** File-level validation request for a single fixture entry. */
@@ -124,15 +129,19 @@ std::string ToString(ValidationSeverity severity);
  *  - `fixture.safety_in_distance_mismatch`
  *  - `fixture.safety_out_distance_mismatch`
  *
+ * When `failure.codes` is non-empty, only codes in that set (intersected with
+ * the allowlist above) are demoted.  This avoids masking unrelated regressions
+ * when only a narrow subset of mismatches is expected for a fixture.
+ *
  * Structural and IO errors (missing files, STEP read/transfer failures, etc.)
  * are kept as errors even when the fixture is marked as an expected failure.
  *
  * @param report Source report to rewrite.
- * @param reason Human-readable explanation attached to downgraded messages.
+ * @param failure Expected-failure policy describing the reason and optional code filter.
  * @return A copy with allowlisted error severities demoted to warnings and `xfail.` code prefixes.
  */
 ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
-                                            const std::string& reason);
+                                            const FixtureExpectedFailure& failure);
 
 /**
  * Return the known expected-failure policy for a fixture.

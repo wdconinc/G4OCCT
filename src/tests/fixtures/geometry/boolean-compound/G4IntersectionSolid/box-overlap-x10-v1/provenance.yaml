@@ -15,7 +15,7 @@ shape:
     - bcommon intersection_shape left_box right_box
     - copytranslate final_shape intersection_shape -15 -10 -10
   overlap_box_mm:
-    min: [10.0, 0.0, 0.0]
+    min: [-5.0, -10.0, -10.0]
     size: [10.0, 20.0, 20.0]
 validation:
   expected_volume_mm3: 4000.0
