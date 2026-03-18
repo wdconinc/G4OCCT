@@ -14,7 +14,6 @@
 #include <chrono>
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 
 namespace g4occt::tests::geometry {

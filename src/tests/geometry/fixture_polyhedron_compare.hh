@@ -7,7 +7,6 @@
 #include "geometry/fixture_manifest.hh"
 #include "geometry/fixture_validation.hh"
 
-#include <cstddef>
 #include <string>
 
 namespace g4occt::tests::geometry {
