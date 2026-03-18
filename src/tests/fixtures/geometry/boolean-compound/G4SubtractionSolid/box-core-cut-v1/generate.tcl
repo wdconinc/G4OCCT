@@ -8,4 +8,5 @@ set script_dir [file normalize [file dirname [info script]]]
 box outer_box 30 30 30
 box core_box -min 10 10 10 -size 10 10 10
 bcut subtraction_shape outer_box core_box
-stepwrite a subtraction_shape [file join $script_dir shape.step]
+copytranslate final_shape subtraction_shape -15 -15 -15
+stepwrite a final_shape [file join $script_dir shape.step]
