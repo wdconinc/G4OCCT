@@ -188,8 +188,9 @@ jobs:
             # --instr-atstart=no: instrumentation off at launch; the binary
             # enables it via CALLGRIND_START_INSTRUMENTATION once the hot
             # loop starts, so setup and STEP-import costs are excluded.
-            # --collect-atstart=no: likewise, defer event collection to the
-            # hot loop to reduce noise from Geant4 / OCCT initialisation.
+            # --collect-atstart=no: collection also off at launch; the binary
+            # enables it via CALLGRIND_TOGGLE_COLLECT so only the hot loop
+            # contributes to the callgrind profile.
             valgrind --tool=callgrind \
               --instr-atstart=no \
               --collect-atstart=no \

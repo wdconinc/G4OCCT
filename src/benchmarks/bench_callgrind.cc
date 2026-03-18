@@ -21,10 +21,15 @@
  *   callgrind_annotate --auto=yes callgrind.out.<PID> > callgrind_annotate.txt
  * @endcode
  *
+ * The binary uses CALLGRIND_START_INSTRUMENTATION + CALLGRIND_TOGGLE_COLLECT
+ * to gate both instrumentation and collection to the steady-state hot loop.
+ * When launched without valgrind, or built without valgrind headers, all
+ * CALLGRIND_* macros become no-ops.
+ *
  * Defaults:
  *   - fixture_id  : g4box-box-20x30x40-v1 (direct-primitives family)
  *   - manifest     : \<source-dir\>/fixtures/geometry/manifest.yaml
- *   - ray_count    : 2048
+ *   - ray_count    : 2048 (must be > 0)
  */
 
 // Callgrind instrumentation macros.  When the binary runs outside valgrind, or
@@ -36,6 +41,9 @@
   do {                                                                                             \
   } while (0)
 #define CALLGRIND_STOP_INSTRUMENTATION                                                             \
+  do {                                                                                             \
+  } while (0)
+#define CALLGRIND_TOGGLE_COLLECT                                                                   \
   do {                                                                                             \
   } while (0)
 #endif
@@ -51,6 +59,7 @@
 #include <G4VSolid.hh>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -63,7 +72,6 @@ namespace g4occt::benchmarks {
 namespace {
 
   using g4occt::tests::geometry::BuildNativeSolidForRequest;
-  using g4occt::tests::geometry::DefaultRepositoryManifestPath;
   using g4occt::tests::geometry::FixtureComparisonOrigin;
   using g4occt::tests::geometry::FixtureManifest;
   using g4occt::tests::geometry::FixtureReference;
@@ -88,7 +96,13 @@ namespace {
       if (!std::filesystem::exists(family_manifest_path)) {
         continue;
       }
-      const FixtureManifest family_manifest = ParseFixtureManifestFile(family_manifest_path);
+      FixtureManifest family_manifest;
+      try {
+        family_manifest = ParseFixtureManifestFile(family_manifest_path);
+      } catch (const std::exception& error) {
+        throw std::runtime_error("Failed to parse family manifest '" +
+                                 family_manifest_path.string() + "': " + error.what());
+      }
       for (const auto& fixture : family_manifest.fixtures) {
         if (fixture.id == fixture_id) {
           return {family_manifest, fixture};
@@ -134,61 +148,138 @@ namespace {
     const EInside native_origin_state           = native_solid->Inside(native_origin);
     const EInside imported_origin_state         = imported_solid->Inside(imported_origin);
 
-    // Inside() and safety points sampled from the bounding box.
+    // Sample points from the bounding box for Inside(p) and safety queries.
     const std::vector<G4ThreeVector> bbox_points =
         GenerateBoundingBoxPoints(*native_solid, ray_count);
 
-    // ── Warm-up: prime instruction caches and OCCT internal state ─────────
-    // These calls are not profiled.  Running the loops once ensures that
-    // lazy-initialised OCCT classifiers and Geant4 caches are populated
-    // before instrumentation starts.
-    std::cout << "Warming up...\n";
-    for (std::size_t i = 0; i < std::min<std::size_t>(directions.size(), kWarmupIterations); ++i) {
-      if (native_origin_state == kOutside) {
-        (void)native_solid->DistanceToIn(native_origin, directions[i]);
-      } else {
-        G4ThreeVector norm;
-        G4bool validNorm = false;
-        (void)native_solid->DistanceToOut(native_origin, directions[i], true, &validNorm, &norm);
-      }
-      if (imported_origin_state == kOutside) {
-        (void)imported_solid->DistanceToIn(imported_origin, directions[i]);
-      } else {
-        G4ThreeVector norm;
-        G4bool validNorm = false;
-        (void)imported_solid->DistanceToOut(imported_origin, directions[i], true, &validNorm,
-                                            &norm);
+    // ── Pre-classify bbox_points into inside/outside sets ─────────────────
+    // Classification is done before the profiled loop so that the safety
+    // section calls the semantically correct overload for each point,
+    // matching what CompareFixtureSafety does.  kSurface points are skipped:
+    // their safety distance is 0 by definition.
+    std::vector<G4ThreeVector> outside_points;
+    std::vector<G4ThreeVector> inside_points;
+    outside_points.reserve(bbox_points.size());
+    inside_points.reserve(bbox_points.size());
+    for (const auto& point : bbox_points) {
+      const EInside state = native_solid->Inside(point);
+      if (state == kOutside) {
+        outside_points.push_back(point);
+      } else if (state == kInside) {
+        inside_points.push_back(point);
       }
     }
+
+    // ── Warm-up: prime instruction caches and OCCT internal state ─────────
+    // These calls mirror every call site in the hot loop so that no
+    // lazy-initialised state is captured in the profiled section.
+    std::cout << "Warming up...\n";
+
+    // DistanceToIn / DistanceToOut – collect warm-up hit points for SurfaceNormal.
+    std::vector<G4ThreeVector> warmup_native_hits;
+    std::vector<G4ThreeVector> warmup_imported_hits;
+    for (std::size_t i = 0; i < std::min<std::size_t>(directions.size(), kWarmupIterations); ++i) {
+      if (native_origin_state == kOutside) {
+        const G4double dist = native_solid->DistanceToIn(native_origin, directions[i]);
+        if (!std::isinf(dist)) {
+          warmup_native_hits.push_back(native_origin + dist * directions[i]);
+        }
+      } else {
+        G4ThreeVector norm;
+        G4bool validNorm = false;
+        const G4double dist =
+            native_solid->DistanceToOut(native_origin, directions[i], true, &validNorm, &norm);
+        if (!std::isinf(dist)) {
+          warmup_native_hits.push_back(native_origin + dist * directions[i]);
+        }
+      }
+      if (imported_origin_state == kOutside) {
+        const G4double dist = imported_solid->DistanceToIn(imported_origin, directions[i]);
+        if (!std::isinf(dist)) {
+          warmup_imported_hits.push_back(imported_origin + dist * directions[i]);
+        }
+      } else {
+        G4ThreeVector norm;
+        G4bool validNorm = false;
+        const G4double dist =
+            imported_solid->DistanceToOut(imported_origin, directions[i], true, &validNorm, &norm);
+        if (!std::isinf(dist)) {
+          warmup_imported_hits.push_back(imported_origin + dist * directions[i]);
+        }
+      }
+    }
+
+    // Inside(p).
     for (std::size_t i = 0; i < std::min<std::size_t>(bbox_points.size(), kWarmupIterations); ++i) {
       (void)native_solid->Inside(bbox_points[i]);
       (void)imported_solid->Inside(bbox_points[i]);
     }
 
+    // Safety – DistanceToIn(p) on outside points, DistanceToOut(p) on inside points.
+    for (std::size_t i = 0;
+         i < std::min<std::size_t>(outside_points.size(), kWarmupIterations); ++i) {
+      (void)native_solid->DistanceToIn(outside_points[i]);
+      (void)imported_solid->DistanceToIn(outside_points[i]);
+    }
+    for (std::size_t i = 0;
+         i < std::min<std::size_t>(inside_points.size(), kWarmupIterations); ++i) {
+      (void)native_solid->DistanceToOut(inside_points[i]);
+      (void)imported_solid->DistanceToOut(inside_points[i]);
+    }
+
+    // SurfaceNormal(p) on warm-up ray hit points.
+    for (const auto& point : warmup_native_hits) {
+      (void)native_solid->SurfaceNormal(point);
+    }
+    for (const auto& point : warmup_imported_hits) {
+      (void)imported_solid->SurfaceNormal(point);
+    }
+
     // ── Hot loop (callgrind-instrumented) ─────────────────────────────────
-    // Instrumentation is enabled here so that only steady-state navigation
-    // costs are captured.  The binary can also run without valgrind: the
-    // CALLGRIND_* macros become no-ops.
+    // CALLGRIND_START_INSTRUMENTATION re-enables JIT recompilation so that
+    // subsequent instructions are counted.  CALLGRIND_TOGGLE_COLLECT switches
+    // event collection on (it was disabled at launch via --collect-atstart=no)
+    // so that only the hot loop contributes to the callgrind profile.
     std::cout << "Starting instrumented hot loop...\n";
     CALLGRIND_START_INSTRUMENTATION;
+    CALLGRIND_TOGGLE_COLLECT;
 
-    // ── DistanceToIn / DistanceToOut ──────────────────────────────────────
+    // ── DistanceToIn / DistanceToOut – collect surface hit points ─────────
+    std::vector<G4ThreeVector> native_hit_points;
+    std::vector<G4ThreeVector> imported_hit_points;
+    native_hit_points.reserve(directions.size());
+    imported_hit_points.reserve(directions.size());
+
     for (const auto& direction : directions) {
       if (native_origin_state == kOutside) {
-        (void)native_solid->DistanceToIn(native_origin, direction);
+        const G4double dist = native_solid->DistanceToIn(native_origin, direction);
+        if (!std::isinf(dist)) {
+          native_hit_points.push_back(native_origin + dist * direction);
+        }
       } else {
         G4ThreeVector norm;
         G4bool validNorm = false;
-        (void)native_solid->DistanceToOut(native_origin, direction, true, &validNorm, &norm);
+        const G4double dist =
+            native_solid->DistanceToOut(native_origin, direction, true, &validNorm, &norm);
+        if (!std::isinf(dist)) {
+          native_hit_points.push_back(native_origin + dist * direction);
+        }
       }
     }
     for (const auto& direction : directions) {
       if (imported_origin_state == kOutside) {
-        (void)imported_solid->DistanceToIn(imported_origin, direction);
+        const G4double dist = imported_solid->DistanceToIn(imported_origin, direction);
+        if (!std::isinf(dist)) {
+          imported_hit_points.push_back(imported_origin + dist * direction);
+        }
       } else {
         G4ThreeVector norm;
         G4bool validNorm = false;
-        (void)imported_solid->DistanceToOut(imported_origin, direction, true, &validNorm, &norm);
+        const G4double dist =
+            imported_solid->DistanceToOut(imported_origin, direction, true, &validNorm, &norm);
+        if (!std::isinf(dist)) {
+          imported_hit_points.push_back(imported_origin + dist * direction);
+        }
       }
     }
 
@@ -201,25 +292,32 @@ namespace {
     }
 
     // ── DistanceToIn(p) / DistanceToOut(p) safety ────────────────────────
-    for (const auto& point : bbox_points) {
+    // Outside points → DistanceToIn(p); inside points → DistanceToOut(p).
+    // kSurface points are excluded (safety distance is 0 by definition).
+    for (const auto& point : outside_points) {
       (void)native_solid->DistanceToIn(point);
+    }
+    for (const auto& point : inside_points) {
       (void)native_solid->DistanceToOut(point);
     }
-    for (const auto& point : bbox_points) {
+    for (const auto& point : outside_points) {
       (void)imported_solid->DistanceToIn(point);
+    }
+    for (const auto& point : inside_points) {
       (void)imported_solid->DistanceToOut(point);
     }
 
-    // ── SurfaceNormal(p) ─────────────────────────────────────────────────
-    // Use bounding-box sample points as query locations: G4VSolid::SurfaceNormal
-    // is defined for all points and returns the nearest surface normal.
-    for (const auto& point : bbox_points) {
+    // ── SurfaceNormal(p) at ray hit points ───────────────────────────────
+    // Surface points are obtained from the ray-casting loop above, matching
+    // the approach used in CompareFixtureRays.
+    for (const auto& point : native_hit_points) {
       (void)native_solid->SurfaceNormal(point);
     }
-    for (const auto& point : bbox_points) {
+    for (const auto& point : imported_hit_points) {
       (void)imported_solid->SurfaceNormal(point);
     }
 
+    CALLGRIND_TOGGLE_COLLECT;
     CALLGRIND_STOP_INSTRUMENTATION;
     std::cout << "Hot loop complete.\n";
 
@@ -238,6 +336,11 @@ int main(int argc, char** argv) {
         argc > 2 ? std::filesystem::path(argv[2])
                  : g4occt::tests::geometry::DefaultRepositoryManifestPath();
     const std::size_t ray_count = argc > 3 ? static_cast<std::size_t>(std::stoul(argv[3])) : 2048U;
+
+    if (ray_count == 0U) {
+      std::cerr << "FAIL: ray_count must be greater than zero\n";
+      return EXIT_FAILURE;
+    }
 
     return g4occt::benchmarks::RunCallgrindBenchmark(fixture_id, manifest_path, ray_count);
   } catch (const std::exception& error) {
