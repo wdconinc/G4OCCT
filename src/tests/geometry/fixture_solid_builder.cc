@@ -665,7 +665,7 @@ G4ThreeVector FixtureComparisonOrigin(const FixtureProvenance& provenance, const
     return BoundingBoxCenter(solid);
   }
 
-  if (geant4_class == "G4Tet" || geant4_class == "G4TessellatedSolid") {
+  if (geant4_class == "G4Tet") {
     const std::vector<G4ThreeVector> vertices =
         RequirePointList(shape, "vertices_mm", provenance.source_path.string());
     G4ThreeVector centroid;
@@ -673,6 +673,23 @@ G4ThreeVector FixtureComparisonOrigin(const FixtureProvenance& provenance, const
       centroid += vertex;
     }
     return centroid / static_cast<double>(vertices.size());
+  }
+
+  if (geant4_class == "G4TessellatedSolid") {
+    const std::vector<G4ThreeVector> vertices =
+        RequirePointList(shape, "vertices_mm", provenance.source_path.string());
+    G4ThreeVector centroid;
+    for (const auto& vertex : vertices) {
+      centroid += vertex;
+    }
+    centroid /= static_cast<double>(vertices.size());
+    // The vertex centroid lies inside convex tessellations, but may be outside
+    // concave or non-convex meshes.  Validate at runtime and fall back to the
+    // bounding-box centre if the centroid is not inside the solid.
+    if (solid.Inside(centroid) != kOutside) {
+      return centroid;
+    }
+    return BoundingBoxCenter(solid);
   }
 
   if (geant4_class == "G4ScaledSolid" || geant4_class == "G4Ellipsoid" ||
