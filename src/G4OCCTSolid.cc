@@ -42,6 +42,8 @@
 #include <G4VGraphicsScene.hh>
 #include <G4VisExtent.hh>
 
+#include <algorithm>
+#include <cmath>
 #include <optional>
 #include <utility>
 
@@ -108,32 +110,56 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
   Standard_Real adjustedU       = u;
   Standard_Real adjustedV       = v;
   const Standard_Real tolerance = IntersectionTolerance();
-  if (surface.IsUPeriodic()) {
-    const Standard_Real uEpsilon =
-        std::max(surface.UResolution(tolerance), Precision::PConfusion());
-    const Standard_Real uFirst = surface.FirstUParameter();
-    const Standard_Real uLast  = surface.LastUParameter();
+  // Nudge U away from parametric boundaries to avoid seam singularities.
+  // For periodic surfaces this prevents descending into OCCT's 2D seam
+  // classifier; for non-periodic surfaces with degenerate boundary edges
+  // (e.g. the poles of a sphere) this ensures IsNormalDefined() returns true.
+  {
+    const Standard_Real uFirst   = surface.FirstUParameter();
+    const Standard_Real uLast    = surface.LastUParameter();
+    const Standard_Real uEpsilon = std::min(
+        std::max(surface.UResolution(tolerance), Precision::PConfusion()), 0.5 * (uLast - uFirst));
     if (std::abs(adjustedU - uFirst) <= uEpsilon) {
-      adjustedU = uFirst + uEpsilon;
+      adjustedU = std::min(uFirst + uEpsilon, uLast);
     } else if (std::abs(adjustedU - uLast) <= uEpsilon) {
-      adjustedU = uLast - uEpsilon;
+      adjustedU = std::max(uLast - uEpsilon, uFirst);
     }
   }
-  if (surface.IsVPeriodic()) {
-    const Standard_Real vEpsilon =
-        std::max(surface.VResolution(tolerance), Precision::PConfusion());
-    const Standard_Real vFirst = surface.FirstVParameter();
-    const Standard_Real vLast  = surface.LastVParameter();
+  // Nudge V away from parametric boundaries.  Non-periodic V boundaries
+  // include degenerate pole edges on spheres (V = ±π/2) and cone apices.
+  {
+    const Standard_Real vFirst   = surface.FirstVParameter();
+    const Standard_Real vLast    = surface.LastVParameter();
+    const Standard_Real vEpsilon = std::min(
+        std::max(surface.VResolution(tolerance), Precision::PConfusion()), 0.5 * (vLast - vFirst));
     if (std::abs(adjustedV - vFirst) <= vEpsilon) {
-      adjustedV = vFirst + vEpsilon;
+      adjustedV = std::min(vFirst + vEpsilon, vLast);
     } else if (std::abs(adjustedV - vLast) <= vEpsilon) {
-      adjustedV = vLast - vEpsilon;
+      adjustedV = std::max(vLast - vEpsilon, vFirst);
     }
   }
 
   BRepLProp_SLProps props(surface, adjustedU, adjustedV, 1, tolerance);
+  // If IsNormalDefined() fails the initial nudge may still be too small for
+  // OCCT's internal null-derivative threshold (e.g. a sphere pole where
+  // |dP/dU| = R·sin(δ) must exceed IntersectionTolerance()).  Retry with
+  // exponentially larger V nudges, walking toward the V midpoint.
   if (!props.IsNormalDefined()) {
-    return std::nullopt;
+    const Standard_Real vFirst = surface.FirstVParameter();
+    const Standard_Real vLast  = surface.LastVParameter();
+    const Standard_Real vMid   = 0.5 * (vFirst + vLast);
+    const bool nearVFirst      = (adjustedV < vMid);
+    const Standard_Real vRes   = std::max(surface.VResolution(tolerance), Precision::PConfusion());
+    for (int attempt = 0; attempt < 8 && !props.IsNormalDefined(); ++attempt) {
+      const Standard_Real scale = std::pow(10.0, static_cast<Standard_Real>(attempt));
+      const Standard_Real nudge = scale * vRes;
+      const Standard_Real retryV =
+          nearVFirst ? std::min(adjustedV + nudge, vMid) : std::max(adjustedV - nudge, vMid);
+      props = BRepLProp_SLProps(surface, adjustedU, retryV, 1, tolerance);
+    }
+    if (!props.IsNormalDefined()) {
+      return std::nullopt;
+    }
   }
 
   gp_Dir faceNormal = props.Normal();
@@ -172,7 +198,13 @@ std::optional<ClosestFaceMatch> TryFindClosestFace(const TopoDS_Shape& shape,
 
     for (Standard_Integer solution = 1; solution <= distance.NbSolution(); ++solution) {
       const BRepExtrema_SupportType supportType = distance.SupportTypeShape2(solution);
-      if (supportType != BRepExtrema_IsInFace && supportType != BRepExtrema_IsOnEdge) {
+      // Accept interior and boundary solutions.  Vertex support (e.g. the
+      // degenerate south/north pole of a sphere) is also accepted: the
+      // subsequent GeomAPI_ProjectPointOnSurf step obtains correct UV
+      // parameters independently, and the pole-nudge logic in
+      // TryGetOutwardNormal handles degenerate surface points.
+      if (supportType != BRepExtrema_IsInFace && supportType != BRepExtrema_IsOnEdge &&
+          supportType != BRepExtrema_IsVertex) {
         continue;
       }
       bestMatch = ClosestFaceMatch{face, candidateDistance};
