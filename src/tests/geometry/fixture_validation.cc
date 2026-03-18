@@ -132,16 +132,6 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
             "strict native-to-STEP ray-frame alignment for this fixture is not implemented yet"};
   }
 
-  if (geant4_class == "G4UnionSolid" || geant4_class == "G4SubtractionSolid") {
-    return {
-        .safety_enabled = true,
-        .safety_reason  = "Geant4 G4UnionSolid and G4SubtractionSolid DistanceToOut(p) may "
-                          "return the distance to an interior face of a component solid rather "
-                          "than the actual boolean boundary; this is conservative and valid per "
-                          "Geant4 navigation semantics but differs from the OCCT result",
-    };
-  }
-
   return {};
 }
 
