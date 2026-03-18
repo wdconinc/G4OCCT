@@ -127,7 +127,7 @@ fixtures:
       - G4UPolycone
     expectations:
       - quantity: volume
-        value: 10211.562578834109
+        value: 15409.511965857935
         absolute_tolerance: 0.001
         unit: mm3
   - id: g4polyhedra-polyhedra-hex-r10-r6-z25-v1

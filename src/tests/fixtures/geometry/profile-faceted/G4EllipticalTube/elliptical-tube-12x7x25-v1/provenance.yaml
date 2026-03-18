@@ -15,8 +15,8 @@ shape:
     dz_mm: 25.0
   construction:
     - pcylinder seed_cylinder 12 50
-    - translate seed_cylinder 0 0 -25
-    - scalexyz seed_shape seed_cylinder 1 0.5833333333333334 1
+    - scalexyz scaled_shape seed_cylinder 1 0.5833333333333334 1
+    - copytranslate seed_shape scaled_shape 0 0 -25
 validation:
   expected_volume_mm3: 13308.366562628955
   analytic_volume_mm3: 13194.689145077133
