@@ -216,13 +216,13 @@ namespace {
     }
 
     // Safety – DistanceToIn(p) on outside points, DistanceToOut(p) on inside points.
-    for (std::size_t i = 0;
-         i < std::min<std::size_t>(outside_points.size(), kWarmupIterations); ++i) {
+    for (std::size_t i = 0; i < std::min<std::size_t>(outside_points.size(), kWarmupIterations);
+         ++i) {
       (void)native_solid->DistanceToIn(outside_points[i]);
       (void)imported_solid->DistanceToIn(outside_points[i]);
     }
-    for (std::size_t i = 0;
-         i < std::min<std::size_t>(inside_points.size(), kWarmupIterations); ++i) {
+    for (std::size_t i = 0; i < std::min<std::size_t>(inside_points.size(), kWarmupIterations);
+         ++i) {
       (void)native_solid->DistanceToOut(inside_points[i]);
       (void)imported_solid->DistanceToOut(inside_points[i]);
     }
