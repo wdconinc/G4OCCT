@@ -2,6 +2,7 @@
 // Copyright (C) 2024 G4OCCT Contributors
 
 #include "geometry/fixture_navigation_summary.hh"
+#include "geometry/fixture_polyhedron_compare.hh"
 #include "geometry/fixture_ray_compare.hh"
 #include "geometry/fixture_inside_compare.hh"
 #include "geometry/fixture_safety_compare.hh"
@@ -20,12 +21,14 @@ namespace g4occt::benchmarks {
 namespace {
 
   using g4occt::tests::geometry::CompareFixtureInside;
+  using g4occt::tests::geometry::CompareFixturePolyhedron;
   using g4occt::tests::geometry::CompareFixtureRays;
   using g4occt::tests::geometry::CompareFixtureSafety;
   using g4occt::tests::geometry::DefaultRepositoryManifestPath;
   using g4occt::tests::geometry::FixtureInsideComparisonOptions;
   using g4occt::tests::geometry::FixtureManifest;
   using g4occt::tests::geometry::FixtureNavigationSummary;
+  using g4occt::tests::geometry::FixturePolyhedronComparisonOptions;
   using g4occt::tests::geometry::FixtureRayComparisonOptions;
   using g4occt::tests::geometry::FixtureRepositoryManifest;
   using g4occt::tests::geometry::FixtureSafetyComparisonOptions;
@@ -126,6 +129,19 @@ namespace {
                : 0U;
   }
 
+  /// Print the CreatePolyhedron() row of the per-fixture method table.
+  /// Instead of a mismatch count the row shows vertex and facet counts for both
+  /// meshes; these are expected to differ between the analytical native solid and
+  /// the OCCT BRepMesh tessellation, so no mismatch is recorded.
+  void PrintPolyhedronRow(const g4occt::tests::geometry::FixturePolyhedronComparisonSummary& poly) {
+    std::cout << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << ": ";
+    std::cout << "native=" << std::right << std::setw(8) << FormatMs(poly.native_elapsed_ms) << "ms"
+              << "  imported=" << std::setw(8) << FormatMs(poly.imported_elapsed_ms) << "ms"
+              << "  ratio=" << std::setw(8) << FormatRatio(poly.native_elapsed_ms, poly.imported_elapsed_ms);
+    std::cout << "  vertices=" << poly.native_vertices << "/" << poly.imported_vertices
+              << "  facets=" << poly.native_facets << "/" << poly.imported_facets << "\n";
+  }
+
   void PrintFixtureSummary(const FixtureNavigationSummary& s) {
     std::cout << s.fixture_id << " (" << s.geant4_class << ")";
     if (s.has_expected_failure) {
@@ -156,6 +172,9 @@ namespace {
     PrintMethodRow("SurfaceNormal(p)", s.ray.native_surface_normal_ms,
                    s.ray.imported_surface_normal_ms, s.ray.surface_normal_mismatch_count);
 
+    // Row 7: CreatePolyhedron() — mesh tessellation timing and mesh-density metrics.
+    PrintPolyhedronRow(s.polyhedron);
+
     std::cout << "\n";
   }
 
@@ -178,6 +197,7 @@ namespace {
     inside_options.include_near_surface_points = false;
     FixtureSafetyComparisonOptions safety_options;
     safety_options.point_count = ray_count;
+    const FixturePolyhedronComparisonOptions polyhedron_options;
 
     std::vector<FixtureNavigationSummary> nav_summaries;
 
@@ -240,6 +260,10 @@ namespace {
           safety_report =
               g4occt::tests::geometry::ReclassifyExpectedFailures(safety_report, expected_failure);
           aggregate_report.Append(safety_report);
+
+          const ValidationReport polyhedron_report =
+              CompareFixturePolyhedron(request, polyhedron_options, &nav.polyhedron);
+          aggregate_report.Append(polyhedron_report);
         }
 
         // Use the geant4_class from whichever sub-summary is populated.
@@ -249,10 +273,13 @@ namespace {
           nav.geant4_class = nav.inside.geant4_class;
         } else if (!nav.safety.geant4_class.empty()) {
           nav.geant4_class = nav.safety.geant4_class;
+        } else if (!nav.polyhedron.geant4_class.empty()) {
+          nav.geant4_class = nav.polyhedron.geant4_class;
         }
 
-        const bool any_data =
-            nav.ray.ray_count > 0U || nav.inside.point_count > 0U || nav.safety.point_count > 0U;
+        const bool any_data = nav.ray.ray_count > 0U || nav.inside.point_count > 0U ||
+                              nav.safety.point_count > 0U ||
+                              nav.polyhedron.native_valid || nav.polyhedron.imported_valid;
         if (any_data) {
           nav_summaries.push_back(nav);
         }
@@ -303,6 +330,9 @@ namespace {
     std::size_t agg_sn_mismatches   = 0;
     std::size_t agg_sn_exp_failures = 0;
 
+    double agg_poly_native_ms   = 0.0;
+    double agg_poly_imported_ms = 0.0;
+
     for (const auto& s : nav_summaries) {
       if (s.ray.ray_count > 0U) {
         agg_ray_native_ms += s.ray.native_elapsed_ms;
@@ -348,6 +378,12 @@ namespace {
           ++agg_dto_exp_failures;
         }
       }
+
+      // Accumulate CreatePolyhedron() timing whenever either mesh was produced.
+      if (s.polyhedron.native_valid || s.polyhedron.imported_valid) {
+        agg_poly_native_ms += s.polyhedron.native_elapsed_ms;
+        agg_poly_imported_ms += s.polyhedron.imported_elapsed_ms;
+      }
     }
 
     std::cout << "Aggregate:\n";
@@ -368,6 +404,13 @@ namespace {
                       agg_dto_mismatches, agg_dto_exp_failures);
     PrintAggregateRow("SurfaceNormal(p)", agg_sn_native_ms, agg_sn_imported_ms, agg_sn_mismatches,
                       agg_sn_exp_failures);
+    // CreatePolyhedron() — timing totals only; no mismatch count because native
+    // and imported meshes are expected to differ in vertex/facet layout.
+    std::cout << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << std::right
+              << std::setw(12) << FormatMs(agg_poly_native_ms) << std::setw(14)
+              << FormatMs(agg_poly_imported_ms) << std::setw(10)
+              << FormatRatio(agg_poly_native_ms, agg_poly_imported_ms) << std::setw(13) << "---"
+              << std::setw(14) << "---" << "\n";
 
     return EXIT_SUCCESS;
   }

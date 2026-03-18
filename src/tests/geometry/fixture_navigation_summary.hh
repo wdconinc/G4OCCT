@@ -5,6 +5,7 @@
 #define G4OCCT_TESTS_GEOMETRY_FIXTURE_NAVIGATION_SUMMARY_HH
 
 #include "geometry/fixture_inside_compare.hh"
+#include "geometry/fixture_polyhedron_compare.hh"
 #include "geometry/fixture_ray_compare.hh"
 #include "geometry/fixture_safety_compare.hh"
 
@@ -33,6 +34,8 @@ struct FixtureNavigationSummary {
   FixtureInsideComparisonSummary inside;
   /// Results from the DistanceToIn(p) / DistanceToOut(p) safety-distance comparison.
   FixtureSafetyComparisonSummary safety;
+  /// Results from the CreatePolyhedron() timing benchmark.
+  FixturePolyhedronComparisonSummary polyhedron;
   /// True when this fixture is marked as an expected failure.
   bool has_expected_failure{false};
 };
