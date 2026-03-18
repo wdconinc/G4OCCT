@@ -151,10 +151,10 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
     const bool nearVFirst      = (adjustedV < vMid);
     const Standard_Real vRes   = std::max(surface.VResolution(tolerance), Precision::PConfusion());
     for (int attempt = 0; attempt < 8 && !props.IsNormalDefined(); ++attempt) {
-      const Standard_Real scale  = std::pow(10.0, static_cast<Standard_Real>(attempt));
-      const Standard_Real nudge  = scale * vRes;
-      const Standard_Real retryV = nearVFirst ? std::min(adjustedV + nudge, vMid)
-                                              : std::max(adjustedV - nudge, vMid);
+      const Standard_Real scale = std::pow(10.0, static_cast<Standard_Real>(attempt));
+      const Standard_Real nudge = scale * vRes;
+      const Standard_Real retryV =
+          nearVFirst ? std::min(adjustedV + nudge, vMid) : std::max(adjustedV - nudge, vMid);
       props = BRepLProp_SLProps(surface, adjustedU, retryV, 1, tolerance);
     }
     if (!props.IsNormalDefined()) {
