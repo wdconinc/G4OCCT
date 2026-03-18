@@ -30,9 +30,8 @@ target_link_libraries(bench_callgrind PRIVATE G4OCCTFixtureSupport)
 # added to the target; check_include_file_cxx only checks compilation but does
 # not expose the path needed for target_include_directories.
 #
-# To use headers from a non-standard location (e.g. when building inside a
-# container that does not have the valgrind dev package), set: cmake ...
-# -DCMAKE_INCLUDE_PATH=<path-containing-valgrind-dir>
+# When the headers are in a non-standard location (e.g. /opt/local/include
+# inside a container), pass -DVALGRIND_INCLUDE_DIR=<dir> to cmake.
 find_path(
   VALGRIND_INCLUDE_DIR
   NAMES "valgrind/callgrind.h"
