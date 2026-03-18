@@ -214,7 +214,7 @@ namespace {
 
         FixtureNavigationSummary nav;
         nav.fixture_id           = family_manifest.family + "/" + fixture.id;
-        nav.has_expected_failure = expected_failure.enabled;
+        nav.has_expected_failure = expected_failure.enabled || expected_failure.safety_enabled;
 
         // Skip navigation comparisons for imported-only fixtures (G4OCCTSolid /
         // NIST CTC).  These are large, complex AP203 assemblies: navigation is
@@ -225,26 +225,20 @@ namespace {
         // mechanism is in place.
         if (!IsImportedSelfComparisonFixture(fixture)) {
           ValidationReport ray_report = CompareFixtureRays(request, options, &nav.ray);
-          if (expected_failure.enabled) {
-            ray_report =
-                g4occt::tests::geometry::ReclassifyExpectedFailures(ray_report, expected_failure);
-          }
+          ray_report = g4occt::tests::geometry::ReclassifyExpectedFailures(ray_report,
+                                                                           expected_failure);
           aggregate_report.Append(ray_report);
 
           ValidationReport inside_report =
               CompareFixtureInside(request, inside_options, &nav.inside);
-          if (expected_failure.enabled) {
-            inside_report = g4occt::tests::geometry::ReclassifyExpectedFailures(inside_report,
-                                                                                expected_failure);
-          }
+          inside_report = g4occt::tests::geometry::ReclassifyExpectedFailures(inside_report,
+                                                                              expected_failure);
           aggregate_report.Append(inside_report);
 
           ValidationReport safety_report =
               CompareFixtureSafety(request, safety_options, &nav.safety);
-          if (expected_failure.enabled) {
-            safety_report = g4occt::tests::geometry::ReclassifyExpectedFailures(safety_report,
-                                                                                expected_failure);
-          }
+          safety_report = g4occt::tests::geometry::ReclassifyExpectedFailures(safety_report,
+                                                                              expected_failure);
           aggregate_report.Append(safety_report);
         }
 
