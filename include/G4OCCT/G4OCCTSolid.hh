@@ -108,6 +108,14 @@ public:
   /// returns the positive distance to the nearest surface.
   G4double ExactDistanceToOut(const G4ThreeVector& p) const;
 
+  /// Compute and return the cubic volume of the solid.
+  /// The result is cached; repeated calls return the cached value.
+  G4double GetCubicVolume() override;
+
+  /// Compute and return the surface area of the solid.
+  /// The result is cached; repeated calls return the cached value.
+  G4double GetSurfaceArea() override;
+
   /// Return a string identifying the entity type.
   G4GeometryType GetEntityType() const override;
 
@@ -148,6 +156,11 @@ public:
     {
       std::unique_lock<std::mutex> lock(fPolyhedronMutex);
       fCachedPolyhedron.reset();
+    }
+    {
+      std::unique_lock<std::mutex> lock(fVolumeAreaMutex);
+      fCachedVolume.reset();
+      fCachedSurfaceArea.reset();
     }
     fShapeGeneration.fetch_add(1, std::memory_order_release);
   }
@@ -262,6 +275,17 @@ private:
   /// Notified when `fPolyhedronBuilding` transitions to false so that threads
   /// waiting for a concurrent build can re-evaluate the cache.
   mutable std::condition_variable fPolyhedronCV;
+
+  /// Cached cubic volume in mm³; `std::nullopt` until first `GetCubicVolume()` call
+  /// or after each `SetOCCTShape()` call.  Protected by `fVolumeAreaMutex`.
+  mutable std::optional<G4double> fCachedVolume;
+
+  /// Cached surface area in mm²; `std::nullopt` until first `GetSurfaceArea()` call
+  /// or after each `SetOCCTShape()` call.  Protected by `fVolumeAreaMutex`.
+  mutable std::optional<G4double> fCachedSurfaceArea;
+
+  /// Mutex serialising concurrent access to `fCachedVolume` and `fCachedSurfaceArea`.
+  mutable std::mutex fVolumeAreaMutex;
 
   /// Return a reference to the per-thread classifier, (re-)initialising it from
   /// @c fShape whenever the cached generation does not match @c fShapeGeneration.
