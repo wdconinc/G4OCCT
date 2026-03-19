@@ -170,65 +170,6 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
   return G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
 }
 
-struct ClosestFaceMatch {
-  TopoDS_Face face;
-  G4double distance{kInfinity};
-};
-
-/// Find the closest trimmed face to @p point using pre-computed per-face bounding boxes
-/// as a lower-bound prefilter.  A face whose AABB distance from @p point exceeds the
-/// current best candidate distance is skipped before the more expensive
-/// BRepExtrema_DistShapeShape call is made.
-std::optional<ClosestFaceMatch>
-TryFindClosestFace(const std::vector<G4OCCTSolid::FaceBounds>& faceBoundsCache,
-                   const G4ThreeVector& point) {
-  if (faceBoundsCache.empty()) {
-    return std::nullopt;
-  }
-
-  const gp_Pnt queryPoint         = ToPoint(point);
-  const TopoDS_Vertex queryVertex = MakeVertex(point);
-  std::optional<ClosestFaceMatch> bestMatch;
-  for (const G4OCCTSolid::FaceBounds& fb : faceBoundsCache) {
-    // Lower bound: distance from query point to the face's axis-aligned bounding box.
-    // If this is already >= current best, the face cannot be the closest — skip it.
-    if (bestMatch.has_value()) {
-      Bnd_Box queryBox;
-      queryBox.Add(queryPoint);
-      if (fb.box.Distance(queryBox) >= bestMatch->distance) {
-        continue;
-      }
-    }
-
-    BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
-    if (!distance.IsDone() || distance.NbSolution() == 0) {
-      continue;
-    }
-
-    const G4double candidateDistance = distance.Value();
-    if (bestMatch.has_value() && candidateDistance >= bestMatch->distance) {
-      continue;
-    }
-
-    for (Standard_Integer solution = 1; solution <= distance.NbSolution(); ++solution) {
-      const BRepExtrema_SupportType supportType = distance.SupportTypeShape2(solution);
-      // Accept interior and boundary solutions.  Vertex support (e.g. the
-      // degenerate south/north pole of a sphere) is also accepted: the
-      // subsequent GeomAPI_ProjectPointOnSurf step obtains correct UV
-      // parameters independently, and the pole-nudge logic in
-      // TryGetOutwardNormal handles degenerate surface points.
-      if (supportType != BRepExtrema_IsInFace && supportType != BRepExtrema_IsOnEdge &&
-          supportType != BRepExtrema_IsVertex) {
-        continue;
-      }
-      bestMatch = ClosestFaceMatch{fb.face, candidateDistance};
-      break;
-    }
-  }
-
-  return bestMatch;
-}
-
 } // namespace
 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
@@ -282,6 +223,57 @@ void G4OCCTSolid::ComputeBounds() {
     BRepBndLib::Add(ex.Current(), faceBox);
     fFaceBoundsCache.push_back({TopoDS::Face(ex.Current()), faceBox});
   }
+}
+
+std::optional<G4OCCTSolid::ClosestFaceMatch>
+G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
+                                const G4ThreeVector& point) {
+  if (faceBoundsCache.empty()) {
+    return std::nullopt;
+  }
+
+  const gp_Pnt queryPoint         = ToPoint(point);
+  const TopoDS_Vertex queryVertex = MakeVertex(point);
+
+  // Build the point box once — it is constant for the entire loop.
+  Bnd_Box queryBox;
+  queryBox.Add(queryPoint);
+
+  std::optional<ClosestFaceMatch> bestMatch;
+  for (const FaceBounds& fb : faceBoundsCache) {
+    // Lower bound: distance from query point to the face's axis-aligned bounding box.
+    // If this is already >= current best, the face cannot be the closest — skip it.
+    if (bestMatch.has_value() && fb.box.Distance(queryBox) >= bestMatch->distance) {
+      continue;
+    }
+
+    BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
+    if (!distance.IsDone() || distance.NbSolution() == 0) {
+      continue;
+    }
+
+    const G4double candidateDistance = distance.Value();
+    if (bestMatch.has_value() && candidateDistance >= bestMatch->distance) {
+      continue;
+    }
+
+    for (Standard_Integer solution = 1; solution <= distance.NbSolution(); ++solution) {
+      const BRepExtrema_SupportType supportType = distance.SupportTypeShape2(solution);
+      // Accept interior and boundary solutions.  Vertex support (e.g. the
+      // degenerate south/north pole of a sphere) is also accepted: the
+      // subsequent GeomAPI_ProjectPointOnSurf step obtains correct UV
+      // parameters independently, and the pole-nudge logic in
+      // TryGetOutwardNormal handles degenerate surface points.
+      if (supportType != BRepExtrema_IsInFace && supportType != BRepExtrema_IsOnEdge &&
+          supportType != BRepExtrema_IsVertex) {
+        continue;
+      }
+      bestMatch = ClosestFaceMatch{fb.face, candidateDistance};
+      break;
+    }
+  }
+
+  return bestMatch;
 }
 
 BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {
