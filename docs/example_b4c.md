@@ -36,13 +36,13 @@ containing one absorber slab followed by one gap slab:
 │  └──────────────────────────────┘    │  Gap:      5 mm lAr (STEP)
 └──────────────────────────────────────┘
 
-  beam fires along +z from the centre of the calorimeter face.
+  beam starts at the world boundary (z = -worldZHalfLength) and fires along +z into the calorimeter.
 ```
 
 | Volume | STEP file | Material | Role |
 |--------|-----------|----------|------|
 | Absorber (`Abso` / `AbsoLV`) | `step/absorber.step` | `G4_Pb` (lead) | Energy loss |
-| Gap (`Gap` / `GapLV`) | `step/gap.step` | liquid argon | Active scoring medium |
+| Gap (`Gap` / `GapLV`) | `step/gap.step` | `liquidArgon` | Active scoring medium |
 
 ---
 
@@ -172,7 +172,7 @@ manual definition for liquid argon:
 nistManager->FindOrBuildMaterial("G4_Pb");
 
 // Liquid argon (NIST value is a gas; define density manually)
-new G4Material("liquidArgon", z=18., a=39.95*g/mole, density=1.390*g/cm3);
+new G4Material("liquidArgon", 18., 39.95*g/mole, 1.390*g/cm3);
 ```
 
 See [Material Bridging](material_bridging.md) for strategies to associate
