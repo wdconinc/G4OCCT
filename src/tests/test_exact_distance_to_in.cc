@@ -26,8 +26,7 @@ TEST(ExactDistanceToIn, ShortestDistanceForExternalPoints) {
   ExpectExactDistanceToIn("box outside point near an edge uses Euclidean shortest distance",
                           box.solid, edgePoint, 5.0 * mm);
 
-  const G4ThreeVector cornerPoint(box.halfX + 2.0 * mm, box.halfY + 3.0 * mm,
-                                  box.halfZ + 6.0 * mm);
+  const G4ThreeVector cornerPoint(box.halfX + 2.0 * mm, box.halfY + 3.0 * mm, box.halfZ + 6.0 * mm);
   ExpectExactDistanceToIn("box outside point near a corner uses 3D Euclidean shortest distance",
                           box.solid, cornerPoint, 7.0 * mm);
 

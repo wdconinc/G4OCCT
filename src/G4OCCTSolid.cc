@@ -404,9 +404,7 @@ G4double G4OCCTSolid::ExactDistanceToIn(const G4ThreeVector& p) const {
   return DistanceFromPointToShape(fShape, p);
 }
 
-G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
-  return ExactDistanceToIn(p);
-}
+G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const { return ExactDistanceToIn(p); }
 
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v,
                                     const G4bool calcNorm, G4bool* validNorm,
@@ -474,9 +472,7 @@ G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
   return (d <= IntersectionTolerance()) ? 0.0 : d;
 }
 
-G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
-  return ExactDistanceToOut(p);
-}
+G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const { return ExactDistanceToOut(p); }
 
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 

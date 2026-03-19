@@ -17,8 +17,7 @@ using g4occt::tests::navigation::SphereFixture;
 TEST(ExactDistanceToOut, Box) {
   const BoxFixture box("ExactDistanceToOutBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
-  ExpectExactDistanceToOut("box center reaches closest x face", box.solid, box.Center(),
-                           10.0 * mm);
+  ExpectExactDistanceToOut("box center reaches closest x face", box.solid, box.Center(), 10.0 * mm);
   ExpectExactDistanceToOut("box offset point uses minimum face clearance", box.solid,
                            G4ThreeVector(2.0 * mm, 3.0 * mm, 4.0 * mm), 8.0 * mm);
 }
