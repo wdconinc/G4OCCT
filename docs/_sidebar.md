@@ -12,6 +12,7 @@
 - [Geometry Test Status](geometry_test_status.md)
 - **Examples**
   - [B1 — Water Phantom](example_b1.md)
+  - [B4c — Sampling Calorimeter](example_b4c.md)
 - **CI Reports**
   - [Test Results](reports/test-results.md)
   - [Benchmark Results](reports/bench-results.md)
