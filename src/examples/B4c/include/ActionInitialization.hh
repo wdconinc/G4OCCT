@@ -30,21 +30,19 @@
 
 #include "G4VUserActionInitialization.hh"
 
-namespace B4c
-{
+namespace B4c {
 
 /// Action initialization class.
 
-class ActionInitialization : public G4VUserActionInitialization
-{
-  public:
-    ActionInitialization() = default;
-    ~ActionInitialization() override = default;
+class ActionInitialization : public G4VUserActionInitialization {
+public:
+  ActionInitialization()           = default;
+  ~ActionInitialization() override = default;
 
-    void BuildForMaster() const override;
-    void Build() const override;
+  void BuildForMaster() const override;
+  void Build() const override;
 };
 
-}  // namespace B4c
+} // namespace B4c
 
 #endif

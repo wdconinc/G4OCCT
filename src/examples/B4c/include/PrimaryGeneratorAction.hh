@@ -33,8 +33,7 @@
 class G4ParticleGun;
 class G4Event;
 
-namespace B4
-{
+namespace B4 {
 
 /// The primary generator action class with particle gum.
 ///
@@ -43,19 +42,18 @@ namespace B4
 /// can be changed via the G4 build-in commands of G4ParticleGun class
 /// (see the macros provided with this example).
 
-class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
-{
-  public:
-    PrimaryGeneratorAction();
-    ~PrimaryGeneratorAction() override;
+class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
+public:
+  PrimaryGeneratorAction();
+  ~PrimaryGeneratorAction() override;
 
-    void GeneratePrimaries(G4Event* event) override;
+  void GeneratePrimaries(G4Event* event) override;
 
-  private:
-    G4ParticleGun* fParticleGun = nullptr;  // G4 particle gun
+private:
+  G4ParticleGun* fParticleGun = nullptr; // G4 particle gun
 };
 
-}  // namespace B4
+} // namespace B4
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 

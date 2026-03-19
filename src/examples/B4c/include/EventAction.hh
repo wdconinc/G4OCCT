@@ -36,8 +36,7 @@
 
 class G4Event;
 
-namespace B4c
-{
+namespace B4c {
 
 /// Event action class
 ///
@@ -45,27 +44,26 @@ namespace B4c
 /// deposit and track lengths of charged particles in Absober and Gap layers
 /// stored in the hits collections.
 
-class EventAction : public G4UserEventAction
-{
-  public:
-    EventAction() = default;
-    ~EventAction() override = default;
+class EventAction : public G4UserEventAction {
+public:
+  EventAction()           = default;
+  ~EventAction() override = default;
 
-    void BeginOfEventAction(const G4Event* event) override;
-    void EndOfEventAction(const G4Event* event) override;
+  void BeginOfEventAction(const G4Event* event) override;
+  void EndOfEventAction(const G4Event* event) override;
 
-  private:
-    // methods
-    CalorHitsCollection* GetHitsCollection(G4int hcID, const G4Event* event) const;
-    void PrintEventStatistics(G4double absoEdep, G4double absoTrackLength, G4double gapEdep,
-                              G4double gapTrackLength) const;
+private:
+  // methods
+  CalorHitsCollection* GetHitsCollection(G4int hcID, const G4Event* event) const;
+  void PrintEventStatistics(G4double absoEdep, G4double absoTrackLength, G4double gapEdep,
+                            G4double gapTrackLength) const;
 
-    // data members
-    G4int fAbsHCID = -1;
-    G4int fGapHCID = -1;
+  // data members
+  G4int fAbsHCID = -1;
+  G4int fGapHCID = -1;
 };
 
-}  // namespace B4c
+} // namespace B4c
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 

@@ -38,13 +38,11 @@
 
 #include <iomanip>
 
-namespace B4c
-{
+namespace B4c {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-CalorHitsCollection* EventAction::GetHitsCollection(G4int hcID, const G4Event* event) const
-{
+CalorHitsCollection* EventAction::GetHitsCollection(G4int hcID, const G4Event* event) const {
   auto hitsCollection = static_cast<CalorHitsCollection*>(event->GetHCofThisEvent()->GetHC(hcID));
 
   if (!hitsCollection) {
@@ -59,8 +57,7 @@ CalorHitsCollection* EventAction::GetHitsCollection(G4int hcID, const G4Event* e
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 void EventAction::PrintEventStatistics(G4double absoEdep, G4double absoTrackLength,
-                                       G4double gapEdep, G4double gapTrackLength) const
-{
+                                       G4double gapEdep, G4double gapTrackLength) const {
   // print event statistics
   G4cout << "   Absorber: total energy: " << std::setw(7) << G4BestUnit(absoEdep, "Energy")
          << "       total track length: " << std::setw(7) << G4BestUnit(absoTrackLength, "Length")
@@ -75,8 +72,7 @@ void EventAction::BeginOfEventAction(const G4Event* /*event*/) {}
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void EventAction::EndOfEventAction(const G4Event* event)
-{
+void EventAction::EndOfEventAction(const G4Event* event) {
   // Get hits collections IDs (only once)
   if (fAbsHCID == -1) {
     fAbsHCID = G4SDManager::GetSDMpointer()->GetCollectionID("AbsorberHitsCollection");
@@ -85,15 +81,15 @@ void EventAction::EndOfEventAction(const G4Event* event)
 
   // Get hits collections
   auto absoHC = GetHitsCollection(fAbsHCID, event);
-  auto gapHC = GetHitsCollection(fGapHCID, event);
+  auto gapHC  = GetHitsCollection(fGapHCID, event);
 
   // Get hit with total values
   auto absoHit = (*absoHC)[absoHC->entries() - 1];
-  auto gapHit = (*gapHC)[gapHC->entries() - 1];
+  auto gapHit  = (*gapHC)[gapHC->entries() - 1];
 
   // Print per event (modulo n)
   //
-  auto eventID = event->GetEventID();
+  auto eventID     = event->GetEventID();
   auto printModulo = G4RunManager::GetRunManager()->GetPrintProgress();
   if ((printModulo > 0) && (eventID % printModulo == 0)) {
     PrintEventStatistics(absoHit->GetEdep(), absoHit->GetTrackLength(), gapHit->GetEdep(),
@@ -123,4 +119,4 @@ void EventAction::EndOfEventAction(const G4Event* event)
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-}  // namespace B4c
+} // namespace B4c

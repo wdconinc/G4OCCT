@@ -31,26 +31,21 @@
 
 #include <iomanip>
 
-namespace B4c
-{
+namespace B4c {
 
 G4ThreadLocal G4Allocator<CalorHit>* CalorHitAllocator = nullptr;
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-G4bool CalorHit::operator==(const CalorHit& right) const
-{
-  return (this == &right) ? true : false;
-}
+G4bool CalorHit::operator==(const CalorHit& right) const { return (this == &right) ? true : false; }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void CalorHit::Print()
-{
+void CalorHit::Print() {
   G4cout << "Edep: " << std::setw(7) << G4BestUnit(fEdep, "Energy")
          << " track length: " << std::setw(7) << G4BestUnit(fTrackLength, "Length") << G4endl;
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-}  // namespace B4c
+} // namespace B4c

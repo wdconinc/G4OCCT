@@ -33,13 +33,11 @@
 #include "G4UnitsTable.hh"
 #include "globals.hh"
 
-namespace B4
-{
+namespace B4 {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-RunAction::RunAction()
-{
+RunAction::RunAction() {
   // set printing event number per each event
   G4RunManager::GetRunManager()->SetPrintProgress(1);
 
@@ -76,8 +74,7 @@ RunAction::RunAction()
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void RunAction::BeginOfRunAction(const G4Run* /*run*/)
-{
+void RunAction::BeginOfRunAction(const G4Run* /*run*/) {
   // inform the runManager to save random number seed
   // G4RunManager::GetRunManager()->SetRandomNumberStore(true);
 
@@ -97,8 +94,7 @@ void RunAction::BeginOfRunAction(const G4Run* /*run*/)
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void RunAction::EndOfRunAction(const G4Run* /*run*/)
-{
+void RunAction::EndOfRunAction(const G4Run* /*run*/) {
   // print histogram statistics
   //
   auto analysisManager = G4AnalysisManager::Instance();
@@ -106,8 +102,7 @@ void RunAction::EndOfRunAction(const G4Run* /*run*/)
     G4cout << G4endl << " ----> print histograms statistic ";
     if (isMaster) {
       G4cout << "for the entire run " << G4endl << G4endl;
-    }
-    else {
+    } else {
       G4cout << "for the local thread " << G4endl << G4endl;
     }
 
@@ -132,4 +127,4 @@ void RunAction::EndOfRunAction(const G4Run* /*run*/)
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-}  // namespace B4
+} // namespace B4

@@ -35,8 +35,7 @@
 #include "G4VHit.hh"
 #include "globals.hh"
 
-namespace B4c
-{
+namespace B4c {
 
 /// Calorimeter hit class
 ///
@@ -44,34 +43,33 @@ namespace B4c
 /// of charged particles in a selected volume:
 /// - fEdep, fTrackLength
 
-class CalorHit : public G4VHit
-{
-  public:
-    CalorHit() = default;
-    CalorHit(const CalorHit&) = default;
-    ~CalorHit() override = default;
+class CalorHit : public G4VHit {
+public:
+  CalorHit()                = default;
+  CalorHit(const CalorHit&) = default;
+  ~CalorHit() override      = default;
 
-    // operators
-    CalorHit& operator=(const CalorHit&) = default;
-    G4bool operator==(const CalorHit&) const;
+  // operators
+  CalorHit& operator=(const CalorHit&) = default;
+  G4bool operator==(const CalorHit&) const;
 
-    inline void* operator new(size_t);
-    inline void operator delete(void*);
+  inline void* operator new(size_t);
+  inline void operator delete(void*);
 
-    // methods from base class
-    void Draw() override {}
-    void Print() override;
+  // methods from base class
+  void Draw() override {}
+  void Print() override;
 
-    // methods to handle data
-    void Add(G4double de, G4double dl);
+  // methods to handle data
+  void Add(G4double de, G4double dl);
 
-    // get methods
-    G4double GetEdep() const;
-    G4double GetTrackLength() const;
+  // get methods
+  G4double GetEdep() const;
+  G4double GetTrackLength() const;
 
-  private:
-    G4double fEdep = 0.;  ///< Energy deposit in the sensitive volume
-    G4double fTrackLength = 0.;  ///< Track length in the  sensitive volume
+private:
+  G4double fEdep        = 0.; ///< Energy deposit in the sensitive volume
+  G4double fTrackLength = 0.; ///< Track length in the  sensitive volume
 };
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -82,8 +80,7 @@ extern G4ThreadLocal G4Allocator<CalorHit>* CalorHitAllocator;
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-inline void* CalorHit::operator new(size_t)
-{
+inline void* CalorHit::operator new(size_t) {
   if (!CalorHitAllocator) {
     CalorHitAllocator = new G4Allocator<CalorHit>;
   }
@@ -92,31 +89,23 @@ inline void* CalorHit::operator new(size_t)
   return hit;
 }
 
-inline void CalorHit::operator delete(void* hit)
-{
+inline void CalorHit::operator delete(void* hit) {
   if (!CalorHitAllocator) {
     CalorHitAllocator = new G4Allocator<CalorHit>;
   }
   CalorHitAllocator->FreeSingle((CalorHit*)hit);
 }
 
-inline void CalorHit::Add(G4double de, G4double dl)
-{
+inline void CalorHit::Add(G4double de, G4double dl) {
   fEdep += de;
   fTrackLength += dl;
 }
 
-inline G4double CalorHit::GetEdep() const
-{
-  return fEdep;
-}
+inline G4double CalorHit::GetEdep() const { return fEdep; }
 
-inline G4double CalorHit::GetTrackLength() const
-{
-  return fTrackLength;
-}
+inline G4double CalorHit::GetTrackLength() const { return fTrackLength; }
 
-}  // namespace B4c
+} // namespace B4c
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 

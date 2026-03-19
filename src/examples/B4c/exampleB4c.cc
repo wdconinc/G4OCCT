@@ -39,20 +39,17 @@
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-namespace
-{
-void PrintUsage()
-{
+namespace {
+void PrintUsage() {
   G4cerr << " Usage: " << G4endl;
   G4cerr << " exampleB4c [-m macro ] [-u UIsession] [-t nThreads] [-vDefault]" << G4endl;
   G4cerr << "   note: -t option is available only for multi-threaded mode." << G4endl;
 }
-}  // namespace
+} // namespace
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
   // Evaluate arguments
   //
   if (argc > 7) {
@@ -78,9 +75,8 @@ int main(int argc, char** argv)
 #endif
     else if (G4String(argv[i]) == "-vDefault") {
       verboseBestUnits = false;
-      --i;  // this option is not followed with a parameter
-    }
-    else {
+      --i; // this option is not followed with a parameter
+    } else {
       PrintUsage();
       return 1;
     }
@@ -137,8 +133,7 @@ int main(int argc, char** argv)
     // batch mode
     G4String command = "/control/execute ";
     UImanager->ApplyCommand(command + macro);
-  }
-  else {
+  } else {
     // interactive mode : define UI session
     UImanager->ApplyCommand("/control/execute init_vis.mac");
     if (ui->IsGUI()) {

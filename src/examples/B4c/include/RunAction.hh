@@ -32,8 +32,7 @@
 
 class G4Run;
 
-namespace B4
-{
+namespace B4 {
 
 /// Run action class
 ///
@@ -53,17 +52,16 @@ namespace B4
 /// dispersion is printed.
 ///
 
-class RunAction : public G4UserRunAction
-{
-  public:
-    RunAction();
-    ~RunAction() override = default;
+class RunAction : public G4UserRunAction {
+public:
+  RunAction();
+  ~RunAction() override = default;
 
-    void BeginOfRunAction(const G4Run*) override;
-    void EndOfRunAction(const G4Run*) override;
+  void BeginOfRunAction(const G4Run*) override;
+  void EndOfRunAction(const G4Run*) override;
 };
 
-}  // namespace B4
+} // namespace B4
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 

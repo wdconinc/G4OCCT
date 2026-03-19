@@ -33,20 +33,15 @@
 
 using namespace B4;
 
-namespace B4c
-{
+namespace B4c {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void ActionInitialization::BuildForMaster() const
-{
-  SetUserAction(new RunAction);
-}
+void ActionInitialization::BuildForMaster() const { SetUserAction(new RunAction); }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void ActionInitialization::Build() const
-{
+void ActionInitialization::Build() const {
   SetUserAction(new PrimaryGeneratorAction);
   SetUserAction(new RunAction);
   SetUserAction(new EventAction);
@@ -54,4 +49,4 @@ void ActionInitialization::Build() const
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-}  // namespace B4c
+} // namespace B4c

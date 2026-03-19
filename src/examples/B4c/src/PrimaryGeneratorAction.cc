@@ -35,15 +35,13 @@
 #include "G4SystemOfUnits.hh"
 #include "globals.hh"
 
-namespace B4
-{
+namespace B4 {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-PrimaryGeneratorAction::PrimaryGeneratorAction()
-{
+PrimaryGeneratorAction::PrimaryGeneratorAction() {
   G4int nofParticles = 1;
-  fParticleGun = new G4ParticleGun(nofParticles);
+  fParticleGun       = new G4ParticleGun(nofParticles);
 
   // default particle kinematic
   //
@@ -55,15 +53,11 @@ PrimaryGeneratorAction::PrimaryGeneratorAction()
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-PrimaryGeneratorAction::~PrimaryGeneratorAction()
-{
-  delete fParticleGun;
-}
+PrimaryGeneratorAction::~PrimaryGeneratorAction() { delete fParticleGun; }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
-{
+void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
   // This function is called at the begining of event
 
   // In order to avoid dependence of PrimaryGeneratorAction
@@ -71,7 +65,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
   // from G4LogicalVolumeStore
   //
   G4double worldZHalfLength = 0.;
-  auto worldLV = G4LogicalVolumeStore::GetInstance()->GetVolume("World");
+  auto worldLV              = G4LogicalVolumeStore::GetInstance()->GetVolume("World");
 
   // Check that the world volume has box shape
   G4Box* worldBox = nullptr;
@@ -81,8 +75,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
 
   if (worldBox) {
     worldZHalfLength = worldBox->GetZHalfLength();
-  }
-  else {
+  } else {
     G4ExceptionDescription msg;
     msg << "World volume of box shape not found." << G4endl;
     msg << "Perhaps you have changed geometry." << G4endl;
@@ -98,4 +91,4 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-}  // namespace B4
+} // namespace B4
