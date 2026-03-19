@@ -163,13 +163,12 @@ Several fixtures currently violate that assumption:
   own reference point, which may not match Geant4's expectation that scaling is
   performed around `(0, 0, 0)`.
 
-**`G4Polyhedra` resolved:** The hexagonal frustum's B-spline lateral faces
-(produced by DRAWEXE `thrusections`) caused `BRepClass3d_SolidClassifier` and
-`IntCurvesFace_ShapeIntersector` to give incorrect results for rays through the
-hexagonal symmetry axis and vertices. The STEP fixture was regenerated using
-explicit `PLANE` surfaces for all eight faces (via `generate.py`), which gives
-exact analytic intersections and correct topology. The xfail annotation has
-been removed and the fixture is now fully enforced.
+**`G4Polyhedra` resolved:** The hexagonal frustum fixture used the wrong vertex
+positions: `G4Polyhedra` `rOuter` is the tangent (apothem) distance to the outer
+surface, not the circumradius. The STEP polyline vertices were corrected to use
+circumradius = apothem / cos(π/6), so the STEP solid now matches the G4Polyhedra
+geometry exactly. The xfail annotation has been removed and the fixture is now
+fully enforced.
 
 **Work required to pass:**
 1. For each affected class, verify the exact local-frame origin convention used
