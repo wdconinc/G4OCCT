@@ -125,22 +125,9 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
                   "Geant4 surface"};
   }
 
-  if (geant4_class == "G4Ellipsoid" || geant4_class == "G4EllipticalCone" ||
-      geant4_class == "G4EllipticalTube" || geant4_class == "G4Polycone" ||
-      geant4_class == "G4ScaledSolid" || geant4_class == "G4Polyhedra") {
+  if (geant4_class == "G4ScaledSolid") {
     return {true,
             "strict native-to-STEP ray-frame alignment for this fixture is not implemented yet"};
-  }
-
-  if (geant4_class == "G4CutTubs") {
-    return {
-        .safety_enabled = true,
-        .safety_reason  = "G4CutTubs DistanceToIn(p) near the tilted-plane/cylinder edge uses the "
-                          "exact analytic cut-plane normal, while the STEP solid uses a B-spline "
-                          "PCurve approximation of the elliptic edge; the resulting safety "
-                          "distances differ near the corners but both are valid conservative "
-                          "estimates",
-    };
   }
 
   return {};
