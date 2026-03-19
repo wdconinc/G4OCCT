@@ -110,13 +110,23 @@ public:
   /// For the exact shortest distance, use ExactDistanceToOut(p).
   G4double DistanceToOut(const G4ThreeVector& p) const override;
 
-  /// Return a point sampled uniformly at random on the surface of the solid.
+  /// Return a point sampled uniformly at random from the solid's tessellated
+  /// surface approximation.
   ///
-  /// The surface is first tessellated and each mesh triangle is selected with
-  /// probability proportional to its area.  A random point within the chosen
-  /// triangle is then generated using standard barycentric-coordinate
-  /// sampling.  Returns the origin if the shape is null or produces no valid
-  /// triangulation.
+  /// The OCCT shape is tessellated with a relative chord deflection of 1 % and
+  /// each mesh triangle is selected with probability proportional to its
+  /// (planar) area.  A random point within the selected triangle is then
+  /// generated using standard barycentric-coordinate sampling.
+  ///
+  /// The returned point is exactly uniformly distributed over the triangulated
+  /// surface.  For curved faces the tessellation approximates the true analytic
+  /// surface, so the distribution may deviate slightly from uniform on the
+  /// exact surface; the magnitude of the bias is proportional to the chord-
+  /// height approximation error.  The tessellation is cached per shape
+  /// generation so repeated calls are O(log N_triangles).
+  ///
+  /// Emits a @c JustWarning G4Exception and returns the origin if the shape is
+  /// null or the tessellation produces no valid triangles.
   G4ThreeVector GetPointOnSurface() const override;
 
   // ── G4OCCTSolid distance functions ────────────────────────────────────────
@@ -186,6 +196,10 @@ public:
       fCachedVolume.reset();
       fCachedSurfaceArea.reset();
     }
+    {
+      std::unique_lock<std::mutex> lock(fSurfaceCacheMutex);
+      fSurfaceCache.reset();
+    }
     fShapeGeneration.fetch_add(1, std::memory_order_release);
   }
 
@@ -229,6 +243,23 @@ private:
   struct IntersectorCache {
     std::uint64_t generation{std::numeric_limits<std::uint64_t>::max()};
     std::optional<IntCurvesFace_ShapeIntersector> intersector;
+  };
+
+  /// Single mesh triangle used by the surface-sampling cache.
+  struct SurfaceTriangle {
+    G4ThreeVector p1, p2, p3;
+  };
+
+  /// Cached data for area-weighted surface-point sampling via `GetPointOnSurface()`.
+  ///
+  /// Stores the flat list of triangles extracted from the OCCT triangulation
+  /// together with a cumulative-area array that enables O(log N) area-weighted
+  /// selection.  Built lazily on the first `GetPointOnSurface()` call after
+  /// each shape update; keyed by `fShapeGeneration`.
+  struct SurfaceSamplingCache {
+    std::vector<SurfaceTriangle> triangles;
+    std::vector<G4double>        cumulativeAreas;
+    G4double                     totalArea{0.0};
   };
 
   TopoDS_Shape fShape;
@@ -311,6 +342,21 @@ private:
   /// Mutex serialising concurrent access to `fCachedVolume` and `fCachedSurfaceArea`.
   mutable std::mutex fVolumeAreaMutex;
 
+  /// Cached surface-sampling data built by the first `GetPointOnSurface()` call
+  /// after each shape update.  `std::nullopt` indicates no valid entry for the
+  /// current shape generation.  Protected by `fSurfaceCacheMutex`.
+  mutable std::optional<SurfaceSamplingCache> fSurfaceCache;
+
+  /// Shape-generation stamp at which `fSurfaceCache` was built.
+  /// Initialised to `std::numeric_limits<std::uint64_t>::max()` so that it can
+  /// never match the initial `fShapeGeneration` value of 0, forcing a build on
+  /// the first `GetPointOnSurface()` call.  Protected by `fSurfaceCacheMutex`.
+  mutable std::uint64_t fSurfaceCacheGeneration{std::numeric_limits<std::uint64_t>::max()};
+
+  /// Mutex serialising concurrent access to `fSurfaceCache` and
+  /// `fSurfaceCacheGeneration` in `GetOrBuildSurfaceCache()`.
+  mutable std::mutex fSurfaceCacheMutex;
+
   /// Return a reference to the per-thread classifier, (re-)initialising it from
   /// @c fShape whenever the cached generation does not match @c fShapeGeneration.
   BRepClass3d_SolidClassifier& GetOrCreateClassifier() const;
@@ -332,6 +378,13 @@ private:
   /// BRepExtrema_DistShapeShape call is made.
   static std::optional<ClosestFaceMatch>
   TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache, const G4ThreeVector& point);
+
+  /// Build and cache (or return the already-cached) surface-sampling data for
+  /// the current shape generation.  The OCCT shape is tessellated first
+  /// (idempotent if a triangulation already exists), then all mesh triangles
+  /// are collected with their areas.  The result is protected by
+  /// @c fSurfaceCacheMutex and keyed by @c fShapeGeneration.
+  const SurfaceSamplingCache& GetOrBuildSurfaceCache() const;
 };
 
 #endif // G4OCCT_G4OCCTSolid_hh
