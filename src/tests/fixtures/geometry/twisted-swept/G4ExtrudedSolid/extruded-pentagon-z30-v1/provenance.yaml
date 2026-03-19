@@ -10,7 +10,7 @@ generator:
 shape:
   geant4_class: G4ExtrudedSolid
   draw_commands:
-    - polyline base_wire 0 0 0 30 0 0 30 10 0 10 20 0 0 20 0 0 0 0
+    - polyline base_wire 0 0 -15 30 0 -15 30 10 -15 10 20 -15 0 20 -15 0 0 -15
     - mkplane base_face base_wire
     - prism extruded_shape base_face 0 0 30
   polygon_vertices_mm:

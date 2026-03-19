@@ -140,7 +140,7 @@ fixtures:
       - G4UPolyhedra
     expectations:
       - quantity: volume
-        value: 4243.524478543749
+        value: 5658.03263805833
         absolute_tolerance: 0.001
         unit: mm3
   - id: g4tet-tet-right-20x30x40-v1

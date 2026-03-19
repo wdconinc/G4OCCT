@@ -23,12 +23,12 @@ errors.
 | Family | Total fixtures | Enforced | Xfail | Milestone notes |
 |---|---|---|---|---|
 | `direct-primitives` | 10 | 9 | 1 | All analytic BRep except `G4CutTubs` origin alignment |
-| `profile-faceted` | 10 | 3 | 7 | Three enforced; others need frame alignment or tighter curved-surface parity |
-| `twisted-swept` | 6 | 6 | 0 | All twisted-swept fixtures enforced with regenerated B-spline loft STEP files |
+| `profile-faceted` | 10 | 4 | 6 | Four enforced; others need frame alignment or tighter curved-surface parity |
+| `twisted-swept` | 6 | 6 | 0 | All twisted-swept fixtures enforced |
 | `tessellated` | 1 | 1 | 0 | Closed-facet tetrahedron passes fully |
 | `boolean-compound` | 4 | 4 | 0 | All boolean fixtures enforced |
 | `wrapper-decorator` | 2 | 1 | 1 | `G4ScaledSolid` still needs frame alignment |
-| **Total** | **33** | **24** | **9** | — |
+| **Total** | **33** | **25** | **8** | — |
 
 The table counts unique STEP fixtures. Several fixtures are reused by `G4U*`
 thin-wrapper classes; those wrappers inherit the same enforcement status as the
@@ -62,6 +62,7 @@ regression in any one of them causes the suite to fail immediately.
 |---|---|---|
 | `G4GenericPolycone` | `generic-polycone-nonmonotonic-z-v1` | `G4UGenericPolycone` |
 | `G4GenericTrap` | `generic-trap-skewed-z20-v1` | `G4UGenericTrap` |
+| `G4Polyhedra` | `polyhedra-hex-r10-r6-z25-v1` | `G4UPolyhedra` |
 | `G4Tet` | `tet-right-20x30x40-v1` | `G4UTet` |
 
 ### 2.3 `twisted-swept`
@@ -140,7 +141,7 @@ compared to the Geant4 analytic solid, especially near curved faces.
 ### 3.3 Ray-frame alignment not implemented
 
 **Affected classes:** `G4CutTubs`, `G4Ellipsoid`, `G4EllipticalCone`,
-`G4EllipticalTube`, `G4Polycone`, `G4Polyhedra`, `G4ScaledSolid`
+`G4EllipticalTube`, `G4Polycone`, `G4ScaledSolid`
 
 **Why they fail:**
 The ray comparison engine fires rays from a representative origin inside the
@@ -156,11 +157,18 @@ Several fixtures currently violate that assumption:
 - **`G4Ellipsoid`, `G4EllipticalCone`, `G4EllipticalTube`**: Profile-loft
   construction places the STEP shape at a DRAWEXE-internal coordinate that
   differs from the Geant4 local frame.
-- **`G4Polycone`, `G4Polyhedra`**: The z-span of the revolved profile means
-  Geant4 centers the solid differently from OCCT's exported placement.
+- **`G4Polycone`**: The z-span of the revolved profile means Geant4 centers
+  the solid differently from OCCT's exported placement.
 - **`G4ScaledSolid`**: The non-uniform scale is applied around the OCCT shape's
   own reference point, which may not match Geant4's expectation that scaling is
   performed around `(0, 0, 0)`.
+
+**`G4Polyhedra` resolved:** The hexagonal frustum fixture used the wrong vertex
+positions: `G4Polyhedra` `rOuter` is the tangent (apothem) distance to the outer
+surface, not the circumradius. The STEP polyline vertices were corrected to use
+circumradius = apothem / cos(π/6), so the STEP solid now matches the G4Polyhedra
+geometry exactly. The xfail annotation has been removed and the fixture is now
+fully enforced.
 
 **Work required to pass:**
 1. For each affected class, verify the exact local-frame origin convention used
@@ -199,7 +207,7 @@ that describes the remaining work.
 | `G4Hype` | profile-faceted | ⚠ Xfail | faceted approximation | §3.2 |
 | `G4Paraboloid` | profile-faceted | ⚠ Xfail | faceted approximation | §3.2 |
 | `G4Polycone` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.3 |
-| `G4Polyhedra` | profile-faceted | ⚠ Xfail | ray-frame misalignment | §3.3 |
+| `G4Polyhedra` | profile-faceted | ✅ Enforced | — | — |
 | `G4Tet` | profile-faceted | ✅ Enforced | — | — |
 | `G4ExtrudedSolid` | twisted-swept | ✅ Enforced | — | — |
 | `G4TwistedBox` | twisted-swept | ✅ Enforced | — | — |
@@ -228,7 +236,7 @@ The remaining work to eliminate all current xfails is:
 | Work item | Affects | Priority |
 |---|---|---|
 | Fix STEP origin alignment for `G4CutTubs` | `G4CutTubs`, `G4UCutTubs` | **High** |
-| Fix ray-frame alignment for profile-faceted fixtures | `G4Ellipsoid`, `G4EllipticalCone`, `G4EllipticalTube`, `G4Polycone`, `G4Polyhedra` | **High** |
+| Fix ray-frame alignment for profile-faceted fixtures | `G4Ellipsoid`, `G4EllipticalCone`, `G4EllipticalTube`, `G4Polycone` | **High** |
 | Fix ray-frame alignment for `G4ScaledSolid` | `G4ScaledSolid` | **Medium** |
 | Improve faceted approximation for hyperboloid/paraboloid or add analytic fallback | `G4Hype`, `G4Paraboloid` | **Medium** |
 
