@@ -52,6 +52,14 @@ g4occt_gtest(test_distance_to_out_ray test_distance_to_out_ray.cc
 g4occt_gtest(test_distance_to_out_safety test_distance_to_out_safety.cc
              LINK_LIBRARIES G4OCCT)
 
+# ─── test_exact_distance_to_in ────────────────────────────────────────────────
+g4occt_gtest(test_exact_distance_to_in test_exact_distance_to_in.cc
+             LINK_LIBRARIES G4OCCT)
+
+# ─── test_exact_distance_to_out ───────────────────────────────────────────────
+g4occt_gtest(test_exact_distance_to_out test_exact_distance_to_out.cc
+             LINK_LIBRARIES G4OCCT)
+
 # ─── test_get_extent ──────────────────────────────────────────────────────────
 g4occt_gtest(test_get_extent test_get_extent.cc LINK_LIBRARIES G4OCCT)
 
