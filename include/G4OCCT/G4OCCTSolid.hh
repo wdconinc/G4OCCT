@@ -99,8 +99,9 @@ public:
   G4double ExactDistanceToIn(const G4ThreeVector& p) const;
 
   /// Exact shortest distance from internal point @p p to the solid surface.
-  /// Returns 0 if @p p is on or outside the surface, or if the shape is null
-  /// or the calculation fails.
+  /// Returns 0 if @p p is within IntersectionTolerance() of the surface, or if
+  /// the shape is null or the calculation fails. For points outside the solid,
+  /// returns the positive distance to the nearest surface.
   G4double ExactDistanceToOut(const G4ThreeVector& p) const;
 
   /// Return a string identifying the entity type.
