@@ -7,12 +7,16 @@
 #include "geometry/fixture_inside_compare.hh"
 #include "geometry/fixture_safety_compare.hh"
 
+#include <benchmark/benchmark.h>
+
 #include <cstdlib>
 #include <algorithm>
 #include <exception>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <map>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -41,6 +45,19 @@ namespace {
   using g4occt::tests::geometry::ValidateRepositoryLayout;
   using g4occt::tests::geometry::ValidationReport;
 
+  // ─── Shared state (set by main, read/written by benchmark callbacks) ─────────
+
+  struct BenchmarkSharedState {
+    std::map<std::string, FixtureNavigationSummary> summaries;
+    std::vector<std::string> fixture_order;
+    ValidationReport aggregate_report;
+    std::mutex mu;
+  };
+
+  static BenchmarkSharedState* g_state = nullptr; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+
+  // ─── Predicates ──────────────────────────────────────────────────────────────
+
   // Returns true for fixtures where both "native" and "imported" solids are
   // the same G4OCCTSolid loaded from the same STEP file (i.e., NIST CTC
   // fixtures whose geant4_class is G4OCCTSolid).  Navigation comparison on
@@ -60,16 +77,18 @@ namespace {
                        });
   }
 
-  void PrintReportMessages(const ValidationReport& report) {
+  void PrintReportMessages(std::ostream& out, const ValidationReport& report) {
     for (const auto& message : report.Messages()) {
-      std::cout << g4occt::tests::geometry::ToString(message.severity) << " [" << message.code
-                << "] " << message.text;
+      out << g4occt::tests::geometry::ToString(message.severity) << " [" << message.code
+          << "] " << message.text;
       if (!message.path.empty()) {
-        std::cout << " :: " << message.path.string();
+        out << " :: " << message.path.string();
       }
-      std::cout << '\n';
+      out << '\n';
     }
   }
+
+  // ─── Formatting helpers ───────────────────────────────────────────────────────
 
   /// Format a millisecond value as a right-aligned field (2 decimal places, no padding).
   std::string FormatMs(const double ms) {
@@ -90,35 +109,36 @@ namespace {
   }
 
   /// Print one row of the per-fixture method table.
-  void PrintMethodRow(const std::string& label, const double native_ms, const double imported_ms,
-                      const std::size_t mismatches, const bool has_timing = true) {
-    std::cout << "  " << std::left << std::setw(24) << label << ": ";
+  void PrintMethodRow(std::ostream& out, const std::string& label, const double native_ms,
+                      const double imported_ms, const std::size_t mismatches,
+                      const bool has_timing = true) {
+    out << "  " << std::left << std::setw(24) << label << ": ";
     if (has_timing) {
-      std::cout << "native=" << std::right << std::setw(8) << FormatMs(native_ms) << "ms"
-                << "  imported=" << std::setw(8) << FormatMs(imported_ms) << "ms"
-                << "  ratio=" << std::setw(8) << FormatRatio(native_ms, imported_ms);
+      out << "native=" << std::right << std::setw(8) << FormatMs(native_ms) << "ms"
+          << "  imported=" << std::setw(8) << FormatMs(imported_ms) << "ms"
+          << "  ratio=" << std::setw(8) << FormatRatio(native_ms, imported_ms);
     } else {
       // Exit normals are computed as part of DistanceToOut — no separate timing.
-      std::cout << "native=" << std::right << std::setw(8) << "---" << "ms"
-                << "  imported=" << std::setw(8) << "---" << "ms"
-                << "  ratio=" << std::setw(8) << "---";
+      out << "native=" << std::right << std::setw(8) << "---" << "ms"
+          << "  imported=" << std::setw(8) << "---" << "ms"
+          << "  ratio=" << std::setw(8) << "---";
     }
-    std::cout << "  mismatches=" << mismatches << "\n";
+    out << "  mismatches=" << mismatches << "\n";
   }
 
   /// Print one row of the aggregate summary table.
-  void PrintAggregateRow(const std::string& label, const double native_ms, const double imported_ms,
-                         const std::size_t mismatches, const std::size_t exp_failures,
-                         const bool has_timing = true) {
-    std::cout << "  " << std::left << std::setw(24) << label;
+  void PrintAggregateRow(std::ostream& out, const std::string& label, const double native_ms,
+                         const double imported_ms, const std::size_t mismatches,
+                         const std::size_t exp_failures, const bool has_timing = true) {
+    out << "  " << std::left << std::setw(24) << label;
     if (has_timing) {
-      std::cout << std::right << std::setw(12) << FormatMs(native_ms) << std::setw(14)
-                << FormatMs(imported_ms) << std::setw(10) << FormatRatio(native_ms, imported_ms);
+      out << std::right << std::setw(12) << FormatMs(native_ms) << std::setw(14)
+          << FormatMs(imported_ms) << std::setw(10) << FormatRatio(native_ms, imported_ms);
     } else {
-      std::cout << std::right << std::setw(12) << "---" << std::setw(14) << "---" << std::setw(10)
-                << "---";
+      out << std::right << std::setw(12) << "---" << std::setw(14) << "---" << std::setw(10)
+          << "---";
     }
-    std::cout << std::setw(13) << mismatches << std::setw(14) << exp_failures << "\n";
+    out << std::setw(13) << mismatches << std::setw(14) << exp_failures << "\n";
   }
 
   /// Return the number of ray distance/intersection mismatches, excluding exit-normal mismatches
@@ -133,77 +153,62 @@ namespace {
   /// Instead of a mismatch count the row shows vertex and facet counts for both
   /// meshes; these are expected to differ between the analytical native solid and
   /// the OCCT BRepMesh tessellation, so no mismatch is recorded.
-  void PrintPolyhedronRow(const g4occt::tests::geometry::FixturePolyhedronComparisonSummary& poly) {
-    std::cout << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << ": ";
-    std::cout << "native=" << std::right << std::setw(8) << FormatMs(poly.native_elapsed_ms) << "ms"
-              << "  imported=" << std::setw(8) << FormatMs(poly.imported_elapsed_ms) << "ms"
-              << "  ratio=" << std::setw(8)
-              << FormatRatio(poly.native_elapsed_ms, poly.imported_elapsed_ms);
-    std::cout << "  vertices=" << poly.native_vertices << "/" << poly.imported_vertices
-              << "  facets=" << poly.native_facets << "/" << poly.imported_facets << "\n";
+  void PrintPolyhedronRow(std::ostream& out,
+                          const g4occt::tests::geometry::FixturePolyhedronComparisonSummary& poly) {
+    out << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << ": ";
+    out << "native=" << std::right << std::setw(8) << FormatMs(poly.native_elapsed_ms) << "ms"
+        << "  imported=" << std::setw(8) << FormatMs(poly.imported_elapsed_ms) << "ms"
+        << "  ratio=" << std::setw(8)
+        << FormatRatio(poly.native_elapsed_ms, poly.imported_elapsed_ms);
+    out << "  vertices=" << poly.native_vertices << "/" << poly.imported_vertices
+        << "  facets=" << poly.native_facets << "/" << poly.imported_facets << "\n";
   }
 
-  void PrintFixtureSummary(const FixtureNavigationSummary& s) {
-    std::cout << s.fixture_id << " (" << s.geant4_class << ")";
+  void PrintFixtureSummary(std::ostream& out, const FixtureNavigationSummary& s) {
+    out << s.fixture_id << " (" << s.geant4_class << ")";
     if (s.has_expected_failure) {
-      std::cout << "  [expected failure]";
+      out << "  [expected failure]";
     }
-    std::cout << ":\n";
+    out << ":\n";
 
     // Row 1: DistanceToIn/Out(p,v) — ray intersection+distance timing.
-    PrintMethodRow("DistanceToIn/Out(p,v)", s.ray.native_elapsed_ms, s.ray.imported_elapsed_ms,
+    PrintMethodRow(out, "DistanceToIn/Out(p,v)", s.ray.native_elapsed_ms, s.ray.imported_elapsed_ms,
                    RayOnlyMismatches(s.ray));
 
     // Row 2: Exit normals — computed inside DistanceToOut; no separate timing available.
-    PrintMethodRow("Exit normals", 0.0, 0.0, s.ray.normal_mismatch_count, /*has_timing=*/false);
+    PrintMethodRow(out, "Exit normals", 0.0, 0.0, s.ray.normal_mismatch_count, /*has_timing=*/false);
 
     // Row 3: Inside(p) classification.
-    PrintMethodRow("Inside(p)", s.inside.native_elapsed_ms, s.inside.imported_elapsed_ms,
+    PrintMethodRow(out, "Inside(p)", s.inside.native_elapsed_ms, s.inside.imported_elapsed_ms,
                    s.inside.mismatch_count);
 
     // Row 4: DistanceToIn(p) safety distance (outside points).
-    PrintMethodRow("DistanceToIn(p)", s.safety.native_safety_in_ms, s.safety.imported_safety_in_ms,
-                   s.safety.safety_in_mismatch_count);
+    PrintMethodRow(out, "DistanceToIn(p)", s.safety.native_safety_in_ms,
+                   s.safety.imported_safety_in_ms, s.safety.safety_in_mismatch_count);
 
     // Row 5: DistanceToOut(p) safety distance (inside points).
-    PrintMethodRow("DistanceToOut(p)", s.safety.native_safety_out_ms,
+    PrintMethodRow(out, "DistanceToOut(p)", s.safety.native_safety_out_ms,
                    s.safety.imported_safety_out_ms, s.safety.safety_out_mismatch_count);
 
     // Row 6: SurfaceNormal(p) post-hoc benchmark at agreed hit points.
-    PrintMethodRow("SurfaceNormal(p)", s.ray.native_surface_normal_ms,
+    PrintMethodRow(out, "SurfaceNormal(p)", s.ray.native_surface_normal_ms,
                    s.ray.imported_surface_normal_ms, s.ray.surface_normal_mismatch_count);
 
     // Row 7: CreatePolyhedron() — mesh tessellation timing and mesh-density metrics.
-    PrintPolyhedronRow(s.polyhedron);
+    PrintPolyhedronRow(out, s.polyhedron);
 
-    std::cout << "\n";
+    out << "\n";
   }
 
-  int RunBenchmark(const std::filesystem::path& repository_manifest_path,
-                   const std::size_t ray_count, const std::filesystem::path& point_cloud_dir) {
-    const FixtureRepositoryManifest repository_manifest =
-        ParseFixtureRepositoryManifest(repository_manifest_path);
+  // ─── Benchmark registration ───────────────────────────────────────────────────
 
-    ValidationReport aggregate_report;
-    aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
-
-    FixtureRayComparisonOptions options;
-    options.ray_count       = ray_count;
-    options.point_cloud_dir = point_cloud_dir;
-    FixtureInsideComparisonOptions inside_options;
-    inside_options.point_count = ray_count;
-    // Keep the benchmark on bulk-classification points: the ray benchmark
-    // already probes boundary behaviour, while boundary-adjacent `Inside()`
-    // queries can wedge OCCT's imported-solid classifier for some fixtures.
-    inside_options.include_near_surface_points = false;
-    FixtureSafetyComparisonOptions safety_options;
-    safety_options.point_count = ray_count;
-    const FixturePolyhedronComparisonOptions polyhedron_options;
-
-    std::vector<FixtureNavigationSummary> nav_summaries;
-
-    for (const auto& family : repository_manifest.families) {
-      const auto family_manifest_path = ResolveFamilyManifestPath(repository_manifest, family);
+  void RegisterBenchmarksForFixtures(const FixtureRepositoryManifest& repo_manifest,
+                                     const FixtureRayComparisonOptions& ray_opts,
+                                     const FixtureInsideComparisonOptions& inside_opts,
+                                     const FixtureSafetyComparisonOptions& safety_opts,
+                                     const FixturePolyhedronComparisonOptions& poly_opts) {
+    for (const auto& family : repo_manifest.families) {
+      const auto family_manifest_path = ResolveFamilyManifestPath(repo_manifest, family);
       if (!std::filesystem::exists(family_manifest_path)) {
         continue;
       }
@@ -212,93 +217,205 @@ namespace {
       try {
         family_manifest = ParseFixtureManifestFile(family_manifest_path);
       } catch (const std::exception& error) {
-        aggregate_report.AddError("manifest.parse_failed",
-                                  std::string("Failed to parse family manifest: ") + error.what(),
-                                  family_manifest_path);
+        std::lock_guard<std::mutex> lk(g_state->mu);
+        g_state->aggregate_report.AddError(
+            "manifest.parse_failed",
+            std::string("Failed to parse family manifest: ") + error.what(), family_manifest_path);
         continue;
       }
-      aggregate_report.Append(ValidateManifestStructure(family_manifest));
+
+      {
+        std::lock_guard<std::mutex> lk(g_state->mu);
+        g_state->aggregate_report.Append(ValidateManifestStructure(family_manifest));
+      }
 
       for (const auto& fixture : family_manifest.fixtures) {
         FixtureValidationRequest request;
         request.manifest                = family_manifest;
         request.fixture                 = fixture;
         request.require_provenance_file = true;
+
         const g4occt::tests::geometry::FixtureExpectedFailure expected_failure =
             g4occt::tests::geometry::ExpectedFailureForFixture(request);
 
         const ValidationReport layout_report = ValidateFixtureLayout(request);
-        aggregate_report.Append(layout_report);
+        {
+          std::lock_guard<std::mutex> lk(g_state->mu);
+          g_state->aggregate_report.Append(layout_report);
+        }
         if (!layout_report.Ok()) {
           continue;
         }
 
-        FixtureNavigationSummary nav;
-        nav.fixture_id           = family_manifest.family + "/" + fixture.id;
-        nav.has_expected_failure = expected_failure.enabled || expected_failure.safety_enabled;
-
         // Skip navigation comparisons for imported-only fixtures (G4OCCTSolid /
         // NIST CTC).  These are large, complex AP203 assemblies: navigation is
-        // very slow and triggers G4Exceptions.  Geometry import and volume
-        // checks are covered by test_nist_ctc_inside_volume
-        // (test_geometry_validation/nist-ctc-* is temporarily disabled);
-        // navigation benchmarking will be re-enabled once a per-fixture timeout
-        // mechanism is in place.
-        if (!IsImportedSelfComparisonFixture(fixture)) {
-          ValidationReport ray_report = CompareFixtureRays(request, options, &nav.ray);
-          ray_report =
-              g4occt::tests::geometry::ReclassifyExpectedFailures(ray_report, expected_failure);
-          aggregate_report.Append(ray_report);
-
-          ValidationReport inside_report =
-              CompareFixtureInside(request, inside_options, &nav.inside);
-          inside_report =
-              g4occt::tests::geometry::ReclassifyExpectedFailures(inside_report, expected_failure);
-          aggregate_report.Append(inside_report);
-
-          ValidationReport safety_report =
-              CompareFixtureSafety(request, safety_options, &nav.safety);
-          safety_report =
-              g4occt::tests::geometry::ReclassifyExpectedFailures(safety_report, expected_failure);
-          aggregate_report.Append(safety_report);
-
-          const ValidationReport polyhedron_report =
-              CompareFixturePolyhedron(request, polyhedron_options, &nav.polyhedron);
-          aggregate_report.Append(polyhedron_report);
+        // very slow and triggers G4Exceptions.
+        if (IsImportedSelfComparisonFixture(fixture)) {
+          continue;
         }
 
-        // Use the geant4_class from whichever sub-summary is populated.
-        if (!nav.ray.geant4_class.empty()) {
-          nav.geant4_class = nav.ray.geant4_class;
-        } else if (!nav.inside.geant4_class.empty()) {
-          nav.geant4_class = nav.inside.geant4_class;
-        } else if (!nav.safety.geant4_class.empty()) {
-          nav.geant4_class = nav.safety.geant4_class;
-        } else if (!nav.polyhedron.geant4_class.empty()) {
-          nav.geant4_class = nav.polyhedron.geant4_class;
+        const std::string fixture_id = family_manifest.family + "/" + fixture.id;
+
+        // Pre-create the summary entry to preserve fixture ordering.
+        {
+          std::lock_guard<std::mutex> lk(g_state->mu);
+          if (g_state->summaries.find(fixture_id) == g_state->summaries.end()) {
+            g_state->fixture_order.push_back(fixture_id);
+            g_state->summaries[fixture_id].fixture_id = fixture_id;
+            g_state->summaries[fixture_id].has_expected_failure =
+                expected_failure.enabled || expected_failure.safety_enabled;
+          }
         }
 
-        const bool any_data = nav.ray.ray_count > 0U || nav.inside.point_count > 0U ||
-                              nav.safety.point_count > 0U || nav.polyhedron.native_valid ||
-                              nav.polyhedron.imported_valid;
-        if (any_data) {
-          nav_summaries.push_back(nav);
-        }
+        // Register ray + SurfaceNormal benchmark.
+        benchmark::RegisterBenchmark(
+            ("BM_rays/" + fixture_id).c_str(),
+            [fixture_id, request, ray_opts,
+             expected_failure](benchmark::State& state) {
+              for (auto _ : state) {
+                g4occt::tests::geometry::FixtureRayComparisonSummary ray;
+                ValidationReport report = CompareFixtureRays(request, ray_opts, &ray);
+                report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
+                                                                             expected_failure);
+                state.SetIterationTime(ray.imported_elapsed_ms / 1000.0);
+                state.counters["native_ms"]            = ray.native_elapsed_ms;
+                state.counters["imported_ms"]          = ray.imported_elapsed_ms;
+                state.counters["mismatches"]           = static_cast<double>(RayOnlyMismatches(ray));
+                state.counters["exit_normal_mismatches"] =
+                    static_cast<double>(ray.normal_mismatch_count);
+                state.counters["sn_native_ms"]   = ray.native_surface_normal_ms;
+                state.counters["sn_imported_ms"] = ray.imported_surface_normal_ms;
+                state.counters["sn_mismatches"]  =
+                    static_cast<double>(ray.surface_normal_mismatch_count);
+                std::lock_guard<std::mutex> lk(g_state->mu);
+                g_state->summaries[fixture_id].ray = ray;
+                if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                  g_state->summaries[fixture_id].geant4_class = ray.geant4_class;
+                }
+                g_state->aggregate_report.Append(report);
+              }
+            })
+            ->UseManualTime()
+            ->Iterations(1)
+            ->Unit(benchmark::kMillisecond);
+
+        // Register Inside(p) benchmark.
+        benchmark::RegisterBenchmark(
+            ("BM_inside/" + fixture_id).c_str(),
+            [fixture_id, request, inside_opts,
+             expected_failure](benchmark::State& state) {
+              for (auto _ : state) {
+                g4occt::tests::geometry::FixtureInsideComparisonSummary inside;
+                ValidationReport report = CompareFixtureInside(request, inside_opts, &inside);
+                report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
+                                                                             expected_failure);
+                state.SetIterationTime(inside.imported_elapsed_ms / 1000.0);
+                state.counters["native_ms"]   = inside.native_elapsed_ms;
+                state.counters["imported_ms"] = inside.imported_elapsed_ms;
+                state.counters["mismatches"]  = static_cast<double>(inside.mismatch_count);
+                std::lock_guard<std::mutex> lk(g_state->mu);
+                g_state->summaries[fixture_id].inside = inside;
+                if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                  g_state->summaries[fixture_id].geant4_class = inside.geant4_class;
+                }
+                g_state->aggregate_report.Append(report);
+              }
+            })
+            ->UseManualTime()
+            ->Iterations(1)
+            ->Unit(benchmark::kMillisecond);
+
+        // Register safety distance benchmark (DistanceToIn(p) + DistanceToOut(p)).
+        benchmark::RegisterBenchmark(
+            ("BM_safety/" + fixture_id).c_str(),
+            [fixture_id, request, safety_opts,
+             expected_failure](benchmark::State& state) {
+              for (auto _ : state) {
+                g4occt::tests::geometry::FixtureSafetyComparisonSummary safety;
+                ValidationReport report = CompareFixtureSafety(request, safety_opts, &safety);
+                report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
+                                                                             expected_failure);
+                state.SetIterationTime(
+                    (safety.imported_safety_in_ms + safety.imported_safety_out_ms) / 1000.0);
+                state.counters["safety_in_native_ms"]    = safety.native_safety_in_ms;
+                state.counters["safety_in_imported_ms"]  = safety.imported_safety_in_ms;
+                state.counters["safety_in_mismatches"]   =
+                    static_cast<double>(safety.safety_in_mismatch_count);
+                state.counters["safety_out_native_ms"]   = safety.native_safety_out_ms;
+                state.counters["safety_out_imported_ms"] = safety.imported_safety_out_ms;
+                state.counters["safety_out_mismatches"]  =
+                    static_cast<double>(safety.safety_out_mismatch_count);
+                std::lock_guard<std::mutex> lk(g_state->mu);
+                g_state->summaries[fixture_id].safety = safety;
+                if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                  g_state->summaries[fixture_id].geant4_class = safety.geant4_class;
+                }
+                g_state->aggregate_report.Append(report);
+              }
+            })
+            ->UseManualTime()
+            ->Iterations(1)
+            ->Unit(benchmark::kMillisecond);
+
+        // Register CreatePolyhedron() benchmark.
+        benchmark::RegisterBenchmark(
+            ("BM_polyhedron/" + fixture_id).c_str(),
+            [fixture_id, request, poly_opts](benchmark::State& state) {
+              for (auto _ : state) {
+                g4occt::tests::geometry::FixturePolyhedronComparisonSummary poly;
+                const ValidationReport report =
+                    CompareFixturePolyhedron(request, poly_opts, &poly);
+                state.SetIterationTime(poly.imported_elapsed_ms / 1000.0);
+                state.counters["native_ms"]          = poly.native_elapsed_ms;
+                state.counters["imported_ms"]        = poly.imported_elapsed_ms;
+                state.counters["native_vertices"]    = static_cast<double>(poly.native_vertices);
+                state.counters["imported_vertices"]  = static_cast<double>(poly.imported_vertices);
+                state.counters["native_facets"]      = static_cast<double>(poly.native_facets);
+                state.counters["imported_facets"]    = static_cast<double>(poly.imported_facets);
+                std::lock_guard<std::mutex> lk(g_state->mu);
+                g_state->summaries[fixture_id].polyhedron = poly;
+                if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                  g_state->summaries[fixture_id].geant4_class = poly.geant4_class;
+                }
+                g_state->aggregate_report.Append(report);
+              }
+            })
+            ->UseManualTime()
+            ->Iterations(1)
+            ->Unit(benchmark::kMillisecond);
+      }
+    }
+  }
+
+  // ─── Custom report printing (preserves original tabular format) ───────────────
+
+  void PrintNavigationReport(std::ostream& out, const BenchmarkSharedState& state,
+                             const std::size_t ray_count,
+                             const FixtureInsideComparisonOptions& inside_opts,
+                             const FixtureSafetyComparisonOptions& safety_opts) {
+    // Collect nav_summaries in manifest order, filtering out fixtures with no data.
+    std::vector<FixtureNavigationSummary> nav_summaries;
+    for (const auto& id : state.fixture_order) {
+      const auto it = state.summaries.find(id);
+      if (it == state.summaries.end()) {
+        continue;
+      }
+      const auto& s = it->second;
+      const bool any_data = s.ray.ray_count > 0U || s.inside.point_count > 0U ||
+                            s.safety.point_count > 0U || s.polyhedron.native_valid ||
+                            s.polyhedron.imported_valid;
+      if (any_data) {
+        nav_summaries.push_back(s);
       }
     }
 
     // ── Per-fixture unified table ─────────────────────────────────────────
-    std::cout << "\n=== Fixture Navigation Benchmark Results ===\n";
-    std::cout << "Rays: " << ray_count << "  |  Inside points: " << inside_options.point_count
-              << "  |  Safety points: " << safety_options.point_count << "\n\n";
+    out << "\n=== Fixture Navigation Benchmark Results ===\n";
+    out << "Rays: " << ray_count << "  |  Inside points: " << inside_opts.point_count
+        << "  |  Safety points: " << safety_opts.point_count << "\n\n";
 
     for (const auto& s : nav_summaries) {
-      PrintFixtureSummary(s);
-    }
-
-    PrintReportMessages(aggregate_report);
-    if (HasErrors(aggregate_report)) {
-      return EXIT_FAILURE;
+      PrintFixtureSummary(out, s);
     }
 
     // ── Aggregate totals per method ───────────────────────────────────────
@@ -387,32 +504,82 @@ namespace {
       }
     }
 
-    std::cout << "Aggregate:\n";
-    std::cout << "  " << std::left << std::setw(24) << "Method" << std::right << std::setw(12)
-              << "Native(ms)" << std::setw(14) << "Imported(ms)" << std::setw(10) << "Ratio"
-              << std::setw(13) << "Mismatches" << std::setw(14) << "Exp. Failures" << "\n";
-    std::cout << "  " << std::string(85, '-') << "\n";
+    out << "Aggregate:\n";
+    out << "  " << std::left << std::setw(24) << "Method" << std::right << std::setw(12)
+        << "Native(ms)" << std::setw(14) << "Imported(ms)" << std::setw(10) << "Ratio"
+        << std::setw(13) << "Mismatches" << std::setw(14) << "Exp. Failures" << "\n";
+    out << "  " << std::string(85, '-') << "\n";
 
-    PrintAggregateRow("DistanceToIn/Out(p,v)", agg_ray_native_ms, agg_ray_imported_ms,
+    PrintAggregateRow(out, "DistanceToIn/Out(p,v)", agg_ray_native_ms, agg_ray_imported_ms,
                       agg_ray_mismatches, agg_ray_exp_failures);
-    PrintAggregateRow("Exit normals", 0.0, 0.0, agg_exit_mismatches, agg_exit_exp_failures,
+    PrintAggregateRow(out, "Exit normals", 0.0, 0.0, agg_exit_mismatches, agg_exit_exp_failures,
                       /*has_timing=*/false);
-    PrintAggregateRow("Inside(p)", agg_inside_native_ms, agg_inside_imported_ms,
+    PrintAggregateRow(out, "Inside(p)", agg_inside_native_ms, agg_inside_imported_ms,
                       agg_inside_mismatches, agg_inside_exp_failures);
-    PrintAggregateRow("DistanceToIn(p)", agg_dti_native_ms, agg_dti_imported_ms, agg_dti_mismatches,
-                      agg_dti_exp_failures);
-    PrintAggregateRow("DistanceToOut(p)", agg_dto_native_ms, agg_dto_imported_ms,
+    PrintAggregateRow(out, "DistanceToIn(p)", agg_dti_native_ms, agg_dti_imported_ms,
+                      agg_dti_mismatches, agg_dti_exp_failures);
+    PrintAggregateRow(out, "DistanceToOut(p)", agg_dto_native_ms, agg_dto_imported_ms,
                       agg_dto_mismatches, agg_dto_exp_failures);
-    PrintAggregateRow("SurfaceNormal(p)", agg_sn_native_ms, agg_sn_imported_ms, agg_sn_mismatches,
-                      agg_sn_exp_failures);
+    PrintAggregateRow(out, "SurfaceNormal(p)", agg_sn_native_ms, agg_sn_imported_ms,
+                      agg_sn_mismatches, agg_sn_exp_failures);
     // CreatePolyhedron() — timing totals only; no mismatch count because native
     // and imported meshes are expected to differ in vertex/facet layout.
-    std::cout << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << std::right
-              << std::setw(12) << FormatMs(agg_poly_native_ms) << std::setw(14)
-              << FormatMs(agg_poly_imported_ms) << std::setw(10)
-              << FormatRatio(agg_poly_native_ms, agg_poly_imported_ms) << std::setw(13) << "---"
-              << std::setw(14) << "---" << "\n";
+    out << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << std::right
+        << std::setw(12) << FormatMs(agg_poly_native_ms) << std::setw(14)
+        << FormatMs(agg_poly_imported_ms) << std::setw(10)
+        << FormatRatio(agg_poly_native_ms, agg_poly_imported_ms) << std::setw(13) << "---"
+        << std::setw(14) << "---" << "\n";
+  }
 
+  // ─── Entry point (called from main) ──────────────────────────────────────────
+
+  int RunBenchmark(const std::filesystem::path& repository_manifest_path,
+                   const std::size_t ray_count, const std::filesystem::path& point_cloud_dir,
+                   const bool json_format) {
+    const FixtureRepositoryManifest repository_manifest =
+        ParseFixtureRepositoryManifest(repository_manifest_path);
+
+    FixtureRayComparisonOptions ray_opts;
+    ray_opts.ray_count       = ray_count;
+    ray_opts.point_cloud_dir = point_cloud_dir;
+
+    FixtureInsideComparisonOptions inside_opts;
+    inside_opts.point_count = ray_count;
+    // Keep the benchmark on bulk-classification points: the ray benchmark
+    // already probes boundary behaviour, while boundary-adjacent Inside()
+    // queries can wedge OCCT's imported-solid classifier for some fixtures.
+    inside_opts.include_near_surface_points = false;
+
+    FixtureSafetyComparisonOptions safety_opts;
+    safety_opts.point_count = ray_count;
+
+    const FixturePolyhedronComparisonOptions poly_opts;
+
+    BenchmarkSharedState state;
+    g_state = &state;
+
+    state.aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
+
+    RegisterBenchmarksForFixtures(repository_manifest, ray_opts, inside_opts, safety_opts,
+                                  poly_opts);
+
+    benchmark::RunSpecifiedBenchmarks();
+    benchmark::Shutdown();
+
+    // When JSON output is going to stdout (e.g., piped to bench_report.py), redirect
+    // our custom table to stderr so the JSON stream is not corrupted.
+    std::ostream& report_out = json_format ? std::cerr : std::cout;
+
+    // ── Per-fixture unified table + aggregate ─────────────────────────────
+    PrintReportMessages(report_out, state.aggregate_report);
+    if (HasErrors(state.aggregate_report)) {
+      g_state = nullptr;
+      return EXIT_FAILURE;
+    }
+
+    PrintNavigationReport(report_out, state, ray_count, inside_opts, safety_opts);
+
+    g_state = nullptr;
     return EXIT_SUCCESS;
   }
 
@@ -421,6 +588,20 @@ namespace {
 
 int main(int argc, char** argv) {
   try {
+    // Detect whether JSON output will go to stdout (pipe-to-bench_report.py use case)
+    // before Initialize() removes the benchmark flags from argv.
+    bool json_format = false;
+    for (int i = 1; i < argc; ++i) {
+      if (std::string(argv[i]) == "--benchmark_format=json") {
+        json_format = true;
+        break;
+      }
+    }
+
+    // Let Google Benchmark consume its own --benchmark_* flags.
+    benchmark::Initialize(&argc, argv);
+
+    // Parse remaining args: [N_rays] [manifest_path] [point_cloud_dir]
     std::size_t ray_count = 2048;
     if (argc > 1) {
       ray_count = static_cast<std::size_t>(std::stoul(argv[1]));
@@ -429,7 +610,9 @@ int main(int argc, char** argv) {
         argc > 2 ? std::filesystem::path(argv[2])
                  : g4occt::tests::geometry::DefaultRepositoryManifestPath();
     const std::filesystem::path point_cloud_dir = argc > 3 ? std::filesystem::path(argv[3]) : "";
-    return g4occt::benchmarks::RunBenchmark(manifest_path, ray_count, point_cloud_dir);
+
+    return g4occt::benchmarks::RunBenchmark(manifest_path, ray_count, point_cloud_dir,
+                                            json_format);
   } catch (const std::exception& error) {
     std::cerr << "FAIL: benchmark setup threw an exception: " << error.what() << '\n';
     return EXIT_FAILURE;
