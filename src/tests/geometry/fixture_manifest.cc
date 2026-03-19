@@ -124,7 +124,7 @@ namespace {
       if (line.indent <= parent_indent) {
         break;
       }
-      if (line.indent != parent_indent + 2 || line.content.rfind("- ", 0) != 0) {
+      if (line.indent != parent_indent + 2 || !line.content.starts_with("- ")) {
         throw std::runtime_error("Expected list item in " + manifest_path.string() + ":" +
                                  std::to_string(line.number));
       }
@@ -195,7 +195,7 @@ namespace {
       if (line.indent <= parent_indent) {
         break;
       }
-      if (line.indent != parent_indent + 2 || line.content.rfind("-", 0) != 0) {
+      if (line.indent != parent_indent + 2 || !line.content.starts_with("-")) {
         throw std::runtime_error("Expected expectation list item in " + manifest_path.string() +
                                  ":" + std::to_string(line.number));
       }
@@ -237,7 +237,7 @@ namespace {
       if (line.indent <= parent_indent) {
         break;
       }
-      if (line.indent != parent_indent + 2 || line.content.rfind("-", 0) != 0) {
+      if (line.indent != parent_indent + 2 || !line.content.starts_with("-")) {
         throw std::runtime_error("Expected fixture list item in " + manifest_path.string() + ":" +
                                  std::to_string(line.number));
       }
@@ -330,9 +330,7 @@ FixtureManifest MakeFixtureManifest(const std::filesystem::path& source_path, st
 }
 
 void AddCoverageClass(FixtureManifest& manifest, std::string class_name) {
-  const auto existing =
-      std::find(manifest.coverage_classes.begin(), manifest.coverage_classes.end(), class_name);
-  if (existing == manifest.coverage_classes.end()) {
+  if (std::ranges::find(manifest.coverage_classes, class_name) == manifest.coverage_classes.end()) {
     manifest.coverage_classes.push_back(std::move(class_name));
   }
 }

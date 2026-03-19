@@ -7,7 +7,7 @@
 # downstream project can consume G4OCCT via find_package after installation.
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(DownstreamTest LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(G4OCCT REQUIRED)
