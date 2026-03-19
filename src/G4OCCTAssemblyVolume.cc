@@ -46,9 +46,9 @@ namespace {
 /// Convert an OCCT @p trsf to a Geant4 rotation + translation pair.
 /// STEP/OCCT and Geant4 both use millimetres; no unit conversion is needed.
 std::pair<G4RotationMatrix, G4ThreeVector> TrsfToG4(const gp_Trsf& trsf) {
-  G4RotationMatrix rot(trsf.Value(1, 1), trsf.Value(1, 2), trsf.Value(1, 3),
-                       trsf.Value(2, 1), trsf.Value(2, 2), trsf.Value(2, 3),
-                       trsf.Value(3, 1), trsf.Value(3, 2), trsf.Value(3, 3));
+  G4RotationMatrix rot(trsf.Value(1, 1), trsf.Value(1, 2), trsf.Value(1, 3), trsf.Value(2, 1),
+                       trsf.Value(2, 2), trsf.Value(2, 3), trsf.Value(3, 1), trsf.Value(3, 2),
+                       trsf.Value(3, 3));
   G4ThreeVector trans(trsf.Value(1, 4), trsf.Value(2, 4), trsf.Value(3, 4));
   return {rot, trans};
 }
@@ -62,7 +62,7 @@ std::pair<G4RotationMatrix, G4ThreeVector> TrsfToG4(const gp_Trsf& trsf) {
 gp_Trsf LocationToTrsf(const TopLoc_Location& loc) {
   gp_Trsf result; // identity by default
   for (TopLoc_Location cursor = loc; !cursor.IsIdentity(); cursor = cursor.NextLocation()) {
-    gp_Trsf datum = cursor.FirstDatum()->Trsf();
+    gp_Trsf datum          = cursor.FirstDatum()->Trsf();
     Standard_Integer power = cursor.FirstPower();
     if (power < 0) {
       datum.Invert();
@@ -89,8 +89,7 @@ G4String GetLabelName(const TDF_Label& label) {
 
 /// Read the material name attached to @p label via the XDE material tool.
 /// Returns an empty string when no material attribute is found.
-G4String GetMaterialName(const TDF_Label& label,
-                         const Handle(XCAFDoc_MaterialTool) & matTool) {
+G4String GetMaterialName(const TDF_Label& label, const Handle(XCAFDoc_MaterialTool) & matTool) {
   Handle(TCollection_HAsciiString) matName;
   Handle(TCollection_HAsciiString) matDescription;
   Standard_Real density = 0.0;
@@ -122,8 +121,7 @@ TopoDS_Shape RecenterShape(const TopoDS_Shape& shape, gp_Vec& centroid) {
   Standard_Real xMax = 0.0, yMax = 0.0, zMax = 0.0;
   bbox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
 
-  centroid =
-      gp_Vec(0.5 * (xMin + xMax), 0.5 * (yMin + yMax), 0.5 * (zMin + zMax));
+  centroid = gp_Vec(0.5 * (xMin + xMax), 0.5 * (yMin + yMax), 0.5 * (zMin + zMax));
 
   gp_Trsf centerTrsf;
   centerTrsf.SetTranslation(gp_Vec(-centroid.X(), -centroid.Y(), -centroid.Z()));
@@ -187,7 +185,7 @@ struct G4OCCTAssemblyVolume::BuildContext {
 
 void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume* parentAssembly,
                                        const gp_Trsf& composedTrsf, BuildContext& ctx) {
-  const Handle(XCAFDoc_ShapeTool)& shapeTool = ctx.shapeTool;
+  const Handle(XCAFDoc_ShapeTool) & shapeTool = ctx.shapeTool;
 
   // ── Assembly label: recurse into components ─────────────────────────────────
   if (shapeTool->IsAssembly(label)) {
@@ -223,7 +221,7 @@ void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume*
     const std::string labelKey = LabelKey(label);
 
     G4OCCTLogicalVolume* lv = nullptr;
-    auto protoIt             = ctx.prototypeMap.find(labelKey);
+    auto protoIt            = ctx.prototypeMap.find(labelKey);
     gp_Vec centroid;
 
     if (protoIt != ctx.prototypeMap.end()) {
@@ -317,11 +315,11 @@ G4OCCTAssemblyVolume* G4OCCTAssemblyVolume::FromSTEP(const std::string& path,
     throw std::runtime_error("G4OCCTAssemblyVolume::FromSTEP: failed to read STEP file: " + path);
   }
   if (!cafReader.Transfer(doc)) {
-    throw std::runtime_error(
-        "G4OCCTAssemblyVolume::FromSTEP: failed to transfer STEP document: " + path);
+    throw std::runtime_error("G4OCCTAssemblyVolume::FromSTEP: failed to transfer STEP document: " +
+                             path);
   }
 
-  Handle(XCAFDoc_ShapeTool) shapeTool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+  Handle(XCAFDoc_ShapeTool) shapeTool  = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
   Handle(XCAFDoc_MaterialTool) matTool = XCAFDoc_DocumentTool::MaterialTool(doc->Main());
 
   // ── Collect top-level (free) shape labels ────────────────────────────────────

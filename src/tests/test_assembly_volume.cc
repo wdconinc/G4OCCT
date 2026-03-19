@@ -49,7 +49,7 @@ std::string BuildSingleBoxSTEP(const std::string& tmpPath, const std::string& pa
   Handle(TDocStd_Document) doc;
   app->NewDocument("MDTV-CAF", doc);
 
-  Handle(XCAFDoc_ShapeTool) shapeTool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+  Handle(XCAFDoc_ShapeTool) shapeTool  = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
   Handle(XCAFDoc_MaterialTool) matTool = XCAFDoc_DocumentTool::MaterialTool(doc->Main());
 
   // Create a box solid
@@ -112,8 +112,8 @@ TEST(AssemblyVolume, FromSTEPSingleBox) {
 
 TEST(AssemblyVolume, FromSTEPInvalidPath) {
   G4OCCTMaterialMap matMap;
-  EXPECT_THROW({ G4OCCTAssemblyVolume::FromSTEP("/nonexistent/path.step", matMap); },
-               std::runtime_error);
+  EXPECT_THROW(
+      { G4OCCTAssemblyVolume::FromSTEP("/nonexistent/path.step", matMap); }, std::runtime_error);
 }
 
 TEST(AssemblyVolume, MaterialMapLookupFails) {
