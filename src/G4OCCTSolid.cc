@@ -175,12 +175,14 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
     if (!props.IsNormalDefined()) {
       return std::nullopt;
     }
-    // Guard: if the retry had to drift V by more than 10 % of the full V range,
-    // the normal is sampled from a different surface region (e.g. the equatorial
-    // band instead of the pole on a NURBS ellipsoid).  Returning such a normal
-    // would produce a spurious mismatch against the exact analytic normal.
-    // Setting validNorm = false is safer: the comparison framework skips the ray.
-    if (std::fabs(finalRetryV - adjustedV) > 0.10 * (vLast - vFirst)) {
+    // Guard: if the retry had to drift V by more than kMaxRetryVDriftFraction of
+    // the full V range, the normal is sampled from a different surface region
+    // (e.g. the equatorial band instead of the pole on a NURBS ellipsoid), which
+    // would produce a spurious mismatch against the exact analytic normal, so we
+    // treat the normal as unavailable at this point and return std::nullopt for
+    // the caller to handle (e.g. by leaving the normal invalid or using a fallback).
+    constexpr Standard_Real kMaxRetryVDriftFraction = 0.10;
+    if (std::fabs(finalRetryV - adjustedV) > kMaxRetryVDriftFraction * (vLast - vFirst)) {
       return std::nullopt;
     }
   }
