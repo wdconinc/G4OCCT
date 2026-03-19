@@ -143,7 +143,6 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
     };
   }
 
-
   return {};
 }
 
