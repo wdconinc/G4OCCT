@@ -78,7 +78,8 @@ public:
   /// Distance from external point @p p along direction @p v to solid surface.
   G4double DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const override;
 
-  /// Shortest distance from external point @p p to the solid surface.
+  /// A lower bound on the shortest distance from external point @p p to the solid surface.
+  /// For the exact shortest distance, use ExactDistanceToIn(p).
   G4double DistanceToIn(const G4ThreeVector& p) const override;
 
   /// Distance from internal point @p p along direction @p v to solid surface.
@@ -86,8 +87,22 @@ public:
                          const G4bool calcNorm = false, G4bool* validNorm = nullptr,
                          G4ThreeVector* n = nullptr) const override;
 
-  /// Shortest distance from internal point @p p to the solid surface.
+  /// A lower bound on the shortest distance from internal point @p p to the solid surface.
+  /// For the exact shortest distance, use ExactDistanceToOut(p).
   G4double DistanceToOut(const G4ThreeVector& p) const override;
+
+  // ── G4OCCTSolid distance functions ────────────────────────────────────────
+
+  /// Exact shortest distance from external point @p p to the solid surface.
+  /// Returns 0 if @p p is on or inside the surface, or kInfinity if the
+  /// shape is null or the calculation fails.
+  G4double ExactDistanceToIn(const G4ThreeVector& p) const;
+
+  /// Exact shortest distance from internal point @p p to the solid surface.
+  /// Returns 0 if @p p is within IntersectionTolerance() of the surface, or if
+  /// the shape is null or the calculation fails. For points outside the solid,
+  /// returns the positive distance to the nearest surface.
+  G4double ExactDistanceToOut(const G4ThreeVector& p) const;
 
   /// Return a string identifying the entity type.
   G4GeometryType GetEntityType() const override;

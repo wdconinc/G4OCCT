@@ -101,6 +101,18 @@ inline void ExpectDistanceToOut(const std::string& label, const G4OCCTSolid& sol
   ExpectNear(label, solid.DistanceToOut(point), expected, tolerance);
 }
 
+inline void ExpectExactDistanceToIn(const std::string& label, const G4OCCTSolid& solid,
+                                    const G4ThreeVector& point, const G4double expected,
+                                    const G4double tolerance = kDefaultTolerance) {
+  ExpectNear(label, solid.ExactDistanceToIn(point), expected, tolerance);
+}
+
+inline void ExpectExactDistanceToOut(const std::string& label, const G4OCCTSolid& solid,
+                                     const G4ThreeVector& point, const G4double expected,
+                                     const G4double tolerance = kDefaultTolerance) {
+  ExpectNear(label, solid.ExactDistanceToOut(point), expected, tolerance);
+}
+
 inline void ExpectDistanceToOut(const std::string& label, const G4OCCTSolid& solid,
                                 const G4ThreeVector& point, const G4ThreeVector& direction,
                                 const G4double expected,

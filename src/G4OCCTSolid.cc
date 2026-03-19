@@ -390,7 +390,7 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& 
   return minDistance;
 }
 
-G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
+G4double G4OCCTSolid::ExactDistanceToIn(const G4ThreeVector& p) const {
   if (fShape.IsNull()) {
     return kInfinity;
   }
@@ -403,6 +403,8 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
 
   return DistanceFromPointToShape(fShape, p);
 }
+
+G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const { return ExactDistanceToIn(p); }
 
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v,
                                     const G4bool calcNorm, G4bool* validNorm,
@@ -452,7 +454,7 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
   return minDistance;
 }
 
-G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
+G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
   if (fShape.IsNull()) {
     return 0.0;
   }
@@ -469,6 +471,8 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
   const G4double d = distance.Value();
   return (d <= IntersectionTolerance()) ? 0.0 : d;
 }
+
+G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const { return ExactDistanceToOut(p); }
 
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 
