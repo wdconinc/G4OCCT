@@ -28,10 +28,14 @@ def _fmt_ratio(native_ms: float | None, imported_ms: float | None) -> str:
 def _get_ctr(bm: dict, key: str, default: float = 0.0) -> float:
     """Return a Google Benchmark counter value from a benchmark entry.
 
-    Google Benchmark's JSON reporter writes user counters as top-level fields
-    in each benchmark entry (not under a nested ``"counters"`` object).
+    Google Benchmark's JSON reporter typically writes user counters as top-level
+    fields in each benchmark entry.  Older or differently-configured reporters
+    may nest them under a ``"counters"`` object, so we check the top level first
+    and fall back to that nested location.
     """
-    return float(bm.get(key, default))
+    if key in bm:
+        return float(bm[key])
+    return float(bm.get("counters", {}).get(key, default))
 
 
 def _parse_benchmark_name(name: str):
@@ -55,13 +59,20 @@ def _parse_bench_json(data: dict) -> dict:
     Benchmark name format: ``BM_<method>/<family>/<fixture_id>``
     Methods: ``rays``, ``inside``, ``safety``, ``polyhedron``
     """
-    context   = data.get("context", {})
-    ray_count = context.get("ray_count")
-    if ray_count is not None:
+    context      = data.get("context", {})
+
+    def _parse_count(key: str) -> int | None:
+        val = context.get(key)
+        if val is None:
+            return None
         try:
-            ray_count = int(ray_count)
+            return int(val)
         except (ValueError, TypeError):
-            pass
+            return None
+
+    ray_count    = _parse_count("ray_count")
+    inside_count = _parse_count("inside_count")
+    safety_count = _parse_count("safety_count")
 
     # Group benchmark entries by fixture_id, preserving first-seen order.
     fixture_order: list[str] = []
@@ -205,6 +216,17 @@ def _parse_bench_json(data: dict) -> dict:
             "methods":              methods,
         })
 
+    # Return empty aggregate when no fixture data was found so _render_report()
+    # shows the "No aggregate/fixture results" warning instead of a zero-filled table.
+    if not fixture_order:
+        return {
+            "ray_count":    ray_count,
+            "inside_count": inside_count,
+            "safety_count": safety_count,
+            "fixtures":     [],
+            "aggregate":    [],
+        }
+
     # Build aggregate rows in the canonical display order.
     aggregate = [
         {
@@ -265,7 +287,13 @@ def _parse_bench_json(data: dict) -> dict:
         },
     ]
 
-    return {"ray_count": ray_count, "fixtures": fixtures, "aggregate": aggregate}
+    return {
+        "ray_count":    ray_count,
+        "inside_count": inside_count,
+        "safety_count": safety_count,
+        "fixtures":     fixtures,
+        "aggregate":    aggregate,
+    }
 
 
 def _fixture_viewer_link(fixture_id: str, viewer_path: str) -> str:
@@ -275,14 +303,24 @@ def _fixture_viewer_link(fixture_id: str, viewer_path: str) -> str:
 
 def _render_report(data: dict, viewer_path: str) -> str:
     """Render the Markdown string for benchmark data."""
-    ts        = timestamp()
-    aggregate = data.get("aggregate", [])
-    ray_count = data.get("ray_count", "?")
-    fixtures  = data.get("fixtures", [])
+    ts           = timestamp()
+    aggregate    = data.get("aggregate", [])
+    ray_count    = data.get("ray_count")
+    inside_count = data.get("inside_count")
+    safety_count = data.get("safety_count")
+    fixtures     = data.get("fixtures", [])
 
     meta_line = f"Generated: {ts}"
-    if ray_count:
-        meta_line += f" · Rays/points per fixture: {ray_count}"
+    if ray_count is not None:
+        if inside_count == ray_count and safety_count == ray_count:
+            meta_line += f" · Rays/points per fixture: {ray_count}"
+        else:
+            parts = [f"Rays: {ray_count}"]
+            if inside_count is not None:
+                parts.append(f"inside points: {inside_count}")
+            if safety_count is not None:
+                parts.append(f"safety points: {safety_count}")
+            meta_line += " · " + ", ".join(parts)
 
     lines = [
         "# G4OCCT Benchmark Results",
