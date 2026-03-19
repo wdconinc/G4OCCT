@@ -175,18 +175,32 @@ struct ClosestFaceMatch {
   G4double distance{kInfinity};
 };
 
-/// Find the closest trimmed face to @p point without triggering solid-level classification.
-std::optional<ClosestFaceMatch> TryFindClosestFace(const TopoDS_Shape& shape,
-                                                   const G4ThreeVector& point) {
-  if (shape.IsNull()) {
+/// Find the closest trimmed face to @p point using pre-computed per-face bounding boxes
+/// as a lower-bound prefilter.  A face whose AABB distance from @p point exceeds the
+/// current best candidate distance is skipped before the more expensive
+/// BRepExtrema_DistShapeShape call is made.
+std::optional<ClosestFaceMatch>
+TryFindClosestFace(const std::vector<G4OCCTSolid::FaceBounds>& faceBoundsCache,
+                   const G4ThreeVector& point) {
+  if (faceBoundsCache.empty()) {
     return std::nullopt;
   }
 
+  const gp_Pnt queryPoint = ToPoint(point);
   const TopoDS_Vertex queryVertex = MakeVertex(point);
   std::optional<ClosestFaceMatch> bestMatch;
-  for (TopExp_Explorer explorer(shape, TopAbs_FACE); explorer.More(); explorer.Next()) {
-    const TopoDS_Face face = TopoDS::Face(explorer.Current());
-    BRepExtrema_DistShapeShape distance(queryVertex, face);
+  for (const G4OCCTSolid::FaceBounds& fb : faceBoundsCache) {
+    // Lower bound: distance from query point to the face's axis-aligned bounding box.
+    // If this is already >= current best, the face cannot be the closest — skip it.
+    if (bestMatch.has_value()) {
+      Bnd_Box queryBox;
+      queryBox.Add(queryPoint);
+      if (fb.box.Distance(queryBox) >= bestMatch->distance) {
+        continue;
+      }
+    }
+
+    BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
     if (!distance.IsDone() || distance.NbSolution() == 0) {
       continue;
     }
@@ -207,7 +221,7 @@ std::optional<ClosestFaceMatch> TryFindClosestFace(const TopoDS_Shape& shape,
           supportType != BRepExtrema_IsVertex) {
         continue;
       }
-      bestMatch = ClosestFaceMatch{face, candidateDistance};
+      bestMatch = ClosestFaceMatch{fb.face, candidateDistance};
       break;
     }
   }
@@ -227,6 +241,7 @@ G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
 void G4OCCTSolid::ComputeBounds() {
   if (fShape.IsNull()) {
     fCachedBounds = std::nullopt;
+    fFaceBoundsCache.clear();
     return;
   }
 
@@ -234,6 +249,7 @@ void G4OCCTSolid::ComputeBounds() {
   BRepBndLib::Add(fShape, boundingBox);
   if (boundingBox.IsVoid()) {
     fCachedBounds = std::nullopt;
+    fFaceBoundsCache.clear();
     return;
   }
 
@@ -247,6 +263,14 @@ void G4OCCTSolid::ComputeBounds() {
 
   fCachedBounds =
       AxisAlignedBounds{G4ThreeVector(xMin, yMin, zMin), G4ThreeVector(xMax, yMax, zMax)};
+
+  // Build per-face bounding-box cache for the SurfaceNormal prefilter.
+  fFaceBoundsCache.clear();
+  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
+    Bnd_Box faceBox;
+    BRepBndLib::Add(ex.Current(), faceBox);
+    fFaceBoundsCache.push_back({TopoDS::Face(ex.Current()), faceBox});
+  }
 }
 
 BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {
@@ -309,7 +333,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // projection step recovers a usable (u,v) pair that we can nudge off exact
   // periodic seams before asking OCCT for derivatives. Revisit this once the
   // upstream periodic-classifier fix is available everywhere we build.
-  const auto closestFaceMatch = TryFindClosestFace(fShape, p);
+  const auto closestFaceMatch = TryFindClosestFace(fFaceBoundsCache, p);
   if (!closestFaceMatch.has_value()) {
     return FallbackNormal();
   }
