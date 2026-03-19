@@ -119,9 +119,9 @@ TEST(SolidBasicAPI, GetSurfaceAreaBox) {
 
 TEST(SolidBasicAPI, GetCubicVolumeSphere) {
   // Sphere of radius 50 mm: volume = (4/3)*pi*50^3
-  const G4double r      = 50.0;
+  const G4double r        = 50.0;
   const G4double expected = (4.0 / 3.0) * M_PI * r * r * r;
-  TopoDS_Shape sphere   = BRepPrimAPI_MakeSphere(r).Shape();
+  TopoDS_Shape sphere     = BRepPrimAPI_MakeSphere(r).Shape();
   G4OCCTSolid solid("VolumeSphere", sphere);
 
   EXPECT_NEAR(solid.GetCubicVolume(), expected, expected * 1.0e-10);
@@ -129,9 +129,9 @@ TEST(SolidBasicAPI, GetCubicVolumeSphere) {
 
 TEST(SolidBasicAPI, GetSurfaceAreaSphere) {
   // Sphere of radius 50 mm: surface area = 4*pi*50^2
-  const G4double r       = 50.0;
+  const G4double r        = 50.0;
   const G4double expected = 4.0 * M_PI * r * r;
-  TopoDS_Shape sphere    = BRepPrimAPI_MakeSphere(r).Shape();
+  TopoDS_Shape sphere     = BRepPrimAPI_MakeSphere(r).Shape();
   G4OCCTSolid solid("SurfaceSphere", sphere);
 
   EXPECT_NEAR(solid.GetSurfaceArea(), expected, expected * 1.0e-10);
