@@ -83,8 +83,13 @@ def print_aggregate_row(label: str, native_ms: float, imported_ms: float,
 # ─── JSON parsing ─────────────────────────────────────────────────────────────
 
 def get_counter(bm: dict, key: str, default: float = 0.0) -> float:
-    """Return a counter value, or *default* when absent."""
-    return float(bm.get("counters", {}).get(key, default))
+    """Return a counter value, or *default* when absent.
+
+    Google Benchmark's JSON reporter writes user counters as top-level fields
+    in each benchmark entry (not under a nested "counters" object), so we
+    look them up directly on the benchmark dict.
+    """
+    return float(bm.get(key, default))
 
 
 def parse_benchmark_name(name: str):
