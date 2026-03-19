@@ -21,6 +21,7 @@
 #include <TopoDS_Shape.hxx>
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -145,7 +146,7 @@ public:
     fShape = shape;
     ComputeBounds();
     {
-      const std::lock_guard<std::mutex> lock(fPolyhedronMutex);
+      std::unique_lock<std::mutex> lock(fPolyhedronMutex);
       fCachedPolyhedron.reset();
     }
     fShapeGeneration.fetch_add(1, std::memory_order_release);
@@ -236,12 +237,9 @@ private:
   /// shape update.  Subsequent calls return a copy of this object, avoiding a
   /// repeated (and expensive) `BRepMesh_IncrementalMesh` tessellation.
   ///
-  /// The cache is invalidated whenever `SetOCCTShape()` is called by comparing
-  /// `fPolyhedronGeneration` against `fShapeGeneration` at the start of
-  /// `CreatePolyhedron()`.  `nullptr` indicates that no valid cache entry exists.
-  ///
-  /// Access to this field and `fPolyhedronGeneration` is serialised by
-  /// `fPolyhedronMutex` to allow safe concurrent calls to `CreatePolyhedron()`.
+  /// Access to this field, `fPolyhedronGeneration`, and `fPolyhedronBuilding` is
+  /// serialised by `fPolyhedronMutex`.  `nullptr` indicates that no valid cache
+  /// entry exists for the current shape generation.
   mutable std::unique_ptr<G4Polyhedron> fCachedPolyhedron;
 
   /// Shape-generation stamp at which `fCachedPolyhedron` was last built.
@@ -251,9 +249,19 @@ private:
   /// Protected by `fPolyhedronMutex`.
   mutable std::uint64_t fPolyhedronGeneration{std::numeric_limits<std::uint64_t>::max()};
 
-  /// Mutex serialising concurrent access to `fCachedPolyhedron` and
-  /// `fPolyhedronGeneration` in `CreatePolyhedron()`.
+  /// True while one thread is performing the expensive tessellation.
+  /// Other threads that also miss the cache wait on `fPolyhedronCV` instead
+  /// of running duplicate tessellations.
+  /// Protected by `fPolyhedronMutex`.
+  mutable bool fPolyhedronBuilding{false};
+
+  /// Mutex serialising concurrent access to `fCachedPolyhedron`,
+  /// `fPolyhedronGeneration`, and `fPolyhedronBuilding` in `CreatePolyhedron()`.
   mutable std::mutex fPolyhedronMutex;
+
+  /// Notified when `fPolyhedronBuilding` transitions to false so that threads
+  /// waiting for a concurrent build can re-evaluate the cache.
+  mutable std::condition_variable fPolyhedronCV;
 
   /// Return a reference to the per-thread classifier, (re-)initialising it from
   /// @c fShape whenever the cached generation does not match @c fShapeGeneration.

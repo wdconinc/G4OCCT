@@ -514,17 +514,27 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
     return nullptr;
   }
 
-  // Return a copy of the cached polyhedron if the shape has not changed since
-  // the last call.  The mutex serialises concurrent callers; the copy is made
-  // while the lock is held so the cache cannot be invalidated mid-copy.
   const auto currentGeneration = fShapeGeneration.load(std::memory_order_acquire);
+
   {
-    const std::lock_guard<std::mutex> lock(fPolyhedronMutex);
+    std::unique_lock<std::mutex> lock(fPolyhedronMutex);
+
+    // Wait until no other thread is mid-build for a *different* generation, or
+    // until the cache is already populated for our generation (fast path).
+    fPolyhedronCV.wait(lock, [this, currentGeneration] {
+      return !fPolyhedronBuilding || fPolyhedronGeneration == currentGeneration;
+    });
+
+    // Cache hit: return an independent copy to the caller.
     if (fCachedPolyhedron && fPolyhedronGeneration == currentGeneration) {
       return new G4Polyhedron(*fCachedPolyhedron);
     }
+
+    // Claim the build slot so other concurrent callers wait for this thread.
+    fPolyhedronBuilding = true;
   }
 
+  // ── Tessellation outside the lock ─────────────────────────────────────────
   // Use a relative deflection (1 % of each face's bounding-box size) so that
   // the mesh density scales with the shape rather than being a fixed world-
   // space length that is inappropriate for both very small and very large
@@ -575,27 +585,45 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
     }
   }
 
-  if (facetCount == 0) {
-    return nullptr;
-  }
-
-  tessellatedSolid.SetSolidClosed(true);
-  G4Polyhedron* polyhedron = tessellatedSolid.GetPolyhedron();
-  if (polyhedron == nullptr) {
-    return nullptr;
-  }
-
-  // Cache the computed polyhedron for future calls with the same shape.
-  // Re-acquire the lock before writing; another thread may have raced ahead
-  // and already populated the cache — in that case, prefer its result.
-  {
-    const std::lock_guard<std::mutex> lock(fPolyhedronMutex);
-    if (!fCachedPolyhedron || fPolyhedronGeneration != currentGeneration) {
-      fCachedPolyhedron     = std::make_unique<G4Polyhedron>(*polyhedron);
-      fPolyhedronGeneration = currentGeneration;
+  // Finalise the tessellated solid and build a polyhedron from it (still
+  // outside the lock — both objects are local to this thread).
+  std::unique_ptr<G4Polyhedron> freshPolyhedron;
+  if (facetCount > 0) {
+    tessellatedSolid.SetSolidClosed(true);
+    G4Polyhedron* tmp = tessellatedSolid.GetPolyhedron();
+    if (tmp != nullptr) {
+      freshPolyhedron = std::make_unique<G4Polyhedron>(*tmp);
     }
-    return new G4Polyhedron(*fCachedPolyhedron);
   }
+
+  // ── Write cache and wake waiters ──────────────────────────────────────────
+  {
+    std::unique_lock<std::mutex> lock(fPolyhedronMutex);
+
+    // Only persist the result if the shape has not been replaced while
+    // tessellation was running.  Re-reading the generation under the mutex
+    // ensures the check and the write are atomic with respect to SetOCCTShape().
+    bool cacheWritten = false;
+    if (freshPolyhedron &&
+        fShapeGeneration.load(std::memory_order_acquire) == currentGeneration) {
+      fCachedPolyhedron    = std::make_unique<G4Polyhedron>(*freshPolyhedron);
+      fPolyhedronGeneration = currentGeneration;
+      cacheWritten = true;
+    }
+
+    // Clear the build slot *after* the cache write so that threads woken by
+    // notify_all() see the complete, consistent cache state.
+    fPolyhedronBuilding = false;
+    fPolyhedronCV.notify_all();
+
+    // Return a copy of the freshly-cached polyhedron when possible; fall back
+    // to the locally-built one if the shape was replaced mid-tessellation.
+    if (cacheWritten) {
+      return new G4Polyhedron(*fCachedPolyhedron);
+    }
+  }
+
+  return freshPolyhedron ? new G4Polyhedron(*freshPolyhedron) : nullptr;
 }
 
 std::ostream& G4OCCTSolid::StreamInfo(std::ostream& os) const {
