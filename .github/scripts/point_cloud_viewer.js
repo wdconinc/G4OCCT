@@ -159,7 +159,7 @@ function toggleProjection() {
   }
   controls.update();
   btnOrtho.classList.toggle('active', useOrtho);
-  btnOrtho.textContent = useOrtho ? 'Persp' : 'Ortho';
+  btnOrtho.textContent = useOrtho ? 'Ortho' : 'Persp';
 }
 
 function makeCloud(points, color) {
@@ -249,10 +249,13 @@ function updateImportedOffset() {
 
 function loadFixture(fixture) {
   clearClouds();
-  // Reset axis-view state so the buttons don't show a stale direction after
-  // the camera is repositioned to fit the newly loaded fixture.
+  // Reset axis-view state and restore default camera up vectors so that
+  // OrbitControls is not left operating with a non-standard up after a prior
+  // setAxisView() call (e.g. Y-axis view sets up to Z).
   activeAxis   = null;
   axisPositive = true;
+  camera.up.set(0, 1, 0);
+  orthoCamera.up.set(0, 1, 0);
   updateAxisButtons();
   if (!fixture) {
     return;
@@ -291,6 +294,7 @@ function loadFixture(fixture) {
     camera.position.copy(newPos);
     if (useOrtho) {
       orthoCamera.position.copy(newPos);
+      syncOrthoFrustum();
     }
     controls.target.copy(center);
     controls.update();
@@ -394,6 +398,15 @@ btnViewY.addEventListener('click', () => setAxisView('y'));
 btnViewZ.addEventListener('click', () => setAxisView('z'));
 btnGrid.addEventListener('click', toggleGrid);
 btnOrtho.addEventListener('click', toggleProjection);
+
+// Clear the active axis highlight when the user manually rotates/pans/zooms
+// so the buttons don't show a stale snapped state after free-form interaction.
+controls.addEventListener('start', () => {
+  if (activeAxis !== null) {
+    activeAxis = null;
+    updateAxisButtons();
+  }
+});
 
 offsetSlider.addEventListener('input', () => {
   offsetValue.textContent = `${parseFloat(offsetSlider.value).toFixed(1)}%`;
