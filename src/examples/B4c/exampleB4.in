@@ -11,7 +11,7 @@
 /process/list
 #
 # switch off MultipleScattering
-/process/inactivate msc
+/process/deactivate msc
 /run/beamOn 1
 #
 # switch on MultipleScattering

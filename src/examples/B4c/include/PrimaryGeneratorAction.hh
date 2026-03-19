@@ -39,7 +39,7 @@ namespace B4 {
 ///
 /// It defines a single particle which hits the calorimeter
 /// perpendicular to the input face. The type of the particle
-/// can be changed via the G4 build-in commands of G4ParticleGun class
+/// can be changed via the G4 built-in commands of G4ParticleGun class
 /// (see the macros provided with this example).
 
 class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {

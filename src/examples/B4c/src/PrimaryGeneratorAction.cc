@@ -58,7 +58,7 @@ PrimaryGeneratorAction::~PrimaryGeneratorAction() { delete fParticleGun; }
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
-  // This function is called at the begining of event
+  // This function is called at the beginning of event
 
   // In order to avoid dependence of PrimaryGeneratorAction
   // on DetectorConstruction class we get world volume
