@@ -10,11 +10,13 @@
 #include <BRepBndLib.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
+#include <BRepGProp.hxx>
 #include <BRepLProp_SLProps.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <BRep_Builder.hxx>
 #include <BRep_Tool.hxx>
 #include <Bnd_Box.hxx>
+#include <GProp_GProps.hxx>
 #include <GeomAPI_ProjectPointOnSurf.hxx>
 #include <Geom_Surface.hxx>
 #include <IntCurvesFace_ShapeIntersector.hxx>
@@ -473,6 +475,26 @@ G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
 }
 
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const { return ExactDistanceToOut(p); }
+
+G4double G4OCCTSolid::GetCubicVolume() {
+  std::unique_lock<std::mutex> lock(fVolumeAreaMutex);
+  if (!fCachedVolume) {
+    GProp_GProps props;
+    BRepGProp::VolumeProperties(fShape, props);
+    fCachedVolume = props.Mass();
+  }
+  return *fCachedVolume;
+}
+
+G4double G4OCCTSolid::GetSurfaceArea() {
+  std::unique_lock<std::mutex> lock(fVolumeAreaMutex);
+  if (!fCachedSurfaceArea) {
+    GProp_GProps props;
+    BRepGProp::SurfaceProperties(fShape, props);
+    fCachedSurfaceArea = props.Mass();
+  }
+  return *fCachedSurfaceArea;
+}
 
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 

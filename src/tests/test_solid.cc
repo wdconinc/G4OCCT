@@ -92,3 +92,63 @@ TEST(SolidBasicAPI, SurfaceNormalBoxFace) {
   EXPECT_NEAR(n.y(), 0.0, 1.0e-9) << "SurfaceNormal +y component on centered box face";
   EXPECT_NEAR(n.z(), 0.0, 1.0e-9) << "SurfaceNormal +z component on centered box face";
 }
+
+TEST(SolidBasicAPI, GetCubicVolumeBox) {
+  // 10 × 20 × 30 box: volume = 6000 mm³
+  TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 20.0, 30.0).Shape();
+  G4OCCTSolid solid("VolumeBox", box);
+
+  const G4double volume = solid.GetCubicVolume();
+  EXPECT_NEAR(volume, 6000.0, 1.0e-6);
+
+  // Second call must return the cached value.
+  EXPECT_NEAR(solid.GetCubicVolume(), 6000.0, 1.0e-6);
+}
+
+TEST(SolidBasicAPI, GetSurfaceAreaBox) {
+  // 10 × 20 × 30 box: surface area = 2*(10*20 + 10*30 + 20*30) = 2200 mm²
+  TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 20.0, 30.0).Shape();
+  G4OCCTSolid solid("SurfaceAreaBox", box);
+
+  const G4double area = solid.GetSurfaceArea();
+  EXPECT_NEAR(area, 2200.0, 1.0e-6);
+
+  // Second call must return the cached value.
+  EXPECT_NEAR(solid.GetSurfaceArea(), 2200.0, 1.0e-6);
+}
+
+TEST(SolidBasicAPI, GetCubicVolumeSphere) {
+  // Sphere of radius 50 mm: volume = (4/3)*pi*50^3
+  const G4double r      = 50.0;
+  const G4double expected = (4.0 / 3.0) * M_PI * r * r * r;
+  TopoDS_Shape sphere   = BRepPrimAPI_MakeSphere(r).Shape();
+  G4OCCTSolid solid("VolumeSphere", sphere);
+
+  EXPECT_NEAR(solid.GetCubicVolume(), expected, expected * 1.0e-10);
+}
+
+TEST(SolidBasicAPI, GetSurfaceAreaSphere) {
+  // Sphere of radius 50 mm: surface area = 4*pi*50^2
+  const G4double r       = 50.0;
+  const G4double expected = 4.0 * M_PI * r * r;
+  TopoDS_Shape sphere    = BRepPrimAPI_MakeSphere(r).Shape();
+  G4OCCTSolid solid("SurfaceSphere", sphere);
+
+  EXPECT_NEAR(solid.GetSurfaceArea(), expected, expected * 1.0e-10);
+}
+
+TEST(SolidBasicAPI, VolumeAreaCacheInvalidatedBySetOCCTShape) {
+  // Start with a 10³ box.
+  TopoDS_Shape box1 = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+  G4OCCTSolid solid("CacheVol", box1);
+
+  const G4double vol1 = solid.GetCubicVolume();
+  EXPECT_NEAR(vol1, 1000.0, 1.0e-6);
+
+  // Replace with a 20³ box and verify the cache is invalidated.
+  TopoDS_Shape box2 = BRepPrimAPI_MakeBox(20.0, 20.0, 20.0).Shape();
+  solid.SetOCCTShape(box2);
+
+  const G4double vol2 = solid.GetCubicVolume();
+  EXPECT_NEAR(vol2, 8000.0, 1.0e-6);
+}
