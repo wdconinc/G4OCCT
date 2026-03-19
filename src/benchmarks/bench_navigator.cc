@@ -54,7 +54,8 @@ namespace {
     std::mutex mu;
   };
 
-  static BenchmarkSharedState* g_state = nullptr; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+  static BenchmarkSharedState* g_state =
+      nullptr; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
   // ─── Predicates ──────────────────────────────────────────────────────────────
 
@@ -79,8 +80,8 @@ namespace {
 
   void PrintReportMessages(std::ostream& out, const ValidationReport& report) {
     for (const auto& message : report.Messages()) {
-      out << g4occt::tests::geometry::ToString(message.severity) << " [" << message.code
-          << "] " << message.text;
+      out << g4occt::tests::geometry::ToString(message.severity) << " [" << message.code << "] "
+          << message.text;
       if (!message.path.empty()) {
         out << " :: " << message.path.string();
       }
@@ -176,7 +177,8 @@ namespace {
                    RayOnlyMismatches(s.ray));
 
     // Row 2: Exit normals — computed inside DistanceToOut; no separate timing available.
-    PrintMethodRow(out, "Exit normals", 0.0, 0.0, s.ray.normal_mismatch_count, /*has_timing=*/false);
+    PrintMethodRow(out, "Exit normals", 0.0, 0.0, s.ray.normal_mismatch_count,
+                   /*has_timing=*/false);
 
     // Row 3: Inside(p) classification.
     PrintMethodRow(out, "Inside(p)", s.inside.native_elapsed_ms, s.inside.imported_elapsed_ms,
@@ -270,22 +272,21 @@ namespace {
         // Register ray + SurfaceNormal benchmark.
         benchmark::RegisterBenchmark(
             ("BM_rays/" + fixture_id).c_str(),
-            [fixture_id, request, ray_opts,
-             expected_failure](benchmark::State& state) {
+            [fixture_id, request, ray_opts, expected_failure](benchmark::State& state) {
               for (auto _ : state) {
                 g4occt::tests::geometry::FixtureRayComparisonSummary ray;
                 ValidationReport report = CompareFixtureRays(request, ray_opts, &ray);
-                report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
-                                                                             expected_failure);
+                report =
+                    g4occt::tests::geometry::ReclassifyExpectedFailures(report, expected_failure);
                 state.SetIterationTime(ray.imported_elapsed_ms / 1000.0);
-                state.counters["native_ms"]            = ray.native_elapsed_ms;
-                state.counters["imported_ms"]          = ray.imported_elapsed_ms;
-                state.counters["mismatches"]           = static_cast<double>(RayOnlyMismatches(ray));
+                state.counters["native_ms"]   = ray.native_elapsed_ms;
+                state.counters["imported_ms"] = ray.imported_elapsed_ms;
+                state.counters["mismatches"]  = static_cast<double>(RayOnlyMismatches(ray));
                 state.counters["exit_normal_mismatches"] =
                     static_cast<double>(ray.normal_mismatch_count);
                 state.counters["sn_native_ms"]   = ray.native_surface_normal_ms;
                 state.counters["sn_imported_ms"] = ray.imported_surface_normal_ms;
-                state.counters["sn_mismatches"]  =
+                state.counters["sn_mismatches"] =
                     static_cast<double>(ray.surface_normal_mismatch_count);
                 std::lock_guard<std::mutex> lk(g_state->mu);
                 g_state->summaries[fixture_id].ray = ray;
@@ -302,13 +303,12 @@ namespace {
         // Register Inside(p) benchmark.
         benchmark::RegisterBenchmark(
             ("BM_inside/" + fixture_id).c_str(),
-            [fixture_id, request, inside_opts,
-             expected_failure](benchmark::State& state) {
+            [fixture_id, request, inside_opts, expected_failure](benchmark::State& state) {
               for (auto _ : state) {
                 g4occt::tests::geometry::FixtureInsideComparisonSummary inside;
                 ValidationReport report = CompareFixtureInside(request, inside_opts, &inside);
-                report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
-                                                                             expected_failure);
+                report =
+                    g4occt::tests::geometry::ReclassifyExpectedFailures(report, expected_failure);
                 state.SetIterationTime(inside.imported_elapsed_ms / 1000.0);
                 state.counters["native_ms"]   = inside.native_elapsed_ms;
                 state.counters["imported_ms"] = inside.imported_elapsed_ms;
@@ -328,22 +328,21 @@ namespace {
         // Register safety distance benchmark (DistanceToIn(p) + DistanceToOut(p)).
         benchmark::RegisterBenchmark(
             ("BM_safety/" + fixture_id).c_str(),
-            [fixture_id, request, safety_opts,
-             expected_failure](benchmark::State& state) {
+            [fixture_id, request, safety_opts, expected_failure](benchmark::State& state) {
               for (auto _ : state) {
                 g4occt::tests::geometry::FixtureSafetyComparisonSummary safety;
                 ValidationReport report = CompareFixtureSafety(request, safety_opts, &safety);
-                report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
-                                                                             expected_failure);
+                report =
+                    g4occt::tests::geometry::ReclassifyExpectedFailures(report, expected_failure);
                 state.SetIterationTime(
                     (safety.imported_safety_in_ms + safety.imported_safety_out_ms) / 1000.0);
-                state.counters["safety_in_native_ms"]    = safety.native_safety_in_ms;
-                state.counters["safety_in_imported_ms"]  = safety.imported_safety_in_ms;
-                state.counters["safety_in_mismatches"]   =
+                state.counters["safety_in_native_ms"]   = safety.native_safety_in_ms;
+                state.counters["safety_in_imported_ms"] = safety.imported_safety_in_ms;
+                state.counters["safety_in_mismatches"] =
                     static_cast<double>(safety.safety_in_mismatch_count);
                 state.counters["safety_out_native_ms"]   = safety.native_safety_out_ms;
                 state.counters["safety_out_imported_ms"] = safety.imported_safety_out_ms;
-                state.counters["safety_out_mismatches"]  =
+                state.counters["safety_out_mismatches"] =
                     static_cast<double>(safety.safety_out_mismatch_count);
                 std::lock_guard<std::mutex> lk(g_state->mu);
                 g_state->summaries[fixture_id].safety = safety;
@@ -363,15 +362,14 @@ namespace {
             [fixture_id, request, poly_opts](benchmark::State& state) {
               for (auto _ : state) {
                 g4occt::tests::geometry::FixturePolyhedronComparisonSummary poly;
-                const ValidationReport report =
-                    CompareFixturePolyhedron(request, poly_opts, &poly);
+                const ValidationReport report = CompareFixturePolyhedron(request, poly_opts, &poly);
                 state.SetIterationTime(poly.imported_elapsed_ms / 1000.0);
-                state.counters["native_ms"]          = poly.native_elapsed_ms;
-                state.counters["imported_ms"]        = poly.imported_elapsed_ms;
-                state.counters["native_vertices"]    = static_cast<double>(poly.native_vertices);
-                state.counters["imported_vertices"]  = static_cast<double>(poly.imported_vertices);
-                state.counters["native_facets"]      = static_cast<double>(poly.native_facets);
-                state.counters["imported_facets"]    = static_cast<double>(poly.imported_facets);
+                state.counters["native_ms"]         = poly.native_elapsed_ms;
+                state.counters["imported_ms"]       = poly.imported_elapsed_ms;
+                state.counters["native_vertices"]   = static_cast<double>(poly.native_vertices);
+                state.counters["imported_vertices"] = static_cast<double>(poly.imported_vertices);
+                state.counters["native_facets"]     = static_cast<double>(poly.native_facets);
+                state.counters["imported_facets"]   = static_cast<double>(poly.imported_facets);
                 std::lock_guard<std::mutex> lk(g_state->mu);
                 g_state->summaries[fixture_id].polyhedron = poly;
                 if (g_state->summaries[fixture_id].geant4_class.empty()) {
@@ -400,7 +398,7 @@ namespace {
       if (it == state.summaries.end()) {
         continue;
       }
-      const auto& s = it->second;
+      const auto& s       = it->second;
       const bool any_data = s.ray.ray_count > 0U || s.inside.point_count > 0U ||
                             s.safety.point_count > 0U || s.polyhedron.native_valid ||
                             s.polyhedron.imported_valid;
@@ -524,11 +522,10 @@ namespace {
                       agg_sn_mismatches, agg_sn_exp_failures);
     // CreatePolyhedron() — timing totals only; no mismatch count because native
     // and imported meshes are expected to differ in vertex/facet layout.
-    out << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << std::right
-        << std::setw(12) << FormatMs(agg_poly_native_ms) << std::setw(14)
-        << FormatMs(agg_poly_imported_ms) << std::setw(10)
-        << FormatRatio(agg_poly_native_ms, agg_poly_imported_ms) << std::setw(13) << "---"
-        << std::setw(14) << "---" << "\n";
+    out << "  " << std::left << std::setw(24) << "CreatePolyhedron()" << std::right << std::setw(12)
+        << FormatMs(agg_poly_native_ms) << std::setw(14) << FormatMs(agg_poly_imported_ms)
+        << std::setw(10) << FormatRatio(agg_poly_native_ms, agg_poly_imported_ms) << std::setw(13)
+        << "---" << std::setw(14) << "---" << "\n";
   }
 
   // ─── Entry point (called from main) ──────────────────────────────────────────
@@ -611,8 +608,7 @@ int main(int argc, char** argv) {
                  : g4occt::tests::geometry::DefaultRepositoryManifestPath();
     const std::filesystem::path point_cloud_dir = argc > 3 ? std::filesystem::path(argv[3]) : "";
 
-    return g4occt::benchmarks::RunBenchmark(manifest_path, ray_count, point_cloud_dir,
-                                            json_format);
+    return g4occt::benchmarks::RunBenchmark(manifest_path, ray_count, point_cloud_dir, json_format);
   } catch (const std::exception& error) {
     std::cerr << "FAIL: benchmark setup threw an exception: " << error.what() << '\n';
     return EXIT_FAILURE;

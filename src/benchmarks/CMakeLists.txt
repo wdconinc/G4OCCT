@@ -16,12 +16,12 @@ macro(g4occt_benchmark _target)
 endmacro()
 
 # ─── bench_navigator ─────────────────────────────────────────────────────────
-g4occt_benchmark(bench_navigator bench_navigator.cc
-                 LINK_LIBRARIES G4OCCTFixtureSupport)
-# Run with:
-#   ./bench_navigator [N_rays] [manifest_path] [point_cloud_dir]
-# or, to produce Google Benchmark JSON piped through the report script:
-#   ./bench_navigator --benchmark_format=json [args] | python3 scripts/bench_report.py
+g4occt_benchmark(bench_navigator bench_navigator.cc LINK_LIBRARIES
+                 G4OCCTFixtureSupport)
+# Run with: ./bench_navigator [N_rays] [manifest_path] [point_cloud_dir] or, to
+# produce Google Benchmark JSON piped through the report script:
+# ./bench_navigator --benchmark_format=json [args] | python3
+# scripts/bench_report.py
 
 # ─── bench_callgrind ─────────────────────────────────────────────────────────
 # Single-fixture callgrind-instrumented navigator benchmark.  Instrumentation
