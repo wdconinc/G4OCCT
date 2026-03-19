@@ -164,14 +164,25 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
     const Standard_Real vMid   = 0.5 * (vFirst + vLast);
     const bool nearVFirst      = (adjustedV < vMid);
     const Standard_Real vRes   = std::max(surface.VResolution(tolerance), Precision::PConfusion());
+    Standard_Real finalRetryV  = adjustedV;
     for (int attempt = 0; attempt < 8 && !props.IsNormalDefined(); ++attempt) {
       const Standard_Real scale = std::pow(10.0, static_cast<Standard_Real>(attempt));
       const Standard_Real nudge = scale * vRes;
-      const Standard_Real retryV =
+      finalRetryV =
           nearVFirst ? std::min(adjustedV + nudge, vMid) : std::max(adjustedV - nudge, vMid);
-      props = BRepLProp_SLProps(surface, adjustedU, retryV, 1, tolerance);
+      props = BRepLProp_SLProps(surface, adjustedU, finalRetryV, 1, tolerance);
     }
     if (!props.IsNormalDefined()) {
+      return std::nullopt;
+    }
+    // Guard: if the retry had to drift V by more than kMaxRetryVDriftFraction of
+    // the full V range, the normal is sampled from a different surface region
+    // (e.g. the equatorial band instead of the pole on a NURBS ellipsoid), which
+    // would produce a spurious mismatch against the exact analytic normal, so we
+    // treat the normal as unavailable at this point and return std::nullopt for
+    // the caller to handle (e.g. by leaving the normal invalid or using a fallback).
+    constexpr Standard_Real kMaxRetryVDriftFraction = 0.10;
+    if (std::fabs(finalRetryV - adjustedV) > kMaxRetryVDriftFraction * (vLast - vFirst)) {
       return std::nullopt;
     }
   }
