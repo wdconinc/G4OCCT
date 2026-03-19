@@ -291,8 +291,8 @@ namespace {
                 state.counters["sn_imported_ms"] = ray.imported_surface_normal_ms;
                 state.counters["sn_mismatches"] =
                     static_cast<double>(ray.surface_normal_mismatch_count);
-                state.counters["has_expected_failure"] =
-                    static_cast<double>(expected_failure.enabled || expected_failure.safety_enabled);
+                state.counters["has_expected_failure"] = static_cast<double>(
+                    expected_failure.enabled || expected_failure.safety_enabled);
                 std::lock_guard<std::mutex> lk(g_state->mu);
                 g_state->summaries[fixture_id].ray = ray;
                 if (g_state->summaries[fixture_id].geant4_class.empty()) {
@@ -533,68 +533,66 @@ namespace {
         << "---" << std::setw(14) << "---" << "\n";
   }
 
-  } // namespace (anonymous)
+} // namespace
 
-  // ─── Entry point (called from main) ──────────────────────────────────────────
-  // Must be outside the anonymous namespace so it is accessible as
-  // g4occt::benchmarks::RunBenchmark from main().
+// ─── Entry point (called from main) ──────────────────────────────────────────
+// Must be outside the anonymous namespace so it is accessible as
+// g4occt::benchmarks::RunBenchmark from main().
 
-  int RunBenchmark(const std::filesystem::path& repository_manifest_path,
-                   const std::size_t ray_count, const std::filesystem::path& point_cloud_dir,
-                   const bool json_to_stdout) {
-    const FixtureRepositoryManifest repository_manifest =
-        ParseFixtureRepositoryManifest(repository_manifest_path);
+int RunBenchmark(const std::filesystem::path& repository_manifest_path, const std::size_t ray_count,
+                 const std::filesystem::path& point_cloud_dir, const bool json_to_stdout) {
+  const FixtureRepositoryManifest repository_manifest =
+      ParseFixtureRepositoryManifest(repository_manifest_path);
 
-    FixtureRayComparisonOptions ray_opts;
-    ray_opts.ray_count       = ray_count;
-    ray_opts.point_cloud_dir = point_cloud_dir;
+  FixtureRayComparisonOptions ray_opts;
+  ray_opts.ray_count       = ray_count;
+  ray_opts.point_cloud_dir = point_cloud_dir;
 
-    FixtureInsideComparisonOptions inside_opts;
-    inside_opts.point_count = ray_count;
-    // Keep the benchmark on bulk-classification points: the ray benchmark
-    // already probes boundary behaviour, while boundary-adjacent Inside()
-    // queries can wedge OCCT's imported-solid classifier for some fixtures.
-    inside_opts.include_near_surface_points = false;
+  FixtureInsideComparisonOptions inside_opts;
+  inside_opts.point_count = ray_count;
+  // Keep the benchmark on bulk-classification points: the ray benchmark
+  // already probes boundary behaviour, while boundary-adjacent Inside()
+  // queries can wedge OCCT's imported-solid classifier for some fixtures.
+  inside_opts.include_near_surface_points = false;
 
-    FixtureSafetyComparisonOptions safety_opts;
-    safety_opts.point_count = ray_count;
+  FixtureSafetyComparisonOptions safety_opts;
+  safety_opts.point_count = ray_count;
 
-    const FixturePolyhedronComparisonOptions poly_opts;
+  const FixturePolyhedronComparisonOptions poly_opts;
 
-    BenchmarkSharedState state;
-    g_state = &state;
+  BenchmarkSharedState state;
+  g_state = &state;
 
-    state.aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
+  state.aggregate_report.Append(ValidateRepositoryLayout(repository_manifest));
 
-    RegisterBenchmarksForFixtures(repository_manifest, ray_opts, inside_opts, safety_opts,
-                                  poly_opts);
+  RegisterBenchmarksForFixtures(repository_manifest, ray_opts, inside_opts, safety_opts, poly_opts);
 
-    // Expose ray/inside/safety counts in the JSON context so bench_report.py
-    // can reproduce the "Rays: N | Inside points: N | Safety points: N" header.
-    benchmark::AddCustomContext("ray_count", std::to_string(ray_count));
-    benchmark::AddCustomContext("inside_count", std::to_string(inside_opts.point_count));
-    benchmark::AddCustomContext("safety_count", std::to_string(safety_opts.point_count));
+  // Expose ray/inside/safety counts in the JSON context so bench_report.py
+  // can reproduce the "Rays: N | Inside points: N | Safety points: N" header.
+  benchmark::AddCustomContext("ray_count", std::to_string(ray_count));
+  benchmark::AddCustomContext("inside_count", std::to_string(inside_opts.point_count));
+  benchmark::AddCustomContext("safety_count", std::to_string(safety_opts.point_count));
 
-    benchmark::RunSpecifiedBenchmarks();
-    benchmark::Shutdown();
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
 
-    // Redirect the custom table to stderr only when JSON is going to stdout
-    // (i.e., --benchmark_format=json without --benchmark_out).  When a file
-    // is specified for JSON output, stdout is free and the table goes there.
-    std::ostream& report_out = json_to_stdout ? std::cerr : std::cout;
+  // Redirect the custom table to stderr only when JSON is going to stdout
+  // (i.e., --benchmark_format=json without --benchmark_out).  When a file
+  // is specified for JSON output, stdout is free and the table goes there.
+  std::ostream& report_out = json_to_stdout ? std::cerr : std::cout;
 
-    // ── Per-fixture unified table + aggregate ─────────────────────────────
-    PrintReportMessages(report_out, state.aggregate_report);
-    if (HasErrors(state.aggregate_report)) {
-      g_state = nullptr;
-      return EXIT_FAILURE;
-    }
-
-    PrintNavigationReport(report_out, state, ray_count, inside_opts, safety_opts);
-
+  // ── Per-fixture unified table + aggregate ─────────────────────────────
+  PrintReportMessages(report_out, state.aggregate_report);
+  if (HasErrors(state.aggregate_report)) {
     g_state = nullptr;
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
   }
+
+  PrintNavigationReport(report_out, state, ray_count, inside_opts, safety_opts);
+
+  g_state = nullptr;
+  return EXIT_SUCCESS;
+}
 
 } // namespace g4occt::benchmarks
 
