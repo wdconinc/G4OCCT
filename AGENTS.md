@@ -44,8 +44,15 @@ AI agents) must follow these instructions.
 - The CI workflow `.github/workflows/spdx.yml` uses `enarx/spdx@master` to
   enforce headers on every PR.  A new file that fails the SPDX check will
   block merge.
-- The SPDX header must be the **very first line(s)** of every file.  Never
-  place a shebang (`#!/...`) before the SPDX header.
+- The SPDX header must be the **very first line(s)** of every file, with one
+  exception: executable scripts may have a shebang (`#!/...`) on line 1,
+  followed immediately by the SPDX header on subsequent lines.  This is the
+  required layout for shell scripts in the repository:
+  ```bash
+  #!/usr/bin/env bash
+  # SPDX-License-Identifier: LGPL-2.1-or-later
+  # Copyright (C) 2024 G4OCCT Contributors
+  ```
 - CMake files must wrap the SPDX header in `# cmake-format: off` / `# cmake-format: on`
   guards so `cmake-format` cannot reflow the comment block:
   ```cmake
@@ -147,9 +154,12 @@ Do not lower these version floors without an explicit project decision.
   loads the committed STEP file, not the script.  Stale STEP files cause silent
   test mismatches.
 - Expected-failure (`xfail`) reclassification must use a **narrow allowlist of
-  specific error codes** (e.g. `fixture.volume_mismatch`,
-  `fixture.ray_distance_mismatch`).  Never demote all errors — structural or
-  IO failures (missing STEP file, read errors) must remain hard errors.
+  specific error codes**.  Never demote all errors — structural or IO failures
+  (missing STEP file, read errors) must remain hard errors.  The valid
+  demotable codes are defined in `src/tests/geometry/fixture_validation.hh`
+  and `fixture_validation.cc`; examples include `fixture.volume_mismatch`,
+  `fixture.ray_distance_mismatch`, and `fixture.safety_mismatch`.  Consult
+  those files to find the current complete list.
 
 ---
 
