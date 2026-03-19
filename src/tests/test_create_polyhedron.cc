@@ -30,4 +30,21 @@ TEST(CreatePolyhedron, Box) {
              polyhedron != nullptr && polyhedron->GetNextVertexIndex(vertexIndex, edgeFlag));
 }
 
+TEST(CreatePolyhedron, RepeatedCallsReturnConsistentResults) {
+  const BoxFixture box("PolyhedronBoxCache", 10.0 * mm, 20.0 * mm, 30.0 * mm);
+  const std::unique_ptr<G4Polyhedron> first(box.solid.CreatePolyhedron());
+  const std::unique_ptr<G4Polyhedron> second(box.solid.CreatePolyhedron());
+
+  ExpectTrue("first call returns a polyhedron", first != nullptr);
+  ExpectTrue("second call returns a polyhedron", second != nullptr);
+  ExpectTrue("both calls return distinct objects", first.get() != second.get());
+
+  if (first && second) {
+    ExpectTrue("vertex count is identical across repeated calls",
+               first->GetNoVertices() == second->GetNoVertices());
+    ExpectTrue("facet count is identical across repeated calls",
+               first->GetNoFacets() == second->GetNoFacets());
+  }
+}
+
 } // namespace

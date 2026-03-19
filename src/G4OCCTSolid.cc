@@ -514,6 +514,17 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
     return nullptr;
   }
 
+  // Return a copy of the cached polyhedron if the shape has not changed since
+  // the last call.  The mutex serialises concurrent callers; the copy is made
+  // while the lock is held so the cache cannot be invalidated mid-copy.
+  const auto currentGeneration = fShapeGeneration.load(std::memory_order_acquire);
+  {
+    const std::lock_guard<std::mutex> lock(fPolyhedronMutex);
+    if (fCachedPolyhedron && fPolyhedronGeneration == currentGeneration) {
+      return new G4Polyhedron(*fCachedPolyhedron);
+    }
+  }
+
   // Use a relative deflection (1 % of each face's bounding-box size) so that
   // the mesh density scales with the shape rather than being a fixed world-
   // space length that is inappropriate for both very small and very large
@@ -574,7 +585,17 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
     return nullptr;
   }
 
-  return new G4Polyhedron(*polyhedron);
+  // Cache the computed polyhedron for future calls with the same shape.
+  // Re-acquire the lock before writing; another thread may have raced ahead
+  // and already populated the cache — in that case, prefer its result.
+  {
+    const std::lock_guard<std::mutex> lock(fPolyhedronMutex);
+    if (!fCachedPolyhedron || fPolyhedronGeneration != currentGeneration) {
+      fCachedPolyhedron    = std::make_unique<G4Polyhedron>(*polyhedron);
+      fPolyhedronGeneration = currentGeneration;
+    }
+    return new G4Polyhedron(*fCachedPolyhedron);
+  }
 }
 
 std::ostream& G4OCCTSolid::StreamInfo(std::ostream& os) const {
