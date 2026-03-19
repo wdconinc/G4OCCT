@@ -20,10 +20,9 @@ namespace g4occt::tests::geometry {
 namespace {
 
   bool HasErrors(const ValidationReport& report) {
-    return std::any_of(report.Messages().begin(), report.Messages().end(),
-                       [](const ValidationMessage& message) {
-                         return message.severity == ValidationSeverity::kError;
-                       });
+    return std::ranges::any_of(report.Messages(), [](const ValidationMessage& message) {
+      return message.severity == ValidationSeverity::kError;
+    });
   }
 
   bool IsImportedSelfComparisonFixture(const FixtureReference& fixture) {
@@ -64,7 +63,7 @@ namespace {
         continue;
       }
 
-      if (argument.rfind("--fixture=", 0) == 0) {
+      if (argument.starts_with("--fixture=")) {
         options.fixture_filter = argument.substr(std::string("--fixture=").size());
         continue;
       }
@@ -77,7 +76,7 @@ namespace {
         continue;
       }
 
-      if (argument.rfind("--manifest=", 0) == 0) {
+      if (argument.starts_with("--manifest=")) {
         options.manifest_path = argument.substr(std::string("--manifest=").size());
         continue;
       }

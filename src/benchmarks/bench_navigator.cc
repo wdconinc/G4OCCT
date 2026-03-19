@@ -71,11 +71,10 @@ namespace {
   }
 
   bool HasErrors(const ValidationReport& report) {
-    return std::any_of(report.Messages().begin(), report.Messages().end(),
-                       [](const g4occt::tests::geometry::ValidationMessage& message) {
-                         return message.severity ==
-                                g4occt::tests::geometry::ValidationSeverity::kError;
-                       });
+    return std::ranges::any_of(
+        report.Messages(), [](const g4occt::tests::geometry::ValidationMessage& message) {
+          return message.severity == g4occt::tests::geometry::ValidationSeverity::kError;
+        });
   }
 
   void PrintReportMessages(std::ostream& out, const ValidationReport& report) {
@@ -261,7 +260,7 @@ namespace {
         // Pre-create the summary entry to preserve fixture ordering.
         {
           std::lock_guard<std::mutex> lk(g_state->mu);
-          if (g_state->summaries.find(fixture_id) == g_state->summaries.end()) {
+          if (!g_state->summaries.contains(fixture_id)) {
             g_state->fixture_order.push_back(fixture_id);
             g_state->summaries[fixture_id].fixture_id = fixture_id;
             g_state->summaries[fixture_id].has_expected_failure =
@@ -609,7 +608,7 @@ int main(int argc, char** argv) {
       if (arg == "--benchmark_format=json") {
         has_json_format = true;
       }
-      if (arg.rfind("--benchmark_out=", 0) == 0 || arg == "--benchmark_out") {
+      if (arg.starts_with("--benchmark_out=") || arg == "--benchmark_out") {
         has_json_out = true;
       }
     }

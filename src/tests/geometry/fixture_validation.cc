@@ -91,13 +91,13 @@ ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
   ValidationReport rewritten;
   for (const auto& message : report.Messages()) {
     if (message.severity == ValidationSeverity::kError) {
-      if (failure.enabled && (kNonSafetyNonEquivalenceCodes.count(message.code) != 0U ||
-                              kSafetyNonEquivalenceCodes.count(message.code) != 0U)) {
+      if (failure.enabled && (kNonSafetyNonEquivalenceCodes.contains(message.code) ||
+                              kSafetyNonEquivalenceCodes.contains(message.code))) {
         rewritten.AddWarning("xfail." + message.code,
                              message.text + " (xfail: " + failure.reason + ")", message.path);
         continue;
       }
-      if (failure.safety_enabled && kSafetyNonEquivalenceCodes.count(message.code) != 0U) {
+      if (failure.safety_enabled && kSafetyNonEquivalenceCodes.contains(message.code)) {
         rewritten.AddWarning("xfail." + message.code,
                              message.text + " (xfail: " + failure.safety_reason + ")",
                              message.path);

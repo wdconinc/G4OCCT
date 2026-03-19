@@ -67,7 +67,7 @@ AI agents) must follow these instructions.
 
 ## 3. Build Requirements
 
-- **C++ standard:** C++17 (`CMAKE_CXX_STANDARD 17`).
+- **C++ standard:** C++20 (`CMAKE_CXX_STANDARD 20`).
 - **Minimum Geant4 version:** 11.3 — specified as `find_package(Geant4 11.3 REQUIRED)`.
 - **Minimum OpenCASCADE version:** 7.8 — specified as
   `find_package(OpenCASCADE 7.8 REQUIRED COMPONENTS ...)`.
@@ -196,14 +196,14 @@ The active hooks are:
 | `end-of-file-fixer` | Ensures files end with a newline |
 | `trailing-whitespace` | Removes trailing whitespace |
 | `codespell` | Spell-checks source and documentation |
-| `clang-format` | Formats C/C++ with `.clang-format` (LLVM style, C++17, 100-col limit) |
+| `clang-format` | Formats C/C++ with `.clang-format` (LLVM style, C++20, 100-col limit) |
 | `forbid-crlf` / `remove-crlf` | Enforces LF line endings |
 | `forbid-tabs` / `remove-tabs` | Replaces tabs with spaces |
 | `cmake-format` | Auto-formats `CMakeLists.txt` files |
 | `cmake-lint` | Lints `CMakeLists.txt` (config: `.github/cmake-lint.py`) |
 
 **Configuration files:**
-- `.clang-format` — LLVM-based C++ style, `Standard: c++17`, 100-column limit.
+- `.clang-format` — LLVM-based C++ style, `Standard: c++20`, 100-column limit.
 - `.clang-tidy` — Static-analysis checks: `bugprone-*`, `modernize-*`,
   `readability-*`, and others; several overly-strict checks are disabled.
 - `.codespellrc` — Codespell skip patterns; custom ignore list in
