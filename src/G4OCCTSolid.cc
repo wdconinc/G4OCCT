@@ -186,7 +186,7 @@ TryFindClosestFace(const std::vector<G4OCCTSolid::FaceBounds>& faceBoundsCache,
     return std::nullopt;
   }
 
-  const gp_Pnt queryPoint = ToPoint(point);
+  const gp_Pnt queryPoint         = ToPoint(point);
   const TopoDS_Vertex queryVertex = MakeVertex(point);
   std::optional<ClosestFaceMatch> bestMatch;
   for (const G4OCCTSolid::FaceBounds& fb : faceBoundsCache) {
