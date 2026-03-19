@@ -56,15 +56,12 @@ jobs:
             # Write Google Benchmark JSON to a file (--benchmark_out) to avoid
             # mixing it with any stdout output from Geant4/OCCT during benchmark
             # execution, which would corrupt a piped JSON stream.
-            # scripts/bench_report.py then converts the JSON file to the text
-            # table consumed by generate_bench_report.py.
             ./build/src/benchmarks/bench_navigator \
               --benchmark_out=bench_raw.json \
               --benchmark_out_format=json \
               2048 \
               src/tests/fixtures/geometry/manifest.yaml \
               point_clouds/
-            python3 scripts/bench_report.py bench_raw.json | tee bench_results.txt
 
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
@@ -76,7 +73,7 @@ jobs:
           python3 .github/scripts/generate_test_report.py \
             test-results.xml reports/test-results.md
           python3 .github/scripts/generate_bench_report.py \
-            bench_results.txt reports/bench-results.md reports/point_cloud_viewer.html
+            bench_raw.json reports/bench-results.md reports/point_cloud_viewer.html
           python3 .github/scripts/generate_point_cloud_report.py \
             point_clouds/ reports/point_cloud_viewer.html
 

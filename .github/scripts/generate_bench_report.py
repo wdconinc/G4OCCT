@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2024 G4OCCT Contributors
 
-"""Convert bench_navigator text output to a Markdown report."""
+"""Convert bench_navigator JSON output to a Markdown report."""
 
-import re
+import json
 import sys
 from pathlib import Path
 from urllib.parse import quote
@@ -11,165 +11,259 @@ from urllib.parse import quote
 from report_utils import md_escape, timestamp, write_report
 
 
-def _parse_timing_value(value: str) -> float | None:
-    """Convert a timing string ('---' or a decimal) to float or None."""
-    return None if value == "---" else float(value)
-
-
 def _format_timing(ms: float | None, precision: int = 1) -> str:
     """Format a millisecond value for a Markdown cell; returns '---' for None."""
     return "---" if ms is None else f"{ms:.{precision}f}"
 
 
-def _parse_bench_output(text: str) -> dict:
-    """Parse bench_navigator stdout into a structured dict.
+def _fmt_ratio(native_ms: float | None, imported_ms: float | None) -> str:
+    """Compute a ratio string, e.g. '1.9x', or '---' when undefined."""
+    if native_ms is None or native_ms <= 0.0:
+        return "---"
+    if imported_ms is None:
+        return "---"
+    return f"{imported_ms / native_ms:.1f}x"
 
-    Expected output format (bench_navigator.cc):
 
-        === Fixture Navigation Benchmark Results ===
-        Rays: 2048  |  Inside points: 2048  |  Safety points: 2048
+def _get_ctr(bm: dict, key: str, default: float = 0.0) -> float:
+    """Return a Google Benchmark counter value from a benchmark entry.
 
-        family/fixture_id (G4ClassName):
-          DistanceToIn/Out(p,v)   : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  mismatches=0
-          Exit normals            : native=     ---ms  imported=     ---ms  ratio=     ---  mismatches=0
-          Inside(p)               : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  mismatches=0
-          DistanceToIn(p)         : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  mismatches=0
-          DistanceToOut(p)        : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  mismatches=0
-          SurfaceNormal(p)        : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  mismatches=0
-          CreatePolyhedron()      : native=    1.23ms  imported=    4.56ms  ratio=    3.7x  vertices=8/12  facets=12/24
-
-        Aggregate:
-          Method                    Native(ms)  Imported(ms)     Ratio   Mismatches Exp. Failures
-          ---------------------...
-          DistanceToIn/Out(p,v)        1234.56       5678.90       4.6x           12             0
-          ...
-          CreatePolyhedron()           1234.56       5678.90       4.6x          ---           ---
+    Google Benchmark's JSON reporter writes user counters as top-level fields
+    in each benchmark entry (not under a nested ``"counters"`` object).
     """
-    lines = text.splitlines()
+    return float(bm.get(key, default))
 
-    in_results   = False
-    in_aggregate = False
-    ray_count    = None
-    current      = None   # fixture dict being built
-    fixtures     = []
-    aggregate    = []     # list of {"method", "native_ms", "imported_ms", "ratio", "mismatches", "exp_failures"}
 
-    for line in lines:
-        line = line.rstrip()
+def _parse_benchmark_name(name: str):
+    """Parse ``BM_<method>/<family>/<fixture_id>`` → ``(method, fixture_id)``."""
+    if not name.startswith("BM_"):
+        return None, None
+    rest  = name[3:]
+    slash = rest.find("/")
+    if slash < 0:
+        return None, None
+    return rest[:slash], rest[slash + 1:]
 
-        # ── Section start ────────────────────────────────────────────────
-        if line == "=== Fixture Navigation Benchmark Results ===":
-            in_results   = True
-            in_aggregate = False
-            current      = None
+
+def _parse_bench_json(data: dict) -> dict:
+    """Parse Google Benchmark JSON output into a structured dict for rendering.
+
+    The JSON is produced by ``bench_navigator`` with ``--benchmark_out_format=json``.
+    Custom context keys ``ray_count``, ``inside_count``, and ``safety_count`` are
+    added by ``bench_navigator`` via ``benchmark::AddCustomContext()``.
+
+    Benchmark name format: ``BM_<method>/<family>/<fixture_id>``
+    Methods: ``rays``, ``inside``, ``safety``, ``polyhedron``
+    """
+    context   = data.get("context", {})
+    ray_count = context.get("ray_count")
+    if ray_count is not None:
+        try:
+            ray_count = int(ray_count)
+        except (ValueError, TypeError):
+            pass
+
+    # Group benchmark entries by fixture_id, preserving first-seen order.
+    fixture_order: list[str] = []
+    fixture_groups: dict[str, dict] = {}
+
+    for bm in data.get("benchmarks", []):
+        if bm.get("run_type") == "aggregate":
             continue
-
-        if not in_results:
+        if "name" not in bm:
+            print(f"Warning: benchmark entry missing 'name' field: {bm}", file=sys.stderr)
             continue
-
-        # ── Ray / point counts ───────────────────────────────────────────
-        m = re.match(r"Rays:\s*(\d+)\s*\|", line)
-        if m:
-            ray_count = int(m.group(1))
+        method, fixture_id = _parse_benchmark_name(bm["name"])
+        if method is None:
             continue
+        if fixture_id not in fixture_groups:
+            fixture_order.append(fixture_id)
+            fixture_groups[fixture_id] = {}
+        fixture_groups[fixture_id][method] = bm
 
-        # ── Aggregate section ────────────────────────────────────────────
-        if line.rstrip() == "Aggregate:":
-            in_aggregate = True
-            current      = None
-            continue
+    # Per-fixture structured list + running aggregate totals.
+    fixtures: list[dict] = []
+    agg_ray_native_ms      = 0.0
+    agg_ray_imported_ms    = 0.0
+    agg_ray_mismatches     = 0.0
+    agg_exit_mismatches    = 0.0
+    agg_sn_native_ms       = 0.0
+    agg_sn_imported_ms     = 0.0
+    agg_sn_mismatches      = 0.0
+    agg_inside_native_ms   = 0.0
+    agg_inside_imported_ms = 0.0
+    agg_inside_mismatches  = 0.0
+    agg_dti_native_ms      = 0.0
+    agg_dti_imported_ms    = 0.0
+    agg_dti_mismatches     = 0.0
+    agg_dto_native_ms      = 0.0
+    agg_dto_imported_ms    = 0.0
+    agg_dto_mismatches     = 0.0
+    agg_poly_native_ms     = 0.0
+    agg_poly_imported_ms   = 0.0
 
-        if in_aggregate:
-            # Skip the header row and the separator line.
-            if "Method" in line or re.match(r"\s+-{10,}", line):
-                continue
-            # Each data row: 2-space indent + 24-char left-justified label + numbers.
-            if line.startswith("  ") and len(line) > 26:
-                label = line[2:26].strip()
-                rest  = line[26:].split()
-                if label and len(rest) >= 4:
-                    try:
-                        native_ms    = _parse_timing_value(rest[0])
-                        imported_ms  = _parse_timing_value(rest[1])
-                        ratio        = rest[2]          # "3.7x" or "---"
-                        # mismatches and exp_failures may be "---" for CreatePolyhedron()
-                        mismatches   = None if rest[3] == "---" else int(rest[3])
-                        exp_failures = None if (len(rest) <= 4 or rest[4] == "---") else int(rest[4])
-                        aggregate.append({
-                            "method":       label,
-                            "native_ms":    native_ms,
-                            "imported_ms":  imported_ms,
-                            "ratio":        ratio,
-                            "mismatches":   mismatches,
-                            "exp_failures": exp_failures,
-                        })
-                    except (ValueError, IndexError):
-                        print(f"Warning: could not parse aggregate row: {line!r}", file=sys.stderr)
-            continue
+    for fixture_id in fixture_order:
+        group     = fixture_groups[fixture_id]
+        rays_bm   = group.get("rays",       {})
+        inside_bm = group.get("inside",     {})
+        safety_bm = group.get("safety",     {})
+        poly_bm   = group.get("polyhedron", {})
 
-        # ── Per-fixture header ───────────────────────────────────────────
-        # Format: "family/id (G4Class):" or "family/id (G4Class)  [expected failure]:"
-        m = re.match(r"^(.+?)\s+\((.+?)\)(\s+\[expected failure\])?:\s*$", line)
-        if m:
-            current = {
-                "id":                   m.group(1).strip(),
-                "class":                m.group(2).strip(),
-                "has_expected_failure": bool(m.group(3)),
-                "methods":              {},
+        geant4_class         = rays_bm.get("label", "") if rays_bm else ""
+        has_expected_failure = (_get_ctr(rays_bm, "has_expected_failure") != 0.0
+                                if rays_bm else False)
+
+        methods: dict[str, dict] = {}
+
+        if rays_bm:
+            n = _get_ctr(rays_bm, "native_ms")
+            i = _get_ctr(rays_bm, "imported_ms")
+            methods["DistanceToIn/Out(p,v)"] = {
+                "native_ms":   n,
+                "imported_ms": i,
+                "ratio":       _fmt_ratio(n, i),
+                "mismatches":  int(_get_ctr(rays_bm, "mismatches")),
             }
-            fixtures.append(current)
-            continue
+            methods["Exit normals"] = {
+                "native_ms":   None,
+                "imported_ms": None,
+                "ratio":       "---",
+                "mismatches":  int(_get_ctr(rays_bm, "exit_normal_mismatches")),
+            }
+            sn_n = _get_ctr(rays_bm, "sn_native_ms")
+            sn_i = _get_ctr(rays_bm, "sn_imported_ms")
+            methods["SurfaceNormal(p)"] = {
+                "native_ms":   sn_n,
+                "imported_ms": sn_i,
+                "ratio":       _fmt_ratio(sn_n, sn_i),
+                "mismatches":  int(_get_ctr(rays_bm, "sn_mismatches")),
+            }
+            agg_ray_native_ms   += n
+            agg_ray_imported_ms += i
+            agg_ray_mismatches  += _get_ctr(rays_bm, "mismatches")
+            agg_exit_mismatches += _get_ctr(rays_bm, "exit_normal_mismatches")
+            agg_sn_native_ms    += sn_n
+            agg_sn_imported_ms  += sn_i
+            agg_sn_mismatches   += _get_ctr(rays_bm, "sn_mismatches")
 
-        # ── Per-fixture method row ───────────────────────────────────────
-        if current is not None:
-            # CreatePolyhedron() row has a different format: vertices=N/M  facets=N/M
-            # instead of mismatches=M.
-            m = re.match(
-                r"  (.+?)\s*: native=\s*([\d.]+|---)\s*ms\s+"
-                r"imported=\s*([\d.]+|---)\s*ms\s+"
-                r"ratio=\s*([\d.]+x?|---)\s+"
-                r"vertices=(\d+)/(\d+)\s+"
-                r"facets=(\d+)/(\d+)",
-                line,
-            )
-            if m:
-                method = m.group(1).strip()
-                current["methods"][method] = {
-                    "native_ms":        _parse_timing_value(m.group(2)),
-                    "imported_ms":      _parse_timing_value(m.group(3)),
-                    "ratio":            m.group(4),
-                    "native_vertices":  int(m.group(5)),
-                    "imported_vertices": int(m.group(6)),
-                    "native_facets":    int(m.group(7)),
-                    "imported_facets":  int(m.group(8)),
-                }
-                continue
+        if inside_bm:
+            n = _get_ctr(inside_bm, "native_ms")
+            i = _get_ctr(inside_bm, "imported_ms")
+            methods["Inside(p)"] = {
+                "native_ms":   n,
+                "imported_ms": i,
+                "ratio":       _fmt_ratio(n, i),
+                "mismatches":  int(_get_ctr(inside_bm, "mismatches")),
+            }
+            agg_inside_native_ms   += n
+            agg_inside_imported_ms += i
+            agg_inside_mismatches  += _get_ctr(inside_bm, "mismatches")
 
-            # Standard row format: "  MethodName : native=X.XXms  imported=Y.YYms  ratio=Z.Zx  mismatches=M"
-            m = re.match(
-                r"  (.+?)\s*: native=\s*([\d.]+|---)\s*ms\s+"
-                r"imported=\s*([\d.]+|---)\s*ms\s+"
-                r"ratio=\s*([\d.]+x?|---)\s+"
-                r"mismatches=(\d+)",
-                line,
-            )
-            if m:
-                method      = m.group(1).strip()
-                native_ms   = _parse_timing_value(m.group(2))
-                imported_ms = _parse_timing_value(m.group(3))
-                ratio       = m.group(4)   # "3.7x" or "---"
-                mismatches  = int(m.group(5))
-                current["methods"][method] = {
-                    "native_ms":   native_ms,
-                    "imported_ms": imported_ms,
-                    "ratio":       ratio,
-                    "mismatches":  mismatches,
-                }
-                continue
+        if safety_bm:
+            dti_n = _get_ctr(safety_bm, "safety_in_native_ms")
+            dti_i = _get_ctr(safety_bm, "safety_in_imported_ms")
+            dto_n = _get_ctr(safety_bm, "safety_out_native_ms")
+            dto_i = _get_ctr(safety_bm, "safety_out_imported_ms")
+            methods["DistanceToIn(p)"] = {
+                "native_ms":   dti_n,
+                "imported_ms": dti_i,
+                "ratio":       _fmt_ratio(dti_n, dti_i),
+                "mismatches":  int(_get_ctr(safety_bm, "safety_in_mismatches")),
+            }
+            methods["DistanceToOut(p)"] = {
+                "native_ms":   dto_n,
+                "imported_ms": dto_i,
+                "ratio":       _fmt_ratio(dto_n, dto_i),
+                "mismatches":  int(_get_ctr(safety_bm, "safety_out_mismatches")),
+            }
+            agg_dti_native_ms   += dti_n
+            agg_dti_imported_ms += dti_i
+            agg_dti_mismatches  += _get_ctr(safety_bm, "safety_in_mismatches")
+            agg_dto_native_ms   += dto_n
+            agg_dto_imported_ms += dto_i
+            agg_dto_mismatches  += _get_ctr(safety_bm, "safety_out_mismatches")
 
-        # ── Blank line ends the current fixture block ────────────────────
-        if line == "":
-            current = None
+        if poly_bm:
+            p_n = _get_ctr(poly_bm, "native_ms")
+            p_i = _get_ctr(poly_bm, "imported_ms")
+            methods["CreatePolyhedron()"] = {
+                "native_ms":          p_n,
+                "imported_ms":        p_i,
+                "ratio":              _fmt_ratio(p_n, p_i),
+                "native_vertices":    int(_get_ctr(poly_bm, "native_vertices")),
+                "imported_vertices":  int(_get_ctr(poly_bm, "imported_vertices")),
+                "native_facets":      int(_get_ctr(poly_bm, "native_facets")),
+                "imported_facets":    int(_get_ctr(poly_bm, "imported_facets")),
+            }
+            agg_poly_native_ms  += p_n
+            agg_poly_imported_ms += p_i
+
+        fixtures.append({
+            "id":                   fixture_id,
+            "class":                geant4_class,
+            "has_expected_failure": has_expected_failure,
+            "methods":              methods,
+        })
+
+    # Build aggregate rows in the canonical display order.
+    aggregate = [
+        {
+            "method":       "DistanceToIn/Out(p,v)",
+            "native_ms":    agg_ray_native_ms,
+            "imported_ms":  agg_ray_imported_ms,
+            "ratio":        _fmt_ratio(agg_ray_native_ms, agg_ray_imported_ms),
+            "mismatches":   int(agg_ray_mismatches),
+            "exp_failures": None,
+        },
+        {
+            "method":       "Exit normals",
+            "native_ms":    None,
+            "imported_ms":  None,
+            "ratio":        "---",
+            "mismatches":   int(agg_exit_mismatches),
+            "exp_failures": None,
+        },
+        {
+            "method":       "Inside(p)",
+            "native_ms":    agg_inside_native_ms,
+            "imported_ms":  agg_inside_imported_ms,
+            "ratio":        _fmt_ratio(agg_inside_native_ms, agg_inside_imported_ms),
+            "mismatches":   int(agg_inside_mismatches),
+            "exp_failures": None,
+        },
+        {
+            "method":       "DistanceToIn(p)",
+            "native_ms":    agg_dti_native_ms,
+            "imported_ms":  agg_dti_imported_ms,
+            "ratio":        _fmt_ratio(agg_dti_native_ms, agg_dti_imported_ms),
+            "mismatches":   int(agg_dti_mismatches),
+            "exp_failures": None,
+        },
+        {
+            "method":       "DistanceToOut(p)",
+            "native_ms":    agg_dto_native_ms,
+            "imported_ms":  agg_dto_imported_ms,
+            "ratio":        _fmt_ratio(agg_dto_native_ms, agg_dto_imported_ms),
+            "mismatches":   int(agg_dto_mismatches),
+            "exp_failures": None,
+        },
+        {
+            "method":       "SurfaceNormal(p)",
+            "native_ms":    agg_sn_native_ms,
+            "imported_ms":  agg_sn_imported_ms,
+            "ratio":        _fmt_ratio(agg_sn_native_ms, agg_sn_imported_ms),
+            "mismatches":   int(agg_sn_mismatches),
+            "exp_failures": None,
+        },
+        {
+            "method":       "CreatePolyhedron()",
+            "native_ms":    agg_poly_native_ms,
+            "imported_ms":  agg_poly_imported_ms,
+            "ratio":        _fmt_ratio(agg_poly_native_ms, agg_poly_imported_ms),
+            "mismatches":   None,
+            "exp_failures": None,
+        },
+    ]
 
     return {"ray_count": ray_count, "fixtures": fixtures, "aggregate": aggregate}
 
@@ -326,21 +420,22 @@ def _render_error(message: str) -> str:
 
 def main() -> None:
     if len(sys.argv) not in (3, 4):
-        print(f"Usage: {sys.argv[0]} <bench-results.txt> <output.md> [viewer-path]",
+        print(f"Usage: {sys.argv[0]} <bench-results.json> <output.md> [viewer-path]",
               file=sys.stderr)
         sys.exit(1)
 
-    txt_path, md_path = sys.argv[1], sys.argv[2]
-    viewer_path       = sys.argv[3] if len(sys.argv) == 4 else "point_cloud_viewer.html"
+    json_path   = sys.argv[1]
+    md_path     = sys.argv[2]
+    viewer_path = sys.argv[3] if len(sys.argv) == 4 else "point_cloud_viewer.html"
 
     try:
-        text = Path(txt_path).read_text(encoding="utf-8")
-    except (FileNotFoundError, OSError) as exc:
+        raw = json.loads(Path(json_path).read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, json.JSONDecodeError) as exc:
         print(f"Warning: {exc}", file=sys.stderr)
         write_report(Path(md_path), _render_error(str(exc)), label="Benchmark report")
         return
 
-    data = _parse_bench_output(text)
+    data = _parse_bench_json(raw)
     md   = _render_report(data, viewer_path)
     write_report(Path(md_path), md, label="Benchmark report")
 
