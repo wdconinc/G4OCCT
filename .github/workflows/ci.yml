@@ -200,7 +200,10 @@ jobs:
             mkdir -p reports
             # Copy the raw callgrind output for offline analysis with kcachegrind.
             cp callgrind.out reports/callgrind_${{ matrix.fixture.name }}.out
-            callgrind_annotate --auto=yes callgrind.out \
+            callgrind_annotate --auto=yes \
+              --include="${PWD}/src" \
+              --include="${PWD}/include" \
+              callgrind.out \
               > reports/callgrind_annotate_${{ matrix.fixture.name }}.txt
             # Print a short summary to the step log for quick inspection
             # (60 lines covers the callgrind header and top call-site table).
