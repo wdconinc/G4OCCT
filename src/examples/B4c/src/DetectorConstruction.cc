@@ -163,7 +163,7 @@ G4VPhysicalVolume* DetectorConstruction::DefineVolumes() {
                   calorLV,         // its mother
                   kZAxis,          // axis of replication
                   fNofLayers,      // number of replica
-                  layerThickness); // witdth of replica
+                  layerThickness); // width of replica
 
   //
   // Absorber — loaded from STEP file via G4OCCTSolid::FromSTEP

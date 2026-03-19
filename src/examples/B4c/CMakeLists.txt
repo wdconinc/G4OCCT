@@ -33,5 +33,5 @@ target_compile_definitions(
 
 # ─── CTest integration ───────────────────────────────────────────────────────
 
-add_test(NAME run_exampleB4c COMMAND exampleB4c
+add_test(NAME run_exampleB4c COMMAND exampleB4c -m
                                      ${CMAKE_CURRENT_SOURCE_DIR}/exampleB4.in)
