@@ -479,6 +479,9 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const { return Exact
 G4double G4OCCTSolid::GetCubicVolume() {
   std::unique_lock<std::mutex> lock(fVolumeAreaMutex);
   if (!fCachedVolume) {
+    if (fShape.IsNull()) {
+      return 0.0;
+    }
     GProp_GProps props;
     BRepGProp::VolumeProperties(fShape, props);
     fCachedVolume = props.Mass();
@@ -489,6 +492,9 @@ G4double G4OCCTSolid::GetCubicVolume() {
 G4double G4OCCTSolid::GetSurfaceArea() {
   std::unique_lock<std::mutex> lock(fVolumeAreaMutex);
   if (!fCachedSurfaceArea) {
+    if (fShape.IsNull()) {
+      return 0.0;
+    }
     GProp_GProps props;
     BRepGProp::SurfaceProperties(fShape, props);
     fCachedSurfaceArea = props.Mass();
