@@ -24,3 +24,4 @@ jobs:
             LGPL-2.1-or-later
           ignore-paths: |-
             src/examples/B1
+            src/examples/B4c

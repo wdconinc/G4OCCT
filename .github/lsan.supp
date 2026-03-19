@@ -42,6 +42,21 @@ leak:G4AccumulableManager::Instance
 leak:G4GlobalFastSimulationManager::GetGlobalFastSimulationManager
 leak:G4ThreadLocalSingleton
 
+# Urban MSC model cache (FTFP_BERT and other physics lists)
+leak:G4UrbanMscModel::InitialiseModelCache
+
+# Visualization driver singletons and their UI-command registrations
+# G4VisExecutive initialises GMocren and HepRep drivers; their messengers
+# register G4UIcommand objects that are intentionally never freed.
+leak:G4GMocrenMessenger
+leak:G4HepRepFileXMLWriter::init
+leak:G4UIcommand::G4UIcommandCommonConstructorCode
+leak:G4UIcommand::G4UIcommand
+
+# Generic analysis manager (thread-local singleton)
+# G4GenericAnalysisManager::Instance is used by B4c RunAction for histograms.
+leak:G4GenericAnalysisManager::Instance
+
 # ── G4OCCT per-thread caches ──────────────────────────────────────────────────
 # G4Cache<T> allocates per-thread T objects that are intentionally never freed
 # (they live for the duration of the process, matching Geant4's threading model).

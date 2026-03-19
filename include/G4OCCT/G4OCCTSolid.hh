@@ -27,6 +27,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <vector>
 
 /**
@@ -70,6 +71,20 @@ public:
   G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape);
 
   ~G4OCCTSolid() override = default;
+
+  /**
+   * Load a STEP file and construct a G4OCCTSolid from the first shape found.
+   *
+   * Convenience factory that combines STEP file reading with solid construction.
+   * Equivalent to constructing a `G4OCCTSolid` from the shape returned by a
+   * `STEPControl_Reader`.
+   *
+   * @param name Name registered with the Geant4 solid store.
+   * @param path Filesystem path to the STEP file.
+   * @return Pointer to a newly heap-allocated G4OCCTSolid (owned by the caller).
+   * @throws std::runtime_error if the file cannot be read or yields a null shape.
+   */
+  static G4OCCTSolid* FromSTEP(const G4String& name, const std::string& path);
 
   // ── G4VSolid pure-virtual interface ───────────────────────────────────────
 
