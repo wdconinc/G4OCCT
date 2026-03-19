@@ -53,9 +53,16 @@ jobs:
               -j$(nproc)
 
             # ── Benchmark + point-cloud export ─────────────────────────────
-            ./build/src/benchmarks/bench_navigator 2048 \
+            # --benchmark_format=json sends Google Benchmark JSON to stdout;
+            # scripts/bench_report.py converts it to the text table consumed
+            # by generate_bench_report.py.  The custom navigation summary is
+            # written to stderr so it remains visible in the CI log.
+            ./build/src/benchmarks/bench_navigator \
+              --benchmark_format=json \
+              2048 \
               src/tests/fixtures/geometry/manifest.yaml \
               point_clouds/ \
+              | python3 scripts/bench_report.py \
               | tee bench_results.txt
 
             # ── Install ────────────────────────────────────────────────────
