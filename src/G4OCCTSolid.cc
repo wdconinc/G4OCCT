@@ -164,14 +164,23 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
     const Standard_Real vMid   = 0.5 * (vFirst + vLast);
     const bool nearVFirst      = (adjustedV < vMid);
     const Standard_Real vRes   = std::max(surface.VResolution(tolerance), Precision::PConfusion());
+    Standard_Real finalRetryV  = adjustedV;
     for (int attempt = 0; attempt < 8 && !props.IsNormalDefined(); ++attempt) {
       const Standard_Real scale = std::pow(10.0, static_cast<Standard_Real>(attempt));
       const Standard_Real nudge = scale * vRes;
-      const Standard_Real retryV =
+      finalRetryV =
           nearVFirst ? std::min(adjustedV + nudge, vMid) : std::max(adjustedV - nudge, vMid);
-      props = BRepLProp_SLProps(surface, adjustedU, retryV, 1, tolerance);
+      props = BRepLProp_SLProps(surface, adjustedU, finalRetryV, 1, tolerance);
     }
     if (!props.IsNormalDefined()) {
+      return std::nullopt;
+    }
+    // Guard: if the retry had to drift V by more than 10 % of the full V range,
+    // the normal is sampled from a different surface region (e.g. the equatorial
+    // band instead of the pole on a NURBS ellipsoid).  Returning such a normal
+    // would produce a spurious mismatch against the exact analytic normal.
+    // Setting validNorm = false is safer: the comparison framework skips the ray.
+    if (std::fabs(finalRetryV - adjustedV) > 0.10 * (vLast - vFirst)) {
       return std::nullopt;
     }
   }

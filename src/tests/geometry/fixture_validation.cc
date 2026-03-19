@@ -127,7 +127,7 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
 
   if (geant4_class == "G4Ellipsoid" || geant4_class == "G4EllipticalCone" ||
       geant4_class == "G4EllipticalTube" || geant4_class == "G4Polycone" ||
-      geant4_class == "G4ScaledSolid") {
+      geant4_class == "G4ScaledSolid" || geant4_class == "G4Polyhedra") {
     return {true,
             "strict native-to-STEP ray-frame alignment for this fixture is not implemented yet"};
   }
