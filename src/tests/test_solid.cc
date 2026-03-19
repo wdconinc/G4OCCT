@@ -164,20 +164,20 @@ TEST(SolidBasicAPI, GetPointOnSurfaceBox) {
   // Sample a number of points and verify each lies on (or very close to) the
   // surface.  A point is on the surface when exactly one coordinate equals
   // ±10 and the other two are within [-10, 10].
-  constexpr int kSamples     = 100;
-  constexpr G4double kHalf   = 10.0;
-  constexpr G4double kTol    = 1.0e-6;
+  constexpr int kSamples   = 100;
+  constexpr G4double kHalf = 10.0;
+  constexpr G4double kTol  = 1.0e-6;
 
   for (int i = 0; i < kSamples; ++i) {
     const G4ThreeVector pt = solid.GetPointOnSurface();
 
     // Each coordinate must be within the box bounds (with tolerance).
     EXPECT_GE(pt.x(), -kHalf - kTol) << "x below lower bound at sample " << i;
-    EXPECT_LE(pt.x(),  kHalf + kTol) << "x above upper bound at sample " << i;
+    EXPECT_LE(pt.x(), kHalf + kTol) << "x above upper bound at sample " << i;
     EXPECT_GE(pt.y(), -kHalf - kTol) << "y below lower bound at sample " << i;
-    EXPECT_LE(pt.y(),  kHalf + kTol) << "y above upper bound at sample " << i;
+    EXPECT_LE(pt.y(), kHalf + kTol) << "y above upper bound at sample " << i;
     EXPECT_GE(pt.z(), -kHalf - kTol) << "z below lower bound at sample " << i;
-    EXPECT_LE(pt.z(),  kHalf + kTol) << "z above upper bound at sample " << i;
+    EXPECT_LE(pt.z(), kHalf + kTol) << "z above upper bound at sample " << i;
 
     // The point must lie on a face: at least one coordinate must be at ±kHalf.
     const bool onFace = std::abs(std::abs(pt.x()) - kHalf) <= kTol ||
@@ -195,10 +195,10 @@ TEST(SolidBasicAPI, GetPointOnSurfaceBox) {
 TEST(SolidBasicAPI, GetPointOnSurfaceSphere) {
   // A sphere of radius 50.
   constexpr G4double kRadius = 50.0;
-  TopoDS_Shape sphere         = BRepPrimAPI_MakeSphere(kRadius).Shape();
+  TopoDS_Shape sphere        = BRepPrimAPI_MakeSphere(kRadius).Shape();
   G4OCCTSolid solid("GetPointOnSurfaceSphere", sphere);
 
-  constexpr int kSamples  = 100;
+  constexpr int kSamples = 100;
   // With a 1% relative deflection, the chord height (distance from a triangle
   // midpoint to the true curved surface) is bounded by the absolute deflection,
   // which for a sphere of radius 50 is at most ~1% of the face bounding-box

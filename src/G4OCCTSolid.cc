@@ -553,7 +553,7 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     const TopoDS_Face& face = TopoDS::Face(ex.Current());
     TopLoc_Location loc;
-    const Handle(Poly_Triangulation)& triangulation = BRep_Tool::Triangulation(face, loc);
+    const Handle(Poly_Triangulation) & triangulation = BRep_Tool::Triangulation(face, loc);
     if (triangulation.IsNull()) {
       continue;
     }
@@ -594,7 +594,7 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
   // Select a triangle with probability proportional to its area using a
   // binary search on the cumulative-area array.
   const G4double target = G4UniformRand() * totalArea;
-  const auto it = std::lower_bound(cumulativeAreas.begin(), cumulativeAreas.end(), target);
+  const auto it         = std::lower_bound(cumulativeAreas.begin(), cumulativeAreas.end(), target);
   const std::size_t idx =
       std::min(static_cast<std::size_t>(it - cumulativeAreas.begin()), triangles.size() - 1);
   const Triangle& chosen = triangles[idx];
