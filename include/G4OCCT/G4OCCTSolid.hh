@@ -13,14 +13,17 @@
 
 // OCCT shape representation
 #include <BRepClass3d_SolidClassifier.hxx>
+#include <Bnd_Box.hxx>
 #include <IntCurvesFace_ShapeIntersector.hxx>
 #include <TopoDS_Compound.hxx>
+#include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
 
 #include <atomic>
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <vector>
 
 /**
  * @brief Geant4 solid wrapping an Open CASCADE Technology (OCCT) TopoDS_Shape.
@@ -127,6 +130,19 @@ public:
   }
 
 private:
+  /// Per-face bounding box entry used to prefilter the closest-face search in
+  /// `SurfaceNormal`.
+  struct FaceBounds {
+    TopoDS_Face face;
+    Bnd_Box box;
+  };
+
+  /// Result of the closest-face search.
+  struct ClosestFaceMatch {
+    TopoDS_Face face;
+    G4double distance{kInfinity};
+  };
+
   /// Axis-aligned bounding box: minimum and maximum corners.
   struct AxisAlignedBounds {
     G4ThreeVector min;
@@ -170,6 +186,13 @@ private:
   /// `std::nullopt` when the shape is null or has no geometry.
   std::optional<AxisAlignedBounds> fCachedBounds;
 
+  /// Per-face bounding boxes, populated alongside `fCachedBounds` in `ComputeBounds()`.
+  /// Used by `SurfaceNormal` as a lower-bound prefilter to avoid calling
+  /// `BRepExtrema_DistShapeShape` on faces that are provably farther than the
+  /// current best candidate.  Written once at construction / `SetOCCTShape()`;
+  /// read-only during navigation, so no additional synchronisation is required.
+  std::vector<FaceBounds> fFaceBoundsCache;
+
   /// Monotonically increasing counter; incremented by each `SetOCCTShape()` call.
   /// Read (acquire) in `GetOrCreateClassifier()` and `GetOrCreateIntersector()` const;
   /// written (release) in `SetOCCTShape()`.
@@ -196,9 +219,18 @@ private:
   IntCurvesFace_ShapeIntersector& GetOrCreateIntersector() const;
 
   /// Compute the axis-aligned bounding box of @c fShape and store it in
-  /// @c fCachedBounds.  Sets @c fCachedBounds to @c std::nullopt when the shape
-  /// is null or has no geometry.  Called from the constructor and @c SetOCCTShape().
+  /// @c fCachedBounds, and populate @c fFaceBoundsCache with per-face bounding
+  /// boxes.  Sets @c fCachedBounds to @c std::nullopt and clears @c fFaceBoundsCache
+  /// when the shape is null or has no geometry.  Called from the constructor and
+  /// @c SetOCCTShape().
   void ComputeBounds();
+
+  /// Find the closest trimmed face to @p point using pre-computed per-face bounding
+  /// boxes as a lower-bound prefilter.  A face whose AABB distance from @p point
+  /// exceeds the current best candidate distance is skipped before the more expensive
+  /// BRepExtrema_DistShapeShape call is made.
+  static std::optional<ClosestFaceMatch>
+  TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache, const G4ThreeVector& point);
 };
 
 #endif // G4OCCT_G4OCCTSolid_hh

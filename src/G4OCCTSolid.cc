@@ -170,23 +170,84 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
   return G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
 }
 
-struct ClosestFaceMatch {
-  TopoDS_Face face;
-  G4double distance{kInfinity};
-};
+} // namespace
 
-/// Find the closest trimmed face to @p point without triggering solid-level classification.
-std::optional<ClosestFaceMatch> TryFindClosestFace(const TopoDS_Shape& shape,
-                                                   const G4ThreeVector& point) {
-  if (shape.IsNull()) {
+G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
+    : G4VSolid(name), fShape(shape) {
+  ComputeBounds();
+}
+
+// ── G4OCCTSolid private helpers ───────────────────────────────────────────────
+
+void G4OCCTSolid::ComputeBounds() {
+  if (fShape.IsNull()) {
+    fCachedBounds = std::nullopt;
+    BRep_Builder builder;
+    builder.MakeCompound(fFaceCompound);
+    fFaceBoundsCache.clear();
+    return;
+  }
+
+  // Build a compound of all faces so that BRepExtrema_DistShapeShape queries
+  // against fFaceCompound return the surface distance even for interior points
+  // (a solid-wide query returns 0 for interior points).
+  BRep_Builder builder;
+  builder.MakeCompound(fFaceCompound);
+  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
+    builder.Add(fFaceCompound, ex.Current());
+  }
+
+  Bnd_Box boundingBox;
+  BRepBndLib::AddOptimal(fShape, boundingBox, /*useTriangulation=*/Standard_False);
+  if (boundingBox.IsVoid()) {
+    fCachedBounds = std::nullopt;
+    fFaceBoundsCache.clear();
+    return;
+  }
+
+  Standard_Real xMin = 0.0;
+  Standard_Real yMin = 0.0;
+  Standard_Real zMin = 0.0;
+  Standard_Real xMax = 0.0;
+  Standard_Real yMax = 0.0;
+  Standard_Real zMax = 0.0;
+  boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
+
+  fCachedBounds =
+      AxisAlignedBounds{G4ThreeVector(xMin, yMin, zMin), G4ThreeVector(xMax, yMax, zMax)};
+
+  // Build per-face bounding-box cache for the SurfaceNormal prefilter.
+  fFaceBoundsCache.clear();
+  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
+    Bnd_Box faceBox;
+    BRepBndLib::Add(ex.Current(), faceBox);
+    fFaceBoundsCache.push_back({TopoDS::Face(ex.Current()), faceBox});
+  }
+}
+
+std::optional<G4OCCTSolid::ClosestFaceMatch>
+G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
+                                const G4ThreeVector& point) {
+  if (faceBoundsCache.empty()) {
     return std::nullopt;
   }
 
+  const gp_Pnt queryPoint         = ToPoint(point);
   const TopoDS_Vertex queryVertex = MakeVertex(point);
+
+  // Build the point box once — it is constant for the entire loop.
+  Bnd_Box queryBox;
+  queryBox.Add(queryPoint);
+
   std::optional<ClosestFaceMatch> bestMatch;
-  for (TopExp_Explorer explorer(shape, TopAbs_FACE); explorer.More(); explorer.Next()) {
-    const TopoDS_Face face = TopoDS::Face(explorer.Current());
-    BRepExtrema_DistShapeShape distance(queryVertex, face);
+  for (const FaceBounds& fb : faceBoundsCache) {
+    // Lower bound: distance from query point to the face's axis-aligned bounding box.
+    // If this is already >= current best, the face cannot be the closest — skip it.
+    if (bestMatch.has_value() && fb.box.Distance(queryBox) >= bestMatch->distance) {
+      continue;
+    }
+
+    BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
     if (!distance.IsDone() || distance.NbSolution() == 0) {
       continue;
     }
@@ -207,57 +268,12 @@ std::optional<ClosestFaceMatch> TryFindClosestFace(const TopoDS_Shape& shape,
           supportType != BRepExtrema_IsVertex) {
         continue;
       }
-      bestMatch = ClosestFaceMatch{face, candidateDistance};
+      bestMatch = ClosestFaceMatch{fb.face, candidateDistance};
       break;
     }
   }
 
   return bestMatch;
-}
-
-} // namespace
-
-G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
-    : G4VSolid(name), fShape(shape) {
-  ComputeBounds();
-}
-
-// ── G4OCCTSolid private helpers ───────────────────────────────────────────────
-
-void G4OCCTSolid::ComputeBounds() {
-  if (fShape.IsNull()) {
-    fCachedBounds = std::nullopt;
-    BRep_Builder builder;
-    builder.MakeCompound(fFaceCompound);
-    return;
-  }
-
-  // Build a compound of all faces so that BRepExtrema_DistShapeShape queries
-  // against fFaceCompound return the surface distance even for interior points
-  // (a solid-wide query returns 0 for interior points).
-  BRep_Builder builder;
-  builder.MakeCompound(fFaceCompound);
-  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
-    builder.Add(fFaceCompound, ex.Current());
-  }
-
-  Bnd_Box boundingBox;
-  BRepBndLib::AddOptimal(fShape, boundingBox, /*useTriangulation=*/Standard_False);
-  if (boundingBox.IsVoid()) {
-    fCachedBounds = std::nullopt;
-    return;
-  }
-
-  Standard_Real xMin = 0.0;
-  Standard_Real yMin = 0.0;
-  Standard_Real zMin = 0.0;
-  Standard_Real xMax = 0.0;
-  Standard_Real yMax = 0.0;
-  Standard_Real zMax = 0.0;
-  boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
-
-  fCachedBounds =
-      AxisAlignedBounds{G4ThreeVector(xMin, yMin, zMin), G4ThreeVector(xMax, yMax, zMax)};
 }
 
 BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {
@@ -320,7 +336,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // projection step recovers a usable (u,v) pair that we can nudge off exact
   // periodic seams before asking OCCT for derivatives. Revisit this once the
   // upstream periodic-classifier fix is available everywhere we build.
-  const auto closestFaceMatch = TryFindClosestFace(fShape, p);
+  const auto closestFaceMatch = TryFindClosestFace(fFaceBoundsCache, p);
   if (!closestFaceMatch.has_value()) {
     return FallbackNormal();
   }
