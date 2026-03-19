@@ -145,11 +145,11 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
   if (geant4_class == "G4CutTubs") {
     return {
         .safety_enabled = true,
-        .safety_reason  = "G4CutTubs DistanceToIn(p) near the tilted-plane/cylinder edge uses the "
-                          "exact analytic cut-plane normal, while the STEP solid uses a B-spline "
-                          "PCurve approximation of the elliptic edge; the resulting safety "
-                          "distances differ near the corners but both are valid conservative "
-                          "estimates",
+        .safety_reason  = "G4CutTubs DistanceToIn(p) and DistanceToOut(p) near the "
+                          "tilted-plane/cylinder edge use the exact analytic cut-plane normal, "
+                          "while the STEP solid uses a B-spline PCurve approximation of the "
+                          "elliptic edge; the resulting safety distances differ near the corners "
+                          "but both are valid conservative estimates",
     };
   }
 
