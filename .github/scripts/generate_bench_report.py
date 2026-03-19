@@ -4,6 +4,7 @@
 """Convert bench_navigator JSON output to a Markdown report."""
 
 import json
+import re
 import sys
 from pathlib import Path
 from urllib.parse import quote
@@ -38,15 +39,26 @@ def _get_ctr(bm: dict, key: str, default: float = 0.0) -> float:
     return float(bm.get("counters", {}).get(key, default))
 
 
+_BENCH_SUFFIX_RE = re.compile(r"(/iterations:\d+|/manual_time|/real_time)+$")
+
+
 def _parse_benchmark_name(name: str):
-    """Parse ``BM_<method>/<family>/<fixture_id>`` → ``(method, fixture_id)``."""
+    """Parse ``BM_<method>/<family>/<fixture_id>`` → ``(method, fixture_id)``.
+
+    Google Benchmark appends suffixes such as ``/iterations:1`` and
+    ``/manual_time`` (or ``/real_time``) when ``Iterations()`` and
+    ``UseManualTime()`` (or ``UseRealTime()``) are configured.  These suffixes
+    are stripped so that the returned ``fixture_id`` matches the bare
+    ``<family>/<fixture_id>`` used by the point-cloud viewer.
+    """
     if not name.startswith("BM_"):
         return None, None
     rest  = name[3:]
     slash = rest.find("/")
     if slash < 0:
         return None, None
-    return rest[:slash], rest[slash + 1:]
+    fixture_id = _BENCH_SUFFIX_RE.sub("", rest[slash + 1:])
+    return rest[:slash], fixture_id
 
 
 def _parse_bench_json(data: dict) -> dict:
