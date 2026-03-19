@@ -39,7 +39,7 @@ camera.position.set(0, 0, 200);
 
 const orthoCamera = new THREE.OrthographicCamera(-100, 100, 100, -100, -1e6, 1e6);
 // Frustum bounds above are placeholder; syncOrthoFrustum() recomputes them on first toggle.
-let useOrtho      = false;
+let useOrtho = false;
 
 const controls              = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping      = true;
@@ -50,19 +50,19 @@ controls.screenSpacePanning = true;
 scene.add(new THREE.AxesHelper(50));
 
 // ── Grid helpers (one per coordinate plane) ───────────────────────────────────
-const GRID_SIZE = 500;
-const GRID_DIVS = 50;
+const GRID_SIZE         = 500;
+const GRID_DIVS         = 50;
 const GRID_COLOR_CENTER = 0x444466;
 const GRID_COLOR_LINE   = 0x222244;
-const gridXY = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
-gridXY.rotation.x = Math.PI / 2;   // rotate default XZ grid to lie in XY plane (z = 0)
+const gridXY      = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
+gridXY.rotation.x = Math.PI / 2; // rotate default XZ grid to lie in XY plane (z = 0)
 gridXY.visible    = false;
 scene.add(gridXY);
-const gridXZ = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
-gridXZ.visible = false;             // default GridHelper already lies in XZ plane (y = 0)
+const gridXZ   = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
+gridXZ.visible = false; // default GridHelper already lies in XZ plane (y = 0)
 scene.add(gridXZ);
-const gridYZ = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
-gridYZ.rotation.z = Math.PI / 2;   // rotate default XZ grid to lie in YZ plane (x = 0)
+const gridYZ      = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
+gridYZ.rotation.z = Math.PI / 2; // rotate default XZ grid to lie in YZ plane (x = 0)
 gridYZ.visible    = false;
 scene.add(gridYZ);
 let showGrid = false;
@@ -74,15 +74,15 @@ let showNative    = true;
 let showImported  = true;
 
 // ── Axis-view state ───────────────────────────────────────────────────────────
-let activeAxis   = null;   // null | 'x' | 'y' | 'z'
-let axisPositive = true;   // true → positive direction, false → negative
+let activeAxis   = null; // null | 'x' | 'y' | 'z'
+let axisPositive = true; // true → positive direction, false → negative
 
 function updateAxisButtons() {
-  for (const [btn, axis] of [[btnViewX, 'x'], [btnViewY, 'y'], [btnViewZ, 'z']]) {
-    const isActive      = activeAxis === axis;
+  for (const [btn, axis] of [[ btnViewX, 'x' ], [ btnViewY, 'y' ], [ btnViewZ, 'z' ]]) {
+    const isActive = activeAxis === axis;
     btn.classList.toggle('active', isActive);
-    const prefix        = isActive ? (axisPositive ? '+' : '−') : '';
-    btn.textContent     = prefix + axis.toUpperCase();
+    const prefix    = isActive ? (axisPositive ? '+' : '−') : '';
+    btn.textContent = prefix + axis.toUpperCase();
   }
 }
 
@@ -95,11 +95,11 @@ function setAxisView(axis) {
   }
   updateAxisButtons();
 
-  const target        = controls.target.clone();
-  const activeCam     = useOrtho ? orthoCamera : camera;
-  const dist          = activeCam.position.distanceTo(target);
-  const sign          = axisPositive ? 1 : -1;
-  const pos           = target.clone();
+  const target    = controls.target.clone();
+  const activeCam = useOrtho ? orthoCamera : camera;
+  const dist      = activeCam.position.distanceTo(target);
+  const sign      = axisPositive ? 1 : -1;
+  const pos       = target.clone();
   let up;
   if (axis === 'x') {
     pos.x += sign * dist;
@@ -128,14 +128,14 @@ function toggleGrid() {
 // ── Projection toggle ─────────────────────────────────────────────────────────
 function syncOrthoFrustum() {
   // Derive the orthographic frustum size from the current perspective camera and target.
-  const target  = controls.target.clone();
-  const dist    = camera.position.distanceTo(target);
-  const fovRad  = camera.fov * Math.PI / 180;
-  const halfH   = Math.tan(fovRad / 2) * dist;
-  const aspect  = container.clientWidth / container.clientHeight;
+  const target       = controls.target.clone();
+  const dist         = camera.position.distanceTo(target);
+  const fovRad       = camera.fov * Math.PI / 180;
+  const halfH        = Math.tan(fovRad / 2) * dist;
+  const aspect       = container.clientWidth / container.clientHeight;
   orthoCamera.left   = -halfH * aspect;
-  orthoCamera.right  =  halfH * aspect;
-  orthoCamera.top    =  halfH;
+  orthoCamera.right  = halfH * aspect;
+  orthoCamera.top    = halfH;
   orthoCamera.bottom = -halfH;
   orthoCamera.updateProjectionMatrix();
 }
@@ -146,15 +146,15 @@ function toggleProjection() {
     syncOrthoFrustum();
     orthoCamera.position.copy(camera.position);
     orthoCamera.up.copy(camera.up);
-    useOrtho           = true;
-    controls.object    = orthoCamera;
+    useOrtho        = true;
+    controls.object = orthoCamera;
   } else {
     // Orthographic → perspective
     camera.position.copy(orthoCamera.position);
     camera.up.copy(orthoCamera.up);
-    useOrtho           = false;
-    controls.object    = camera;
-    camera.aspect      = container.clientWidth / container.clientHeight;
+    useOrtho        = false;
+    controls.object = camera;
+    camera.aspect   = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
   }
   controls.update();
@@ -286,8 +286,8 @@ function loadFixture(fixture) {
     box.getCenter(center);
     const size   = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 1e-3);
-    const newPos = center.clone().addScaledVector(new THREE.Vector3(1, 0.8, 1).normalize(),
-                                                  maxDim * 2.0);
+    const newPos =
+        center.clone().addScaledVector(new THREE.Vector3(1, 0.8, 1).normalize(), maxDim * 2.0);
     camera.position.copy(newPos);
     if (useOrtho) {
       orthoCamera.position.copy(newPos);
@@ -430,10 +430,10 @@ function onResize() {
   camera.updateProjectionMatrix();
   if (useOrtho) {
     // Preserve the vertical extent; only adjust horizontal to new aspect.
-    const aspect       = w / h;
-    const halfH        = orthoCamera.top;
-    orthoCamera.left   = -halfH * aspect;
-    orthoCamera.right  =  halfH * aspect;
+    const aspect      = w / h;
+    const halfH       = orthoCamera.top;
+    orthoCamera.left  = -halfH * aspect;
+    orthoCamera.right = halfH * aspect;
     orthoCamera.updateProjectionMatrix();
   }
   renderer.setSize(w, h);
