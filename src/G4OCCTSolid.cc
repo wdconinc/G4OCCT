@@ -227,7 +227,18 @@ G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
 void G4OCCTSolid::ComputeBounds() {
   if (fShape.IsNull()) {
     fCachedBounds = std::nullopt;
+    BRep_Builder builder;
+    builder.MakeCompound(fFaceCompound);
     return;
+  }
+
+  // Build a compound of all faces so that BRepExtrema_DistShapeShape queries
+  // against fFaceCompound return the surface distance even for interior points
+  // (a solid-wide query returns 0 for interior points).
+  BRep_Builder builder;
+  builder.MakeCompound(fFaceCompound);
+  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
+    builder.Add(fFaceCompound, ex.Current());
   }
 
   Bnd_Box boundingBox;
@@ -430,20 +441,17 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
     return 0.0;
   }
 
-  const TopoDS_Vertex vertex = MakeVertex(p);
-  G4double minDistance       = kInfinity;
-  for (TopExp_Explorer explorer(fShape, TopAbs_FACE); explorer.More(); explorer.Next()) {
-    BRepExtrema_DistShapeShape distance(vertex, explorer.Current());
-    if (!distance.IsDone() || distance.NbSolution() == 0) {
-      continue;
-    }
-
-    if (distance.Value() < minDistance) {
-      minDistance = distance.Value();
-    }
+  // Query the face compound (not the solid) so OCCT's internal bounding-box
+  // tree selects only candidate faces.  A solid-wide query returns distance
+  // zero for interior points because the solid contains the vertex; the face
+  // compound has no interior volume and gives the correct surface distance.
+  BRepExtrema_DistShapeShape distance(MakeVertex(p), fFaceCompound);
+  if (!distance.IsDone() || distance.NbSolution() == 0) {
+    return 0.0;
   }
 
-  return (minDistance < kInfinity) ? minDistance : 0.0;
+  const G4double d = distance.Value();
+  return (d <= IntersectionTolerance()) ? 0.0 : d;
 }
 
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
