@@ -156,9 +156,8 @@ int main(int argc, char* argv[]) {
 
   // When a specific fixture ID was requested, verify it exists in the manifest.
   if (!fixture_filter.empty()) {
-    const auto it = std::ranges::find_if(manifest.fixtures, [&](const auto& f) {
-      return f.id == fixture_filter;
-    });
+    const auto it = std::ranges::find_if(manifest.fixtures,
+                                         [&](const auto& f) { return f.id == fixture_filter; });
     if (it == manifest.fixtures.end()) {
       std::cerr << "FAIL: Fixture '" << fixture_filter << "' not found in manifest.\n";
       return EXIT_FAILURE;
