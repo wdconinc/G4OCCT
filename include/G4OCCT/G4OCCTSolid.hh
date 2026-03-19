@@ -128,16 +128,20 @@ public:
     fShapeGeneration.fetch_add(1, std::memory_order_release);
   }
 
+private:
   /// Per-face bounding box entry used to prefilter the closest-face search in
-  /// `SurfaceNormal`.  Exposed as a public nested type so that the internal
-  /// `TryFindClosestFace` helper (defined in the `.cc` anonymous namespace) can
-  /// accept a `const std::vector<FaceBounds>&` without requiring friendship.
+  /// `SurfaceNormal`.
   struct FaceBounds {
     TopoDS_Face face;
     Bnd_Box box;
   };
 
-private:
+  /// Result of the closest-face search.
+  struct ClosestFaceMatch {
+    TopoDS_Face face;
+    G4double distance{kInfinity};
+  };
+
   /// Axis-aligned bounding box: minimum and maximum corners.
   struct AxisAlignedBounds {
     G4ThreeVector min;
@@ -211,6 +215,14 @@ private:
   /// when the shape is null or has no geometry.  Called from the constructor and
   /// @c SetOCCTShape().
   void ComputeBounds();
+
+  /// Find the closest trimmed face to @p point using pre-computed per-face bounding
+  /// boxes as a lower-bound prefilter.  A face whose AABB distance from @p point
+  /// exceeds the current best candidate distance is skipped before the more expensive
+  /// BRepExtrema_DistShapeShape call is made.
+  static std::optional<ClosestFaceMatch>
+  TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
+                     const G4ThreeVector& point);
 };
 
 #endif // G4OCCT_G4OCCTSolid_hh
