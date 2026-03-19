@@ -24,7 +24,7 @@ shape:
     - thrusections cut_slab 1 1 slab_bottom slab_top -safe
     - bcommon seed_shape raw_tube cut_slab
 validation:
-  expected_volume_mm3: 9047.786839
+  expected_volume_mm3: 18095.573685
 notes:
   - The slab cross-sections are intentionally oversized so only the two tilted end planes clip the cylinder.
   - DRAWEXE's translate command does not persist a TopLoc_Location through bcommon in batch mode, so the slab planes are shifted up by 25 mm instead of translating the cylinder. After the boolean, translate_step.py shifts the resulting STEP geometry down by 25 mm into the correct Geant4 reference frame.

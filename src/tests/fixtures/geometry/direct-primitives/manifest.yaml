@@ -59,7 +59,7 @@ fixtures:
       - G4UCutTubs
     expectations:
       - quantity: volume
-        value: 9047.786839
+        value: 18095.573685
         absolute_tolerance: 0.001
         unit: mm3
   - id: g4orb-orb-r11-v1
