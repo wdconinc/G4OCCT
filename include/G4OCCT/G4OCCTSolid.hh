@@ -258,8 +258,8 @@ private:
   /// each shape update; keyed by `fShapeGeneration`.
   struct SurfaceSamplingCache {
     std::vector<SurfaceTriangle> triangles;
-    std::vector<G4double>        cumulativeAreas;
-    G4double                     totalArea{0.0};
+    std::vector<G4double> cumulativeAreas;
+    G4double totalArea{0.0};
   };
 
   TopoDS_Shape fShape;
