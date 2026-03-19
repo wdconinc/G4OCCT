@@ -110,6 +110,15 @@ public:
   /// For the exact shortest distance, use ExactDistanceToOut(p).
   G4double DistanceToOut(const G4ThreeVector& p) const override;
 
+  /// Return a point sampled uniformly at random on the surface of the solid.
+  ///
+  /// The surface is first tessellated and each mesh triangle is selected with
+  /// probability proportional to its area.  A random point within the chosen
+  /// triangle is then generated using standard barycentric-coordinate
+  /// sampling.  Returns the origin if the shape is null or produces no valid
+  /// triangulation.
+  G4ThreeVector GetPointOnSurface() const override;
+
   // ── G4OCCTSolid distance functions ────────────────────────────────────────
 
   /// Exact shortest distance from external point @p p to the solid surface.

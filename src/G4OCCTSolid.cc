@@ -45,6 +45,7 @@
 #include <G4TriangularFacet.hh>
 #include <G4VGraphicsScene.hh>
 #include <G4VisExtent.hh>
+#include <Randomize.hh>
 
 #include <algorithm>
 #include <cmath>
@@ -59,6 +60,12 @@ namespace {
 constexpr G4double kFallbackExtentMin = -1.0;
 /// Fall-back maximum extent coordinate used when the shape is null or void.
 constexpr G4double kFallbackExtentMax = 1.0;
+
+/// Relative linear deflection used when tessellating the OCCT shape for
+/// visualisation (`CreatePolyhedron`) and surface-point sampling
+/// (`GetPointOnSurface`).  A value of 0.01 requests a chord height of at
+/// most 1 % of each face's bounding-box size.
+constexpr Standard_Real kRelativeDeflection = 0.01;
 
 /// Convert a Geant4 three-vector to an OCCT point.
 gp_Pnt ToPoint(const G4ThreeVector& point) { return gp_Pnt(point.x(), point.y(), point.z()); }
@@ -523,6 +530,88 @@ G4double G4OCCTSolid::GetSurfaceArea() {
   return *fCachedSurfaceArea;
 }
 
+G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
+  if (fShape.IsNull()) {
+    return G4ThreeVector(0.0, 0.0, 0.0);
+  }
+
+  // Tessellate the shape.  BRepMesh_IncrementalMesh is idempotent: if the
+  // shape already has a triangulation attached this is effectively a no-op.
+  BRepMesh_IncrementalMesh mesher(fShape, kRelativeDeflection, /*isRelative=*/Standard_True);
+  (void)mesher;
+
+  // Collect all surface triangles together with a running cumulative-area
+  // array so that we can do an area-weighted selection in O(log N).
+  struct Triangle {
+    G4ThreeVector p1, p2, p3;
+  };
+
+  std::vector<Triangle> triangles;
+  std::vector<G4double> cumulativeAreas;
+  G4double totalArea = 0.0;
+
+  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
+    const TopoDS_Face& face = TopoDS::Face(ex.Current());
+    TopLoc_Location loc;
+    const Handle(Poly_Triangulation)& triangulation = BRep_Tool::Triangulation(face, loc);
+    if (triangulation.IsNull()) {
+      continue;
+    }
+
+    const gp_Trsf& transform  = loc.Transformation();
+    const bool reverseWinding = face.Orientation() == TopAbs_REVERSED;
+
+    for (Standard_Integer i = 1; i <= triangulation->NbTriangles(); ++i) {
+      Standard_Integer idx1 = 0;
+      Standard_Integer idx2 = 0;
+      Standard_Integer idx3 = 0;
+      triangulation->Triangle(i).Get(idx1, idx2, idx3);
+      if (reverseWinding) {
+        std::swap(idx2, idx3);
+      }
+
+      const gp_Pnt q1 = triangulation->Node(idx1).Transformed(transform);
+      const gp_Pnt q2 = triangulation->Node(idx2).Transformed(transform);
+      const gp_Pnt q3 = triangulation->Node(idx3).Transformed(transform);
+
+      const G4ThreeVector v1(q1.X(), q1.Y(), q1.Z());
+      const G4ThreeVector v2(q2.X(), q2.Y(), q2.Z());
+      const G4ThreeVector v3(q3.X(), q3.Y(), q3.Z());
+
+      const G4double area = 0.5 * (v2 - v1).cross(v3 - v1).mag();
+      if (area > 0.0) {
+        totalArea += area;
+        cumulativeAreas.push_back(totalArea);
+        triangles.push_back({v1, v2, v3});
+      }
+    }
+  }
+
+  if (triangles.empty() || totalArea == 0.0) {
+    return G4ThreeVector(0.0, 0.0, 0.0);
+  }
+
+  // Select a triangle with probability proportional to its area using a
+  // binary search on the cumulative-area array.
+  const G4double target = G4UniformRand() * totalArea;
+  const auto it = std::lower_bound(cumulativeAreas.begin(), cumulativeAreas.end(), target);
+  const std::size_t idx =
+      std::min(static_cast<std::size_t>(it - cumulativeAreas.begin()), triangles.size() - 1);
+  const Triangle& chosen = triangles[idx];
+
+  // Sample uniformly within the chosen triangle using the standard
+  // barycentric-coordinate technique: fold the unit square into a triangle
+  // by reflecting points with r1+r2 > 1.
+  G4double r1 = G4UniformRand();
+  G4double r2 = G4UniformRand();
+  if (r1 + r2 > 1.0) {
+    r1 = 1.0 - r1;
+    r2 = 1.0 - r2;
+  }
+
+  return chosen.p1 + r1 * (chosen.p2 - chosen.p1) + r2 * (chosen.p3 - chosen.p1);
+}
+
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 
 G4VisExtent G4OCCTSolid::GetExtent() const {
@@ -588,7 +677,6 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
   // the mesh density scales with the shape rather than being a fixed world-
   // space length that is inappropriate for both very small and very large
   // shapes.
-  constexpr Standard_Real kRelativeDeflection = 0.01;
   BRepMesh_IncrementalMesh mesher(fShape, kRelativeDeflection, /*isRelative=*/Standard_True);
   (void)mesher;
 
