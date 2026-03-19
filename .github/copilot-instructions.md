@@ -27,7 +27,7 @@ Every new file must begin with:
 ```
 
 ### Build Requirements
-- C++17, CMake ≥ 3.16
+- C++20, CMake ≥ 3.16
 - Geant4 ≥ 11.3 (`find_package(Geant4 11.3 REQUIRED)`)
 - OpenCASCADE ≥ 7.8 (`find_package(OpenCASCADE 7.8 REQUIRED ...)`)
 
@@ -60,7 +60,7 @@ Install pre-commit hooks:
 ```bash
 pip install pre-commit && pre-commit install
 ```
-- `.clang-format`: LLVM style, `Standard: c++17`, 100-col limit
+- `.clang-format`: LLVM style, `Standard: c++20`, 100-col limit
 - `.clang-tidy`: `bugprone-*`, `modernize-*`, `readability-*`
 - `.codespellrc` / `.codespell-ignore`: spell checking
 - `.github/cmake-lint.py`: cmake-lint settings
