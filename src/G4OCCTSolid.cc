@@ -17,9 +17,11 @@
 #include <Bnd_Box.hxx>
 #include <GeomAPI_ProjectPointOnSurf.hxx>
 #include <Geom_Surface.hxx>
+#include <IFSelect_ReturnStatus.hxx>
 #include <IntCurvesFace_ShapeIntersector.hxx>
 #include <Poly_Triangulation.hxx>
 #include <Precision.hxx>
+#include <STEPControl_Reader.hxx>
 #include <TopAbs_Orientation.hxx>
 #include <TopAbs_ShapeEnum.hxx>
 #include <TopAbs_State.hxx>
@@ -45,6 +47,8 @@
 #include <algorithm>
 #include <cmath>
 #include <optional>
+#include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace {
@@ -175,6 +179,23 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
     : G4VSolid(name), fShape(shape) {
   ComputeBounds();
+}
+
+// ── G4OCCTSolid static factory ────────────────────────────────────────────────
+
+G4OCCTSolid* G4OCCTSolid::FromSTEP(const G4String& name, const std::string& path) {
+  STEPControl_Reader reader;
+  if (reader.ReadFile(path.c_str()) != IFSelect_RetDone) {
+    throw std::runtime_error("G4OCCTSolid::FromSTEP: failed to read STEP file: " + path);
+  }
+  if (reader.TransferRoots() <= 0) {
+    throw std::runtime_error("G4OCCTSolid::FromSTEP: no roots transferred from: " + path);
+  }
+  TopoDS_Shape shape = reader.OneShape();
+  if (shape.IsNull()) {
+    throw std::runtime_error("G4OCCTSolid::FromSTEP: null shape loaded from: " + path);
+  }
+  return new G4OCCTSolid(name, shape);
 }
 
 // ── G4OCCTSolid private helpers ───────────────────────────────────────────────

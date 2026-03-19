@@ -45,33 +45,7 @@
 #include "G4SystemOfUnits.hh"
 #include "G4VisAttributes.hh"
 
-#include <IFSelect_ReturnStatus.hxx>
-#include <STEPControl_Reader.hxx>
-#include <TopoDS_Shape.hxx>
-
-#include <stdexcept>
 #include <string>
-
-namespace {
-
-/// Load the first shape from a STEP file at @p path.
-/// Throws std::runtime_error on failure.
-TopoDS_Shape LoadStepFile(const std::string& path) {
-  STEPControl_Reader reader;
-  if (reader.ReadFile(path.c_str()) != IFSelect_RetDone) {
-    throw std::runtime_error("Failed to read STEP file: " + path);
-  }
-  if (reader.TransferRoots() <= 0) {
-    throw std::runtime_error("No STEP roots transferred from: " + path);
-  }
-  TopoDS_Shape shape = reader.OneShape();
-  if (shape.IsNull()) {
-    throw std::runtime_error("Null shape loaded from STEP file: " + path);
-  }
-  return shape;
-}
-
-} // namespace
 
 namespace B4c {
 
@@ -192,59 +166,47 @@ G4VPhysicalVolume* DetectorConstruction::DefineVolumes() {
                   layerThickness); // witdth of replica
 
   //
-  // Absorber — loaded from STEP file via G4OCCTSolid
+  // Absorber — loaded from STEP file via G4OCCTSolid::FromSTEP
   //
-  // The STEP box runs from (0,0,0) to (100,100,10) mm.  The absorber is
-  // placed with an offset so that it occupies the same region as the
-  // original G4Box("Abso", calorSizeXY/2, calorSizeXY/2, absoThickness/2):
-  //   x: [-calorSizeXY/2, +calorSizeXY/2]
-  //   y: [-calorSizeXY/2, +calorSizeXY/2]
-  //   z (layer-local): [-layerThickness/2, -layerThickness/2 + absoThickness]
+  // The STEP box is centered at the origin and spans
+  // ±calorSizeXY/2 in x and y, ±absoThickness/2 in z.
   //
   const std::string stepDir = G4OCCT_B4C_STEP_DIR;
-  TopoDS_Shape absoShape    = LoadStepFile(stepDir + "/absorber.step");
-  auto* absorberS           = new G4OCCTSolid("Abso", absoShape);
+  auto* absorberS = G4OCCTSolid::FromSTEP("Abso", stepDir + "/absorber.step");
 
   auto absorberLV = new G4LogicalVolume(absorberS,        // its solid
                                         absorberMaterial, // its material
                                         "AbsoLV");        // its name
 
-  new G4PVPlacement(nullptr, // no rotation
-                    G4ThreeVector(-calorSizeXY / 2, -calorSizeXY / 2,
-                                  -layerThickness / 2), // its position
-                    absorberLV,                         // its logical volume
-                    "Abso",                             // its name
-                    layerLV,                            // its mother  volume
-                    false,                              // no boolean operation
-                    0,                                  // copy number
-                    fCheckOverlaps);                    // checking overlaps
+  new G4PVPlacement(nullptr,                              // no rotation
+                    G4ThreeVector(0., 0., -gapThickness / 2),  // its position
+                    absorberLV,                           // its logical volume
+                    "Abso",                               // its name
+                    layerLV,                              // its mother  volume
+                    false,                                // no boolean operation
+                    0,                                    // copy number
+                    fCheckOverlaps);                      // checking overlaps
 
   //
-  // Gap — loaded from STEP file via G4OCCTSolid
+  // Gap — loaded from STEP file via G4OCCTSolid::FromSTEP
   //
-  // The STEP box runs from (0,0,0) to (100,100,5) mm.  The gap is placed
-  // with an offset so that it occupies the same region as the original
-  // G4Box("Gap", calorSizeXY/2, calorSizeXY/2, gapThickness/2):
-  //   x: [-calorSizeXY/2, +calorSizeXY/2]
-  //   y: [-calorSizeXY/2, +calorSizeXY/2]
-  //   z (layer-local): [absoThickness - layerThickness/2, +layerThickness/2]
+  // The STEP box is centered at the origin and spans
+  // ±calorSizeXY/2 in x and y, ±gapThickness/2 in z.
   //
-  TopoDS_Shape gapShape = LoadStepFile(stepDir + "/gap.step");
-  auto* gapS            = new G4OCCTSolid("Gap", gapShape);
+  auto* gapS = G4OCCTSolid::FromSTEP("Gap", stepDir + "/gap.step");
 
   auto gapLV = new G4LogicalVolume(gapS,        // its solid
                                    gapMaterial, // its material
                                    "GapLV");    // its name
 
-  new G4PVPlacement(nullptr, // no rotation
-                    G4ThreeVector(-calorSizeXY / 2, -calorSizeXY / 2,
-                                  absoThickness - layerThickness / 2), // its position
-                    gapLV,                                             // its logical volume
-                    "Gap",                                             // its name
-                    layerLV,                                           // its mother  volume
-                    false,                                             // no boolean operation
-                    0,                                                 // copy number
-                    fCheckOverlaps);                                   // checking overlaps
+  new G4PVPlacement(nullptr,                             // no rotation
+                    G4ThreeVector(0., 0., absoThickness / 2),  // its position
+                    gapLV,                               // its logical volume
+                    "Gap",                               // its name
+                    layerLV,                             // its mother  volume
+                    false,                               // no boolean operation
+                    0,                                   // copy number
+                    fCheckOverlaps);                     // checking overlaps
 
   //
   // print parameters
