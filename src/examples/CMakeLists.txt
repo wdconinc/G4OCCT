@@ -4,3 +4,4 @@
 # cmake-format: on
 
 add_subdirectory(B1)
+add_subdirectory(B4c)
