@@ -72,3 +72,11 @@ html, body {
   position: absolute; bottom: 10px; left: 12px;
   font-size: 0.75rem; color: #556; pointer-events: none;
 }
+.view-row { display: flex; gap: 6px; margin-bottom: 12px; }
+.view-btn {
+  flex: 1; padding: 5px 0; border: 1px solid #334; border-radius: 4px;
+  cursor: pointer; font-size: 0.78rem; font-weight: 600;
+  background: #1a2a4a; color: #888;
+}
+.view-btn:hover { background: #1e3a6a; color: #ccc; }
+.view-btn.active { background: #1a4a2a; color: #4ade80; border-color: #2a7a4a; }
