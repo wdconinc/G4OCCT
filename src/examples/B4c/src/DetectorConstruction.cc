@@ -172,20 +172,20 @@ G4VPhysicalVolume* DetectorConstruction::DefineVolumes() {
   // ±calorSizeXY/2 in x and y, ±absoThickness/2 in z.
   //
   const std::string stepDir = G4OCCT_B4C_STEP_DIR;
-  auto* absorberS = G4OCCTSolid::FromSTEP("Abso", stepDir + "/absorber.step");
+  auto* absorberS           = G4OCCTSolid::FromSTEP("Abso", stepDir + "/absorber.step");
 
   auto absorberLV = new G4LogicalVolume(absorberS,        // its solid
                                         absorberMaterial, // its material
                                         "AbsoLV");        // its name
 
-  new G4PVPlacement(nullptr,                              // no rotation
-                    G4ThreeVector(0., 0., -gapThickness / 2),  // its position
-                    absorberLV,                           // its logical volume
-                    "Abso",                               // its name
-                    layerLV,                              // its mother  volume
-                    false,                                // no boolean operation
-                    0,                                    // copy number
-                    fCheckOverlaps);                      // checking overlaps
+  new G4PVPlacement(nullptr,                                  // no rotation
+                    G4ThreeVector(0., 0., -gapThickness / 2), // its position
+                    absorberLV,                               // its logical volume
+                    "Abso",                                   // its name
+                    layerLV,                                  // its mother  volume
+                    false,                                    // no boolean operation
+                    0,                                        // copy number
+                    fCheckOverlaps);                          // checking overlaps
 
   //
   // Gap — loaded from STEP file via G4OCCTSolid::FromSTEP
@@ -199,14 +199,14 @@ G4VPhysicalVolume* DetectorConstruction::DefineVolumes() {
                                    gapMaterial, // its material
                                    "GapLV");    // its name
 
-  new G4PVPlacement(nullptr,                             // no rotation
-                    G4ThreeVector(0., 0., absoThickness / 2),  // its position
-                    gapLV,                               // its logical volume
-                    "Gap",                               // its name
-                    layerLV,                             // its mother  volume
-                    false,                               // no boolean operation
-                    0,                                   // copy number
-                    fCheckOverlaps);                     // checking overlaps
+  new G4PVPlacement(nullptr,                                  // no rotation
+                    G4ThreeVector(0., 0., absoThickness / 2), // its position
+                    gapLV,                                    // its logical volume
+                    "Gap",                                    // its name
+                    layerLV,                                  // its mother  volume
+                    false,                                    // no boolean operation
+                    0,                                        // copy number
+                    fCheckOverlaps);                          // checking overlaps
 
   //
   // print parameters
