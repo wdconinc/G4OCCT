@@ -591,7 +591,7 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
   {
     const std::lock_guard<std::mutex> lock(fPolyhedronMutex);
     if (!fCachedPolyhedron || fPolyhedronGeneration != currentGeneration) {
-      fCachedPolyhedron    = std::make_unique<G4Polyhedron>(*polyhedron);
+      fCachedPolyhedron     = std::make_unique<G4Polyhedron>(*polyhedron);
       fPolyhedronGeneration = currentGeneration;
     }
     return new G4Polyhedron(*fCachedPolyhedron);
