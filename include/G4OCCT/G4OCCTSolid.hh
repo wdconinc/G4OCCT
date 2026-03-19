@@ -221,8 +221,7 @@ private:
   /// exceeds the current best candidate distance is skipped before the more expensive
   /// BRepExtrema_DistShapeShape call is made.
   static std::optional<ClosestFaceMatch>
-  TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
-                     const G4ThreeVector& point);
+  TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache, const G4ThreeVector& point);
 };
 
 #endif // G4OCCT_G4OCCTSolid_hh

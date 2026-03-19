@@ -222,7 +222,7 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
   }
 
   const gp_Pnt queryPoint         = ToPoint(point);
-  const TopoDS_Vertex queryVertex  = MakeVertex(point);
+  const TopoDS_Vertex queryVertex = MakeVertex(point);
 
   // Build the point box once — it is constant for the entire loop.
   Bnd_Box queryBox;
