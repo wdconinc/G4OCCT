@@ -154,3 +154,61 @@ TEST(SolidBasicAPI, VolumeAreaCacheInvalidatedBySetOCCTShape) {
   const G4double vol2 = solid.GetCubicVolume();
   EXPECT_NEAR(vol2, 8000.0, 1.0e-6);
 }
+
+TEST(SolidBasicAPI, GetPointOnSurfaceBox) {
+  // A 20×20×20 axis-aligned box centred at the origin.
+  TopoDS_Shape box =
+      BRepPrimAPI_MakeBox(gp_Pnt(-10.0, -10.0, -10.0), gp_Pnt(10.0, 10.0, 10.0)).Shape();
+  G4OCCTSolid solid("GetPointOnSurfaceBox", box);
+
+  // Sample a number of points and verify each lies on (or very close to) the
+  // surface.  A point is on the surface when exactly one coordinate equals
+  // ±10 and the other two are within [-10, 10].
+  constexpr int kSamples   = 100;
+  constexpr G4double kHalf = 10.0;
+  constexpr G4double kTol  = 1.0e-6;
+
+  for (int i = 0; i < kSamples; ++i) {
+    const G4ThreeVector pt = solid.GetPointOnSurface();
+
+    // Each coordinate must be within the box bounds (with tolerance).
+    EXPECT_GE(pt.x(), -kHalf - kTol) << "x below lower bound at sample " << i;
+    EXPECT_LE(pt.x(), kHalf + kTol) << "x above upper bound at sample " << i;
+    EXPECT_GE(pt.y(), -kHalf - kTol) << "y below lower bound at sample " << i;
+    EXPECT_LE(pt.y(), kHalf + kTol) << "y above upper bound at sample " << i;
+    EXPECT_GE(pt.z(), -kHalf - kTol) << "z below lower bound at sample " << i;
+    EXPECT_LE(pt.z(), kHalf + kTol) << "z above upper bound at sample " << i;
+
+    // The point must lie on a face: at least one coordinate must be at ±kHalf.
+    const bool onFace = std::abs(std::abs(pt.x()) - kHalf) <= kTol ||
+                        std::abs(std::abs(pt.y()) - kHalf) <= kTol ||
+                        std::abs(std::abs(pt.z()) - kHalf) <= kTol;
+    EXPECT_TRUE(onFace) << "Point " << pt << " is not on a box face at sample " << i;
+
+    // Independently confirm with Inside(): the solid must classify the
+    // returned point as kSurface or kInside (never strictly kOutside).
+    const EInside inside = solid.Inside(pt);
+    EXPECT_NE(inside, kOutside) << "GetPointOnSurface returned exterior point at sample " << i;
+  }
+}
+
+TEST(SolidBasicAPI, GetPointOnSurfaceSphere) {
+  // A sphere of radius 50.
+  constexpr G4double kRadius = 50.0;
+  TopoDS_Shape sphere        = BRepPrimAPI_MakeSphere(kRadius).Shape();
+  G4OCCTSolid solid("GetPointOnSurfaceSphere", sphere);
+
+  constexpr int kSamples = 100;
+  // With a 1% relative deflection, the chord height (distance from a triangle
+  // midpoint to the true curved surface) is bounded by the absolute deflection,
+  // which for a sphere of radius 50 is at most ~1% of the face bounding-box
+  // diagonal (~173 units), giving roughly 1.7 mm.  A tolerance of 2.0 is a
+  // conservative upper bound to account for different tessellation algorithms.
+  constexpr G4double kTol = 2.0;
+
+  for (int i = 0; i < kSamples; ++i) {
+    const G4ThreeVector pt = solid.GetPointOnSurface();
+    const G4double r       = pt.mag();
+    EXPECT_NEAR(r, kRadius, kTol) << "Point radius deviates from sphere radius at sample " << i;
+  }
+}

@@ -39,12 +39,14 @@
 
 #include <G4BoundingEnvelope.hh>
 #include <G4AffineTransform.hh>
+#include <G4Exception.hh>
 #include <G4GeometryTolerance.hh>
 #include <G4Polyhedron.hh>
 #include <G4TessellatedSolid.hh>
 #include <G4TriangularFacet.hh>
 #include <G4VGraphicsScene.hh>
 #include <G4VisExtent.hh>
+#include <Randomize.hh>
 
 #include <algorithm>
 #include <cmath>
@@ -59,6 +61,12 @@ namespace {
 constexpr G4double kFallbackExtentMin = -1.0;
 /// Fall-back maximum extent coordinate used when the shape is null or void.
 constexpr G4double kFallbackExtentMax = 1.0;
+
+/// Relative linear deflection used when tessellating the OCCT shape for
+/// visualisation (`CreatePolyhedron`) and surface-point sampling
+/// (`GetPointOnSurface`).  A value of 0.01 requests a chord height of at
+/// most 1 % of each face's bounding-box size.
+constexpr Standard_Real kRelativeDeflection = 0.01;
 
 /// Convert a Geant4 three-vector to an OCCT point.
 gp_Pnt ToPoint(const G4ThreeVector& point) { return gp_Pnt(point.x(), point.y(), point.z()); }
@@ -523,6 +531,107 @@ G4double G4OCCTSolid::GetSurfaceArea() {
   return *fCachedSurfaceArea;
 }
 
+const G4OCCTSolid::SurfaceSamplingCache& G4OCCTSolid::GetOrBuildSurfaceCache() const {
+  // Tessellate first, outside the lock: BRepMesh_IncrementalMesh is idempotent
+  // and calling it from multiple threads simultaneously is safe (extra calls
+  // after the first are no-ops).
+  BRepMesh_IncrementalMesh mesher(fShape, kRelativeDeflection, /*isRelative=*/Standard_True);
+  (void)mesher;
+
+  std::unique_lock<std::mutex> lock(fSurfaceCacheMutex);
+
+  const std::uint64_t currentGen = fShapeGeneration.load(std::memory_order_acquire);
+  if (fSurfaceCache.has_value() && fSurfaceCacheGeneration == currentGen) {
+    return *fSurfaceCache;
+  }
+
+  // Build the cache while holding the lock.  Collecting triangle vertices and
+  // computing areas is fast (just reading the already-computed triangulation)
+  // so blocking other threads briefly is acceptable.
+  SurfaceSamplingCache cache;
+
+  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
+    const TopoDS_Face& face = TopoDS::Face(ex.Current());
+    TopLoc_Location loc;
+    const Handle(Poly_Triangulation) & triangulation = BRep_Tool::Triangulation(face, loc);
+    if (triangulation.IsNull()) {
+      continue;
+    }
+
+    const gp_Trsf& transform  = loc.Transformation();
+    const bool reverseWinding = face.Orientation() == TopAbs_REVERSED;
+
+    for (Standard_Integer i = 1; i <= triangulation->NbTriangles(); ++i) {
+      Standard_Integer idx1 = 0;
+      Standard_Integer idx2 = 0;
+      Standard_Integer idx3 = 0;
+      triangulation->Triangle(i).Get(idx1, idx2, idx3);
+      if (reverseWinding) {
+        std::swap(idx2, idx3);
+      }
+
+      const gp_Pnt q1 = triangulation->Node(idx1).Transformed(transform);
+      const gp_Pnt q2 = triangulation->Node(idx2).Transformed(transform);
+      const gp_Pnt q3 = triangulation->Node(idx3).Transformed(transform);
+
+      const G4ThreeVector v1(q1.X(), q1.Y(), q1.Z());
+      const G4ThreeVector v2(q2.X(), q2.Y(), q2.Z());
+      const G4ThreeVector v3(q3.X(), q3.Y(), q3.Z());
+
+      const G4double area = 0.5 * (v2 - v1).cross(v3 - v1).mag();
+      if (area > 0.0) {
+        cache.totalArea += area;
+        cache.cumulativeAreas.push_back(cache.totalArea);
+        cache.triangles.push_back({v1, v2, v3});
+      }
+    }
+  }
+
+  fSurfaceCache           = std::move(cache);
+  fSurfaceCacheGeneration = currentGen;
+  return *fSurfaceCache;
+}
+
+G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
+  if (fShape.IsNull()) {
+    G4ExceptionDescription msg;
+    msg << "Shape is null for solid \"" << GetName() << "\".  Returning origin.";
+    G4Exception("G4OCCTSolid::GetPointOnSurface", "GeomMgt1001", JustWarning, msg);
+    return G4ThreeVector(0.0, 0.0, 0.0);
+  }
+
+  const SurfaceSamplingCache& cache = GetOrBuildSurfaceCache();
+
+  if (cache.triangles.empty() || cache.totalArea == 0.0) {
+    G4ExceptionDescription msg;
+    msg << "Tessellation of solid \"" << GetName()
+        << "\" produced no valid triangles.  Returning origin.";
+    G4Exception("G4OCCTSolid::GetPointOnSurface", "GeomMgt1001", JustWarning, msg);
+    return G4ThreeVector(0.0, 0.0, 0.0);
+  }
+
+  // Select a triangle with probability proportional to its area using a
+  // binary search on the cumulative-area array.
+  const G4double target = G4UniformRand() * cache.totalArea;
+  const auto it =
+      std::lower_bound(cache.cumulativeAreas.begin(), cache.cumulativeAreas.end(), target);
+  const std::size_t idx = std::min(static_cast<std::size_t>(it - cache.cumulativeAreas.begin()),
+                                   cache.triangles.size() - 1);
+  const SurfaceTriangle& chosen = cache.triangles[idx];
+
+  // Sample uniformly within the chosen triangle using the standard
+  // barycentric-coordinate technique: fold the unit square into a triangle
+  // by reflecting points with r1+r2 > 1.
+  G4double r1 = G4UniformRand();
+  G4double r2 = G4UniformRand();
+  if (r1 + r2 > 1.0) {
+    r1 = 1.0 - r1;
+    r2 = 1.0 - r2;
+  }
+
+  return chosen.p1 + r1 * (chosen.p2 - chosen.p1) + r2 * (chosen.p3 - chosen.p1);
+}
+
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 
 G4VisExtent G4OCCTSolid::GetExtent() const {
@@ -588,7 +697,6 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
   // the mesh density scales with the shape rather than being a fixed world-
   // space length that is inappropriate for both very small and very large
   // shapes.
-  constexpr Standard_Real kRelativeDeflection = 0.01;
   BRepMesh_IncrementalMesh mesher(fShape, kRelativeDeflection, /*isRelative=*/Standard_True);
   (void)mesher;
 
