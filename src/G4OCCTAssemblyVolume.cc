@@ -35,7 +35,6 @@
 #include <G4RotationMatrix.hh>
 #include <G4ThreeVector.hh>
 
-#include <cstdlib>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -174,8 +173,10 @@ struct G4OCCTAssemblyVolume::BuildContext {
   /// User-supplied material map.
   const G4OCCTMaterialMap& materialMap;
 
-  /// Prototype map: XDE label entry string → logical volume (for instance sharing).
-  std::map<std::string, G4OCCTLogicalVolume*> prototypeMap;
+  /// Prototype map: XDE label entry string → (logical volume, centroid in original shape frame).
+  /// The centroid is stored alongside the logical volume so that repeated instances can compose
+  /// the correct recentering offset without recomputing the bounding box.
+  std::map<std::string, std::pair<G4OCCTLogicalVolume*, gp_Vec>> prototypeMap;
   /// Names already used by logical volumes; used to disambiguate duplicates.
   std::map<G4String, int> usedNames;
   /// Flat collection of all created logical volumes (output to caller).
@@ -223,9 +224,13 @@ void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume*
 
     G4OCCTLogicalVolume* lv = nullptr;
     auto protoIt             = ctx.prototypeMap.find(labelKey);
+    gp_Vec centroid;
+
     if (protoIt != ctx.prototypeMap.end()) {
       // Reuse the existing logical volume — instance sharing.
-      lv = protoIt->second;
+      // Retrieve the cached centroid to avoid recomputing the bounding box.
+      lv       = protoIt->second.first;
+      centroid = protoIt->second.second;
     } else {
       // First encounter: build solid + logical volume.
       TopoDS_Shape rawShape = shapeTool->GetShape(label);
@@ -261,45 +266,27 @@ void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume*
       // Recenter the shape per docs/reference_position.md Strategy C.
       // The centroid vector records the old centroid position in the original
       // shape frame; it is composed into the placement below.
-      gp_Vec centroid;
       TopoDS_Shape centeredShape = RecenterShape(rawShape, centroid);
 
       auto* solid = new G4OCCTSolid(uniqueName + "_solid", centeredShape);
       lv          = new G4OCCTLogicalVolume(solid, material, uniqueName, centeredShape);
 
-      ctx.prototypeMap.emplace(labelKey, lv);
+      // Cache: store both the logical volume and its centroid so that repeated
+      // instances can reuse the centroid without recomputing the bounding box.
+      ctx.prototypeMap.emplace(labelKey, std::make_pair(lv, centroid));
       if (ctx.logicalVolumes) {
         (*ctx.logicalVolumes)[uniqueName] = lv;
       }
-
-      // Absorb the recentering offset into composedTrsf so that the solid's
-      // local origin (now the centroid) is placed at the correct world position.
-      //
-      // After recentering, a point at the solid's local origin corresponds to
-      // the centroid in the original frame.  The effective placement transform
-      // must first shift by `centroid` (from recentered → original local frame)
-      // and then apply `composedTrsf` (original local → world):
-      //   T_eff = composedTrsf * Translate(centroid)
-      gp_Trsf recenterComp;
-      recenterComp.SetTranslation(centroid);
-      const gp_Trsf effectiveTrsf = composedTrsf.Multiplied(recenterComp);
-
-      auto [rot, trans] = TrsfToG4(effectiveTrsf);
-      parentAssembly->AddPlacedVolume(lv, trans, new G4RotationMatrix(rot));
-      return;
     }
 
-    // Instance reuse path: the centroid offset was already folded into the
-    // prototype's first placement.  For repeated instances, apply composedTrsf
-    // directly — the centroid offset is the same shape-relative quantity and
-    // the caller already composed the correct world placement for this instance.
+    // Absorb the recentering offset into composedTrsf so that the solid's
+    // local origin (now the centroid) is placed at the correct world position.
     //
-    // Retrieve the centroid offset from the shape (computed via bounding box).
-    // This re-computation is cheap because the BRep is shared with the prototype.
-    TopoDS_Shape protoShape = shapeTool->GetShape(label);
-    gp_Vec centroid;
-    RecenterShape(protoShape, centroid); // only need the centroid, discard result
-
+    // After recentering, a point at the solid's local origin corresponds to
+    // the centroid in the original frame.  The effective placement transform
+    // must first shift by `centroid` (from recentered → original local frame)
+    // and then apply `composedTrsf` (original local → world):
+    //   T_eff = composedTrsf * Translate(centroid)
     gp_Trsf recenterComp;
     recenterComp.SetTranslation(centroid);
     const gp_Trsf effectiveTrsf = composedTrsf.Multiplied(recenterComp);

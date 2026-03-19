@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdio>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 
@@ -83,7 +84,8 @@ std::string BuildSingleBoxSTEP(const std::string& tmpPath, const std::string& pa
 
 TEST(AssemblyVolume, FromSTEPSingleBox) {
   // Build a 20×30×40 mm box STEP file with a single shape.
-  const std::string tmpPath = "/tmp/test_assembly_single_box.step";
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_single_box.step").string();
   BuildSingleBoxSTEP(tmpPath, "Box", "Aluminium", 20.0, 30.0, 40.0);
 
   G4Material* al = G4NistManager::Instance()->FindOrBuildMaterial("G4_Al");
@@ -115,7 +117,8 @@ TEST(AssemblyVolume, FromSTEPInvalidPath) {
 }
 
 TEST(AssemblyVolume, MaterialMapLookupFails) {
-  const std::string tmpPath = "/tmp/test_assembly_mat_fail.step";
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_mat_fail.step").string();
   BuildSingleBoxSTEP(tmpPath, "PartA", "UnknownMaterial", 10.0, 10.0, 10.0);
 
   // Empty material map — resolve should fire a G4Exception (FatalException).
