@@ -604,11 +604,10 @@ G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
     // tessellation was running.  Re-reading the generation under the mutex
     // ensures the check and the write are atomic with respect to SetOCCTShape().
     bool cacheWritten = false;
-    if (freshPolyhedron &&
-        fShapeGeneration.load(std::memory_order_acquire) == currentGeneration) {
-      fCachedPolyhedron    = std::make_unique<G4Polyhedron>(*freshPolyhedron);
+    if (freshPolyhedron && fShapeGeneration.load(std::memory_order_acquire) == currentGeneration) {
+      fCachedPolyhedron     = std::make_unique<G4Polyhedron>(*freshPolyhedron);
       fPolyhedronGeneration = currentGeneration;
-      cacheWritten = true;
+      cacheWritten          = true;
     }
 
     // Clear the build slot *after* the cache write so that threads woken by
