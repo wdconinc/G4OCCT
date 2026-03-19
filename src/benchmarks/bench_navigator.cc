@@ -270,6 +270,8 @@ namespace {
         }
 
         // Register ray + SurfaceNormal benchmark.
+        // SetLabel encodes geant4_class so the JSON report script can reproduce the
+        // fixture header line without a separate lookup.
         benchmark::RegisterBenchmark(
             ("BM_rays/" + fixture_id).c_str(),
             [fixture_id, request, ray_opts, expected_failure](benchmark::State& state) {
@@ -279,6 +281,7 @@ namespace {
                 report =
                     g4occt::tests::geometry::ReclassifyExpectedFailures(report, expected_failure);
                 state.SetIterationTime(ray.imported_elapsed_ms / 1000.0);
+                state.SetLabel(ray.geant4_class);
                 state.counters["native_ms"]   = ray.native_elapsed_ms;
                 state.counters["imported_ms"] = ray.imported_elapsed_ms;
                 state.counters["mismatches"]  = static_cast<double>(RayOnlyMismatches(ray));
@@ -288,6 +291,8 @@ namespace {
                 state.counters["sn_imported_ms"] = ray.imported_surface_normal_ms;
                 state.counters["sn_mismatches"] =
                     static_cast<double>(ray.surface_normal_mismatch_count);
+                state.counters["has_expected_failure"] =
+                    static_cast<double>(expected_failure.enabled || expected_failure.safety_enabled);
                 std::lock_guard<std::mutex> lk(g_state->mu);
                 g_state->summaries[fixture_id].ray = ray;
                 if (g_state->summaries[fixture_id].geant4_class.empty()) {
@@ -528,11 +533,15 @@ namespace {
         << "---" << std::setw(14) << "---" << "\n";
   }
 
+  } // namespace (anonymous)
+
   // ─── Entry point (called from main) ──────────────────────────────────────────
+  // Must be outside the anonymous namespace so it is accessible as
+  // g4occt::benchmarks::RunBenchmark from main().
 
   int RunBenchmark(const std::filesystem::path& repository_manifest_path,
                    const std::size_t ray_count, const std::filesystem::path& point_cloud_dir,
-                   const bool json_format) {
+                   const bool json_to_stdout) {
     const FixtureRepositoryManifest repository_manifest =
         ParseFixtureRepositoryManifest(repository_manifest_path);
 
@@ -560,12 +569,19 @@ namespace {
     RegisterBenchmarksForFixtures(repository_manifest, ray_opts, inside_opts, safety_opts,
                                   poly_opts);
 
+    // Expose ray/inside/safety counts in the JSON context so bench_report.py
+    // can reproduce the "Rays: N | Inside points: N | Safety points: N" header.
+    benchmark::AddCustomContext("ray_count", std::to_string(ray_count));
+    benchmark::AddCustomContext("inside_count", std::to_string(inside_opts.point_count));
+    benchmark::AddCustomContext("safety_count", std::to_string(safety_opts.point_count));
+
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 
-    // When JSON output is going to stdout (e.g., piped to bench_report.py), redirect
-    // our custom table to stderr so the JSON stream is not corrupted.
-    std::ostream& report_out = json_format ? std::cerr : std::cout;
+    // Redirect the custom table to stderr only when JSON is going to stdout
+    // (i.e., --benchmark_format=json without --benchmark_out).  When a file
+    // is specified for JSON output, stdout is free and the table goes there.
+    std::ostream& report_out = json_to_stdout ? std::cerr : std::cout;
 
     // ── Per-fixture unified table + aggregate ─────────────────────────────
     PrintReportMessages(report_out, state.aggregate_report);
@@ -580,20 +596,26 @@ namespace {
     return EXIT_SUCCESS;
   }
 
-} // namespace
 } // namespace g4occt::benchmarks
 
 int main(int argc, char** argv) {
   try {
-    // Detect whether JSON output will go to stdout (pipe-to-bench_report.py use case)
-    // before Initialize() removes the benchmark flags from argv.
-    bool json_format = false;
+    // Detect whether JSON output is going to stdout (pipe-to-bench_report.py
+    // use case) before Initialize() removes the benchmark flags from argv.
+    // This is true when --benchmark_format=json is present but --benchmark_out
+    // is absent (JSON to stdout corrupts the pipe if we also print our table).
+    bool has_json_format = false;
+    bool has_json_out    = false;
     for (int i = 1; i < argc; ++i) {
-      if (std::string(argv[i]) == "--benchmark_format=json") {
-        json_format = true;
-        break;
+      const std::string arg(argv[i]);
+      if (arg == "--benchmark_format=json") {
+        has_json_format = true;
+      }
+      if (arg.rfind("--benchmark_out=", 0) == 0 || arg == "--benchmark_out") {
+        has_json_out = true;
       }
     }
+    const bool json_to_stdout = has_json_format && !has_json_out;
 
     // Let Google Benchmark consume its own --benchmark_* flags.
     benchmark::Initialize(&argc, argv);
@@ -608,7 +630,8 @@ int main(int argc, char** argv) {
                  : g4occt::tests::geometry::DefaultRepositoryManifestPath();
     const std::filesystem::path point_cloud_dir = argc > 3 ? std::filesystem::path(argv[3]) : "";
 
-    return g4occt::benchmarks::RunBenchmark(manifest_path, ray_count, point_cloud_dir, json_format);
+    return g4occt::benchmarks::RunBenchmark(manifest_path, ray_count, point_cloud_dir,
+                                            json_to_stdout);
   } catch (const std::exception& error) {
     std::cerr << "FAIL: benchmark setup threw an exception: " << error.what() << '\n';
     return EXIT_FAILURE;

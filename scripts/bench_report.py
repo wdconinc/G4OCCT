@@ -143,7 +143,7 @@ def main() -> int:
         print("No benchmark data found in JSON.", file=sys.stderr)
         return 1
 
-    # Infer ray_count / point_count from the context section if available.
+    # Infer ray_count / point_count from the custom context added by bench_navigator.
     context = data.get("context", {})
     ray_count = context.get("ray_count", "?")
     inside_count = context.get("inside_count", ray_count)
@@ -164,7 +164,15 @@ def main() -> int:
         safety_bm = methods.get("safety", {})
         poly_bm = methods.get("polyhedron", {})
 
-        print(f"{fixture_id}:")
+        # The rays benchmark encodes geant4_class via state.SetLabel() and
+        # has_expected_failure as a counter — reproduce the C++ header line.
+        geant4_class = rays_bm.get("label", "") if rays_bm else ""
+        has_expected_failure = get_counter(rays_bm, "has_expected_failure") != 0.0 if rays_bm else False
+
+        header = f"{fixture_id} ({geant4_class})" if geant4_class else fixture_id
+        if has_expected_failure:
+            header += "  [expected failure]"
+        print(f"{header}:")
 
         # Row 1: DistanceToIn/Out(p,v)
         if rays_bm:
