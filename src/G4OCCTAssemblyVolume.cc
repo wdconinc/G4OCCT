@@ -35,6 +35,10 @@
 #include <G4RotationMatrix.hh>
 #include <G4ThreeVector.hh>
 
+// CLHEP (for HepRep3x3 used to construct G4RotationMatrix without the
+// protected 9-arg HepRotation constructor)
+#include <CLHEP/Matrix/RotationInterfaces.hh>
+
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -46,9 +50,12 @@ namespace {
 /// Convert an OCCT @p trsf to a Geant4 rotation + translation pair.
 /// STEP/OCCT and Geant4 both use millimetres; no unit conversion is needed.
 std::pair<G4RotationMatrix, G4ThreeVector> TrsfToG4(const gp_Trsf& trsf) {
-  G4RotationMatrix rot(trsf.Value(1, 1), trsf.Value(1, 2), trsf.Value(1, 3), trsf.Value(2, 1),
-                       trsf.Value(2, 2), trsf.Value(2, 3), trsf.Value(3, 1), trsf.Value(3, 2),
-                       trsf.Value(3, 3));
+  // CLHEP::HepRotation's 9-argument (row-major) constructor is protected.
+  // Use the public HepRep3x3 constructor instead.
+  G4RotationMatrix rot(CLHEP::HepRep3x3(
+      trsf.Value(1, 1), trsf.Value(1, 2), trsf.Value(1, 3),
+      trsf.Value(2, 1), trsf.Value(2, 2), trsf.Value(2, 3),
+      trsf.Value(3, 1), trsf.Value(3, 2), trsf.Value(3, 3)));
   G4ThreeVector trans(trsf.Value(1, 4), trsf.Value(2, 4), trsf.Value(3, 4));
   return {rot, trans};
 }
@@ -196,8 +203,9 @@ void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume*
       const TDF_Label& comp = components.Value(i); // always a reference label
 
       // Extract the component's placement in the parent frame.
-      TopLoc_Location compLoc;
-      XCAFDoc_Location::Get(comp, compLoc);
+      // XCAFDoc_Location::Get(label) returns the TopLoc_Location stored on
+      // the label, or an identity location if none is present.
+      const TopLoc_Location compLoc = XCAFDoc_Location::Get(comp);
       gp_Trsf compTrsf = LocationToTrsf(compLoc);
 
       // Compose: first apply component's local placement, then the parent's.

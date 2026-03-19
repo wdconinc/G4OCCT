@@ -68,8 +68,8 @@
  */
 class G4OCCTAssemblyVolume : public G4AssemblyVolume {
 public:
-  G4OCCTAssemblyVolume()           = default;
-  ~G4OCCTAssemblyVolume() override = default;
+  G4OCCTAssemblyVolume()  = default;
+  ~G4OCCTAssemblyVolume() = default;
 
   /**
    * Import a STEP assembly file and construct the Geant4 volume hierarchy.
