@@ -5,12 +5,23 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-# ─── bench_navigator ─────────────────────────────────────────────────────────
-add_executable(bench_navigator bench_navigator.cc)
-target_link_libraries(bench_navigator PRIVATE G4OCCTFixtureSupport)
+# Helper macro: build a Google Benchmark executable. Usage:
+# g4occt_benchmark(target sources... LINK_LIBRARIES libs...)
+macro(g4occt_benchmark _target)
+  cmake_parse_arguments(_arg "" "" "LINK_LIBRARIES" ${ARGN})
+  add_executable(${_target} ${_arg_UNPARSED_ARGUMENTS})
+  target_link_libraries(${_target} PRIVATE ${_arg_LINK_LIBRARIES}
+                                           benchmark::benchmark)
+  # Benchmarks are NOT added to CTest; run manually.
+endmacro()
 
-# Benchmarks are not added to CTest by default; run manually with:
-# ./bench_navigator [N_rays] [manifest_path]
+# ─── bench_navigator ─────────────────────────────────────────────────────────
+g4occt_benchmark(bench_navigator bench_navigator.cc LINK_LIBRARIES
+                 G4OCCTFixtureSupport)
+# Run with: ./bench_navigator [N_rays] [manifest_path] [point_cloud_dir] or, to
+# produce Google Benchmark JSON piped through the report script:
+# ./bench_navigator --benchmark_format=json [args] | python3
+# scripts/bench_report.py
 
 # ─── bench_callgrind ─────────────────────────────────────────────────────────
 # Single-fixture callgrind-instrumented navigator benchmark.  Instrumentation
