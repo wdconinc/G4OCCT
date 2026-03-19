@@ -6,8 +6,9 @@
 #include <G4GeometryTolerance.hh>
 #include <G4SystemOfUnits.hh>
 
+#include <gtest/gtest.h>
+
 #include <algorithm>
-#include <iostream>
 
 namespace {
 
@@ -16,7 +17,7 @@ using g4occt::tests::navigation::CylinderFixture;
 using g4occt::tests::navigation::ExpectDistanceToIn;
 using g4occt::tests::navigation::SphereFixture;
 
-void TestShortestDistanceForExternalPoints() {
+TEST(DistanceToInSafety, ShortestDistanceForExternalPoints) {
   const BoxFixture box("DistanceToInSafetyBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
   ExpectDistanceToIn("box axis-aligned outside point uses face distance", box.solid,
                      box.OutsideX(7.0 * mm), 7.0 * mm);
@@ -38,7 +39,7 @@ void TestShortestDistanceForExternalPoints() {
                      cylinder.OutsideRadialX(6.0 * mm), 6.0 * mm);
 }
 
-void TestNearSurfaceBehaviour() {
+TEST(DistanceToInSafety, NearSurfaceBehaviour) {
   const BoxFixture box("DistanceToInSafetyNearSurface", 10.0 * mm, 20.0 * mm, 30.0 * mm);
   const G4double surfaceTolerance = G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
 
@@ -56,11 +57,3 @@ void TestNearSurfaceBehaviour() {
 }
 
 } // namespace
-
-int main() {
-  TestShortestDistanceForExternalPoints();
-  TestNearSurfaceBehaviour();
-
-  std::cout << "\nAll test_distance_to_in_safety tests passed.\n";
-  return 0;
-}

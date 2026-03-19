@@ -5,8 +5,9 @@
 
 #include <G4SystemOfUnits.hh>
 
+#include <gtest/gtest.h>
+
 #include <cmath>
-#include <iostream>
 
 namespace {
 
@@ -16,11 +17,11 @@ using g4occt::tests::navigation::ExpectNear;
 using g4occt::tests::navigation::ExpectSurfaceNormal;
 using g4occt::tests::navigation::SphereFixture;
 
-void ExpectUnitNormal(const std::string& message, const G4ThreeVector& normal) {
-  ExpectNear(message, normal.mag(), 1.0, 1.0e-12);
+void ExpectUnitNormal(const std::string& label, const G4ThreeVector& normal) {
+  ExpectNear(label, normal.mag(), 1.0, 1.0e-12);
 }
 
-void TestBoxSurfaceNormals() {
+TEST(SurfaceNormal, Box) {
   const BoxFixture box("SurfaceNormalBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   const G4ThreeVector positiveXNormal = box.solid.SurfaceNormal(box.PositiveXSurface());
@@ -40,7 +41,7 @@ void TestBoxSurfaceNormals() {
   ExpectUnitNormal("box +z face normal is unit length", positiveZNormal);
 }
 
-void TestSphereSurfaceNormals() {
+TEST(SurfaceNormal, Sphere) {
   const SphereFixture sphere("SurfaceNormalSphere", 50.0 * mm);
 
   const G4double component = sphere.radius / std::sqrt(3.0);
@@ -60,7 +61,7 @@ void TestSphereSurfaceNormals() {
   ExpectUnitNormal("sphere equatorial normal is unit length", equatorialNormal);
 }
 
-void TestCylinderSurfaceNormals() {
+TEST(SurfaceNormal, Cylinder) {
   const CylinderFixture cylinder("SurfaceNormalCylinder", 25.0 * mm, 40.0 * mm);
 
   const G4double radialComponent = cylinder.radius / std::sqrt(2.0);
@@ -83,12 +84,3 @@ void TestCylinderSurfaceNormals() {
 }
 
 } // namespace
-
-int main() {
-  TestBoxSurfaceNormals();
-  TestSphereSurfaceNormals();
-  TestCylinderSurfaceNormals();
-
-  std::cout << "\nAll test_surface_normal tests passed.\n";
-  return 0;
-}

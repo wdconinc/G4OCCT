@@ -5,28 +5,28 @@
 
 #include <G4SystemOfUnits.hh>
 
-#include <iostream>
+#include <gtest/gtest.h>
 
 namespace {
 
 using g4occt::tests::navigation::BoxFixture;
 using g4occt::tests::navigation::ExpectDistanceToIn;
 
-void TestRayHitReturnsEntryDistance() {
+TEST(DistanceToInRay, HitReturnsEntryDistance) {
   const BoxFixture box("DistanceToInRayHitBox");
 
   ExpectDistanceToIn("ray hit returns distance to +x face", box.solid, box.OutsideX(),
                      G4ThreeVector(-1.0, 0.0, 0.0), 5.0 * mm);
 }
 
-void TestRayMissReturnsInfinity() {
+TEST(DistanceToInRay, MissReturnsInfinity) {
   const BoxFixture box("DistanceToInRayMissBox");
 
   ExpectDistanceToIn("ray miss returns kInfinity", box.solid, box.OutsideX(),
                      G4ThreeVector(1.0, 0.0, 0.0), kInfinity);
 }
 
-void TestRayChoosesFirstPositiveIntersection() {
+TEST(DistanceToInRay, ChoosesFirstPositiveIntersection) {
   const BoxFixture box("DistanceToInRayFirstHitBox");
   const G4ThreeVector start(-box.halfX - 15.0 * mm, 0.0, 0.0);
 
@@ -35,12 +35,3 @@ void TestRayChoosesFirstPositiveIntersection() {
 }
 
 } // namespace
-
-int main() {
-  TestRayHitReturnsEntryDistance();
-  TestRayMissReturnsInfinity();
-  TestRayChoosesFirstPositiveIntersection();
-
-  std::cout << "\nAll test_distance_to_in_ray tests passed.\n";
-  return 0;
-}

@@ -5,7 +5,8 @@
 
 #include <G4VisExtent.hh>
 
-#include <iostream>
+#include <gtest/gtest.h>
+
 #include <string>
 
 namespace {
@@ -27,31 +28,22 @@ void ExpectExtent(const std::string& label, const G4VisExtent& extent, const G4d
   ExpectNear(label + " zmax", extent.GetZmax(), zMax, tolerance);
 }
 
-void TestBoxExtent() {
+TEST(GetExtent, Box) {
   const BoxFixture box("ExtentBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
   ExpectExtent("centered box extent", box.solid.GetExtent(), -10.0 * mm, 10.0 * mm, -20.0 * mm,
                20.0 * mm, -30.0 * mm, 30.0 * mm);
 }
 
-void TestSphereExtent() {
+TEST(GetExtent, Sphere) {
   const SphereFixture sphere("ExtentSphere", 50.0 * mm);
   ExpectExtent("centered sphere extent", sphere.solid.GetExtent(), -50.0 * mm, 50.0 * mm,
                -50.0 * mm, 50.0 * mm, -50.0 * mm, 50.0 * mm);
 }
 
-void TestCylinderExtent() {
+TEST(GetExtent, Cylinder) {
   const CylinderFixture cylinder("ExtentCylinder", 25.0 * mm, 40.0 * mm);
   ExpectExtent("centered cylinder extent", cylinder.solid.GetExtent(), -25.0 * mm, 25.0 * mm,
                -25.0 * mm, 25.0 * mm, -40.0 * mm, 40.0 * mm);
 }
 
 } // namespace
-
-int main() {
-  TestBoxExtent();
-  TestSphereExtent();
-  TestCylinderExtent();
-
-  std::cout << "\nAll test_get_extent tests passed.\n";
-  return 0;
-}

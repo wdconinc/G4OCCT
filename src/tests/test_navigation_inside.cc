@@ -3,7 +3,7 @@
 
 #include "navigation_test_harness.hh"
 
-#include <iostream>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -12,7 +12,7 @@ using g4occt::tests::navigation::CylinderFixture;
 using g4occt::tests::navigation::ExpectInside;
 using g4occt::tests::navigation::SphereFixture;
 
-void TestBoxInsideClassification() {
+TEST(InsideClassification, Box) {
   const BoxFixture box("InsideBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
   ExpectInside("box center is inside", box.solid, box.Center(), kInside);
@@ -22,7 +22,7 @@ void TestBoxInsideClassification() {
   ExpectInside("box point beyond +x face is outside", box.solid, box.OutsideX(), kOutside);
 }
 
-void TestSphereInsideClassification() {
+TEST(InsideClassification, Sphere) {
   const SphereFixture sphere("InsideSphere", 50.0 * mm);
 
   ExpectInside("sphere center is inside", sphere.solid, sphere.Center(), kInside);
@@ -31,7 +31,7 @@ void TestSphereInsideClassification() {
   ExpectInside("sphere point beyond radius is outside", sphere.solid, sphere.OutsideX(), kOutside);
 }
 
-void TestCylinderInsideClassification() {
+TEST(InsideClassification, Cylinder) {
   const CylinderFixture cylinder("InsideCylinder", 25.0 * mm, 40.0 * mm);
 
   ExpectInside("cylinder center is inside", cylinder.solid, cylinder.Center(), kInside);
@@ -44,12 +44,3 @@ void TestCylinderInsideClassification() {
 }
 
 } // namespace
-
-int main() {
-  TestBoxInsideClassification();
-  TestSphereInsideClassification();
-  TestCylinderInsideClassification();
-
-  std::cout << "\nAll test_navigation_inside tests passed.\n";
-  return 0;
-}

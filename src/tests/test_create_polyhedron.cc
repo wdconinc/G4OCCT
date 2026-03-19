@@ -6,7 +6,8 @@
 #include <G4Polyhedron.hh>
 #include <G4SystemOfUnits.hh>
 
-#include <iostream>
+#include <gtest/gtest.h>
+
 #include <memory>
 
 namespace {
@@ -14,7 +15,7 @@ namespace {
 using g4occt::tests::navigation::BoxFixture;
 using g4occt::tests::navigation::ExpectTrue;
 
-void TestBoxCreatePolyhedron() {
+TEST(CreatePolyhedron, Box) {
   const BoxFixture box("PolyhedronBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
   const std::unique_ptr<G4Polyhedron> polyhedron(box.solid.CreatePolyhedron());
 
@@ -30,10 +31,3 @@ void TestBoxCreatePolyhedron() {
 }
 
 } // namespace
-
-int main() {
-  TestBoxCreatePolyhedron();
-
-  std::cout << "\nAll test_create_polyhedron tests passed.\n";
-  return 0;
-}
