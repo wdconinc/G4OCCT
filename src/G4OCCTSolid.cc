@@ -231,7 +231,7 @@ void G4OCCTSolid::ComputeBounds() {
   }
 
   Bnd_Box boundingBox;
-  BRepBndLib::Add(fShape, boundingBox);
+  BRepBndLib::AddOptimal(fShape, boundingBox, /*useTriangulation=*/Standard_False);
   if (boundingBox.IsVoid()) {
     fCachedBounds = std::nullopt;
     return;
