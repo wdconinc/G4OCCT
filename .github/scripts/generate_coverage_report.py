@@ -11,6 +11,8 @@ import json
 import sys
 from pathlib import Path
 
+from report_utils import write_report
+
 
 def coverage_badge(percent: float) -> str:
     """Return a simple text badge indicating coverage quality."""
@@ -35,6 +37,10 @@ def main() -> None:
     ``branch_total``, and an optional ``files`` list with per-file
     breakdowns.  Writes a Markdown table (with emoji traffic-light
     indicators) to ``sys.argv[2]``.
+
+    Exits with code 1 if the required arguments are missing.  If the
+    JSON file cannot be read or parsed, a placeholder report is written
+    to ``sys.argv[2]`` instead of raising an exception.
     """
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <summary.json> <output.md>", file=sys.stderr)
@@ -43,8 +49,23 @@ def main() -> None:
     summary_path = Path(sys.argv[1])
     output_path = Path(sys.argv[2])
 
-    with summary_path.open() as f:
-        data = json.load(f)
+    try:
+        with summary_path.open(encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        write_report(
+            output_path,
+            "## 📊 Coverage Report\n\nCoverage summary file not found.\n",
+            label="Coverage report",
+        )
+        return
+    except json.JSONDecodeError as exc:
+        write_report(
+            output_path,
+            f"## 📊 Coverage Report\n\nFailed to parse coverage summary: {exc}\n",
+            label="Coverage report",
+        )
+        return
 
     lines_pct = data.get("line_percent", 0.0)
     lines_covered = data.get("line_covered", 0)
@@ -63,9 +84,7 @@ def main() -> None:
         key=lambda f: f.get("line_percent", 0.0),
     )
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    lines = [
+    content_lines = [
         "## 📊 Coverage Report",
         "",
         "| Metric | Coverage | Covered / Total |",
@@ -80,7 +99,7 @@ def main() -> None:
     ]
 
     if files:
-        lines += [
+        content_lines += [
             "<details>",
             "<summary>Per-file breakdown</summary>",
             "",
@@ -92,15 +111,14 @@ def main() -> None:
             fl = file_entry.get("line_percent", 0.0)
             ff = file_entry.get("function_percent", 0.0)
             fb = file_entry.get("branch_percent", 0.0)
-            lines.append(
+            content_lines.append(
                 f"| `{fname}` | {coverage_badge(fl)} {fmt(fl)} "
                 f"| {coverage_badge(ff)} {fmt(ff)} "
                 f"| {coverage_badge(fb)} {fmt(fb)} |"
             )
-        lines += ["", "</details>", ""]
+        content_lines += ["", "</details>", ""]
 
-    output_path.write_text("\n".join(lines))
-    print(f"Coverage report written to {output_path}")
+    write_report(output_path, "\n".join(content_lines), label="Coverage report")
 
 
 if __name__ == "__main__":

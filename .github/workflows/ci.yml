@@ -371,13 +371,16 @@ jobs:
             set -e
 
             # ── Generate coverage data ─────────────────────────────────────
-            pip3 install --quiet gcovr
+            # The eic_xl container file system is read-only; install gcovr into
+            # a virtual environment in the writable workspace directory.
+            python3 -m venv "${PWD}/.venv-gcovr"
+            "${PWD}/.venv-gcovr/bin/pip" install --quiet gcovr
 
             mkdir -p coverage reports
 
             # Include only project library sources; exclude tests, benchmarks,
             # examples, and any third-party headers caught by --coverage.
-            gcovr \
+            "${PWD}/.venv-gcovr/bin/gcovr" \
               --root . \
               --filter 'src/G4OCCT.*' \
               --filter 'include/G4OCCT/.*' \
@@ -392,8 +395,18 @@ jobs:
       - name: Generate coverage Markdown report
         if: always()
         run: |
-          python3 .github/scripts/generate_coverage_report.py \
-            coverage-summary.json reports/coverage.md
+          mkdir -p reports
+          if [ -f coverage-summary.json ]; then
+            python3 .github/scripts/generate_coverage_report.py \
+              coverage-summary.json reports/coverage.md
+          else
+            {
+              echo "## 📊 Coverage Report"
+              echo ""
+              echo "Coverage summary unavailable — \`coverage-summary.json\` was not generated."
+              echo "This typically means an earlier build, test, or coverage step failed before data could be collected."
+            } > reports/coverage.md
+          fi
 
       - name: Post coverage as step summary
         if: always()
