@@ -543,7 +543,7 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
   // kInfinity (fCachedBounds == std::nullopt): returning kInfinity here would be
   // incorrect, so fall through to the exact solver instead.
   const G4double aabbDist = AABBLowerBound(p);
-  if (!std::isinf(aabbDist) && aabbDist > IntersectionTolerance()) {
+  if (std::isfinite(aabbDist) && aabbDist > IntersectionTolerance()) {
     return aabbDist;
   }
 
