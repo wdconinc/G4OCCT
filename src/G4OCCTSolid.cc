@@ -298,8 +298,8 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
     // Tolerances are in parametric (UV) space — convert from the 3D surface tolerance.
     const Standard_Real tolU = fb.adaptor.UResolution(IntersectionTolerance());
     const Standard_Real tolV = fb.adaptor.VResolution(IntersectionTolerance());
-    Extrema_ExtPS        ext(queryPoint, fb.adaptor, tolU, tolV);
-    G4double             candidateDistance = kInfinity;
+    Extrema_ExtPS ext(queryPoint, fb.adaptor, tolU, tolV);
+    G4double candidateDistance = kInfinity;
     if (ext.IsDone() && ext.NbExt() > 0) {
       // Only count extrema whose UV point lies inside/on the *trimmed* face.
       // Extrema_ExtPS minimises over the rectangular UV domain; for trimmed
