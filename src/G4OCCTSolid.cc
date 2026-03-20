@@ -8,17 +8,20 @@
 
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepBndLib.hxx>
-#include <GeomAbs_SurfaceType.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
+#include <BRepExtrema_TriangleSet.hxx>
 #include <BRepGProp.hxx>
 #include <BRepLib.hxx>
 #include <BRepLProp_SLProps.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <BRep_Builder.hxx>
 #include <BRep_Tool.hxx>
+#include <BVH_Distance.hxx>
+#include <BVH_Tools.hxx>
 #include <Bnd_Box.hxx>
 #include <Extrema_ExtPS.hxx>
+#include <GeomAbs_SurfaceType.hxx>
 #include <GProp_GProps.hxx>
 #include <GeomAPI_ProjectPointOnSurf.hxx>
 #include <Geom_Surface.hxx>
@@ -536,8 +539,11 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
   // Tier-0: AABB lower bound (O(1)).  If the point is clearly outside the shape's
   // axis-aligned bounding box, the AABB distance is a guaranteed conservative lower
   // bound on the true surface distance and avoids any further OCCT computation.
+  // Guard against the "AABB unavailable" case where AABBLowerBound() returns
+  // kInfinity (fCachedBounds == std::nullopt): returning kInfinity here would be
+  // incorrect, so fall through to the exact solver instead.
   const G4double aabbDist = AABBLowerBound(p);
-  if (aabbDist > IntersectionTolerance()) {
+  if (std::isfinite(aabbDist) && aabbDist > IntersectionTolerance()) {
     return aabbDist;
   }
 

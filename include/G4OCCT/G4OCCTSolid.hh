@@ -16,8 +16,6 @@
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepExtrema_TriangleSet.hxx>
-#include <BVH_Distance.hxx>
-#include <BVH_Tools.hxx>
 #include <Bnd_Box.hxx>
 #include <IntCurvesFace_ShapeIntersector.hxx>
 #include <TopoDS_Face.hxx>
