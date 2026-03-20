@@ -29,9 +29,10 @@ _SCRIPTS_DIR = Path(__file__).parent
 
 
 def _load_fixture_data(point_cloud_dir: Path) -> list:
-    """Read all *.json.gz files in the directory; return list of dicts."""
+    """Read all *.json.gz files in the directory tree recursively; return list of dicts."""
     fixtures = []
-    for gz_path in sorted(point_cloud_dir.glob("*.json.gz")):
+    for gz_path in sorted(point_cloud_dir.glob("**/*.json.gz")):
+        rel = gz_path.relative_to(point_cloud_dir)
         try:
             with gzip.open(gz_path, "rt", encoding="utf-8") as f:
                 data = json.load(f)
@@ -39,13 +40,13 @@ def _load_fixture_data(point_cloud_dir: Path) -> list:
                         "native_pre_step_origin", "imported_pre_step_origin",
                         "native_post_step_hits", "imported_post_step_hits"):
                 if key not in data:
-                    print(f"Warning: {gz_path.name}: missing key '{key}', skipping",
+                    print(f"Warning: {rel}: missing key '{key}', skipping",
                           file=sys.stderr)
                     break
             else:
                 fixtures.append(data)
         except (json.JSONDecodeError, OSError) as exc:
-            print(f"Warning: could not load {gz_path}: {exc}", file=sys.stderr)
+            print(f"Warning: could not load {rel}: {exc}", file=sys.stderr)
     return fixtures
 
 

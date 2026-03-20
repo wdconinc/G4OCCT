@@ -17,6 +17,7 @@
 - **CI Reports**
   - [Test Results](reports/test-results.md)
   - [Benchmark Results](reports/bench-results.md)
+  - [Assembly Benchmark Results](reports/bench-assembly-results.md)
   - [Point Cloud Viewer](reports/point_cloud_viewer.html)
   - [Coverage Report](reports/coverage.md)
   - [Example Logs](reports/example-logs.md)
