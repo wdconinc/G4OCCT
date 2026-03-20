@@ -92,7 +92,7 @@ AI agents) must follow these instructions.
   transitive includes from Geant4 or OCCT headers.  Explicitly add
   `<algorithm>`, `<cmath>`, `<cstdlib>`, `<cstddef>`, `<stdexcept>`, etc.
   when using their symbols, and remove unused includes to silence
-  `-Wunused-include` warnings.
+  compiler/clang-tidy warnings about unused includes.
 
 ---
 
