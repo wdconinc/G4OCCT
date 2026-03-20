@@ -464,7 +464,9 @@ def _render_report(data: dict, viewer_path: str,
             "",
             "## Per-Fixture Results",
             "",
-            "Each cell shows `native ms → imported ms (ratio)`."
+            "Each cell shows `col-A ms → col-B ms (ratio)`."
+            " For most methods: col A = Geant4/native, col B = OCCT/imported."
+            " For `OCCT↔Exact` cells: col A = OCCT lower-bound, col B = OCCT exact."
             " ✅ = no violations; N ⚠️ = N lower-bound violations (hard fail)."
             " Exit normals has no separate timing (normals are computed as part of DistanceToOut)."
             " Column abbreviations: **DTI/DTO(p,v)** = DistanceToIn/Out(p,v),"

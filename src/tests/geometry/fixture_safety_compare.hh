@@ -17,7 +17,7 @@ struct FixtureSafetyComparisonOptions {
   /// Total number of test points to evaluate (split between inside and outside).
   std::size_t point_count{2048};
   /// Maximum number of detailed lower-bound violation diagnostics to emit per fixture.
-  std::size_t max_reported_mismatches{8};
+  std::size_t max_reported_violations{8};
 };
 
 /** Summary of one fixture's native-vs-imported safety-distance comparison run. */

@@ -201,11 +201,11 @@ namespace {
                    s.safety.exact_safety_out_ms, s.safety.occt_lower_bound_out_violations,
                    /*has_timing=*/true);
 
-    // Row 6: SurfaceNormal(p) post-hoc benchmark at agreed hit points.
+    // Row 8: SurfaceNormal(p) post-hoc benchmark at agreed hit points.
     PrintMethodRow(out, "SurfaceNormal(p)", s.ray.native_surface_normal_ms,
                    s.ray.imported_surface_normal_ms, s.ray.surface_normal_mismatch_count);
 
-    // Row 7: CreatePolyhedron() — mesh tessellation timing and mesh-density metrics.
+    // Row 9: CreatePolyhedron() — mesh tessellation timing and mesh-density metrics.
     PrintPolyhedronRow(out, s.polyhedron);
 
     out << "\n";
