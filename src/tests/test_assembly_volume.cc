@@ -69,7 +69,6 @@ std::string BuildSingleBoxSTEP(const std::string& tmpPath, const std::string& pa
   // Write to STEP via the CAF writer
   STEPCAFControl_Writer writer;
   writer.SetNameMode(Standard_True);
-  writer.SetMatMode(Standard_True);
   if (writer.Transfer(doc) != Standard_True) {
     throw std::runtime_error("BuildSingleBoxSTEP: Transfer failed");
   }
@@ -93,7 +92,7 @@ TEST(AssemblyVolume, FromSTEPSingleBox) {
   ASSERT_NE(al, nullptr);
 
   G4OCCTMaterialMap matMap;
-  matMap.Add("Aluminium", al);
+  matMap.Add("Box", al);
 
   G4OCCTAssemblyVolume* assembly = nullptr;
   ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });

@@ -35,7 +35,8 @@
  * | Simple-shape label (repeated use)   | Shared `G4OCCTLogicalVolume`        |
  * | Reference label + TopLoc_Location   | `AddPlacedVolume()` on parent assembly |
  * | XDE name attribute                  | Volume name string                  |
- * | XDE material attribute              | `G4Material*` via `G4OCCTMaterialMap` |
+ * | XDE material attribute (if present) | `G4Material*` via `G4OCCTMaterialMap` |
+ * | Part name (fallback when no mat attr) | `G4Material*` via `G4OCCTMaterialMap` |
  *
  * ## Instance sharing
  *
@@ -81,6 +82,9 @@ public:
    *
    * Every material name encountered in the STEP file must be present in
    * @p materialMap; an unresolved name triggers a fatal `G4Exception`.
+   * When a shape carries no XDE material attribute, its part (label) name
+   * is used as the lookup key instead, accommodating STEP writers that do
+   * not write material attributes.
    *
    * The leaf shapes are recentered (bounding-box centroid moved to the OCCT
    * origin) before being wrapped in `G4OCCTSolid`; the recentering offset is
@@ -88,7 +92,7 @@ public:
    * correct world positions.
    *
    * @param path        Filesystem path to the STEP file.
-   * @param materialMap Map from STEP material name to `G4Material*`.
+   * @param materialMap Map from STEP material name or part name to `G4Material*`.
    * @return Pointer to a newly heap-allocated `G4OCCTAssemblyVolume` owned by
    *         the caller.  The returned object already contains all child
    *         volumes; call `MakeImprint()` to place it in the world.

@@ -249,21 +249,20 @@ void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume*
         return;
       }
 
-      // Resolve material (required; fatal error on missing entry).
-      G4String matName = GetMaterialName(label, ctx.matTool);
-      if (matName.empty()) {
-        G4String partName = GetLabelName(label);
-        if (partName.empty()) {
-          partName = "Part";
-        }
+      // Resolve material by XDE material attribute, falling back to the part
+      // (label) name when no material attribute is present in the STEP file.
+      // This accommodates STEP writers that do not write material attributes.
+      G4String matKey = GetMaterialName(label, ctx.matTool);
+      if (matKey.empty()) {
+        matKey = GetLabelName(label);
+      }
+      if (matKey.empty()) {
         G4Exception("G4OCCTAssemblyVolume::ImportLabel", "G4OCCT_Asm003", FatalException,
-                    ("Simple-shape label \"" + partName +
-                     "\" carries no STEP material attribute. "
-                     "All shapes must have materials registered in G4OCCTMaterialMap.")
-                        .c_str());
+                    "Simple-shape label carries neither a STEP material attribute nor a part name. "
+                    "All shapes must have materials registered in G4OCCTMaterialMap.");
         return; // unreachable; silences compiler warning
       }
-      G4Material* material = ctx.materialMap.Resolve(matName);
+      G4Material* material = ctx.materialMap.Resolve(matKey);
 
       // Determine unique part name.
       G4String rawName = GetLabelName(label);
