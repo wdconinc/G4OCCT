@@ -609,7 +609,15 @@ G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
   return (match->distance <= IntersectionTolerance()) ? 0.0 : match->distance;
 }
 
-G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const { return ExactDistanceToOut(p); }
+G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
+  // Tier-1: mesh-BVH lower bound (O(log T)).  For interior points the AABB
+  // distance is always 0, so there is no useful Tier-0 AABB shortcut here.
+  const G4double bvhDist = BVHLowerBoundDistance(p);
+  if (bvhDist < kInfinity)
+    return bvhDist;
+  // Fallback: exact computation via BRepExtrema_DistShapeShape.
+  return ExactDistanceToOut(p);
+}
 
 G4double G4OCCTSolid::GetCubicVolume() {
   std::unique_lock<std::mutex> lock(fVolumeAreaMutex);
