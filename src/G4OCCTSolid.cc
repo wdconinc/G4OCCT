@@ -228,15 +228,6 @@ void G4OCCTSolid::ComputeBounds() {
     }
   }
 
-  // Build a compound of all faces so that BRepExtrema_DistShapeShape queries
-  // against fFaceCompound return the surface distance even for interior points
-  // (a solid-wide query returns 0 for interior points).
-  BRep_Builder builder;
-  builder.MakeCompound(fFaceCompound);
-  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
-    builder.Add(fFaceCompound, ex.Current());
-  }
-
   Bnd_Box boundingBox;
   BRepBndLib::AddOptimal(fShape, boundingBox, /*useTriangulation=*/Standard_False);
   if (boundingBox.IsVoid()) {
