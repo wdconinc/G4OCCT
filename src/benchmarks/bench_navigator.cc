@@ -109,9 +109,9 @@ namespace {
   }
 
   /// Print one row of the per-fixture method table.
-  /// @param mismatches_label  Label used before the count; use "mismatches" for native-vs-imported
-  ///                          comparison rows and "violations" for OCCT lower-bound rows.
-  ///                          Pass an empty string to suppress the count field entirely.
+  /// @param count_label  Label used before the count; use "mismatches" for native-vs-imported
+  ///                     comparison rows and "violations" for OCCT lower-bound rows.
+  ///                     Pass an empty string to suppress the count field entirely.
   void PrintMethodRow(std::ostream& out, const std::string& label, const double native_ms,
                       const double imported_ms, const std::size_t count,
                       const bool has_timing = true,

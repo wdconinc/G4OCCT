@@ -162,6 +162,8 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
     std::size_t reported_in_violations = 0;
     double dti_lb_ratio_sum            = 0.0;
     std::size_t dti_lb_ratio_count     = 0;
+    // Always emit at least one error when violations exist; cap per-point detail messages.
+    const std::size_t max_violations = std::max(std::size_t{1}, options.max_reported_violations);
 
     for (std::size_t index = 0; index < outside_points.size(); ++index) {
       const G4double lb_dist    = imported_safety_in[index];
@@ -170,10 +172,7 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
       // Hard-fail if lower bound exceeds exact distance beyond tolerance.
       if (lb_dist > exact_dist + surface_tolerance) {
         ++local_summary.occt_lower_bound_in_violations;
-        // Always emit the first violation; cap per-point detailed messages at
-        // max_reported_violations to avoid spamming the report.
-        if (reported_in_violations == 0U ||
-            reported_in_violations < options.max_reported_violations) {
+        if (reported_in_violations < max_violations) {
           ++reported_in_violations;
           std::ostringstream message;
           message << "Point " << index
@@ -206,10 +205,7 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
       // Hard-fail if lower bound exceeds exact distance beyond tolerance.
       if (lb_dist > exact_dist + surface_tolerance) {
         ++local_summary.occt_lower_bound_out_violations;
-        // Always emit the first violation; cap per-point detailed messages at
-        // max_reported_violations to avoid spamming the report.
-        if (reported_out_violations == 0U ||
-            reported_out_violations < options.max_reported_violations) {
+        if (reported_out_violations < max_violations) {
           ++reported_out_violations;
           std::ostringstream message;
           message << "Point " << index
