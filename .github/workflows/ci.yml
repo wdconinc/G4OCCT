@@ -123,7 +123,9 @@ jobs:
             echo "[Point-cloud viewer](./reports/point_cloud_viewer.html)" >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -f reports/example-logs.md ]; then
-            cat reports/example-logs.md >> "$GITHUB_STEP_SUMMARY"
+            head -n 400 reports/example-logs.md >> "$GITHUB_STEP_SUMMARY" || true
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> Full example logs are available in the \`ci-reports\` artifact." >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 

@@ -12,13 +12,13 @@ _EXAMPLES = [
     {
         "id": "B1",
         "name": "B1 — Water Phantom",
-        "doc_link": "example_b1.md",
+        "doc_link": "../example_b1.md",
         "cmd": "exampleB1 run.mac",
     },
     {
         "id": "B4c",
         "name": "B4c — Sampling Calorimeter",
-        "doc_link": "example_b4c.md",
+        "doc_link": "../example_b4c.md",
         "cmd": "exampleB4c -m exampleB4.in",
     },
 ]
