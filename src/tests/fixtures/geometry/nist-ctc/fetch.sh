@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Copyright (C) 2024 G4OCCT Contributors
+# Copyright (C) 2026 G4OCCT Contributors
 
 # fetch.sh — Download the NIST MBE PMI Simplified Test Case STEP files and
 # install them into the nist-ctc fixture directories.

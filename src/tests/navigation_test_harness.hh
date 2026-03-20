@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright (C) 2024 G4OCCT Contributors
+// Copyright (C) 2026 G4OCCT Contributors
 
 #ifndef G4OCCT_TESTS_NAVIGATION_TEST_HARNESS_HH
 #define G4OCCT_TESTS_NAVIGATION_TEST_HARNESS_HH

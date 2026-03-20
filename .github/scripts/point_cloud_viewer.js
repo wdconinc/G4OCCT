@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright (C) 2024 G4OCCT Contributors
+// Copyright (C) 2026 G4OCCT Contributors
 
 // Fixture data is supplied by the HTML page as an inline JSON script element so
 // that this file remains a static asset with no runtime replacements.

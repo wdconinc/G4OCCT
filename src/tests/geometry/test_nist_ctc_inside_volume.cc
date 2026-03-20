@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright (C) 2024 G4OCCT Contributors
+// Copyright (C) 2026 G4OCCT Contributors
 
 /// @file test_nist_ctc_inside_volume.cc
 /// @brief Validate G4OCCTSolid::Inside() volume estimates for NIST CTC STEP files.

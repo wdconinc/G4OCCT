@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
-<!-- Copyright (C) 2024 G4OCCT Contributors -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
 
 # G4OCCT — Solid Navigation Design: G4VSolid Functions ↔ OCCT Algorithms
 
