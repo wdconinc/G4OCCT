@@ -132,19 +132,19 @@ def _render_report(data: dict, viewer_path: str) -> str:
         "Mismatches",
         "GDML crossings",
         "STEP crossings",
-        "Viewer",
     ]
     lines.append("| " + " | ".join(header_cols) + " |")
     lines.append("| " + " | ".join(["---"] * len(header_cols)) + " |")
 
     for fix in fixtures:
-        viewer_link = ""
         if viewer_path:
             url = _fixture_viewer_link(fix["id"], viewer_path)
-            viewer_link = f"[🔍]({md_escape(url)})"
+            fixture_cell = f"[{md_escape(fix['id'])}]({md_escape(url)})"
+        else:
+            fixture_cell = md_escape(fix["id"])
 
         row = [
-            md_escape(fix["id"]),
+            fixture_cell,
             str(fix["rays"]),
             f"{fix['gdml_ms']:.1f}",
             f"{fix['step_ms']:.1f}",
@@ -152,7 +152,6 @@ def _render_report(data: dict, viewer_path: str) -> str:
             str(fix["mismatches"]),
             str(fix["gdml_crossings"]),
             str(fix["step_crossings"]),
-            viewer_link,
         ]
         lines.append("| " + " | ".join(row) + " |")
 
