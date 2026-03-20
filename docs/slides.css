@@ -1,0 +1,174 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/* Copyright (C) 2026 G4OCCT Contributors */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --blue:   #1a73e8;
+  --dark:   #1a1a2e;
+  --mid:    #16213e;
+  --accent: #0f3460;
+  --gold:   #e94560;
+  --light:  #f0f4ff;
+  --green:  #34a853;
+  --orange: #fbbc04;
+}
+
+body { margin: 0; font-family: 'Inter', sans-serif; }
+
+/* ── remark defaults ──────────────────────────────────── */
+.remark-slide-content {
+  background: var(--dark);
+  color: #e8eaf6;
+  font-size: 20px;
+  padding: 2em 3em;
+}
+.remark-slide-content h1 {
+  font-size: 2.0em;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 0.3em;
+  border-bottom: 3px solid var(--gold);
+  padding-bottom: 0.2em;
+}
+.remark-slide-content h2 {
+  font-size: 1.4em;
+  font-weight: 600;
+  color: #90caf9;
+  margin: 0.8em 0 0.4em;
+}
+.remark-slide-content h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #b0bec5;
+  margin: 0.6em 0 0.2em;
+}
+.remark-slide-content ul {
+  margin: 0.3em 0;
+  padding-left: 1.4em;
+  line-height: 1.7;
+}
+.remark-slide-content li { margin: 0.25em 0; }
+.remark-slide-content code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82em;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #80cbc4;
+}
+.remark-slide-content pre code {
+  background: rgba(0,0,0,0.4);
+  display: block;
+  padding: 0.8em 1em;
+  border-radius: 6px;
+  border-left: 3px solid var(--blue);
+  font-size: 0.78em;
+  color: #cfd8dc;
+  overflow-x: auto;
+}
+.remark-slide-content table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.82em;
+  margin: 0.5em 0;
+}
+.remark-slide-content th {
+  background: var(--accent);
+  color: #90caf9;
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: 600;
+}
+.remark-slide-content td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  color: #cfd8dc;
+}
+.remark-slide-content tr:nth-child(even) td {
+  background: rgba(255,255,255,0.03);
+}
+.remark-slide-content blockquote {
+  border-left: 4px solid var(--gold);
+  margin: 0.6em 0;
+  padding: 0.3em 1em;
+  color: #b0bec5;
+  font-style: italic;
+}
+
+/* ── layout helpers ───────────────────────────────────── */
+.col2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; }
+.col3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; }
+.box {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 0.8em 1em;
+}
+.box-blue  { border-color: var(--blue);   background: rgba(26,115,232,0.08); }
+.box-gold  { border-color: var(--gold);   background: rgba(233,69,96,0.08); }
+.box-green { border-color: var(--green);  background: rgba(52,168,83,0.08); }
+
+.tag {
+  display: inline-block;
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 0.72em;
+  font-weight: 600;
+  margin: 2px;
+}
+.tag-done   { background: rgba(52,168,83,0.25);   color: #81c995; }
+.tag-wip    { background: rgba(251,188,4,0.25);   color: #fdd663; }
+.tag-plan   { background: rgba(26,115,232,0.25);  color: #8ab4f8; }
+
+/* ── title slide ──────────────────────────────────────── */
+.slide-title {
+  background: linear-gradient(135deg, var(--dark) 0%, var(--accent) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+.slide-title h1 {
+  font-size: 3.2em;
+  border: none;
+  margin-bottom: 0.1em;
+  background: linear-gradient(90deg, #fff, #90caf9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.slide-title .subtitle {
+  font-size: 1.2em;
+  color: #90caf9;
+  margin-bottom: 0.5em;
+}
+.slide-title .meta {
+  font-size: 0.82em;
+  color: #607d8b;
+  margin-top: 1em;
+}
+.slide-title a { color: #90caf9; }
+
+/* ── section slides ───────────────────────────────────── */
+.slide-section {
+  background: linear-gradient(135deg, var(--mid) 0%, var(--accent) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.slide-section h1 {
+  border: none;
+  font-size: 2.8em;
+  color: #fff;
+}
+.slide-section .section-sub {
+  font-size: 1em;
+  color: #90caf9;
+}
+
+/* slide number */
+.remark-slide-number { color: #455a64; font-size: 0.75em; }
+
+/* link colour */
+a { color: #90caf9; }
