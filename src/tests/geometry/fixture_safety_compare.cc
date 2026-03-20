@@ -52,7 +52,9 @@ namespace {
    *
    * Two values match when:
    *  - Both are infinite (both solids agree the point is far from a surface), or
-   *  - `|native - imported| ≤ max(kSurfaceTolerance, 0.01 * max(native, imported))`.
+   *  - `|native - imported| ≤ max(surface_tol, 0.01 * max(native, imported))`,
+   *    where `surface_tol` is the Geant4 surface tolerance (for example,
+   *    `G4GeometryTolerance::GetSurfaceTolerance()`).
    *
    * Either direction of significant discrepancy is flagged:
    *  - `imported > native + tol`: G4OCCT overestimates the safety distance, which can
