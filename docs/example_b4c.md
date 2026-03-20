@@ -79,7 +79,7 @@ scattering on and off, then fires 500 MeV gammas:
 /gun/energy 300 MeV
 /run/beamOn 1
 
-/process/deactivate msc
+/process/inactivate msc
 /run/beamOn 1
 
 /process/activate msc
