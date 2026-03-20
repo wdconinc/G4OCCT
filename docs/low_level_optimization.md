@@ -407,28 +407,29 @@ that survive the AABB test.
 
 ## 5. Longer-Term Opportunities
 
-### 5.1 Primitive and canonical-shape detection
+### 5.1 Primitive and canonical-shape detection — **won't do**
 
-For STEP fixtures that are known imports of simple primitives, we can consider
-dispatching to equivalent analytic checks when the imported representation is
-recognized unambiguously.
+Users who need simple primitive shapes (boxes, spheres, cylinders, cones,
+tori, …) should use native Geant4 primitives directly.  G4 primitives use
+closed-form analytic solvers and deliver the best possible navigation
+performance for those shapes.
 
-Examples:
+Attempting to detect and dispatch to Geant4 primitives inside `G4OCCTSolid` is
+not pursued for several reasons:
 
-- boxes,
-- spheres/orbs,
-- full cylinders/tubes,
-- cones/frusta,
-- tori.
+- **Correctness and consistency**: STEP representations of "a box" do not carry
+  a canonical tag; recognition heuristics based on topology counts or bounding
+  geometry can produce false positives on non-primitive shapes.
+- **Scalability**: The maintenance burden grows with each new primitive type
+  supported, and OCCT's STEP reader may represent the same shape differently
+  across versions.
+- **Dispatch complexity**: Reliably routing an incoming query to the right
+  analytic back-end without ambiguity is harder than it appears and adds code
+  that is difficult to test exhaustively.
 
-Potential strategy:
-
-- record canonical shape metadata at import time, or
-- detect exact/topology-preserving primitive signatures once and cache them.
-
-Trade-off:
-High upside for very common shapes, but only worthwhile if detection is robust
-and maintenance cost stays low.
+If high performance on simple shapes is the goal, the recommended approach is
+to model those volumes as native Geant4 solids and reserve `G4OCCTSolid` for
+complex imported geometry that has no analytic equivalent.
 
 ### 5.2 Shared acceleration structures across multiple query types
 
@@ -497,7 +498,7 @@ Every optimization PR should confirm:
    `DistanceToIn(p)` with mesh-BVH lower bounds (see §4.4).
 5. Explore batch helpers for benchmark/validation internals.
 6. Prototype a shared spatial acceleration front-end for ray queries.
-7. Revisit primitive detection only after generic accelerations are exhausted.
+7. For simple shapes, prefer native Geant4 primitives; primitive detection inside `G4OCCTSolid` is not pursued (see §5.1).
 
 ---
 
