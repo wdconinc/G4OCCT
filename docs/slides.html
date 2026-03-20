@@ -532,7 +532,7 @@ Core navigation works. Per-thread caching eliminates dominant overheads. Test su
         div.className = 'mermaid';
         div.textContent = el.textContent;
         container.parentNode.replaceChild(div, container);
-        mermaid.init(undefined, div);
+        mermaid.run({ nodes: [div] });
       });
     });
   }
