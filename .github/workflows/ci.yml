@@ -116,10 +116,10 @@ jobs:
           ONSHAPE_ACCESS_KEY: ${{ secrets.ONSHAPE_ACCESS_KEY }}
           ONSHAPE_SECRET_KEY: ${{ secrets.ONSHAPE_SECRET_KEY }}
         run: |
-          pip3 install --quiet requests pyyaml
+          (pip3 install --quiet requests pyyaml &&
           python3 .github/scripts/upload_step_to_onshape.py \
             src/tests/fixtures/geometry/manifest.yaml \
-            reports/onshape_links.json || true
+            reports/onshape_links.json) || true
 
       - name: Generate Markdown reports
         if: always()

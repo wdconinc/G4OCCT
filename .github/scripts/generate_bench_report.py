@@ -490,10 +490,20 @@ def main() -> None:
     if len(sys.argv) == 5:
         links_path = Path(sys.argv[4])
         try:
-            onshape_links = json.loads(links_path.read_text(encoding="utf-8"))
+            loaded_links = json.loads(links_path.read_text(encoding="utf-8"))
         except (FileNotFoundError, OSError, json.JSONDecodeError) as exc:
             print(f"Warning: could not load Onshape links from {links_path}: {exc}",
                   file=sys.stderr)
+        else:
+            if isinstance(loaded_links, dict):
+                onshape_links = loaded_links
+            else:
+                print(
+                    "Warning: ignoring Onshape links from "
+                    f"{links_path}: expected JSON object at top level, "
+                    f"got {type(loaded_links).__name__}",
+                    file=sys.stderr,
+                )
 
     try:
         raw = json.loads(Path(json_path).read_text(encoding="utf-8"))
