@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
   // ── User initializations ──────────────────────────────────────────────────
 
   runManager->SetUserInitialization(new B1::DetectorConstruction());
-  runManager->SetUserInitialization(new QBBC());
+  runManager->SetUserInitialization(new QBBC(0));
   runManager->SetUserInitialization(new ActionInitialization());
 
   // ── UI manager ────────────────────────────────────────────────────────────

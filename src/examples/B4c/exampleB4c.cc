@@ -112,16 +112,15 @@ int main(int argc, char** argv) {
   auto detConstruction = new B4c::DetectorConstruction();
   runManager->SetUserInitialization(detConstruction);
 
-  auto physicsList = new FTFP_BERT;
+  auto physicsList = new FTFP_BERT(0);
   runManager->SetUserInitialization(physicsList);
 
   auto actionInitialization = new B4c::ActionInitialization();
   runManager->SetUserInitialization(actionInitialization);
 
   // Initialize visualization
-  auto visManager = new G4VisExecutive;
+  auto visManager = new G4VisExecutive("Quiet");
   // G4VisExecutive can take a verbosity argument - see /vis/verbose guidance.
-  // auto visManager = new G4VisExecutive("Quiet");
   visManager->Initialize();
 
   // Get the pointer to the User Interface manager

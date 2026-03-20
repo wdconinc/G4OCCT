@@ -1,5 +1,6 @@
 # Macro file for example B4 test
 
+/run/verbose 0
 /run/initialize
 
 # e+ 300MeV

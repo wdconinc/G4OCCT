@@ -2,6 +2,7 @@
 # Fires 100 primary 6 MeV gammas along +z through the water envelope and
 # reports the energy deposited in the scoring volume (shape2).
 
+/run/verbose 0
 /run/initialize
 
 /gun/particle gamma
