@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
-<!-- Copyright (C) 2024 G4OCCT Contributors -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
 
 # AGENTS.md — Contributor Instructions for G4OCCT
 
@@ -22,24 +22,24 @@ AI agents) must follow these instructions.
 - C/C++ style:
   ```cpp
   // SPDX-License-Identifier: LGPL-2.1-or-later
-  // Copyright (C) 2024 G4OCCT Contributors
+  // Copyright (C) 2026 G4OCCT Contributors
   ```
 - CMake `#`-comment style:
   ```cmake
   # cmake-format: off
   # SPDX-License-Identifier: LGPL-2.1-or-later
-  # Copyright (C) 2024 G4OCCT Contributors
+  # Copyright (C) 2026 G4OCCT Contributors
   # cmake-format: on
   ```
 - YAML `#`-comment style:
   ```yaml
   # SPDX-License-Identifier: LGPL-2.1-or-later
-  # Copyright (C) 2024 G4OCCT Contributors
+  # Copyright (C) 2026 G4OCCT Contributors
   ```
 - HTML/Markdown `<!-- -->` style:
   ```html
   <!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
-  <!-- Copyright (C) 2024 G4OCCT Contributors -->
+  <!-- Copyright (C) 2026 G4OCCT Contributors -->
   ```
 - The CI workflow `.github/workflows/spdx.yml` uses `enarx/spdx@master` to
   enforce headers on every PR.  A new file that fails the SPDX check will
@@ -51,14 +51,14 @@ AI agents) must follow these instructions.
   ```bash
   #!/usr/bin/env bash
   # SPDX-License-Identifier: LGPL-2.1-or-later
-  # Copyright (C) 2024 G4OCCT Contributors
+  # Copyright (C) 2026 G4OCCT Contributors
   ```
 - CMake files must wrap the SPDX header in `# cmake-format: off` / `# cmake-format: on`
   guards so `cmake-format` cannot reflow the comment block:
   ```cmake
   # cmake-format: off
   # SPDX-License-Identifier: LGPL-2.1-or-later
-  # Copyright (C) 2024 G4OCCT Contributors
+  # Copyright (C) 2026 G4OCCT Contributors
   # cmake-format: on
   ```
 - Jinja2 template files (`.html.jinja2`) must use the HTML comment style

@@ -19,6 +19,6 @@ PackageDownloadLocation: https://github.com/wdconinc/G4OCCT
 FilesAnalyzed: false
 PackageLicenseConcluded: LGPL-2.1-or-later
 PackageLicenseDeclared: LGPL-2.1-or-later
-PackageCopyrightText: Copyright (C) 2024 G4OCCT Contributors
+PackageCopyrightText: Copyright (C) 2026 G4OCCT Contributors
 
 Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-G4OCCT

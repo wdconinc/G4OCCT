@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright (C) 2024 G4OCCT Contributors
+// Copyright (C) 2026 G4OCCT Contributors
 
 // test_assembly_volume.cc
 // Tests for G4OCCTAssemblyVolume: verify construction from programmatically

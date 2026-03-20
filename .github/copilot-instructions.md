@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
-<!-- Copyright (C) 2024 G4OCCT Contributors -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
 
 # GitHub Copilot Instructions for G4OCCT
 
@@ -15,7 +15,7 @@ always consult `AGENTS.md` for the authoritative, up-to-date rules.
 Every new file must begin with:
 ```cpp
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright (C) 2024 G4OCCT Contributors
+// Copyright (C) 2026 G4OCCT Contributors
 ```
 (Use `#` for CMake/YAML, `<!-- -->` for HTML/Markdown.)
 
