@@ -64,9 +64,9 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
     const G4String rootTag = Transcode(root->getTagName());
     if (rootTag != "materials") {
       xercesc::XMLPlatformUtils::Terminate();
-      G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader005", FatalException,
-                  ("Root element must be <materials>, got <" + rootTag + "> in '" + path + "'")
-                      .c_str());
+      G4Exception(
+          "G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader005", FatalException,
+          ("Root element must be <materials>, got <" + rootTag + "> in '" + path + "'").c_str());
       return result;
     }
 
@@ -126,7 +126,8 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
 
       if (stepName.empty()) {
         G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader006", FatalException,
-                    ("<material> element in '" + path + "' is missing the required 'stepName' "
+                    ("<material> element in '" + path +
+                     "' is missing the required 'stepName' "
                      "attribute.")
                         .c_str());
         continue;
@@ -138,11 +139,11 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
         // ── Type 1: NIST alias ────────────────────────────────────────────
         mat = G4NistManager::Instance()->FindOrBuildMaterial(geant4Name);
         if (!mat) {
-          G4Exception(
-              "G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader007", FatalException,
-              ("NIST material '" + geant4Name + "' not found (stepName='" + stepName + "').  "
-               "Check the spelling against the Geant4 NIST material database.")
-                  .c_str());
+          G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader007", FatalException,
+                      ("NIST material '" + geant4Name + "' not found (stepName='" + stepName +
+                       "').  "
+                       "Check the spelling against the Geant4 NIST material database.")
+                          .c_str());
           continue;
         }
       } else {
@@ -160,11 +161,11 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
         MaterialRead(child);
         mat = GetMaterial(GenerateName(gdmlName));
         if (!mat) {
-          G4Exception(
-              "G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader009", FatalException,
-              ("Failed to create inline material '" + gdmlName + "' (stepName='" + stepName +
-               "') in '" + path + "'.  Check that density and composition are valid.")
-                  .c_str());
+          G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader009", FatalException,
+                      ("Failed to create inline material '" + gdmlName + "' (stepName='" +
+                       stepName + "') in '" + path +
+                       "'.  Check that density and composition are valid.")
+                          .c_str());
           continue;
         }
       }
