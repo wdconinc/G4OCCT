@@ -23,17 +23,13 @@ g4occt_benchmark(bench_navigator bench_navigator.cc LINK_LIBRARIES
 # ./bench_navigator --benchmark_format=json [args] | python3
 # scripts/bench_report.py
 
-# ─── generate_triple_box_step ────────────────────────────────────────────────
-# Standalone generator that writes the triple-box STEP assembly fixture used by
-# bench_assembly_navigator.  Run this once before running the benchmark:
-# ./generate_triple_box_step <output.step>
-add_executable(generate_triple_box_step generate_triple_box_step.cc)
-target_link_libraries(generate_triple_box_step PRIVATE G4OCCT)
-
 # ─── bench_assembly_navigator ─────────────────────────────────────────────────
 # Compares GDML-reference vs STEP-imported assembly ray casting. Requires
 # G4GDMLParser (Geant4 built with GDML support) and zlib. Run with:
 # ./bench_assembly_navigator [N_rays] [fixture_root] [point_cloud_dir]
+#
+# Before running the benchmark, generate the STEP fixture:
+#   bash src/tests/fixtures/assembly-comparison/regenerate.sh
 #
 # G4GDMLParser lives in Geant4's persistency module.  Check that the header is
 # available; skip the target gracefully when Geant4 was built without GDML.
