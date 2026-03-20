@@ -28,8 +28,8 @@ g4occt_benchmark(bench_navigator bench_navigator.cc LINK_LIBRARIES
 # G4GDMLParser (Geant4 built with GDML support) and zlib. Run with:
 # ./bench_assembly_navigator [N_rays] [fixture_root] [point_cloud_dir]
 #
-# Before running the benchmark, generate the STEP fixture:
-#   bash src/tests/fixtures/assembly-comparison/regenerate.sh
+# Before running the benchmark, generate the STEP fixture: bash
+# src/tests/fixtures/assembly-comparison/regenerate.sh
 #
 # G4GDMLParser lives in Geant4's persistency module.  Check that the header is
 # available; skip the target gracefully when Geant4 was built without GDML.
