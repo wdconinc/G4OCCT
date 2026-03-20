@@ -320,9 +320,10 @@ namespace {
                             const std::filesystem::path& step_path, std::size_t ray_count,
                             const std::filesystem::path& point_cloud_dir) {
     // Load GDML reference geometry.
+    // Pass validate=false: G4GDMLParser::SetValidate() was removed in Geant4
+    // 11.3; the validation flag is now passed directly to Read().
     G4GDMLParser gdml_parser;
-    gdml_parser.SetValidate(false);
-    gdml_parser.Read(gdml_path.string());
+    gdml_parser.Read(gdml_path.string(), /*validate=*/false);
     G4VPhysicalVolume* gdml_world_pv                 = gdml_parser.GetWorldVolume();
     G4LogicalVolume* gdml_world_lv                   = gdml_world_pv->GetLogicalVolume();
     const std::vector<ComponentSpec> gdml_components = ExtractComponents(gdml_world_lv);

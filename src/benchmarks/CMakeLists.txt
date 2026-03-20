@@ -31,22 +31,46 @@ g4occt_benchmark(bench_navigator bench_navigator.cc LINK_LIBRARIES
 # Before running the benchmark, generate the STEP fixture: bash
 # src/tests/fixtures/assembly-comparison/regenerate.sh
 #
-# G4GDMLParser lives in Geant4's persistency module.  Check that the header is
-# available; skip the target gracefully when Geant4 was built without GDML.
-include(CheckIncludeFileCXX)
-set(CMAKE_REQUIRED_INCLUDES_SAVED "${CMAKE_REQUIRED_INCLUDES}")
-list(APPEND CMAKE_REQUIRED_INCLUDES "${Geant4_INCLUDE_DIRS}")
-check_include_file_cxx("G4GDMLParser.hh" G4OCCT_HAVE_G4GDML)
-set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES_SAVED}")
+# G4GDMLParser lives in Geant4's persistency module.  Use find_file (rather than
+# check_include_file_cxx) so that the detection is not blocked by missing
+# XercesC headers in CMAKE_REQUIRED_INCLUDES.  In environments such as
+# eic_xl:nightly, Geant4 is built with GDML but XercesC lives at a non-standard
+# Spack path that is not automatically appended to the compiler search path.
+# check_include_file_cxx tries to compile the header, fails because
+# G4GDMLParser.hh transitively includes <xercesc/...>, and therefore incorrectly
+# reports GDML as absent.  find_file only checks whether the file exists on
+# disk.
+find_file(
+  G4GDMLPARSER_HH
+  NAMES "G4GDMLParser.hh"
+  PATHS ${Geant4_INCLUDE_DIRS}
+  NO_DEFAULT_PATH
+  DOC "Path to G4GDMLParser.hh from a Geant4 GDML-enabled installation")
 
-if(G4OCCT_HAVE_G4GDML)
-  g4occt_benchmark(bench_assembly_navigator bench_assembly_navigator.cc
-                   LINK_LIBRARIES G4OCCT ZLIB::ZLIB)
-  # Pass the source-tree fixture directory so the benchmark can locate
-  # geometry.gdml files even when run from a build directory.
-  target_compile_definitions(
-    bench_assembly_navigator
-    PRIVATE "G4OCCT_TEST_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../tests\"")
+if(G4GDMLPARSER_HH)
+  # G4GDMLParser.hh transitively includes <xercesc/...> headers, so XercesC must
+  # be on the include path at compile time.  Any Geant4 installation with GDML
+  # enabled implies XercesC is present; QUIET suppresses the redundant "found"
+  # message (the package was already located via Geant4Config.cmake). Guard the
+  # entire bench_assembly_navigator build on the XercesC::XercesC target being
+  # available so the outcome is always deterministic: if XercesC cannot be found
+  # the benchmark is skipped with an explicit STATUS message rather than created
+  # but left unable to compile.
+  find_package(XercesC QUIET)
+  if(TARGET XercesC::XercesC)
+    g4occt_benchmark(bench_assembly_navigator bench_assembly_navigator.cc
+                     LINK_LIBRARIES G4OCCT ZLIB::ZLIB XercesC::XercesC)
+    # Pass the source-tree fixture directory so the benchmark can locate
+    # geometry.gdml files even when run from a build directory.
+    target_compile_definitions(
+      bench_assembly_navigator
+      PRIVATE "G4OCCT_TEST_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../tests\"")
+    message(
+      STATUS "Found G4GDMLParser.hh; bench_assembly_navigator will be built")
+  else()
+    message(
+      STATUS "XercesC not found; bench_assembly_navigator will not be built")
+  endif()
 else()
   message(
     STATUS
