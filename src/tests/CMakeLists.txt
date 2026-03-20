@@ -25,6 +25,12 @@ g4occt_gtest(test_logical_volume test_logical_volume.cc LINK_LIBRARIES G4OCCT)
 # ─── test_placement ───────────────────────────────────────────────────────────
 g4occt_gtest(test_placement test_placement.cc LINK_LIBRARIES G4OCCT)
 
+# ─── test_material_map ────────────────────────────────────────────────────────
+g4occt_gtest(test_material_map test_material_map.cc LINK_LIBRARIES G4OCCT)
+
+# ─── test_assembly_volume ─────────────────────────────────────────────────────
+g4occt_gtest(test_assembly_volume test_assembly_volume.cc LINK_LIBRARIES G4OCCT)
+
 # ─── test_navigation_harness ──────────────────────────────────────────────────
 g4occt_gtest(test_navigation_harness test_navigation_harness.cc LINK_LIBRARIES
              G4OCCT)
