@@ -28,6 +28,10 @@ g4occt_gtest(test_placement test_placement.cc LINK_LIBRARIES G4OCCT)
 # ─── test_material_map ────────────────────────────────────────────────────────
 g4occt_gtest(test_material_map test_material_map.cc LINK_LIBRARIES G4OCCT)
 
+# ─── test_material_map_reader ─────────────────────────────────────────────────
+g4occt_gtest(test_material_map_reader test_material_map_reader.cc
+             LINK_LIBRARIES G4OCCT)
+
 # ─── test_assembly_volume ─────────────────────────────────────────────────────
 g4occt_gtest(test_assembly_volume test_assembly_volume.cc LINK_LIBRARIES G4OCCT)
 

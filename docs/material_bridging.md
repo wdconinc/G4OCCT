@@ -37,7 +37,7 @@ framework.
 
 ## 2. Strategies
 
-### 2.1 Explicit User-Provided Material Map (Recommended)
+### 2.1 Explicit User-Provided Material Map (Recommended) ✅ Implemented
 
 **Idea:** The user supplies a mapping file that associates each STEP material
 name with an exact `G4Material` definition.  No fallbacks or best-guess logic
@@ -52,15 +52,34 @@ before the simulation can run.
   <material stepName="Al 6061"   geant4Name="G4_Al"/>
 
   <!-- Custom multi-element material -->
-  <material stepName="FR4" density="1.86" unit="g/cm3">
-    <fraction n="0.18" ref="Si"/>
-    <fraction n="0.39" ref="O"/>
-    <fraction n="0.28" ref="C"/>
-    <fraction n="0.03" ref="H"/>
-    <fraction n="0.12" ref="Br"/>
+  <material stepName="FR4" name="FR4" density="1.86" unit="g/cm3">
+    <D value="1.86" unit="g/cm3"/>
+    <fraction n="0.18" ref="G4_Si"/>
+    <fraction n="0.39" ref="G4_O"/>
+    <fraction n="0.28" ref="G4_C"/>
+    <fraction n="0.03" ref="G4_H"/>
+    <fraction n="0.12" ref="G4_Br"/>
   </material>
 </materials>
 ```
+
+**Implementation:** `G4OCCTMaterialMapReader` (see `include/G4OCCT/G4OCCTMaterialMapReader.hh`)
+parses this XML format using the Geant4 GDML material subsystem.  It subclasses
+`G4GDMLReadStructure` to gain zero-duplication access to the full GDML material
+parsing vocabulary (`<fraction>`, `<composite>`, `<D>`, `<T>`, `<P>`, `<MEE>`,
+`<property>`, `<element>`, `<isotope>`).  The only code specific to G4OCCT is
+the dispatch on `stepName` and `geant4Name` attributes (~125 lines total).
+
+**Usage:**
+```cpp
+G4OCCTMaterialMapReader reader;
+G4OCCTMaterialMap map = reader.ReadFile("materials.xml");
+auto* assembly = G4OCCTAssemblyVolume::FromSTEP("detector.step", map);
+```
+
+**Two entry types:**
+* `stepName` + `geant4Name` → `G4NistManager::FindOrBuildMaterial(geant4Name)`
+* `stepName` + `name` + content children → full GDML inline material definition
 
 **Behaviour:**
 * Every material name encountered in the STEP file **must** appear in the
@@ -72,7 +91,8 @@ before the simulation can run.
 **Pros:**
 * Unambiguous — the user explicitly controls every material assignment.
 * User-maintained file separates material physics from CAD geometry.
-* Custom multi-element materials can be defined inline.
+* Custom multi-element materials can be defined inline using the full GDML
+  material vocabulary (no code changes required).
 
 **Cons:**
 * Requires the user to create and maintain the mapping file.
@@ -142,11 +162,11 @@ materials fragment.
 
 ## 3. Recommended Phased Approach
 
-| Phase | Strategy | Goal |
-|---|---|---|
-| v0.1 | Explicit user map (2.1) | First working end-to-end example |
-| v0.2 | GDML overlay (2.2) | Full material vocabulary, schema validation |
-| v0.3 | Inline GDML annotations (2.3) | Self-contained STEP files |
+| Phase | Strategy | Goal | Status |
+|---|---|---|---|
+| v0.1 | Explicit user map (2.1) | First working end-to-end example | ✅ Implemented |
+| v0.2 | GDML overlay (2.2) | Full material vocabulary, schema validation | Planned |
+| v0.3 | Inline GDML annotations (2.3) | Self-contained STEP files | Planned |
 
 ---
 

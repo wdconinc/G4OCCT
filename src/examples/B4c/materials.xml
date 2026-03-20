@@ -1,0 +1,43 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+
+<!--
+  materials.xml — Example G4OCCT material map for the B4c calorimeter example.
+
+  This file demonstrates the two supported entry types:
+
+    1. NIST alias  — maps a STEP material name to a Geant4 NIST database entry.
+       Usage:  <material stepName="..." geant4Name="..."/>
+
+    2. Inline definition — defines a custom multi-element material using the
+       GDML material vocabulary (<D>, <fraction>, <composite>, <T>, <P>, …).
+       The 'name' attribute is the GDML registry key; it should equal
+       'stepName'.
+
+  Load this file in your detector construction with:
+
+    G4OCCTMaterialMapReader reader;
+    G4OCCTMaterialMap map = reader.ReadFile("materials.xml");
+
+  Then pass 'map' to G4OCCTAssemblyVolume::FromSTEP().
+-->
+
+<materials>
+
+  <!-- ── NIST aliases ─────────────────────────────────────────────────── -->
+
+  <!-- Absorber: lead plates -->
+  <material stepName="Lead" geant4Name="G4_Pb"/>
+
+  <!-- World / gap filler -->
+  <material stepName="Galactic" geant4Name="G4_Galactic"/>
+
+  <!-- ── Inline custom materials ──────────────────────────────────────── -->
+
+  <!-- Gap: liquid argon at cryogenic density (not the NIST gas definition) -->
+  <material stepName="liquidArgon" name="liquidArgon" state="liquid">
+    <D value="1.390" unit="g/cm3"/>
+    <fraction n="1.0" ref="G4_Ar"/>
+  </material>
+
+</materials>
