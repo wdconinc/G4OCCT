@@ -44,6 +44,31 @@ AI agents) must follow these instructions.
 - The CI workflow `.github/workflows/spdx.yml` uses `enarx/spdx@master` to
   enforce headers on every PR.  A new file that fails the SPDX check will
   block merge.
+- The SPDX header must be the **very first line(s)** of every file, with one
+  exception: executable scripts may have a shebang (`#!/...`) on line 1,
+  followed immediately by the SPDX header on subsequent lines.  This is the
+  required layout for shell scripts in the repository:
+  ```bash
+  #!/usr/bin/env bash
+  # SPDX-License-Identifier: LGPL-2.1-or-later
+  # Copyright (C) 2024 G4OCCT Contributors
+  ```
+- CMake files must wrap the SPDX header in `# cmake-format: off` / `# cmake-format: on`
+  guards so `cmake-format` cannot reflow the comment block:
+  ```cmake
+  # cmake-format: off
+  # SPDX-License-Identifier: LGPL-2.1-or-later
+  # Copyright (C) 2024 G4OCCT Contributors
+  # cmake-format: on
+  ```
+- Jinja2 template files (`.html.jinja2`) must use the HTML comment style
+  (`<!-- -->`) for the SPDX header, **not** the Jinja comment style (`{# #}`).
+- Scripts under `.github/` (Python, shell, `.supp`, `.gitignore`) are also
+  subject to the SPDX check and must carry the appropriate header.
+- Source files **copied from Geant4 examples** (e.g. `B1`, `B4c`) must retain
+  their original Geant4 license block unchanged.  Do **not** replace it with
+  the project LGPL header.  Add the example directory to the `ignore-paths`
+  list in `.github/workflows/spdx.yml` so the SPDX check skips those files.
 
 ---
 
@@ -62,6 +87,12 @@ AI agents) must follow these instructions.
   #include "G4OCCT/G4OCCTSolid.hh"
   #include "G4OCCT/G4OCCTLogicalVolume.hh"
   ```
+
+- **Include style:** include only headers you use directly.  Do not rely on
+  transitive includes from Geant4 or OCCT headers.  Explicitly add
+  `<algorithm>`, `<cmath>`, `<cstdlib>`, `<cstddef>`, `<stdexcept>`, etc.
+  when using their symbols, and remove unused includes to silence
+  compiler/clang-tidy warnings about unused includes.
 
 ---
 
@@ -82,6 +113,14 @@ Do not lower these version floors without an explicit project decision.
 - The top-level `CMakeLists.txt` owns all `find_package` calls.
 - Sub-directory `CMakeLists.txt` files (tests, benchmarks) must **not** call
   `find_package` themselves; they link to the already-found targets.
+- `target_include_directories` for build-time discovery paths (Geant4, OCCT)
+  must use **`PRIVATE`**, not `PUBLIC`, so those paths are not exported into
+  the installed `G4OCCTTargets.cmake` and do not pollute downstream consumers.
+- `target_link_libraries` for Geant4 and OCCT must use **`PUBLIC`** so
+  downstream consumers pick up transitive dependencies automatically.
+- Do **not** use `check_cxx_compiler_flag` to probe for sanitizer flags
+  (e.g. `-fsanitize=address`); it produces false negatives with clang.
+  Add sanitizer flags unconditionally inside the relevant CMake option block.
 - `BUILD_TESTING` (CTest) and `BUILD_BENCHMARKS` are both `ON` in CI; they
   must be kept independently buildable with either flag off.
 - Install rules live in the top-level file; the exported target is
@@ -99,6 +138,28 @@ Do not lower these version floors without an explicit project decision.
   `test_downstream_findpackage`.
 - Tests must pass with `ctest --test-dir build --output-on-failure -j$(nproc)`.
 - Do not remove or disable existing tests.
+- Tests that cover multiple geometry fixtures must be split into **per-fixture
+  CTest sub-tests** (using `GLOB` discovery), not a single monolithic binary.
+- Use **`yaml-cpp`** for all YAML parsing; it is available in the eic-shell
+  container.  Hand-rolled YAML parsers have been rejected twice (PRs #20, #36)
+  and must not be introduced.
+- When a test must be temporarily disabled, add a **programmatic skip condition**
+  (e.g. a `DISABLED` CTest property or a runtime skip) with a comment that
+  links to the relevant issue or CI run explaining why.  Do not silently delete
+  tests or comment them out without explanation.
+- Fixture provenance YAML must document the generator script and all parameters
+  needed to reproduce the geometry independently.
+- After modifying a fixture generation script (`generate.tcl`, `generate.py`),
+  always **regenerate and commit** the corresponding `shape.step` file.  CI
+  loads the committed STEP file, not the script.  Stale STEP files cause silent
+  test mismatches.
+- Expected-failure (`xfail`) reclassification must use a **narrow allowlist of
+  specific error codes**.  Never demote all errors — structural or IO failures
+  (missing STEP file, read errors) must remain hard errors.  The valid
+  demotable codes are defined in `src/tests/geometry/fixture_validation.hh`
+  and `fixture_validation.cc`; examples include `fixture.volume_mismatch`,
+  `fixture.ray_distance_mismatch`, and `fixture.safety_mismatch`.  Consult
+  those files to find the current complete list.
 
 ---
 
@@ -108,6 +169,16 @@ Do not lower these version floors without an explicit project decision.
   `pull_request` with no branch filter, to support sub-PR workflows where
   feature branches target other feature branches.
   Do not add `master` or wildcard branch patterns to the `push` trigger.
+  Do not add a `branches:` filter to the `pull_request` trigger.
+- **Container:** both CI jobs run inside `eic/run-cvmfs-osg-eic-shell@v1`
+  with `platform-release: "eic_xl:nightly"`.  Use `eic_xl`, **not** `eic_ci`.
+- **Prerequisite step:** `cvmfs-contrib/github-action-cvmfs@v5` must appear
+  as a step *before* `eic/run-cvmfs-osg-eic-shell@v1` in every job that uses
+  the eic-shell.  Omitting it silently breaks the shell environment.
+- **Git operations inside containers:** Git commands that require commit history
+  (e.g. `git diff base..head` for clang-tidy annotation) fail inside the
+  Apptainer container when using shallow checkouts.  Generate diffs and any
+  git-dependent data **outside the container** before entering eic-shell.
 - **CI job (`ci.yml`):** Two jobs:
   1. `build-test-benchmark` — builds with `-DCMAKE_BUILD_TYPE=Release
      -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`, runs tests, and installs.
@@ -135,6 +206,19 @@ Do not lower these version floors without an explicit project decision.
 - Both are deployed together to GitHub Pages by `.github/workflows/docs.yml`.
 - Document headers (Doxygen `/** ... */` style) are required before all
   public functions and classes; existing headers serve as the style reference.
+- Doxygen docstrings must **accurately describe the actual implementation**.
+  In particular, verify return-value semantics (e.g. "lower bound" vs "exact
+  distance"), algorithm descriptions, and preconditions against the code.
+  Inaccurate docstrings have been corrected in multiple PRs and are treated as
+  bugs.
+- Code examples in documentation must be **syntactically valid**.  Do not use
+  the Unicode ellipsis `…` in C++ code blocks; use `/* ... */` or real code.
+  Do not reference non-existent APIs.
+- Performance-related documentation must be **updated in the same PR** as the
+  implementation change.  Do not defer doc updates to a follow-up PR.
+- Use **British spelling** in all documentation: "visualisation" not
+  "visualization", "optimisation" not "optimization".  Match the conventions of
+  existing `docs/` pages.
 
 ---
 
@@ -164,6 +248,21 @@ Do not lower these version floors without an explicit project decision.
   design analysis.
 - Shape validity (closed solid, no gaps) must be verified with
   `BRepCheck_Analyzer` during `G4OCCTSolid` construction.
+- Use **`BRepBndLib::AddOptimal(..., useTriangulation=false)`** (not
+  `BRepBndLib::Add`) when computing bounding boxes.  `Add` over-inflates bounds
+  when B-spline PCurves are present, causing a systematic ray-distance offset
+  in fixture comparisons (PR #119).
+- `DistanceToIn(p)` and `DistanceToOut(p)` return a **lower bound** on the
+  distance to the surface, not the exact distance.  Document and implement them
+  accordingly.  Use the `ExactDistanceToIn/Out` variants when an exact value is
+  required.
+- `GetPointOnSurface()` must sample from OCCT tessellation.  Returning the
+  origin (the `G4VSolid` base-class default) triggers Geant4 warnings.
+- Internal helper types (e.g. `FaceBounds`, `ClosestFaceMatch`) must be
+  **private nested types** and must not appear in the public header.  Do not
+  leak implementation details into the public API surface.
+- `G4Polyhedra` STEP fixtures use the **circumradius**, not the apothem.
+  Confusing the two produces incorrect vertex positions (PR #130).
 
 ---
 
@@ -203,12 +302,25 @@ The active hooks are:
 | `cmake-lint` | Lints `CMakeLists.txt` (config: `.github/cmake-lint.py`) |
 
 **Configuration files:**
-- `.clang-format` — LLVM-based C++ style, `Standard: c++20`, 100-column limit.
+- `.clang-format` — LLVM-based C++ style, **`Standard: c++20`**, 100-column
+  limit.  The standard must not be downgraded to `c++17`.
 - `.clang-tidy` — Static-analysis checks: `bugprone-*`, `modernize-*`,
   `readability-*`, and others; several overly-strict checks are disabled.
 - `.codespellrc` — Codespell skip patterns; custom ignore list in
   `.codespell-ignore`.
 - `.github/cmake-lint.py` — cmake-lint settings.
+
+**Codespell notes:**
+- Fix genuine prose misspellings in any file, including Geant4-derived sources.
+- Do **not** rename Geant4 macro commands that look like misspellings (e.g.
+  `/process/inactivate` is a valid Geant4 UI command, not a typo for
+  `deactivate`).  Instead, add the word to `.codespell-ignore` so codespell
+  stops flagging it.
+
+**CSS / JavaScript in Python scripts:**
+- CSS and JavaScript content used by report generators must live in **separate
+  tracked files**, not as inline strings inside Python scripts.  Inline content
+  creates diff noise and confuses content-type handling.
 
 Run all hooks manually on all files:
 ```bash
@@ -217,7 +329,55 @@ pre-commit run --all-files
 
 ---
 
-## 12. Updating These Instructions
+## 12. Sanitizers
+
+- **Scope:** `ASAN_OPTIONS`, `LSAN_OPTIONS`, and `UBSAN_OPTIONS` environment
+  variables must be set **only in the `sanitizer` CI job**, not globally or in
+  the `build-test-benchmark` job.
+- **Suppression files:** `.github/asan.supp`, `.github/lsan.supp`,
+  `.github/ubsan.supp` (and `.github/tsan.supp` if a TSAN job exists).  New
+  sanitizer failures originating from Geant4 internals or other third-party
+  libraries should be suppressed in the appropriate file rather than disabling
+  the sanitizer build.
+- **Flag probing:** Do **not** use `check_cxx_compiler_flag` to detect
+  `-fsanitize=address` or similar flags; it produces false negatives with
+  clang.  Add the flags unconditionally inside the relevant CMake option block
+  (`if(USE_ASAN) ... endif()`).
+
+---
+
+## 13. Report and Script Conventions
+
+- CI-specific Python and shell scripts belong in **`.github/scripts/`**, not
+  in a top-level `scripts/` directory.  Top-level `scripts/` should not exist.
+- Shared utility code that is used by multiple `generate_*_report.py` scripts
+  must be extracted into a **common module** (e.g.
+  `.github/scripts/report_utils.py`) rather than duplicated.
+- Benchmark report parsers are tightly coupled to the benchmark output format.
+  When the benchmark output format changes (e.g. migrating to Google Benchmark
+  JSON), the parser must be updated **in the same PR**.  Failing to do so has
+  broken report generation repeatedly (PRs #95, #122, #127).
+- Generated reports must use the **America/New_York** timezone.
+
+---
+
+## 14. Examples
+
+- **License:** Source files copied from Geant4 examples (B1, B4c, etc.) must
+  retain their **original Geant4 license block** unchanged.  Do not replace it
+  with the project LGPL header.  Add the example directory to `ignore-paths`
+  in `.github/workflows/spdx.yml`.
+- **STEP fixtures:** STEP files used in examples must be **centered at the
+  origin** so that placement code in the example does not need to compensate
+  for an embedded offset.
+- **Spelling:** Fix genuine prose misspellings in example files (comments,
+  string literals, variable names), but do **not** alter Geant4 UI macro
+  commands that codespell flags incorrectly (e.g. `/process/inactivate`).
+  Add such words to `.codespell-ignore` instead.
+
+---
+
+## 15. Updating These Instructions
 
 If a PR discussion establishes a new convention:
 
