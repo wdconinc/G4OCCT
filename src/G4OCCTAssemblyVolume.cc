@@ -48,10 +48,9 @@ namespace {
 std::pair<G4RotationMatrix, G4ThreeVector> TrsfToG4(const gp_Trsf& trsf) {
   // CLHEP::HepRotation's 9-argument (row-major) constructor is protected.
   // Use the public HepRep3x3 constructor instead.
-  G4RotationMatrix rot(CLHEP::HepRep3x3(
-      trsf.Value(1, 1), trsf.Value(1, 2), trsf.Value(1, 3),
-      trsf.Value(2, 1), trsf.Value(2, 2), trsf.Value(2, 3),
-      trsf.Value(3, 1), trsf.Value(3, 2), trsf.Value(3, 3)));
+  G4RotationMatrix rot(CLHEP::HepRep3x3(trsf.Value(1, 1), trsf.Value(1, 2), trsf.Value(1, 3),
+                                        trsf.Value(2, 1), trsf.Value(2, 2), trsf.Value(2, 3),
+                                        trsf.Value(3, 1), trsf.Value(3, 2), trsf.Value(3, 3)));
   G4ThreeVector trans(trsf.Value(1, 4), trsf.Value(2, 4), trsf.Value(3, 4));
   return {rot, trans};
 }
@@ -202,7 +201,7 @@ void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume*
       // XCAFDoc_Location::Get(label) returns the TopLoc_Location stored on
       // the label, or an identity location if none is present.
       const TopLoc_Location compLoc = XCAFDoc_Location::Get(comp);
-      gp_Trsf compTrsf = LocationToTrsf(compLoc);
+      gp_Trsf compTrsf              = LocationToTrsf(compLoc);
 
       // Compose: first apply component's local placement, then the parent's.
       gp_Trsf childTrsf = composedTrsf;
