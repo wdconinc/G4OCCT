@@ -187,7 +187,9 @@ Do not lower these version floors without an explicit project decision.
   Both jobs check out the repository, install CVMFS, and run inside
   `eic/run-cvmfs-osg-eic-shell@v1` with `platform-release: "eic_xl:nightly"`.
 - The sanitizer job sets `ASAN_OPTIONS`, `LSAN_OPTIONS`, and `UBSAN_OPTIONS`
-  at the workflow level, matching the EICrecon project conventions.
+  in the job-level `env:` block of the `sanitizer` job in `.github/workflows/ci.yml` —
+  do **not** put them in the workflow's top-level `env:` or in the
+  `build-test-benchmark` job.
 - Suppression files live in `.github/asan.supp`, `.github/lsan.supp`, and
   `.github/ubsan.supp`.
 - **Do not split** tests and benchmarks into separate jobs.

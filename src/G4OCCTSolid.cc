@@ -8,6 +8,7 @@
 
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepBndLib.hxx>
+#include <GeomAbs_SurfaceType.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
 #include <BRepGProp.hxx>
@@ -219,6 +220,9 @@ void G4OCCTSolid::ComputeBounds() {
   // via GeomProjLib::ProjectOnPlane each time (~3.3% of total instructions).
   for (TopExp_Explorer faceEx(fShape, TopAbs_FACE); faceEx.More(); faceEx.Next()) {
     const TopoDS_Face& face = TopoDS::Face(faceEx.Current());
+    if (BRepAdaptor_Surface(face).GetType() != GeomAbs_Plane) {
+      continue;
+    }
     for (TopExp_Explorer edgeEx(face, TopAbs_EDGE); edgeEx.More(); edgeEx.Next()) {
       BRepLib::BuildPCurveForEdgeOnPlane(TopoDS::Edge(edgeEx.Current()), face);
     }
