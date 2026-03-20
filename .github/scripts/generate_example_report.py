@@ -41,7 +41,7 @@ def _read_file(path: Path, default: str = "") -> str:
 def _render_report(log_dir: Path) -> str:
     ts = timestamp()
 
-    rows: list[tuple[str, str, str, str, str, int, str]] = []
+    rows: list[tuple[str, str, str, str, bool, str, int, str]] = []
     for ex in _EXAMPLES:
         exit_str = _read_file(log_dir / f"{ex['id']}.exit", "").strip()
         try:
@@ -54,9 +54,9 @@ def _render_report(log_dir: Path) -> str:
         batch_interrupted = _BATCH_INTERRUPTED_MARKER in log_text
         ok = exit_code == 0 and not batch_interrupted
         status = "✅ PASS" if ok else "❌ FAIL"
-        rows.append((ex["id"], ex["name"], ex["doc_link"], ex["cmd"], status, exit_code, log_text))
+        rows.append((ex["id"], ex["name"], ex["doc_link"], ex["cmd"], ok, status, exit_code, log_text))
 
-    overall_ok = all(row[4] == "✅ PASS" for row in rows)
+    overall_ok = all(row[4] for row in rows)
     overall_text = (
         "✅ All examples ran successfully."
         if overall_ok
@@ -73,11 +73,11 @@ def _render_report(log_dir: Path) -> str:
         "| Example | Status |",
         "|---------|--------|",
     ]
-    for _, name, doc_link, _, status, _, _ in rows:
+    for _, name, doc_link, _, _ok, status, _, _ in rows:
         lines.append(f"| [{name}]({doc_link}) | {status} |")
     lines.append("")
 
-    for ex_id, name, doc_link, cmd, status, exit_code, log_text in rows:
+    for ex_id, name, doc_link, cmd, _ok, status, exit_code, log_text in rows:
         lines += [
             f"## {name} — {status}",
             "",
