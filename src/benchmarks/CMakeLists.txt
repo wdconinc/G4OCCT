@@ -31,15 +31,15 @@ g4occt_benchmark(bench_navigator bench_navigator.cc LINK_LIBRARIES
 # Before running the benchmark, generate the STEP fixture: bash
 # src/tests/fixtures/assembly-comparison/regenerate.sh
 #
-# G4GDMLParser lives in Geant4's persistency module.  Use find_file (rather
-# than check_include_file_cxx) so that the detection is not blocked by missing
+# G4GDMLParser lives in Geant4's persistency module.  Use find_file (rather than
+# check_include_file_cxx) so that the detection is not blocked by missing
 # XercesC headers in CMAKE_REQUIRED_INCLUDES.  In environments such as
-# eic_xl:nightly, Geant4 is built with GDML but XercesC lives at a
-# non-standard Spack path that is not automatically appended to the compiler
-# search path.  check_include_file_cxx tries to compile the header, fails
-# because G4GDMLParser.hh transitively includes <xercesc/...>, and therefore
-# incorrectly reports GDML as absent.  find_file only checks whether the file
-# exists on disk.
+# eic_xl:nightly, Geant4 is built with GDML but XercesC lives at a non-standard
+# Spack path that is not automatically appended to the compiler search path.
+# check_include_file_cxx tries to compile the header, fails because
+# G4GDMLParser.hh transitively includes <xercesc/...>, and therefore incorrectly
+# reports GDML as absent.  find_file only checks whether the file exists on
+# disk.
 find_file(
   G4GDMLPARSER_HH
   NAMES "G4GDMLParser.hh"
@@ -55,8 +55,8 @@ if(G4GDMLPARSER_HH)
   target_compile_definitions(
     bench_assembly_navigator
     PRIVATE "G4OCCT_TEST_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../tests\"")
-  # G4GDMLParser.hh transitively includes <xercesc/...> headers, so XercesC
-  # must be on the include path at compile time.  In environments such as
+  # G4GDMLParser.hh transitively includes <xercesc/...> headers, so XercesC must
+  # be on the include path at compile time.  In environments such as
   # eic_xl:nightly, XercesC lives at a Spack-managed non-standard path that is
   # not automatically visible to the compiler; linking against XercesC::XercesC
   # propagates its include directories via cmake target properties.  Any Geant4
@@ -67,7 +67,8 @@ if(G4GDMLPARSER_HH)
   if(XercesC_FOUND)
     target_link_libraries(bench_assembly_navigator PRIVATE XercesC::XercesC)
   endif()
-  message(STATUS "Found G4GDMLParser.hh; bench_assembly_navigator will be built")
+  message(
+    STATUS "Found G4GDMLParser.hh; bench_assembly_navigator will be built")
 else()
   message(
     STATUS
