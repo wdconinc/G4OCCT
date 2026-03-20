@@ -325,6 +325,92 @@ jobs:
               "${PWD}/src/examples/B1/run.mac" \
               $(nproc)
 
+  # ── Coverage report ─────────────────────────────────────────────────────────
+  coverage:
+    name: Coverage report (eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Fetch NIST CTC STEP fixtures
+        uses: ./.github/actions/fetch-nist-ctc
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Build and test with coverage inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            # Debug build: -O0 keeps line-level mappings accurate.
+            # USE_COVERAGE adds --coverage (= -fprofile-arcs -ftest-coverage)
+            # plus -fno-inline and -fno-omit-frame-pointer.
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_TESTING=ON \
+              -DUSE_COVERAGE=ON
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build -- -j$(nproc)
+
+            # ── Test ───────────────────────────────────────────────────────
+            ctest --test-dir build --output-on-failure -j$(nproc) || true
+
+            # ── Generate coverage data ─────────────────────────────────────
+            pip3 install --quiet gcovr
+
+            mkdir -p coverage reports
+
+            # Include only project library sources; exclude tests, benchmarks,
+            # examples, and any third-party headers caught by --coverage.
+            gcovr \
+              --root . \
+              --filter 'src/G4OCCT.*' \
+              --filter 'include/G4OCCT/.*' \
+              --html-details coverage/index.html \
+              --json-summary coverage-summary.json \
+              --print-summary \
+              build/
+
+      - name: Generate coverage Markdown report
+        if: always()
+        run: |
+          python3 .github/scripts/generate_coverage_report.py \
+            coverage-summary.json reports/coverage.md
+
+      - name: Post coverage as step summary
+        if: always()
+        run: |
+          if [ -f reports/coverage.md ]; then
+            cat reports/coverage.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage HTML report as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload coverage Markdown report as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-md-report
+          path: reports/coverage.md
+          if-no-files-found: warn
+          retention-days: 1
+
   # ── Build Doxygen API reference ─────────────────────────────────────────────
   doxygen:
     name: Build Doxygen API reference
@@ -355,7 +441,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: [build-test-benchmark, doxygen]
+    needs: [build-test-benchmark, doxygen, coverage]
     runs-on: ubuntu-latest
     concurrency:
       group: "pages"
@@ -383,6 +469,18 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: ci-reports
+          path: docs/reports/
+
+      - name: Download coverage HTML report
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-report
+          path: docs/coverage/
+
+      - name: Download coverage Markdown report
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-md-report
           path: docs/reports/
 
       - name: Setup GitHub Pages
