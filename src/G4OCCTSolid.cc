@@ -317,8 +317,12 @@ void G4OCCTSolid::ComputeBounds() {
   fBVHDeflection = kRelativeDeflection * maxFaceDiag;
 
   // Ensure a triangulation is present (idempotent if mesh already exists).
-  [[maybe_unused]] const BRepMesh_IncrementalMesh mesher(fShape, kRelativeDeflection,
-                                                         /*isRelative=*/Standard_True);
+  // Limit lifetime to this scope so mesh resources are released before building
+  // the BVH, preserving the original temporary-object behavior.
+  {
+    [[maybe_unused]] const BRepMesh_IncrementalMesh mesher(fShape, kRelativeDeflection,
+                                                           /*isRelative=*/Standard_True);
+  }
 
   // Build the BVH-accelerated triangle set over all tessellated faces.
   BRepExtrema_ShapeList faces;
