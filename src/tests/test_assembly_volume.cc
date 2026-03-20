@@ -59,10 +59,11 @@ std::string BuildSingleBoxSTEP(const std::string& tmpPath, const std::string& pa
   TDataStd_Name::Set(shapeLabel, partName.c_str());
 
   // Add a material label, then set it on the shape.
-  // AddMaterial(name, description, density, unit) — OCCT 7.8 signature.
+  // AddMaterial(name, description, density, densityName, densityValType) — OCCT 7.8 signature.
   TDF_Label matLabel =
       matTool->AddMaterial(new TCollection_HAsciiString(matName.c_str()),
-                           new TCollection_HAsciiString(""), 0.0, new TCollection_HAsciiString(""));
+                           new TCollection_HAsciiString(""), 0.0, new TCollection_HAsciiString(""),
+                           new TCollection_HAsciiString(""));
   matTool->SetMaterial(shapeLabel, matLabel);
 
   // Write to STEP via the CAF writer
