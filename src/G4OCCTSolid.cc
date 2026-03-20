@@ -300,7 +300,12 @@ void G4OCCTSolid::ComputeBounds() {
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
     // Track the largest face bounding-box diagonal to bound the tessellation error.
     if (!faceBox.IsVoid()) {
-      Standard_Real fx0 = 0.0, fy0 = 0.0, fz0 = 0.0, fx1 = 0.0, fy1 = 0.0, fz1 = 0.0;
+      Standard_Real fx0 = 0.0;
+      Standard_Real fy0 = 0.0;
+      Standard_Real fz0 = 0.0;
+      Standard_Real fx1 = 0.0;
+      Standard_Real fy1 = 0.0;
+      Standard_Real fz1 = 0.0;
       faceBox.Get(fx0, fy0, fz0, fx1, fy1, fz1);
       const G4double diag = G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
       maxFaceDiag         = std::max(maxFaceDiag, diag);
