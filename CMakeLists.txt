@@ -56,6 +56,10 @@ include(CTest)
 
 # ─── GoogleTest ───────────────────────────────────────────────────────────────
 
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
 if(BUILD_TESTING)
   include(GoogleTest)
   find_package(GTest QUIET)
