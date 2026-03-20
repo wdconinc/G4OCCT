@@ -12,8 +12,8 @@ namespace {
 
 using g4occt::tests::navigation::BoxFixture;
 using g4occt::tests::navigation::CylinderFixture;
-using g4occt::tests::navigation::SphereFixture;
 using g4occt::tests::navigation::kDefaultTolerance;
+using g4occt::tests::navigation::SphereFixture;
 
 // DistanceToOut(p) is specified to return a conservative lower bound on the
 // true surface distance (safety estimate).  The exact values are tested via
@@ -46,13 +46,13 @@ TEST(DistanceToOutLowerBound, IsLessOrEqualExact) {
         << label << ": safety=" << safety << " must be ≤ exact=" << exact;
   };
 
-  checkLE(box.solid, box.Center(),                                           "box center");
-  checkLE(box.solid, G4ThreeVector(2.0 * mm, 3.0 * mm, 4.0 * mm),          "box offset");
-  checkLE(sphere.solid, sphere.Center(),                                     "sphere center");
-  checkLE(sphere.solid, G4ThreeVector(12.0 * mm, 0.0 * mm, 0.0 * mm),      "sphere offset");
-  checkLE(cylinder.solid, cylinder.Center(),                                 "cylinder center");
-  checkLE(cylinder.solid, G4ThreeVector(20.0 * mm, 0.0 * mm, 0.0 * mm),    "cylinder radial");
-  checkLE(cylinder.solid, G4ThreeVector(0.0 * mm, 0.0 * mm, 35.0 * mm),    "cylinder axial");
+  checkLE(box.solid, box.Center(), "box center");
+  checkLE(box.solid, G4ThreeVector(2.0 * mm, 3.0 * mm, 4.0 * mm), "box offset");
+  checkLE(sphere.solid, sphere.Center(), "sphere center");
+  checkLE(sphere.solid, G4ThreeVector(12.0 * mm, 0.0 * mm, 0.0 * mm), "sphere offset");
+  checkLE(cylinder.solid, cylinder.Center(), "cylinder center");
+  checkLE(cylinder.solid, G4ThreeVector(20.0 * mm, 0.0 * mm, 0.0 * mm), "cylinder radial");
+  checkLE(cylinder.solid, G4ThreeVector(0.0 * mm, 0.0 * mm, 35.0 * mm), "cylinder axial");
 }
 
 TEST(DistanceToOutLowerBound, StrictlyPositiveForInteriorPoints) {
