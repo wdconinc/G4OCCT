@@ -304,14 +304,19 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
       // Only count extrema whose UV point lies inside/on the *trimmed* face.
       // Extrema_ExtPS minimises over the rectangular UV domain; for trimmed
       // non-rectangular faces an extremum can lie outside the actual face.
-      const Standard_Real classifyTol = IntersectionTolerance();
+      // Use a UV-space tolerance consistent with tolU/tolV computed above.
+      const Standard_Real classifyTol = std::max(tolU, tolV);
+      Standard_Real       minSqDist   = kInfinity;
       for (Standard_Integer k = 1; k <= ext.NbExt(); ++k) {
         Standard_Real u = 0.0, v = 0.0;
         ext.Point(k).Parameter(u, v);
         BRepClass_FaceClassifier faceClass(fb.face, gp_Pnt2d(u, v), classifyTol);
         if (faceClass.State() == TopAbs_IN || faceClass.State() == TopAbs_ON) {
-          candidateDistance = std::min(candidateDistance, std::sqrt(ext.SquareDistance(k)));
+          minSqDist = std::min(minSqDist, ext.SquareDistance(k));
         }
+      }
+      if (minSqDist < kInfinity) {
+        candidateDistance = std::sqrt(minSqDist);
       }
     }
     if (candidateDistance == kInfinity) {
