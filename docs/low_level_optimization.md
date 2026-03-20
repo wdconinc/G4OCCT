@@ -410,7 +410,7 @@ that survive the AABB test.
 ### 5.1 Primitive and canonical-shape detection — **won't do**
 
 Users who need simple primitive shapes (boxes, spheres, cylinders, cones,
-tori, …) should use native Geant4 primitives directly.  G4 primitives use
+tori, …) should use native Geant4 primitives directly. Native Geant4 primitives use
 closed-form analytic solvers and deliver the best possible navigation
 performance for those shapes.
 
