@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2024 G4OCCT Contributors -->
+
+<!--
+  Triple-box assembly reference geometry.
+
+  Three 10×10×10 mm aluminium boxes placed along X at positions
+    x = -12 mm, 0 mm, and +12 mm
+  leaving 2 mm gaps between adjacent boxes.  The enclosing world is a
+  50×30×30 mm box filled with air.
+
+  This GDML file is the reference geometry for the assembly-comparison
+  benchmark.  The same geometry is exported as a STEP assembly by
+  generate_triple_box_step so that G4OCCTAssemblyVolume::FromSTEP can
+  import it and the two representations can be compared ray-by-ray.
+-->
+
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
+
+  <define>
+    <position name="pos_component_1" x="-12" y="0" z="0" unit="mm"/>
+    <position name="pos_component_2" x="0"   y="0" z="0" unit="mm"/>
+    <position name="pos_component_3" x="12"  y="0" z="0" unit="mm"/>
+  </define>
+
+  <materials>
+    <element name="Al" formula="Al" Z="13">
+      <atom value="26.9815385"/>
+    </element>
+    <element name="N" formula="N" Z="7">
+      <atom value="14.0067"/>
+    </element>
+    <element name="O" formula="O" Z="8">
+      <atom value="15.9994"/>
+    </element>
+    <!-- Simplified aluminium (same density as G4_Al) -->
+    <material name="G4_Al" state="solid">
+      <D unit="g/cm3" value="2.699"/>
+      <fraction n="1" ref="Al"/>
+    </material>
+    <!-- Simplified dry air (same density as G4_AIR) -->
+    <material name="G4_AIR" state="gas">
+      <D unit="g/cm3" value="0.00120479"/>
+      <fraction n="0.755636" ref="N"/>
+      <fraction n="0.231781" ref="O"/>
+    </material>
+  </materials>
+
+  <solids>
+    <box name="WorldBox"     x="50" y="30" z="30" lunit="mm"/>
+    <box name="ComponentBox" x="10" y="10" z="10" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="Component1LV">
+      <materialref ref="G4_Al"/>
+      <solidref   ref="ComponentBox"/>
+    </volume>
+    <volume name="Component2LV">
+      <materialref ref="G4_Al"/>
+      <solidref   ref="ComponentBox"/>
+    </volume>
+    <volume name="Component3LV">
+      <materialref ref="G4_Al"/>
+      <solidref   ref="ComponentBox"/>
+    </volume>
+    <volume name="WorldLV">
+      <materialref ref="G4_AIR"/>
+      <solidref   ref="WorldBox"/>
+      <physvol name="Component1PV">
+        <volumeref   ref="Component1LV"/>
+        <positionref ref="pos_component_1"/>
+      </physvol>
+      <physvol name="Component2PV">
+        <volumeref   ref="Component2LV"/>
+        <positionref ref="pos_component_2"/>
+      </physvol>
+      <physvol name="Component3PV">
+        <volumeref   ref="Component3LV"/>
+        <positionref ref="pos_component_3"/>
+      </physvol>
+    </volume>
+  </structure>
+
+  <setup name="Default" version="1.0">
+    <world ref="WorldLV"/>
+  </setup>
+
+</gdml>

@@ -63,6 +63,24 @@ jobs:
               src/tests/fixtures/geometry/manifest.yaml \
               point_clouds/
 
+            # ── Assembly GDML vs STEP benchmark ────────────────────────────
+            # Generate the STEP fixture from the reference GDML, then compare
+            # ray-casting results between the two representations.
+            # Both executables are only built when Geant4 was compiled with GDML
+            # support; skip gracefully when they are absent.
+            if [ -f ./build/src/benchmarks/generate_triple_box_step ]; then
+              ./build/src/benchmarks/generate_triple_box_step \
+                src/tests/fixtures/assembly-comparison/triple-box-v1/shape.step
+
+              ./build/src/benchmarks/bench_assembly_navigator \
+                --benchmark_out=bench_assembly_raw.json \
+                --benchmark_out_format=json \
+                2048 \
+                src/tests/fixtures/assembly-comparison \
+                point_clouds/
+            else
+              echo "bench_assembly_navigator not built (Geant4 GDML support absent)"
+            fi
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
 
@@ -74,6 +92,9 @@ jobs:
             test-results.xml reports/test-results.md
           python3 .github/scripts/generate_bench_report.py \
             bench_raw.json reports/bench-results.md reports/point_cloud_viewer.html
+          python3 .github/scripts/generate_assembly_report.py \
+            bench_assembly_raw.json reports/bench-assembly-results.md \
+            reports/point_cloud_viewer.html
           python3 .github/scripts/generate_point_cloud_report.py \
             point_clouds/ reports/point_cloud_viewer.html
 
@@ -86,6 +107,10 @@ jobs:
           fi
           if [ -f reports/bench-results.md ]; then
             cat reports/bench-results.md >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f reports/bench-assembly-results.md ]; then
+            cat reports/bench-assembly-results.md >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -f reports/point_cloud_viewer.html ]; then

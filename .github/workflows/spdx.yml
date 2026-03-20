@@ -25,3 +25,4 @@ jobs:
           ignore-paths: |-
             src/examples/B1
             src/examples/B4c
+            src/tests/fixtures/assembly-comparison/triple-box-v1/geometry.gdml

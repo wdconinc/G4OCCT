@@ -23,6 +23,43 @@ g4occt_benchmark(bench_navigator bench_navigator.cc LINK_LIBRARIES
 # ./bench_navigator --benchmark_format=json [args] | python3
 # scripts/bench_report.py
 
+# ─── generate_triple_box_step ────────────────────────────────────────────────
+# Standalone generator that writes the triple-box STEP assembly fixture used by
+# bench_assembly_navigator.  Run this once before running the benchmark:
+#   ./generate_triple_box_step <output.step>
+add_executable(generate_triple_box_step generate_triple_box_step.cc)
+target_link_libraries(generate_triple_box_step PRIVATE G4OCCT)
+
+# ─── bench_assembly_navigator ─────────────────────────────────────────────────
+# Compares GDML-reference vs STEP-imported assembly ray casting.
+# Requires G4GDMLParser (Geant4 built with GDML support) and zlib.
+# Run with: ./bench_assembly_navigator [N_rays] [fixture_root] [point_cloud_dir]
+#
+# G4GDMLParser lives in Geant4's persistency module.  Check that the header is
+# available; skip the target gracefully when Geant4 was built without GDML.
+include(CheckIncludeFileCXX)
+set(CMAKE_REQUIRED_INCLUDES_SAVED "${CMAKE_REQUIRED_INCLUDES}")
+list(APPEND CMAKE_REQUIRED_INCLUDES "${Geant4_INCLUDE_DIRS}")
+check_include_file_cxx("G4GDMLParser.hh" G4OCCT_HAVE_G4GDML)
+set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES_SAVED}")
+
+if(G4OCCT_HAVE_G4GDML)
+  find_package(ZLIB REQUIRED)
+  g4occt_benchmark(
+    bench_assembly_navigator bench_assembly_navigator.cc
+    LINK_LIBRARIES G4OCCT ZLIB::ZLIB)
+  # Pass the source-tree fixture directory so the benchmark can locate
+  # geometry.gdml files even when run from a build directory.
+  target_compile_definitions(
+    bench_assembly_navigator
+    PRIVATE
+      "G4OCCT_TEST_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../tests\"")
+else()
+  message(
+    STATUS
+    "G4GDMLParser.hh not found; bench_assembly_navigator will not be built")
+endif()
+
 # ─── bench_callgrind ─────────────────────────────────────────────────────────
 # Single-fixture callgrind-instrumented navigator benchmark.  Instrumentation
 # starts only when the navigation hot loop begins (after warm-up), so the
