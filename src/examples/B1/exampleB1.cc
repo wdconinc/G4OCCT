@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
   // ── User initializations ──────────────────────────────────────────────────
 
   runManager->SetUserInitialization(new B1::DetectorConstruction());
-  runManager->SetUserInitialization(new QBBC(0));
+  runManager->SetUserInitialization(new QBBC(0)); // 0: suppress physics-list verbosity
   runManager->SetUserInitialization(new ActionInitialization());
 
   // ── UI manager ────────────────────────────────────────────────────────────
@@ -83,16 +83,17 @@ int main(int argc, char** argv) {
     }
   }
 
+  int exitCode = 0;
   if (argc > 1) {
     // Batch mode: execute the supplied macro file.
     G4String command  = "/control/execute ";
     G4String fileName = argv[1];
-    UImanager->ApplyCommand(command + fileName);
+    exitCode = UImanager->ApplyCommand(command + fileName);
   } else {
     // Minimal headless default: initialise and exit without running any events.
-    UImanager->ApplyCommand("/run/initialize");
+    exitCode = UImanager->ApplyCommand("/run/initialize");
   }
 
   delete runManager;
-  return 0;
+  return exitCode != 0 ? 1 : 0;
 }

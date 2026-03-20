@@ -8,6 +8,12 @@ from pathlib import Path
 
 from report_utils import timestamp, write_report
 
+# Emitted by G4UIbatch (Geant4 source: source/interfaces/basic/src/G4UIbatch.cc)
+# when a macro command is not found and the batch session is aborted. Geant4 does
+# not propagate this interruption to the process exit code (always 0), so we also
+# scan the log for this marker.
+_BATCH_INTERRUPTED_MARKER = "Batch is interrupted!!"
+
 _EXAMPLES = [
     {
         "id": "B1",
@@ -43,9 +49,9 @@ def _render_report(log_dir: Path) -> str:
         except ValueError:
             exit_code = -1
         log_text = _read_file(log_dir / f"{ex['id']}.log", "(no output captured)")
-        # Geant4's UIbatch does not set a non-zero exit code when a command
-        # fails and interrupts the batch session, so also scan the log.
-        batch_interrupted = "Batch is interrupted!!" in log_text
+        # Geant4's UIbatch does not always set a non-zero exit code when a
+        # command fails and interrupts the batch session, so also scan the log.
+        batch_interrupted = _BATCH_INTERRUPTED_MARKER in log_text
         ok = exit_code == 0 and not batch_interrupted
         status = "✅ PASS" if ok else "❌ FAIL"
         rows.append((ex["id"], ex["name"], ex["doc_link"], ex["cmd"], status, exit_code, log_text))
