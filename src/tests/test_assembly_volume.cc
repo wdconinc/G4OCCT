@@ -15,18 +15,15 @@
 #include <TopoDS_Shape.hxx>
 
 // OCCT XDE
-#include <BRep_Builder.hxx>
 #include <STEPCAFControl_Writer.hxx>
+#include <TCollection_HAsciiString.hxx>
 #include <TDataStd_Name.hxx>
 #include <TDF_Label.hxx>
 #include <TDocStd_Application.hxx>
 #include <TDocStd_Document.hxx>
 #include <XCAFDoc_DocumentTool.hxx>
-#include <XCAFDoc_Location.hxx>
 #include <XCAFDoc_MaterialTool.hxx>
 #include <XCAFDoc_ShapeTool.hxx>
-#include <gp_Trsf.hxx>
-#include <gp_Vec.hxx>
 
 #include <gtest/gtest.h>
 
@@ -61,9 +58,12 @@ std::string BuildSingleBoxSTEP(const std::string& tmpPath, const std::string& pa
   // Set the name attribute
   TDataStd_Name::Set(shapeLabel, partName.c_str());
 
-  // Add a material
-  TDF_Label matLabel = matTool->AddMaterial(shapeLabel, matName.c_str(), "", 0.0, "");
-  (void)matLabel;
+  // Add a material label, then set it on the shape.
+  // AddMaterial(name, description, density, unit) — OCCT 7.8 signature.
+  TDF_Label matLabel =
+      matTool->AddMaterial(new TCollection_HAsciiString(matName.c_str()),
+                           new TCollection_HAsciiString(""), 0.0, new TCollection_HAsciiString(""));
+  matTool->SetMaterial(shapeLabel, matLabel);
 
   // Write to STEP via the CAF writer
   STEPCAFControl_Writer writer;
