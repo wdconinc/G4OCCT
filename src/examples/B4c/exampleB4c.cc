@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
   if (macro.size()) {
     // batch mode
     G4String command = "/control/execute ";
-    exitCode = UImanager->ApplyCommand(command + macro);
+    exitCode         = UImanager->ApplyCommand(command + macro);
   } else {
     // interactive mode : define UI session
     UImanager->ApplyCommand("/control/execute init_vis.mac");
@@ -151,4 +151,4 @@ int main(int argc, char** argv) {
   delete runManager;
   return exitCode != 0 ? 1 : 0;
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo.....
+  //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo.....

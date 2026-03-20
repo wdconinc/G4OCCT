@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     // Batch mode: execute the supplied macro file.
     G4String command  = "/control/execute ";
     G4String fileName = argv[1];
-    exitCode = UImanager->ApplyCommand(command + fileName);
+    exitCode          = UImanager->ApplyCommand(command + fileName);
   } else {
     // Minimal headless default: initialise and exit without running any events.
     exitCode = UImanager->ApplyCommand("/run/initialize");
