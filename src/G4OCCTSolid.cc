@@ -235,7 +235,7 @@ void G4OCCTSolid::ComputeBounds() {
   fFaceBoundsCache.clear();
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     Bnd_Box faceBox;
-    BRepBndLib::Add(ex.Current(), faceBox);
+    BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     fFaceBoundsCache.push_back({TopoDS::Face(ex.Current()), faceBox});
   }
 }
@@ -479,8 +479,8 @@ G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
   }
 
   // Use the pre-built per-face AABB cache to prune candidates before calling
-  // BRepExtrema on individual faces, reducing O(N_faces) work to O(1) for
-  // points near a single face.
+  // BRepExtrema on individual faces: each query performs O(N_faces) cheap AABB
+  // checks, but only O(k) faces require expensive extrema evaluations.
   const auto match = TryFindClosestFace(fFaceBoundsCache, p);
   if (!match.has_value()) {
     return 0.0;
