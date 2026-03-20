@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include <numbers>
+#include <cmath>
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
