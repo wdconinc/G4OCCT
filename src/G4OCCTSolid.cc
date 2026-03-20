@@ -702,7 +702,7 @@ const G4OCCTSolid::SurfaceSamplingCache& G4OCCTSolid::GetOrBuildSurfaceCache() c
       if (area > 0.0) {
         cache.totalArea += area;
         cache.cumulativeAreas.push_back(cache.totalArea);
-        cache.triangles.push_back({v1, v2, v3});
+        cache.triangles.push_back({v1, v2, v3, face});
       }
     }
   }
@@ -749,7 +749,31 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
     r2 = 1.0 - r2;
   }
 
-  return chosen.p1 + r1 * (chosen.p2 - chosen.p1) + r2 * (chosen.p3 - chosen.p1);
+  const G4ThreeVector tessPoint =
+      chosen.p1 + r1 * (chosen.p2 - chosen.p1) + r2 * (chosen.p3 - chosen.p1);
+
+  // For curved faces the tessellation triangle is a planar chord that lies
+  // inside the solid.  Project the sampled point back to the nearest point on
+  // the analytical face surface so that the returned point truly lies on the
+  // boundary and passes the G4PVPlacement::CheckOverlaps() surface test.
+  TopLoc_Location loc;
+  const Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(chosen.face, loc);
+  if (!geomSurface.IsNull()) {
+    gp_Pnt tessPointLocal(tessPoint.x(), tessPoint.y(), tessPoint.z());
+    if (!loc.IsIdentity()) {
+      tessPointLocal.Transform(loc.Transformation().Inverted());
+    }
+    GeomAPI_ProjectPointOnSurf projection(tessPointLocal, geomSurface);
+    if (projection.NbPoints() > 0) {
+      gp_Pnt projectedPoint = projection.NearestPoint();
+      if (!loc.IsIdentity()) {
+        projectedPoint.Transform(loc.Transformation());
+      }
+      return G4ThreeVector(projectedPoint.X(), projectedPoint.Y(), projectedPoint.Z());
+    }
+  }
+
+  return tessPoint;
 }
 
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }

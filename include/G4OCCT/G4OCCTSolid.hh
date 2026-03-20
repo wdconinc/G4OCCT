@@ -121,20 +121,23 @@ public:
   /// For the exact shortest distance, use ExactDistanceToOut(p).
   G4double DistanceToOut(const G4ThreeVector& p) const override;
 
-  /// Return a point sampled uniformly at random from the solid's tessellated
-  /// surface approximation.
+  /// Return a point sampled uniformly at random from the solid's surface.
   ///
   /// The OCCT shape is tessellated with a relative chord deflection of 1 % and
   /// each mesh triangle is selected with probability proportional to its
   /// (planar) area.  A random point within the selected triangle is then
-  /// generated using standard barycentric-coordinate sampling.
+  /// generated using standard barycentric-coordinate sampling and projected
+  /// back to the nearest point on the triangle's originating analytical OCCT
+  /// face surface via `GeomAPI_ProjectPointOnSurf`.  This projection step
+  /// ensures that the returned point lies exactly on the analytical surface for
+  /// curved faces (spheres, cylinders, cones, tori, etc.), rather than inside
+  /// the solid at a chord midpoint of the tessellation mesh.
   ///
-  /// The returned point is exactly uniformly distributed over the triangulated
-  /// surface.  For curved faces the tessellation approximates the true analytic
-  /// surface, so the distribution may deviate slightly from uniform on the
-  /// exact surface; the magnitude of the bias is proportional to the chord-
-  /// height approximation error.  The tessellation is cached per shape
-  /// generation so repeated calls are O(log N_triangles).
+  /// The distribution is area-weighted over the triangulated surface, which
+  /// approximates the uniform distribution over the true analytic surface; the
+  /// bias is proportional to the curvature and the 1 % chord-height error.
+  /// The tessellation is cached per shape generation so repeated calls only
+  /// require an O(log N_triangles) area selection plus one surface projection.
   ///
   /// Emits a @c JustWarning G4Exception and returns the origin if the shape is
   /// null or the tessellation produces no valid triangles.
@@ -260,6 +263,7 @@ private:
   /// Single mesh triangle used by the surface-sampling cache.
   struct SurfaceTriangle {
     G4ThreeVector p1, p2, p3;
+    TopoDS_Face face; ///< Originating OCCT face; used to project sampled points to the surface.
   };
 
   /// Cached data for area-weighted surface-point sampling via `GetPointOnSurface()`.
