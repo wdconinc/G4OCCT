@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#include <cmath>
+#include <numbers>
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
@@ -120,7 +120,7 @@ TEST(SolidBasicAPI, GetSurfaceAreaBox) {
 TEST(SolidBasicAPI, GetCubicVolumeSphere) {
   // Sphere of radius 50 mm: volume = (4/3)*pi*50^3
   const G4double r        = 50.0;
-  const G4double pi       = std::acos(-1.0);
+  const G4double pi       = std::numbers::pi;
   const G4double expected = (4.0 / 3.0) * pi * r * r * r;
   TopoDS_Shape sphere     = BRepPrimAPI_MakeSphere(r).Shape();
   G4OCCTSolid solid("VolumeSphere", sphere);
@@ -131,7 +131,7 @@ TEST(SolidBasicAPI, GetCubicVolumeSphere) {
 TEST(SolidBasicAPI, GetSurfaceAreaSphere) {
   // Sphere of radius 50 mm: surface area = 4*pi*50^2
   const G4double r        = 50.0;
-  const G4double pi       = std::acos(-1.0);
+  const G4double pi       = std::numbers::pi;
   const G4double expected = 4.0 * pi * r * r;
   TopoDS_Shape sphere     = BRepPrimAPI_MakeSphere(r).Shape();
   G4OCCTSolid solid("SurfaceSphere", sphere);
