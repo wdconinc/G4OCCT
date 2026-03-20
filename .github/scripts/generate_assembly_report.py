@@ -98,10 +98,9 @@ def _parse_bench_json(data: dict) -> dict:
 
 def _fixture_viewer_link(fixture_id: str, viewer_path: str) -> str:
     """Return a point-cloud viewer deep link for one assembly fixture."""
-    # The point-cloud key written by bench_assembly_navigator uses
-    # "assembly-comparison/<fixture_id>" as the fixture_id field.
-    pc_id = f"assembly-comparison/{fixture_id}"
-    return f"{viewer_path}?fixture={quote(pc_id, safe='')}"
+    # fixture_id already contains the full path (e.g. "assembly-comparison/triple-box-v1")
+    # as returned by _parse_benchmark_name(), so use it directly as the pc_id.
+    return f"{viewer_path}?fixture={quote(fixture_id, safe='')}"
 
 
 def _render_report(data: dict, viewer_path: str) -> str:

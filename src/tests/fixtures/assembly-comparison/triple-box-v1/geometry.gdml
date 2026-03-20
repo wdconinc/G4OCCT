@@ -11,9 +11,10 @@
   50×30×30 mm box filled with air.
 
   This GDML file is the reference geometry for the assembly-comparison
-  benchmark.  The same geometry is exported as a STEP assembly by
-  generate_triple_box_step so that G4OCCTAssemblyVolume::FromSTEP can
-  import it and the two representations can be compared ray-by-ray.
+  benchmark.  The same geometry is exported as a STEP assembly by the
+  regeneration scripts in this directory (regenerate.sh, generate.tcl
+  for DRAWEXE, and generate.py) so that G4OCCTAssemblyVolume::FromSTEP
+  can import it and the two representations can be compared ray-by-ray.
 -->
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

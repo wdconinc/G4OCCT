@@ -28,6 +28,7 @@
 
 #include <G4Box.hh>
 #include <G4GDMLParser.hh>
+#include <G4GeometryTolerance.hh>
 #include <G4LogicalVolume.hh>
 #include <G4NistManager.hh>
 #include <G4RotationMatrix.hh>
@@ -42,6 +43,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iomanip>
@@ -54,17 +56,20 @@
 #include <vector>
 
 namespace g4occt::benchmarks::assembly {
-namespace {
 
-  // ─── Default fixture root (relative to the source tree) ──────────────────────
+// ─── Default fixture root (relative to the source tree) ────────────────────────
+// Must be outside the anonymous namespace so main() can call it via the
+// qualified name g4occt::benchmarks::assembly::DefaultAssemblyFixtureRoot().
 
 #ifndef G4OCCT_TEST_SOURCE_DIR
 #define G4OCCT_TEST_SOURCE_DIR "."
 #endif
 
-  std::filesystem::path DefaultAssemblyFixtureRoot() {
-    return std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "assembly-comparison";
-  }
+std::filesystem::path DefaultAssemblyFixtureRoot() {
+  return std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "assembly-comparison";
+}
+
+namespace {
 
   // ─── Component specification ──────────────────────────────────────────────────
 
@@ -344,8 +349,8 @@ namespace {
 
     const std::vector<G4ThreeVector> directions = GenerateDirections(ray_count);
 
-    // Tolerance: one surface tolerance unit (Geant4 standard).
-    constexpr double kTolerance = 1.0e-3; // mm (≈ Geant4 surface tolerance)
+    // Tolerance: Geant4 surface tolerance (canonical geometry comparison threshold).
+    const G4double kTolerance = G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
 
     for (auto _ : state) {
       // ── GDML timing ──────────────────────────────────────────────────────
@@ -452,6 +457,62 @@ namespace {
 } // namespace
 } // namespace g4occt::benchmarks::assembly
 
+// ─── Entry point (called from main) ──────────────────────────────────────────
+// Must be outside the anonymous namespace so it is accessible as
+// g4occt::benchmarks::assembly::RunBenchmark from main().
+
+namespace g4occt::benchmarks::assembly {
+
+int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_count,
+                 const std::filesystem::path& point_cloud_dir, bool json_to_stdout) {
+  // ── Fixture discovery ───────────────────────────────────────────────────────
+  // Scan subdirectories of fixture_root that contain both geometry.gdml and
+  // shape.step.  Currently the only fixture is triple-box-v1.
+  SharedState shared_state;
+  g_state = &shared_state;
+
+  for (const auto& entry : std::filesystem::directory_iterator(fixture_root)) {
+    if (!entry.is_directory()) {
+      continue;
+    }
+    const std::filesystem::path gdml_path = entry.path() / "geometry.gdml";
+    const std::filesystem::path step_path = entry.path() / "shape.step";
+    if (!std::filesystem::exists(gdml_path)) {
+      continue;
+    }
+    if (!std::filesystem::exists(step_path)) {
+      std::cerr << "Info: STEP file not found for fixture " << entry.path().filename().string()
+                << "; run src/tests/fixtures/assembly-comparison/regenerate.sh to regenerate fixtures.\n";
+      continue;
+    }
+
+    const std::string fixture_id = entry.path().filename().string();
+
+    benchmark::RegisterBenchmark(
+        ("BM_assembly_rays/assembly-comparison/" + fixture_id).c_str(),
+        [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir](benchmark::State& st) {
+          RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path, ray_count, point_cloud_dir);
+        })
+        ->UseManualTime()
+        ->Iterations(1)
+        ->Unit(benchmark::kMillisecond);
+  }
+
+  benchmark::AddCustomContext("assembly_ray_count", std::to_string(ray_count));
+  benchmark::AddCustomContext("assembly_fixture_root", fixture_root.string());
+
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
+
+  std::ostream& report_out = json_to_stdout ? std::cerr : std::cout;
+  PrintSummary(report_out, shared_state);
+
+  g_state = nullptr;
+  return EXIT_SUCCESS;
+}
+
+} // namespace g4occt::benchmarks::assembly
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 int main(int argc, char** argv) {
@@ -485,52 +546,8 @@ int main(int argc, char** argv) {
     const std::filesystem::path point_cloud_dir =
         argc > 3 ? std::filesystem::path(argv[3]) : std::filesystem::path{};
 
-    // ── Fixture discovery ─────────────────────────────────────────────────
-    // Scan subdirectories of fixture_root that contain both geometry.gdml and
-    // shape.step.  Currently the only fixture is triple-box-v1.
-    using g4occt::benchmarks::assembly::RunAssemblyBenchmark;
-
-    g4occt::benchmarks::assembly::SharedState shared_state;
-    g4occt::benchmarks::assembly::g_state = &shared_state;
-
-    for (const auto& entry : std::filesystem::directory_iterator(fixture_root)) {
-      if (!entry.is_directory()) {
-        continue;
-      }
-      const std::filesystem::path gdml_path = entry.path() / "geometry.gdml";
-      const std::filesystem::path step_path = entry.path() / "shape.step";
-      if (!std::filesystem::exists(gdml_path)) {
-        continue;
-      }
-      if (!std::filesystem::exists(step_path)) {
-        std::cerr << "Info: STEP file not found for fixture " << entry.path().filename().string()
-                  << "; run generate_triple_box_step first.\n";
-        continue;
-      }
-
-      const std::string fixture_id = entry.path().filename().string();
-
-      benchmark::RegisterBenchmark(
-          ("BM_assembly_rays/assembly-comparison/" + fixture_id).c_str(),
-          [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir](benchmark::State& st) {
-            RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path, ray_count, point_cloud_dir);
-          })
-          ->UseManualTime()
-          ->Iterations(1)
-          ->Unit(benchmark::kMillisecond);
-    }
-
-    benchmark::AddCustomContext("assembly_ray_count", std::to_string(ray_count));
-    benchmark::AddCustomContext("assembly_fixture_root", fixture_root.string());
-
-    benchmark::RunSpecifiedBenchmarks();
-    benchmark::Shutdown();
-
-    std::ostream& report_out = json_to_stdout ? std::cerr : std::cout;
-    g4occt::benchmarks::assembly::PrintSummary(report_out, shared_state);
-
-    g4occt::benchmarks::assembly::g_state = nullptr;
-    return EXIT_SUCCESS;
+    return g4occt::benchmarks::assembly::RunBenchmark(fixture_root, ray_count, point_cloud_dir,
+                                                      json_to_stdout);
 
   } catch (const std::exception& error) {
     std::cerr << "FAIL: bench_assembly_navigator threw: " << error.what() << '\n';

@@ -40,7 +40,6 @@ check_include_file_cxx("G4GDMLParser.hh" G4OCCT_HAVE_G4GDML)
 set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES_SAVED}")
 
 if(G4OCCT_HAVE_G4GDML)
-  find_package(ZLIB REQUIRED)
   g4occt_benchmark(bench_assembly_navigator bench_assembly_navigator.cc
                    LINK_LIBRARIES G4OCCT ZLIB::ZLIB)
   # Pass the source-tree fixture directory so the benchmark can locate
