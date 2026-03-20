@@ -35,10 +35,6 @@
 #include <G4RotationMatrix.hh>
 #include <G4ThreeVector.hh>
 
-// CLHEP (for HepRep3x3 used to construct G4RotationMatrix without the
-// protected 9-arg HepRotation constructor)
-#include <CLHEP/Matrix/RotationInterfaces.hh>
-
 #include <map>
 #include <stdexcept>
 #include <string>
