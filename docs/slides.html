@@ -115,18 +115,11 @@ class: slide-section
 OCCT shapes live **inside** Geant4 constructs.
 The navigator, scoring, and visualisation remain untouched.
 
-```
-┌──────────────────────────────────────────────────────┐
-│                   Geant4 Navigator                   │
-│  G4SafetyHelper · G4VoxelNavigator · G4PropagatorInField │
-└────────────────────┬─────────────────────────────────┘
-                     │  G4VSolid virtual interface
-           ┌─────────▼──────────┐
-           │    G4OCCTSolid     │  ◄─ new in G4OCCT
-           │  ┌──────────────┐  │
-           │  │ TopoDS_Shape │  │  ◄─ OCCT BRep handle
-           │  └──────────────┘  │
-           └────────────────────┘
+```mermaid
+flowchart TD
+    GN["Geant4 Navigator\nG4SafetyHelper · G4VoxelNavigator · G4PropagatorInField"]
+    GN -->|"G4VSolid virtual interface"| GOS["G4OCCTSolid  ← new in G4OCCT"]
+    GOS --> TDS["TopoDS_Shape  ← OCCT BRep handle"]
 ```
 
 Navigation queries (`Inside`, `DistanceToIn/Out`, `SurfaceNormal`)
@@ -517,13 +510,26 @@ Core navigation works. Per-thread caching eliminates dominant overheads. Test su
 
 </textarea>
 <script src="https://remarkjs.com/downloads/remark-0.15.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
+  mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+
   var slideshow = remark.create({
     ratio: '16:9',
     highlightStyle: 'atom-one-dark',
     highlightLines: true,
     countIncrementalSlides: false,
     navigation: { scroll: false },
+  });
+
+  slideshow.on('afterShowSlide', function () {
+    document.querySelectorAll('.language-mermaid').forEach(function (el) {
+      var div = document.createElement('div');
+      div.className = 'mermaid';
+      div.textContent = el.textContent;
+      el.parentNode.replaceChild(div, el);
+      mermaid.init(undefined, div);
+    });
   });
 </script>
 </body>
