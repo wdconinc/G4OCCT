@@ -109,9 +109,12 @@ namespace {
   }
 
   /// Print one row of the per-fixture method table.
+  /// @param count_label  Label used before the count; use "mismatches" for native-vs-imported
+  ///                     comparison rows and "violations" for OCCT lower-bound rows.
+  ///                     Pass an empty string to suppress the count field entirely.
   void PrintMethodRow(std::ostream& out, const std::string& label, const double native_ms,
-                      const double imported_ms, const std::size_t mismatches,
-                      const bool has_timing = true) {
+                      const double imported_ms, const std::size_t count,
+                      const bool has_timing = true, const std::string& count_label = "mismatches") {
     out << "  " << std::left << std::setw(24) << label << ": ";
     if (has_timing) {
       out << "native=" << std::right << std::setw(8) << FormatMs(native_ms) << "ms"
@@ -123,7 +126,10 @@ namespace {
           << "  imported=" << std::setw(8) << "---" << "ms"
           << "  ratio=" << std::setw(8) << "---";
     }
-    out << "  mismatches=" << mismatches << "\n";
+    if (!count_label.empty()) {
+      out << "  " << count_label << "=" << count;
+    }
+    out << "\n";
   }
 
   /// Print one row of the aggregate summary table.
@@ -183,19 +189,29 @@ namespace {
     PrintMethodRow(out, "Inside(p)", s.inside.native_elapsed_ms, s.inside.imported_elapsed_ms,
                    s.inside.mismatch_count);
 
-    // Row 4: DistanceToIn(p) safety distance (outside points).
-    PrintMethodRow(out, "DistanceToIn(p)", s.safety.native_safety_in_ms,
-                   s.safety.imported_safety_in_ms, s.safety.safety_in_mismatch_count);
+    // Row 4: DistanceToIn(p) safety distance — Geant4 vs OCCT timing only (no mismatch count).
+    PrintMethodRow(out, "DTI(p) G4 vs OCCT", s.safety.native_safety_in_ms,
+                   s.safety.imported_safety_in_ms, 0, /*has_timing=*/true, /*count_label=*/"");
 
-    // Row 5: DistanceToOut(p) safety distance (inside points).
-    PrintMethodRow(out, "DistanceToOut(p)", s.safety.native_safety_out_ms,
-                   s.safety.imported_safety_out_ms, s.safety.safety_out_mismatch_count);
+    // Row 5: DistanceToOut(p) safety distance — Geant4 vs OCCT timing only (no mismatch count).
+    PrintMethodRow(out, "DTO(p) G4 vs OCCT", s.safety.native_safety_out_ms,
+                   s.safety.imported_safety_out_ms, 0, /*has_timing=*/true, /*count_label=*/"");
 
-    // Row 6: SurfaceNormal(p) post-hoc benchmark at agreed hit points.
+    // Row 6: DistanceToIn(p) within OCCT — lower bound vs exact.
+    PrintMethodRow(out, "DTI(p) OCCT vs Exact", s.safety.imported_safety_in_ms,
+                   s.safety.exact_safety_in_ms, s.safety.occt_lower_bound_in_violations,
+                   /*has_timing=*/true, /*count_label=*/"violations");
+
+    // Row 7: DistanceToOut(p) within OCCT — lower bound vs exact.
+    PrintMethodRow(out, "DTO(p) OCCT vs Exact", s.safety.imported_safety_out_ms,
+                   s.safety.exact_safety_out_ms, s.safety.occt_lower_bound_out_violations,
+                   /*has_timing=*/true, /*count_label=*/"violations");
+
+    // Row 8: SurfaceNormal(p) post-hoc benchmark at agreed hit points.
     PrintMethodRow(out, "SurfaceNormal(p)", s.ray.native_surface_normal_ms,
                    s.ray.imported_surface_normal_ms, s.ray.surface_normal_mismatch_count);
 
-    // Row 7: CreatePolyhedron() — mesh tessellation timing and mesh-density metrics.
+    // Row 9: CreatePolyhedron() — mesh tessellation timing and mesh-density metrics.
     PrintPolyhedronRow(out, s.polyhedron);
 
     out << "\n";
@@ -342,12 +358,18 @@ namespace {
                     (safety.imported_safety_in_ms + safety.imported_safety_out_ms) / 1000.0);
                 state.counters["safety_in_native_ms"]   = safety.native_safety_in_ms;
                 state.counters["safety_in_imported_ms"] = safety.imported_safety_in_ms;
-                state.counters["safety_in_mismatches"] =
-                    static_cast<double>(safety.safety_in_mismatch_count);
-                state.counters["safety_out_native_ms"]   = safety.native_safety_out_ms;
-                state.counters["safety_out_imported_ms"] = safety.imported_safety_out_ms;
-                state.counters["safety_out_mismatches"] =
-                    static_cast<double>(safety.safety_out_mismatch_count);
+                state.counters["safety_in_exact_ms"]    = safety.exact_safety_in_ms;
+                state.counters["safety_in_lb_violations"] =
+                    static_cast<double>(safety.occt_lower_bound_in_violations);
+                state.counters["safety_in_avg_lb_ratio"]      = safety.avg_dti_lb_ratio;
+                state.counters["safety_in_avg_g4_occt_ratio"] = safety.avg_dti_g4_occt_ratio;
+                state.counters["safety_out_native_ms"]        = safety.native_safety_out_ms;
+                state.counters["safety_out_imported_ms"]      = safety.imported_safety_out_ms;
+                state.counters["safety_out_exact_ms"]         = safety.exact_safety_out_ms;
+                state.counters["safety_out_lb_violations"] =
+                    static_cast<double>(safety.occt_lower_bound_out_violations);
+                state.counters["safety_out_avg_lb_ratio"]      = safety.avg_dto_lb_ratio;
+                state.counters["safety_out_avg_g4_occt_ratio"] = safety.avg_dto_g4_occt_ratio;
                 std::lock_guard<std::mutex> lk(g_state->mu);
                 g_state->summaries[fixture_id].safety = safety;
                 if (g_state->summaries[fixture_id].geant4_class.empty()) {
@@ -435,15 +457,17 @@ namespace {
     std::size_t agg_inside_mismatches   = 0;
     std::size_t agg_inside_exp_failures = 0;
 
-    double agg_dti_native_ms         = 0.0;
-    double agg_dti_imported_ms       = 0.0;
-    std::size_t agg_dti_mismatches   = 0;
-    std::size_t agg_dti_exp_failures = 0;
+    double agg_dti_native_ms          = 0.0;
+    double agg_dti_imported_ms        = 0.0;
+    double agg_dti_exact_ms           = 0.0;
+    std::size_t agg_dti_lb_violations = 0;
+    std::size_t agg_dti_exp_failures  = 0;
 
-    double agg_dto_native_ms         = 0.0;
-    double agg_dto_imported_ms       = 0.0;
-    std::size_t agg_dto_mismatches   = 0;
-    std::size_t agg_dto_exp_failures = 0;
+    double agg_dto_native_ms          = 0.0;
+    double agg_dto_imported_ms        = 0.0;
+    double agg_dto_exact_ms           = 0.0;
+    std::size_t agg_dto_lb_violations = 0;
+    std::size_t agg_dto_exp_failures  = 0;
 
     double agg_sn_native_ms         = 0.0;
     double agg_sn_imported_ms       = 0.0;
@@ -489,10 +513,12 @@ namespace {
       if (s.safety.point_count > 0U) {
         agg_dti_native_ms += s.safety.native_safety_in_ms;
         agg_dti_imported_ms += s.safety.imported_safety_in_ms;
-        agg_dti_mismatches += s.safety.safety_in_mismatch_count;
+        agg_dti_exact_ms += s.safety.exact_safety_in_ms;
+        agg_dti_lb_violations += s.safety.occt_lower_bound_in_violations;
         agg_dto_native_ms += s.safety.native_safety_out_ms;
         agg_dto_imported_ms += s.safety.imported_safety_out_ms;
-        agg_dto_mismatches += s.safety.safety_out_mismatch_count;
+        agg_dto_exact_ms += s.safety.exact_safety_out_ms;
+        agg_dto_lb_violations += s.safety.occt_lower_bound_out_violations;
         if (s.has_expected_failure) {
           ++agg_dti_exp_failures;
           ++agg_dto_exp_failures;
@@ -518,10 +544,14 @@ namespace {
                       /*has_timing=*/false);
     PrintAggregateRow(out, "Inside(p)", agg_inside_native_ms, agg_inside_imported_ms,
                       agg_inside_mismatches, agg_inside_exp_failures);
-    PrintAggregateRow(out, "DistanceToIn(p)", agg_dti_native_ms, agg_dti_imported_ms,
-                      agg_dti_mismatches, agg_dti_exp_failures);
-    PrintAggregateRow(out, "DistanceToOut(p)", agg_dto_native_ms, agg_dto_imported_ms,
-                      agg_dto_mismatches, agg_dto_exp_failures);
+    PrintAggregateRow(out, "DTI(p) G4 vs OCCT", agg_dti_native_ms, agg_dti_imported_ms, 0,
+                      agg_dti_exp_failures);
+    PrintAggregateRow(out, "DTO(p) G4 vs OCCT", agg_dto_native_ms, agg_dto_imported_ms, 0,
+                      agg_dto_exp_failures);
+    PrintAggregateRow(out, "DTI(p) OCCT vs Exact", agg_dti_imported_ms, agg_dti_exact_ms,
+                      agg_dti_lb_violations, agg_dti_exp_failures);
+    PrintAggregateRow(out, "DTO(p) OCCT vs Exact", agg_dto_imported_ms, agg_dto_exact_ms,
+                      agg_dto_lb_violations, agg_dto_exp_failures);
     PrintAggregateRow(out, "SurfaceNormal(p)", agg_sn_native_ms, agg_sn_imported_ms,
                       agg_sn_mismatches, agg_sn_exp_failures);
     // CreatePolyhedron() — timing totals only; no mismatch count because native

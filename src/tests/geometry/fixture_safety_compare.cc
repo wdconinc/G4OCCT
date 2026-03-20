@@ -43,40 +43,6 @@ namespace {
     return buf.str();
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Safety-distance comparison helper
-  // ──────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Determine whether two safety-distance values are a mismatch.
-   *
-   * Two values match when:
-   *  - Both are infinite (both solids agree the point is far from a surface), or
-   *  - `|native - imported| ≤ max(kSurfaceTolerance, 0.01 * max(native, imported))`.
-   *
-   * Explicitly treats the case where exactly one value is infinite as a mismatch,
-   * avoiding the degenerate `∞ > ∞` comparison that would otherwise suppress the error.
-   *
-   * @param native_dist    Safety distance from the native Geant4 solid.
-   * @param imported_dist  Safety distance from the imported OCCT solid.
-   * @param surface_tol    Geant4 surface tolerance (absolute floor for the tolerance).
-   * @return True when the two values are considered a mismatch.
-   */
-  bool IsSafetyMismatch(const G4double native_dist, const G4double imported_dist,
-                        const G4double surface_tol) {
-    const bool native_inf   = std::isinf(native_dist);
-    const bool imported_inf = std::isinf(imported_dist);
-    if (native_inf && imported_inf) {
-      return false; // both infinite — agree
-    }
-    if (native_inf != imported_inf) {
-      return true; // exactly one infinite — disagree
-    }
-    const G4double max_dist  = std::max(native_dist, imported_dist);
-    const G4double tolerance = std::max(surface_tol, 0.01 * max_dist);
-    return std::fabs(native_dist - imported_dist) > tolerance;
-  }
-
 } // namespace
 
 ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
@@ -145,6 +111,17 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
     local_summary.imported_safety_in_ms =
         std::chrono::duration<double, std::milli>(imported_in_end - imported_in_begin).count();
 
+    // ── Time ExactDistanceToIn(p) on outside points ───────────────────────
+    std::vector<G4double> exact_safety_in;
+    exact_safety_in.reserve(outside_points.size());
+    const auto exact_in_begin = std::chrono::steady_clock::now();
+    for (const auto& point : outside_points) {
+      exact_safety_in.push_back(imported_solid->ExactDistanceToIn(point));
+    }
+    const auto exact_in_end = std::chrono::steady_clock::now();
+    local_summary.exact_safety_in_ms =
+        std::chrono::duration<double, std::milli>(exact_in_end - exact_in_begin).count();
+
     // ── Time DistanceToOut(p) on inside points ────────────────────────────
     std::vector<G4double> native_safety_out;
     native_safety_out.reserve(inside_points.size());
@@ -166,55 +143,145 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
     local_summary.imported_safety_out_ms =
         std::chrono::duration<double, std::milli>(imported_out_end - imported_out_begin).count();
 
-    // ── Compare DistanceToIn(p) results ───────────────────────────────────
-    std::size_t reported_in_mismatches = 0;
+    // ── Time ExactDistanceToOut(p) on inside points ───────────────────────
+    std::vector<G4double> exact_safety_out;
+    exact_safety_out.reserve(inside_points.size());
+    const auto exact_out_begin = std::chrono::steady_clock::now();
+    for (const auto& point : inside_points) {
+      exact_safety_out.push_back(imported_solid->ExactDistanceToOut(point));
+    }
+    const auto exact_out_end = std::chrono::steady_clock::now();
+    local_summary.exact_safety_out_ms =
+        std::chrono::duration<double, std::milli>(exact_out_end - exact_out_begin).count();
+
+    // ── Within OCCT: lower-bound violations and avg lb ratio ──────────────
+    //
+    // The accelerated DistanceToIn/Out(p) must be a lower bound on the exact
+    // value by construction.  Any violation is a hard-fail error.
+    // Also accumulate the ratio imported/exact for informational analysis.
+    std::size_t reported_in_violations = 0;
+    double dti_lb_ratio_sum            = 0.0;
+    std::size_t dti_lb_ratio_count     = 0;
+    // Always emit at least one error when violations exist; cap per-point detail messages.
+    const std::size_t max_violations = std::max(std::size_t{1}, options.max_reported_violations);
+
+    for (std::size_t index = 0; index < outside_points.size(); ++index) {
+      const G4double lb_dist    = imported_safety_in[index];
+      const G4double exact_dist = exact_safety_in[index];
+
+      // Hard-fail if lower bound exceeds exact distance beyond tolerance.
+      if (lb_dist > exact_dist + surface_tolerance) {
+        ++local_summary.occt_lower_bound_in_violations;
+        if (reported_in_violations < max_violations) {
+          ++reported_in_violations;
+          std::ostringstream message;
+          message << "Point " << index
+                  << " OCCT DistanceToIn(p) lower-bound violation for fixture '"
+                  << request.fixture.id << "': lb=" << DistanceString(lb_dist)
+                  << ", exact=" << DistanceString(exact_dist)
+                  << ", point=" << ToString(outside_points[index]);
+          report.AddError("fixture.occt_lower_bound_in_violation", message.str(), provenance_path);
+        }
+      }
+
+      // Accumulate lower-bound ratio where both values are finite and exact > 0.
+      if (std::isfinite(lb_dist) && std::isfinite(exact_dist) && exact_dist > surface_tolerance) {
+        dti_lb_ratio_sum += lb_dist / exact_dist;
+        ++dti_lb_ratio_count;
+      }
+    }
+    local_summary.avg_dti_lb_ratio =
+        (dti_lb_ratio_count > 0U) ? dti_lb_ratio_sum / static_cast<double>(dti_lb_ratio_count)
+                                  : 0.0;
+
+    std::size_t reported_out_violations = 0;
+    double dto_lb_ratio_sum             = 0.0;
+    std::size_t dto_lb_ratio_count      = 0;
+
+    for (std::size_t index = 0; index < inside_points.size(); ++index) {
+      const G4double lb_dist    = imported_safety_out[index];
+      const G4double exact_dist = exact_safety_out[index];
+
+      // Hard-fail if lower bound exceeds exact distance beyond tolerance.
+      if (lb_dist > exact_dist + surface_tolerance) {
+        ++local_summary.occt_lower_bound_out_violations;
+        if (reported_out_violations < max_violations) {
+          ++reported_out_violations;
+          std::ostringstream message;
+          message << "Point " << index
+                  << " OCCT DistanceToOut(p) lower-bound violation for fixture '"
+                  << request.fixture.id << "': lb=" << DistanceString(lb_dist)
+                  << ", exact=" << DistanceString(exact_dist)
+                  << ", point=" << ToString(inside_points[index]);
+          report.AddError("fixture.occt_lower_bound_out_violation", message.str(), provenance_path);
+        }
+      }
+
+      // Accumulate lower-bound ratio where both values are finite and exact > 0.
+      if (std::isfinite(lb_dist) && std::isfinite(exact_dist) && exact_dist > surface_tolerance) {
+        dto_lb_ratio_sum += lb_dist / exact_dist;
+        ++dto_lb_ratio_count;
+      }
+    }
+    local_summary.avg_dto_lb_ratio =
+        (dto_lb_ratio_count > 0U) ? dto_lb_ratio_sum / static_cast<double>(dto_lb_ratio_count)
+                                  : 0.0;
+
+    // ── Between Geant4 and OCCT: average distance ratio ───────────────────
+    //
+    // For each point, accumulate the ratio imported/native so the caller can
+    // determine whether OCCT gives systematically smaller or larger safeties.
+    double dti_g4_occt_ratio_sum        = 0.0;
+    std::size_t dti_g4_occt_ratio_count = 0;
+
     for (std::size_t index = 0; index < outside_points.size(); ++index) {
       const G4double native_dist   = native_safety_in[index];
       const G4double imported_dist = imported_safety_in[index];
-      if (IsSafetyMismatch(native_dist, imported_dist, surface_tolerance)) {
-        ++local_summary.safety_in_mismatch_count;
-        if (reported_in_mismatches < options.max_reported_mismatches) {
-          ++reported_in_mismatches;
-          std::ostringstream message;
-          message << "Point " << index << " DistanceToIn(p) mismatch for fixture '"
-                  << request.fixture.id << "': native=" << DistanceString(native_dist)
-                  << ", imported=" << DistanceString(imported_dist)
-                  << ", point=" << ToString(outside_points[index]);
-          report.AddError("fixture.safety_in_distance_mismatch", message.str(), provenance_path);
-        }
+      if (std::isfinite(native_dist) && native_dist > surface_tolerance &&
+          std::isfinite(imported_dist)) {
+        dti_g4_occt_ratio_sum += imported_dist / native_dist;
+        ++dti_g4_occt_ratio_count;
       }
     }
+    local_summary.avg_dti_g4_occt_ratio =
+        (dti_g4_occt_ratio_count > 0U)
+            ? dti_g4_occt_ratio_sum / static_cast<double>(dti_g4_occt_ratio_count)
+            : 0.0;
 
-    // ── Compare DistanceToOut(p) results ──────────────────────────────────
-    std::size_t reported_out_mismatches = 0;
+    double dto_g4_occt_ratio_sum        = 0.0;
+    std::size_t dto_g4_occt_ratio_count = 0;
+
     for (std::size_t index = 0; index < inside_points.size(); ++index) {
       const G4double native_dist   = native_safety_out[index];
       const G4double imported_dist = imported_safety_out[index];
-      if (IsSafetyMismatch(native_dist, imported_dist, surface_tolerance)) {
-        ++local_summary.safety_out_mismatch_count;
-        if (reported_out_mismatches < options.max_reported_mismatches) {
-          ++reported_out_mismatches;
-          std::ostringstream message;
-          message << "Point " << index << " DistanceToOut(p) mismatch for fixture '"
-                  << request.fixture.id << "': native=" << DistanceString(native_dist)
-                  << ", imported=" << DistanceString(imported_dist)
-                  << ", point=" << ToString(inside_points[index]);
-          report.AddError("fixture.safety_out_distance_mismatch", message.str(), provenance_path);
-        }
+      if (std::isfinite(native_dist) && native_dist > surface_tolerance &&
+          std::isfinite(imported_dist)) {
+        dto_g4_occt_ratio_sum += imported_dist / native_dist;
+        ++dto_g4_occt_ratio_count;
       }
     }
+    local_summary.avg_dto_g4_occt_ratio =
+        (dto_g4_occt_ratio_count > 0U)
+            ? dto_g4_occt_ratio_sum / static_cast<double>(dto_g4_occt_ratio_count)
+            : 0.0;
 
     // ── Summary info message ──────────────────────────────────────────────
     std::ostringstream timing_summary;
     timing_summary << "Safety distances for fixture '" << request.fixture.id << "' ("
                    << local_summary.geant4_class << "): points=" << local_summary.point_count
                    << " (outside=" << outside_points.size() << ", inside=" << inside_points.size()
-                   << "); DistanceToIn: native=" << local_summary.native_safety_in_ms
-                   << " ms, imported=" << local_summary.imported_safety_in_ms
-                   << " ms, mismatches=" << local_summary.safety_in_mismatch_count
-                   << "; DistanceToOut: native=" << local_summary.native_safety_out_ms
-                   << " ms, imported=" << local_summary.imported_safety_out_ms
-                   << " ms, mismatches=" << local_summary.safety_out_mismatch_count;
+                   << "); DTI: g4=" << local_summary.native_safety_in_ms
+                   << " ms, occt=" << local_summary.imported_safety_in_ms
+                   << " ms, exact=" << local_summary.exact_safety_in_ms
+                   << " ms, lb_violations=" << local_summary.occt_lower_bound_in_violations
+                   << ", avg_lb_ratio=" << local_summary.avg_dti_lb_ratio
+                   << ", avg_occt/g4=" << local_summary.avg_dti_g4_occt_ratio
+                   << "; DTO: g4=" << local_summary.native_safety_out_ms
+                   << " ms, occt=" << local_summary.imported_safety_out_ms
+                   << " ms, exact=" << local_summary.exact_safety_out_ms
+                   << " ms, lb_violations=" << local_summary.occt_lower_bound_out_violations
+                   << ", avg_lb_ratio=" << local_summary.avg_dto_lb_ratio
+                   << ", avg_occt/g4=" << local_summary.avg_dto_g4_occt_ratio;
     report.AddInfo("fixture.safety_compare_summary", timing_summary.str(), provenance_path);
 
   } catch (const std::exception& error) {

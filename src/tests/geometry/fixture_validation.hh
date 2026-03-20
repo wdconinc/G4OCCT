@@ -68,13 +68,11 @@ private:
  * flags set.
  *
  * When `enabled` is true ALL non-equivalence error codes are demoted to
- * warnings (existing behaviour).  When only `safety_enabled` is true, only
- * `fixture.safety_in_distance_mismatch` and
- * `fixture.safety_out_distance_mismatch` are demoted; ray, inside, and volume
- * errors remain hard failures.  This reflects the physics fact that safety
- * distances are allowed to be conservative — a larger-than-exact value is
- * valid — so mismatches between Geant4 and OCCT implementations need not
- * indicate a correctness bug.
+ * warnings (existing behaviour).  `safety_enabled` is reserved for future
+ * use; the safety non-equivalence allowlist is currently empty because
+ * Geant4-vs-OCCT safety distance differences are no longer treated as errors
+ * (see `CompareFixtureSafety`).  OCCT lower-bound violations are hard
+ * failures that cannot be reclassified by either flag.
  */
 struct FixtureExpectedFailure {
   /// Reclassify all non-equivalence errors (ray, inside, volume, safety) as xfail warnings.
@@ -146,12 +144,8 @@ std::string ToString(ValidationSeverity severity);
  *    - `fixture.ray_normal_mismatch`
  *    - `fixture.surface_normal_mismatch`
  *    - `fixture.inside_classification_mismatch`
- *    - `fixture.safety_in_distance_mismatch`
- *    - `fixture.safety_out_distance_mismatch`
- *  - Safety-only (applied when `failure.safety_enabled` is true, unless already
- *    demoted by `failure.enabled`):
- *    - `fixture.safety_in_distance_mismatch`
- *    - `fixture.safety_out_distance_mismatch`
+ *  - Safety-only (applied when `failure.safety_enabled` is true): currently empty;
+ *    reserved for future safety non-equivalence codes.
  *
  * Structural and IO errors (missing files, STEP read/transfer failures, etc.)
  * are kept as errors regardless of the failure policy.

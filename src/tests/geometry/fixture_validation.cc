@@ -81,10 +81,10 @@ static const std::set<std::string> kNonSafetyNonEquivalenceCodes = {
 /// because safety is allowed to be conservative (larger than the exact distance is
 /// valid in Geant4).  Demoted separately from other non-equivalence codes so that
 /// safety mismatches do not mask genuine ray or inside failures.
-static const std::set<std::string> kSafetyNonEquivalenceCodes = {
-    "fixture.safety_in_distance_mismatch",
-    "fixture.safety_out_distance_mismatch",
-};
+/// Currently empty: G4 vs OCCT safety distance mismatches are no longer treated as
+/// errors; OCCT lower-bound violations (`fixture.occt_lower_bound_*`) are always
+/// hard failures and cannot be reclassified.
+static const std::set<std::string> kSafetyNonEquivalenceCodes = {};
 
 ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
                                             const FixtureExpectedFailure& failure) {
