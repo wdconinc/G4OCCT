@@ -350,16 +350,16 @@ namespace {
                     g4occt::tests::geometry::ReclassifyExpectedFailures(report, expected_failure);
                 state.SetIterationTime(
                     (safety.imported_safety_in_ms + safety.imported_safety_out_ms) / 1000.0);
-                state.counters["safety_in_native_ms"]    = safety.native_safety_in_ms;
-                state.counters["safety_in_imported_ms"]  = safety.imported_safety_in_ms;
-                state.counters["safety_in_exact_ms"]     = safety.exact_safety_in_ms;
+                state.counters["safety_in_native_ms"]   = safety.native_safety_in_ms;
+                state.counters["safety_in_imported_ms"] = safety.imported_safety_in_ms;
+                state.counters["safety_in_exact_ms"]    = safety.exact_safety_in_ms;
                 state.counters["safety_in_lb_violations"] =
                     static_cast<double>(safety.occt_lower_bound_in_violations);
                 state.counters["safety_in_avg_lb_ratio"]      = safety.avg_dti_lb_ratio;
                 state.counters["safety_in_avg_g4_occt_ratio"] = safety.avg_dti_g4_occt_ratio;
-                state.counters["safety_out_native_ms"]   = safety.native_safety_out_ms;
-                state.counters["safety_out_imported_ms"] = safety.imported_safety_out_ms;
-                state.counters["safety_out_exact_ms"]    = safety.exact_safety_out_ms;
+                state.counters["safety_out_native_ms"]        = safety.native_safety_out_ms;
+                state.counters["safety_out_imported_ms"]      = safety.imported_safety_out_ms;
+                state.counters["safety_out_exact_ms"]         = safety.exact_safety_out_ms;
                 state.counters["safety_out_lb_violations"] =
                     static_cast<double>(safety.occt_lower_bound_out_violations);
                 state.counters["safety_out_avg_lb_ratio"]      = safety.avg_dto_lb_ratio;
@@ -451,17 +451,17 @@ namespace {
     std::size_t agg_inside_mismatches   = 0;
     std::size_t agg_inside_exp_failures = 0;
 
-    double agg_dti_native_ms         = 0.0;
-    double agg_dti_imported_ms       = 0.0;
-    double agg_dti_exact_ms          = 0.0;
-    std::size_t agg_dti_lb_violations   = 0;
-    std::size_t agg_dti_exp_failures = 0;
+    double agg_dti_native_ms          = 0.0;
+    double agg_dti_imported_ms        = 0.0;
+    double agg_dti_exact_ms           = 0.0;
+    std::size_t agg_dti_lb_violations = 0;
+    std::size_t agg_dti_exp_failures  = 0;
 
-    double agg_dto_native_ms         = 0.0;
-    double agg_dto_imported_ms       = 0.0;
-    double agg_dto_exact_ms          = 0.0;
-    std::size_t agg_dto_lb_violations   = 0;
-    std::size_t agg_dto_exp_failures = 0;
+    double agg_dto_native_ms          = 0.0;
+    double agg_dto_imported_ms        = 0.0;
+    double agg_dto_exact_ms           = 0.0;
+    std::size_t agg_dto_lb_violations = 0;
+    std::size_t agg_dto_exp_failures  = 0;
 
     double agg_sn_native_ms         = 0.0;
     double agg_sn_imported_ms       = 0.0;
@@ -538,10 +538,10 @@ namespace {
                       /*has_timing=*/false);
     PrintAggregateRow(out, "Inside(p)", agg_inside_native_ms, agg_inside_imported_ms,
                       agg_inside_mismatches, agg_inside_exp_failures);
-    PrintAggregateRow(out, "DTI(p) G4 vs OCCT", agg_dti_native_ms, agg_dti_imported_ms,
-                      0, agg_dti_exp_failures);
-    PrintAggregateRow(out, "DTO(p) G4 vs OCCT", agg_dto_native_ms, agg_dto_imported_ms,
-                      0, agg_dto_exp_failures);
+    PrintAggregateRow(out, "DTI(p) G4 vs OCCT", agg_dti_native_ms, agg_dti_imported_ms, 0,
+                      agg_dti_exp_failures);
+    PrintAggregateRow(out, "DTO(p) G4 vs OCCT", agg_dto_native_ms, agg_dto_imported_ms, 0,
+                      agg_dto_exp_failures);
     PrintAggregateRow(out, "DTI(p) OCCT vs Exact", agg_dti_imported_ms, agg_dti_exact_ms,
                       agg_dti_lb_violations, agg_dti_exp_failures);
     PrintAggregateRow(out, "DTO(p) OCCT vs Exact", agg_dto_imported_ms, agg_dto_exact_ms,

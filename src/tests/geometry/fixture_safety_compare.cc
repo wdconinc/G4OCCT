@@ -159,12 +159,12 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
     // The accelerated DistanceToIn/Out(p) must be a lower bound on the exact
     // value by construction.  Any violation is a hard-fail error.
     // Also accumulate the ratio imported/exact for informational analysis.
-    std::size_t reported_in_violations  = 0;
-    double      dti_lb_ratio_sum        = 0.0;
-    std::size_t dti_lb_ratio_count      = 0;
+    std::size_t reported_in_violations = 0;
+    double dti_lb_ratio_sum            = 0.0;
+    std::size_t dti_lb_ratio_count     = 0;
 
     for (std::size_t index = 0; index < outside_points.size(); ++index) {
-      const G4double lb_dist   = imported_safety_in[index];
+      const G4double lb_dist    = imported_safety_in[index];
       const G4double exact_dist = exact_safety_in[index];
 
       // Hard-fail if lower bound exceeds exact distance beyond tolerance.
@@ -173,7 +173,8 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
         if (reported_in_violations < options.max_reported_violations) {
           ++reported_in_violations;
           std::ostringstream message;
-          message << "Point " << index << " OCCT DistanceToIn(p) lower-bound violation for fixture '"
+          message << "Point " << index
+                  << " OCCT DistanceToIn(p) lower-bound violation for fixture '"
                   << request.fixture.id << "': lb=" << DistanceString(lb_dist)
                   << ", exact=" << DistanceString(exact_dist)
                   << ", point=" << ToString(outside_points[index]);
@@ -188,14 +189,15 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
       }
     }
     local_summary.avg_dti_lb_ratio =
-        (dti_lb_ratio_count > 0U) ? dti_lb_ratio_sum / static_cast<double>(dti_lb_ratio_count) : 0.0;
+        (dti_lb_ratio_count > 0U) ? dti_lb_ratio_sum / static_cast<double>(dti_lb_ratio_count)
+                                  : 0.0;
 
     std::size_t reported_out_violations = 0;
-    double      dto_lb_ratio_sum        = 0.0;
+    double dto_lb_ratio_sum             = 0.0;
     std::size_t dto_lb_ratio_count      = 0;
 
     for (std::size_t index = 0; index < inside_points.size(); ++index) {
-      const G4double lb_dist   = imported_safety_out[index];
+      const G4double lb_dist    = imported_safety_out[index];
       const G4double exact_dist = exact_safety_out[index];
 
       // Hard-fail if lower bound exceeds exact distance beyond tolerance.
@@ -204,7 +206,8 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
         if (reported_out_violations < options.max_reported_violations) {
           ++reported_out_violations;
           std::ostringstream message;
-          message << "Point " << index << " OCCT DistanceToOut(p) lower-bound violation for fixture '"
+          message << "Point " << index
+                  << " OCCT DistanceToOut(p) lower-bound violation for fixture '"
                   << request.fixture.id << "': lb=" << DistanceString(lb_dist)
                   << ", exact=" << DistanceString(exact_dist)
                   << ", point=" << ToString(inside_points[index]);
@@ -219,13 +222,14 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
       }
     }
     local_summary.avg_dto_lb_ratio =
-        (dto_lb_ratio_count > 0U) ? dto_lb_ratio_sum / static_cast<double>(dto_lb_ratio_count) : 0.0;
+        (dto_lb_ratio_count > 0U) ? dto_lb_ratio_sum / static_cast<double>(dto_lb_ratio_count)
+                                  : 0.0;
 
     // ── Between Geant4 and OCCT: average distance ratio ───────────────────
     //
     // For each point, accumulate the ratio imported/native so the caller can
     // determine whether OCCT gives systematically smaller or larger safeties.
-    double      dti_g4_occt_ratio_sum   = 0.0;
+    double dti_g4_occt_ratio_sum        = 0.0;
     std::size_t dti_g4_occt_ratio_count = 0;
 
     for (std::size_t index = 0; index < outside_points.size(); ++index) {
@@ -242,7 +246,7 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
             ? dti_g4_occt_ratio_sum / static_cast<double>(dti_g4_occt_ratio_count)
             : 0.0;
 
-    double      dto_g4_occt_ratio_sum   = 0.0;
+    double dto_g4_occt_ratio_sum        = 0.0;
     std::size_t dto_g4_occt_ratio_count = 0;
 
     for (std::size_t index = 0; index < inside_points.size(); ++index) {
