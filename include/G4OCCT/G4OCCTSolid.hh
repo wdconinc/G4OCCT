@@ -16,7 +16,6 @@
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <Bnd_Box.hxx>
 #include <IntCurvesFace_ShapeIntersector.hxx>
-#include <TopoDS_Compound.hxx>
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
 
@@ -263,14 +262,6 @@ private:
   };
 
   TopoDS_Shape fShape;
-
-  /// Compound of all faces of @c fShape, cached for @c DistanceToOut(p) queries.
-  ///
-  /// A solid-wide @c BRepExtrema_DistShapeShape(vertex, solid) returns distance
-  /// zero for interior points because the solid contains the vertex.  Querying
-  /// against this face compound (which has no interior volume) yields the correct
-  /// surface distance regardless of whether the query point is inside or outside.
-  TopoDS_Compound fFaceCompound;
 
   /// Cached axis-aligned bounding box; computed eagerly in the constructor and
   /// recomputed by `ComputeBounds()` whenever `SetOCCTShape()` is called.

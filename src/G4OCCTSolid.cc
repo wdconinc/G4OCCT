@@ -100,22 +100,6 @@ EInside ToG4Inside(const TopAbs_State state) {
 /// Return the canonical fall-back surface normal (positive Z axis).
 G4ThreeVector FallbackNormal() { return G4ThreeVector(0.0, 0.0, 1.0); }
 
-/// Compute the shortest distance from @p point to the surface of @p shape.
-/// Returns kInfinity if the shape is null or the calculation fails.
-G4double DistanceFromPointToShape(const TopoDS_Shape& shape, const G4ThreeVector& point) {
-  if (shape.IsNull()) {
-    return kInfinity;
-  }
-
-  BRepExtrema_DistShapeShape distance(MakeVertex(point), shape);
-  if (!distance.IsDone() || distance.NbSolution() == 0) {
-    return kInfinity;
-  }
-
-  const G4double shortestDistance = distance.Value();
-  return (shortestDistance <= IntersectionTolerance()) ? 0.0 : shortestDistance;
-}
-
 /// Evaluate the outward surface normal on @p face at parameters (@p u, @p v).
 /// Returns the normal vector on success, or std::nullopt if the normal is undefined.
 std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
@@ -224,19 +208,8 @@ G4OCCTSolid* G4OCCTSolid::FromSTEP(const G4String& name, const std::string& path
 void G4OCCTSolid::ComputeBounds() {
   if (fShape.IsNull()) {
     fCachedBounds = std::nullopt;
-    BRep_Builder builder;
-    builder.MakeCompound(fFaceCompound);
     fFaceBoundsCache.clear();
     return;
-  }
-
-  // Build a compound of all faces so that BRepExtrema_DistShapeShape queries
-  // against fFaceCompound return the surface distance even for interior points
-  // (a solid-wide query returns 0 for interior points).
-  BRep_Builder builder;
-  builder.MakeCompound(fFaceCompound);
-  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
-    builder.Add(fFaceCompound, ex.Current());
   }
 
   Bnd_Box boundingBox;
@@ -262,7 +235,7 @@ void G4OCCTSolid::ComputeBounds() {
   fFaceBoundsCache.clear();
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     Bnd_Box faceBox;
-    BRepBndLib::Add(ex.Current(), faceBox);
+    BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     fFaceBoundsCache.push_back({TopoDS::Face(ex.Current()), faceBox});
   }
 }
@@ -443,7 +416,11 @@ G4double G4OCCTSolid::ExactDistanceToIn(const G4ThreeVector& p) const {
     return 0.0;
   }
 
-  return DistanceFromPointToShape(fShape, p);
+  const auto match = TryFindClosestFace(fFaceBoundsCache, p);
+  if (!match.has_value()) {
+    return kInfinity;
+  }
+  return (match->distance <= IntersectionTolerance()) ? 0.0 : match->distance;
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const { return ExactDistanceToIn(p); }
@@ -501,17 +478,14 @@ G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
     return 0.0;
   }
 
-  // Query the face compound (not the solid) so OCCT's internal bounding-box
-  // tree selects only candidate faces.  A solid-wide query returns distance
-  // zero for interior points because the solid contains the vertex; the face
-  // compound has no interior volume and gives the correct surface distance.
-  BRepExtrema_DistShapeShape distance(MakeVertex(p), fFaceCompound);
-  if (!distance.IsDone() || distance.NbSolution() == 0) {
+  // Use the pre-built per-face AABB cache to prune candidates before calling
+  // BRepExtrema on individual faces: each query performs O(N_faces) cheap AABB
+  // checks, but only O(k) faces require expensive extrema evaluations.
+  const auto match = TryFindClosestFace(fFaceBoundsCache, p);
+  if (!match.has_value()) {
     return 0.0;
   }
-
-  const G4double d = distance.Value();
-  return (d <= IntersectionTolerance()) ? 0.0 : d;
+  return (match->distance <= IntersectionTolerance()) ? 0.0 : match->distance;
 }
 
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const { return ExactDistanceToOut(p); }
