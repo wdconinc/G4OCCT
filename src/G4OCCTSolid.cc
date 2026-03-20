@@ -678,6 +678,10 @@ const G4OCCTSolid::SurfaceSamplingCache& G4OCCTSolid::GetOrBuildSurfaceCache() c
       continue;
     }
 
+    // Register this face once in the deduplicated faces array.
+    const std::uint32_t faceIndex = static_cast<std::uint32_t>(cache.faces.size());
+    cache.faces.push_back(face);
+
     const gp_Trsf& transform  = loc.Transformation();
     const bool reverseWinding = face.Orientation() == TopAbs_REVERSED;
 
@@ -702,7 +706,7 @@ const G4OCCTSolid::SurfaceSamplingCache& G4OCCTSolid::GetOrBuildSurfaceCache() c
       if (area > 0.0) {
         cache.totalArea += area;
         cache.cumulativeAreas.push_back(cache.totalArea);
-        cache.triangles.push_back({v1, v2, v3, face});
+        cache.triangles.push_back({v1, v2, v3, faceIndex});
       }
     }
   }
@@ -756,8 +760,9 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
   // inside the solid.  Project the sampled point back to the nearest point on
   // the analytical face surface so that the returned point truly lies on the
   // boundary and passes the G4PVPlacement::CheckOverlaps() surface test.
+  const TopoDS_Face& face = cache.faces[chosen.faceIndex];
   TopLoc_Location loc;
-  const Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(chosen.face, loc);
+  const Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face, loc);
   if (!geomSurface.IsNull()) {
     gp_Pnt tessPointLocal(tessPoint.x(), tessPoint.y(), tessPoint.z());
     if (!loc.IsIdentity()) {

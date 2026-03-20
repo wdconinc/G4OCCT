@@ -200,16 +200,20 @@ TEST(SolidBasicAPI, GetPointOnSurfaceSphere) {
   G4OCCTSolid solid("GetPointOnSurfaceSphere", sphere);
 
   constexpr int kSamples = 100;
-  // With a 1% relative deflection, the chord height (distance from a triangle
-  // midpoint to the true curved surface) is bounded by the absolute deflection,
-  // which for a sphere of radius 50 is at most ~1% of the face bounding-box
-  // diagonal (~173 units), giving roughly 1.7 mm.  A tolerance of 2.0 is a
-  // conservative upper bound to account for different tessellation algorithms.
-  constexpr G4double kTol = 2.0;
+  // With analytical surface projection the returned point lies directly on the
+  // sphere surface.  A tolerance of 1e-6 mm is a tight bound on the residual
+  // numerical error from GeomAPI_ProjectPointOnSurf for a simple sphere.
+  constexpr G4double kTol = 1.0e-6;
 
   for (int i = 0; i < kSamples; ++i) {
     const G4ThreeVector pt = solid.GetPointOnSurface();
     const G4double r       = pt.mag();
     EXPECT_NEAR(r, kRadius, kTol) << "Point radius deviates from sphere radius at sample " << i;
+
+    // Regression: prior to the projection fix, tessellation chord midpoints
+    // were returned which classified as kInside.  Verify the projected point
+    // is classified as kSurface (not kInside) by the solid classifier.
+    const EInside inside = solid.Inside(pt);
+    EXPECT_EQ(inside, kSurface) << "GetPointOnSurface returned non-surface point at sample " << i;
   }
 }

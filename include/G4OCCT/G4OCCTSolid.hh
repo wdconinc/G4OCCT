@@ -129,9 +129,11 @@ public:
   /// generated using standard barycentric-coordinate sampling and projected
   /// back to the nearest point on the triangle's originating analytical OCCT
   /// face surface via `GeomAPI_ProjectPointOnSurf`.  This projection step
-  /// ensures that the returned point lies exactly on the analytical surface for
-  /// curved faces (spheres, cylinders, cones, tori, etc.), rather than inside
-  /// the solid at a chord midpoint of the tessellation mesh.
+  /// places the returned point on the analytical surface for curved faces
+  /// (spheres, cylinders, cones, tori, etc.), rather than inside the solid at
+  /// a chord midpoint of the tessellation mesh.  If projection fails (e.g. for
+  /// a degenerate or null surface), the raw tessellation point is returned as a
+  /// fallback; such a point may lie slightly inside the solid.
   ///
   /// The distribution is area-weighted over the triangulated surface, which
   /// approximates the uniform distribution over the true analytic surface; the
@@ -261,18 +263,27 @@ private:
   };
 
   /// Single mesh triangle used by the surface-sampling cache.
+  ///
+  /// Each triangle carries only the three vertex positions and a compact index
+  /// into `SurfaceSamplingCache::faces`.  Using an index instead of a full
+  /// `TopoDS_Face` value avoids duplicating the face handle across every
+  /// triangle on that face, which can be thousands of entries for a
+  /// finely-tessellated shape.
   struct SurfaceTriangle {
     G4ThreeVector p1, p2, p3;
-    TopoDS_Face face; ///< Originating OCCT face; used to project sampled points to the surface.
+    std::uint32_t faceIndex; ///< Index into SurfaceSamplingCache::faces (valid range: [0, faces.size())).
   };
 
   /// Cached data for area-weighted surface-point sampling via `GetPointOnSurface()`.
   ///
   /// Stores the flat list of triangles extracted from the OCCT triangulation
   /// together with a cumulative-area array that enables O(log N) area-weighted
-  /// selection.  Built lazily on the first `GetPointOnSurface()` call after
-  /// each shape update; keyed by `fShapeGeneration`.
+  /// selection, and a deduplicated list of the OCCT faces from which the
+  /// triangles were collected (used for surface projection in
+  /// `GetPointOnSurface()`).  Built lazily on the first `GetPointOnSurface()`
+  /// call after each shape update; keyed by `fShapeGeneration`.
   struct SurfaceSamplingCache {
+    std::vector<TopoDS_Face> faces; ///< Unique OCCT faces, one entry per shape face.
     std::vector<SurfaceTriangle> triangles;
     std::vector<G4double> cumulativeAreas;
     G4double totalArea{0.0};
