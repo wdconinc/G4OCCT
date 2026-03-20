@@ -271,7 +271,8 @@ private:
   /// finely-tessellated shape.
   struct SurfaceTriangle {
     G4ThreeVector p1, p2, p3;
-    std::uint32_t faceIndex; ///< Index into SurfaceSamplingCache::faces (valid range: [0, faces.size())).
+    std::uint32_t
+        faceIndex; ///< Index into SurfaceSamplingCache::faces (valid range: [0, faces.size())).
   };
 
   /// Cached data for area-weighted surface-point sampling via `GetPointOnSurface()`.
