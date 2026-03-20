@@ -114,8 +114,7 @@ namespace {
   ///                     Pass an empty string to suppress the count field entirely.
   void PrintMethodRow(std::ostream& out, const std::string& label, const double native_ms,
                       const double imported_ms, const std::size_t count,
-                      const bool has_timing = true,
-                      const std::string& count_label = "mismatches") {
+                      const bool has_timing = true, const std::string& count_label = "mismatches") {
     out << "  " << std::left << std::setw(24) << label << ": ";
     if (has_timing) {
       out << "native=" << std::right << std::setw(8) << FormatMs(native_ms) << "ms"
