@@ -8,17 +8,20 @@
 
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepBndLib.hxx>
-#include <GeomAbs_SurfaceType.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
+#include <BRepExtrema_TriangleSet.hxx>
 #include <BRepGProp.hxx>
 #include <BRepLib.hxx>
 #include <BRepLProp_SLProps.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <BRep_Builder.hxx>
 #include <BRep_Tool.hxx>
+#include <BVH_Distance.hxx>
+#include <BVH_Tools.hxx>
 #include <Bnd_Box.hxx>
 #include <Extrema_ExtPS.hxx>
+#include <GeomAbs_SurfaceType.hxx>
 #include <GProp_GProps.hxx>
 #include <GeomAPI_ProjectPointOnSurf.hxx>
 #include <Geom_Surface.hxx>
@@ -70,6 +73,42 @@ constexpr G4double kFallbackExtentMax = 1.0;
 /// (`GetPointOnSurface`).  A value of 0.01 requests a chord height of at
 /// most 1 % of each face's bounding-box size.
 constexpr Standard_Real kRelativeDeflection = 0.01;
+
+/// BVH traversal class that computes the minimum Euclidean distance from a
+/// query point to the nearest triangle in a `BRepExtrema_TriangleSet`.
+///
+/// Used by `G4OCCTSolid::BVHLowerBoundDistance()` to accelerate safety
+/// distance queries.  Follows the pattern of `BRepExtrema_ProximityDistTool`
+/// from OCCT's `TKTopAlgo` library.
+///
+/// Stored distances are actual distances (not squared) so that the branch
+/// rejection metric is directly comparable to `myDistance`.
+class PointToMeshDistance
+    : public BVH_Distance<Standard_Real, 3, BVH_Vec3d, BRepExtrema_TriangleSet> {
+public:
+  /// Prune a BVH branch when its nearest possible point is already farther
+  /// than the current best distance.
+  Standard_Boolean RejectNode(const BVH_Vec3d& theCornerMin, const BVH_Vec3d& theCornerMax,
+                              Standard_Real& theMetric) const override {
+    theMetric = std::sqrt(
+        BVH_Tools<Standard_Real, 3>::PointBoxSquareDistance(myObject, theCornerMin, theCornerMax));
+    return RejectMetric(theMetric);
+  }
+
+  /// Update the minimum distance with the exact point-to-triangle distance.
+  Standard_Boolean Accept(const Standard_Integer theIndex, const Standard_Real&) override {
+    BVH_Vec3d v0, v1, v2;
+    myBVHSet->GetVertices(theIndex, v0, v1, v2);
+    const Standard_Real sq =
+        BVH_Tools<Standard_Real, 3>::PointTriangleSquareDistance(myObject, v0, v1, v2);
+    const Standard_Real d = std::sqrt(sq);
+    if (d < myDistance) {
+      myDistance = d;
+      return Standard_True;
+    }
+    return Standard_False;
+  }
+};
 
 /// Convert a Geant4 three-vector to an OCCT point.
 gp_Pnt ToPoint(const G4ThreeVector& point) { return gp_Pnt(point.x(), point.y(), point.z()); }
@@ -212,6 +251,8 @@ void G4OCCTSolid::ComputeBounds() {
   if (fShape.IsNull()) {
     fCachedBounds = std::nullopt;
     fFaceBoundsCache.clear();
+    fTriangleSet.Nullify();
+    fBVHDeflection = 0.0;
     return;
   }
 
@@ -233,6 +274,8 @@ void G4OCCTSolid::ComputeBounds() {
   if (boundingBox.IsVoid()) {
     fCachedBounds = std::nullopt;
     fFaceBoundsCache.clear();
+    fTriangleSet.Nullify();
+    fBVHDeflection = 0.0;
     return;
   }
 
@@ -249,11 +292,37 @@ void G4OCCTSolid::ComputeBounds() {
 
   // Build per-face bounding-box cache for the SurfaceNormal prefilter.
   fFaceBoundsCache.clear();
+  G4double maxFaceDiag = 0.0;
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     Bnd_Box faceBox;
     BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
+    // Track the largest face bounding-box diagonal to bound the tessellation error.
+    if (!faceBox.IsVoid()) {
+      Standard_Real fx0, fy0, fz0, fx1, fy1, fz1;
+      faceBox.Get(fx0, fy0, fz0, fx1, fy1, fz1);
+      const G4double diag = G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
+      maxFaceDiag         = std::max(maxFaceDiag, diag);
+    }
+  }
+
+  // fBVHDeflection bounds the Hausdorff distance between the analytical surface
+  // and the tessellation built with relative deflection kRelativeDeflection.
+  fBVHDeflection = kRelativeDeflection * maxFaceDiag;
+
+  // Ensure a triangulation is present (idempotent if mesh already exists).
+  BRepMesh_IncrementalMesh(fShape, kRelativeDeflection, /*isRelative=*/Standard_True);
+
+  // Build the BVH-accelerated triangle set over all tessellated faces.
+  BRepExtrema_ShapeList faces;
+  for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
+    faces.Append(ex.Current());
+  }
+  if (faces.IsEmpty()) {
+    fTriangleSet.Nullify();
+  } else {
+    fTriangleSet = new BRepExtrema_TriangleSet(faces);
   }
 }
 
@@ -438,7 +507,50 @@ G4double G4OCCTSolid::ExactDistanceToIn(const G4ThreeVector& p) const {
   return (match->distance <= IntersectionTolerance()) ? 0.0 : match->distance;
 }
 
-G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const { return ExactDistanceToIn(p); }
+G4double G4OCCTSolid::AABBLowerBound(const G4ThreeVector& p) const {
+  if (!fCachedBounds.has_value()) {
+    return kInfinity;
+  }
+  const G4ThreeVector& mn = fCachedBounds->min;
+  const G4ThreeVector& mx = fCachedBounds->max;
+  const G4double dx       = std::max(0.0, std::max(mn.x() - p.x(), p.x() - mx.x()));
+  const G4double dy       = std::max(0.0, std::max(mn.y() - p.y(), p.y() - mx.y()));
+  const G4double dz       = std::max(0.0, std::max(mn.z() - p.z(), p.z() - mx.z()));
+  return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+G4double G4OCCTSolid::BVHLowerBoundDistance(const G4ThreeVector& p) const {
+  if (fTriangleSet.IsNull() || fTriangleSet->Size() == 0) {
+    return kInfinity;
+  }
+  PointToMeshDistance solver;
+  solver.SetObject(BVH_Vec3d(p.x(), p.y(), p.z()));
+  solver.SetBVHSet(fTriangleSet.get());
+  const Standard_Real meshDist = solver.ComputeDistance();
+  if (!solver.IsDone()) {
+    return kInfinity;
+  }
+  // Subtract the deflection bound to guarantee a strict lower bound:
+  //   s = max(0, mesh_dist - δ)   where δ ≤ kRelativeDeflection * max_face_diagonal.
+  return std::max(0.0, static_cast<G4double>(meshDist) - fBVHDeflection);
+}
+
+G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
+  // Tier-0: AABB lower bound (O(1)).  If the point is clearly outside the shape's
+  // axis-aligned bounding box, the AABB distance is a guaranteed conservative lower
+  // bound on the true surface distance and avoids any further OCCT computation.
+  // Guard against the "AABB unavailable" case where AABBLowerBound() returns
+  // kInfinity (fCachedBounds == std::nullopt): returning kInfinity here would be
+  // incorrect, so fall through to the exact solver instead.
+  const G4double aabbDist = AABBLowerBound(p);
+  if (std::isfinite(aabbDist) && aabbDist > IntersectionTolerance()) {
+    return aabbDist;
+  }
+
+  // Fallback: exact distance (handles points near or inside the AABB, including
+  // interior/surface classification).
+  return ExactDistanceToIn(p);
+}
 
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v,
                                     const G4bool calcNorm, G4bool* validNorm,
@@ -503,7 +615,15 @@ G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
   return (match->distance <= IntersectionTolerance()) ? 0.0 : match->distance;
 }
 
-G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const { return ExactDistanceToOut(p); }
+G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
+  // Tier-1: mesh-BVH lower bound (O(log T)).  For interior points the AABB
+  // distance is always 0, so there is no useful Tier-0 AABB shortcut here.
+  const G4double bvhDist = BVHLowerBoundDistance(p);
+  if (bvhDist < kInfinity)
+    return bvhDist;
+  // Fallback: exact computation via BRepExtrema_DistShapeShape.
+  return ExactDistanceToOut(p);
+}
 
 G4double G4OCCTSolid::GetCubicVolume() {
   std::unique_lock<std::mutex> lock(fVolumeAreaMutex);

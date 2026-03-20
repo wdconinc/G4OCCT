@@ -15,6 +15,7 @@
 // OCCT shape representation
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
+#include <BRepExtrema_TriangleSet.hxx>
 #include <Bnd_Box.hxx>
 #include <IntCurvesFace_ShapeIntersector.hxx>
 #include <TopoDS_Face.hxx>
@@ -98,6 +99,16 @@ public:
   G4double DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const override;
 
   /// A lower bound on the shortest distance from external point @p p to the solid surface.
+  ///
+  /// Uses a two-stage acceleration pipeline:
+  ///
+  /// **Tier 0 (O(1)):** If @p p is outside the cached axis-aligned bounding box by more than
+  /// `IntersectionTolerance()`, the AABB distance is returned immediately.  This is always a
+  /// valid conservative lower bound and avoids any OCCT call for distant exterior points.
+  ///
+  /// **Fallback:** Points within `IntersectionTolerance()` of the AABB, or when the AABB is
+  /// unavailable, fall through to `ExactDistanceToIn(p)`.
+  ///
   /// For the exact shortest distance, use ExactDistanceToIn(p).
   G4double DistanceToIn(const G4ThreeVector& p) const override;
 
@@ -277,6 +288,25 @@ private:
   /// read-only during navigation, so no additional synchronisation is required.
   std::vector<FaceBounds> fFaceBoundsCache;
 
+  /// BVH-accelerated triangle set over the tessellated surface of @c fShape.
+  ///
+  /// Built once in `ComputeBounds()` after `BRepMesh_IncrementalMesh` tessellates
+  /// the shape.  Used by `BVHLowerBoundDistance()` to compute O(log T) lower bounds
+  /// on the point-to-surface distance.  Null when the shape is null or has no faces.
+  /// Written only in `ComputeBounds()`; read-only (const BVH traversal) during
+  /// navigation — no additional synchronisation is required beyond the construction
+  /// ordering already guaranteed by the geometry-build phase.
+  Handle(BRepExtrema_TriangleSet) fTriangleSet;
+
+  /// Conservative upper bound on the Hausdorff distance between the analytical
+  /// surface of @c fShape and its tessellation stored in @c fTriangleSet.
+  ///
+  /// Set in `ComputeBounds()` to `kRelativeDeflection × max_face_bbox_diagonal`,
+  /// which bounds the chord-height error for a relative linear deflection of
+  /// `kRelativeDeflection`.  Used in `BVHLowerBoundDistance()` as the correction
+  /// term `δ` in `s = max(0, mesh_dist − δ)` to guarantee a valid lower bound.
+  G4double fBVHDeflection{0.0};
+
   /// Monotonically increasing counter; incremented by each `SetOCCTShape()` call.
   /// Read (acquire) in `GetOrCreateClassifier()` and `GetOrCreateIntersector()` const;
   /// written (release) in `SetOCCTShape()`.
@@ -364,6 +394,19 @@ private:
   /// when the shape is null or has no geometry.  Called from the constructor and
   /// @c SetOCCTShape().
   void ComputeBounds();
+
+  /// Compute the distance from @p p to the cached axis-aligned bounding box.
+  /// Returns 0 when @p p is on or inside the AABB.
+  /// Returns @c kInfinity when @c fCachedBounds is not available.
+  G4double AABBLowerBound(const G4ThreeVector& p) const;
+
+  /// Compute a conservative lower bound on the distance from @p p to the solid surface
+  /// using the BVH-accelerated triangle set @c fTriangleSet.
+  ///
+  /// The returned value satisfies @c 0 ≤ s ≤ true_distance, making it a valid
+  /// Geant4 safety distance.  Returns @c kInfinity if @c fTriangleSet is not
+  /// available (null or empty).
+  G4double BVHLowerBoundDistance(const G4ThreeVector& p) const;
 
   /// Find the closest trimmed face to @p point using pre-computed per-face bounding
   /// boxes as a lower-bound prefilter.  A face whose AABB distance from @p point
