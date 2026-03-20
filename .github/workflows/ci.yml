@@ -192,7 +192,7 @@ jobs:
 
       - name: Run clang-tidy on all files
         uses: eic/run-cvmfs-osg-eic-shell@v1
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name != 'pull_request' }}
         with:
           platform-release: "eic_xl:nightly"
           run: |
@@ -202,7 +202,6 @@ jobs:
 
       - name: Upload clang-tidy fixes as artifact
         uses: actions/upload-artifact@v7
-        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
         with:
           name: clang-tidy-fixes
           path: clang_tidy_fixes.yaml

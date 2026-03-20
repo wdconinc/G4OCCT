@@ -300,7 +300,12 @@ void G4OCCTSolid::ComputeBounds() {
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
     // Track the largest face bounding-box diagonal to bound the tessellation error.
     if (!faceBox.IsVoid()) {
-      Standard_Real fx0, fy0, fz0, fx1, fy1, fz1;
+      Standard_Real fx0 = 0.0;
+      Standard_Real fy0 = 0.0;
+      Standard_Real fz0 = 0.0;
+      Standard_Real fx1 = 0.0;
+      Standard_Real fy1 = 0.0;
+      Standard_Real fz1 = 0.0;
       faceBox.Get(fx0, fy0, fz0, fx1, fy1, fz1);
       const G4double diag = G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
       maxFaceDiag         = std::max(maxFaceDiag, diag);
@@ -312,7 +317,12 @@ void G4OCCTSolid::ComputeBounds() {
   fBVHDeflection = kRelativeDeflection * maxFaceDiag;
 
   // Ensure a triangulation is present (idempotent if mesh already exists).
-  BRepMesh_IncrementalMesh(fShape, kRelativeDeflection, /*isRelative=*/Standard_True);
+  // Limit lifetime to this scope so mesh resources are released before building
+  // the BVH, preserving the original temporary-object behavior.
+  {
+    [[maybe_unused]] const BRepMesh_IncrementalMesh mesher(fShape, kRelativeDeflection,
+                                                           /*isRelative=*/Standard_True);
+  }
 
   // Build the BVH-accelerated triangle set over all tessellated faces.
   BRepExtrema_ShapeList faces;
@@ -369,7 +379,7 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
     if (bestMatch.has_value() && candidateDistance >= bestMatch->distance) {
       continue;
     }
-    bestMatch = ClosestFaceMatch{fb.face, candidateDistance};
+    bestMatch = ClosestFaceMatch{.face = fb.face, .distance = candidateDistance};
   }
 
   return bestMatch;
@@ -513,9 +523,9 @@ G4double G4OCCTSolid::AABBLowerBound(const G4ThreeVector& p) const {
   }
   const G4ThreeVector& mn = fCachedBounds->min;
   const G4ThreeVector& mx = fCachedBounds->max;
-  const G4double dx       = std::max(0.0, std::max(mn.x() - p.x(), p.x() - mx.x()));
-  const G4double dy       = std::max(0.0, std::max(mn.y() - p.y(), p.y() - mx.y()));
-  const G4double dz       = std::max(0.0, std::max(mn.z() - p.z(), p.z() - mx.z()));
+  const G4double dx       = std::max({0.0, mn.x() - p.x(), p.x() - mx.x()});
+  const G4double dy       = std::max({0.0, mn.y() - p.y(), p.y() - mx.y()});
+  const G4double dz       = std::max({0.0, mn.z() - p.z(), p.z() - mx.z()});
   return std::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
@@ -619,8 +629,9 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
   // Tier-1: mesh-BVH lower bound (O(log T)).  For interior points the AABB
   // distance is always 0, so there is no useful Tier-0 AABB shortcut here.
   const G4double bvhDist = BVHLowerBoundDistance(p);
-  if (bvhDist < kInfinity)
+  if (bvhDist < kInfinity) {
     return bvhDist;
+  }
   // Fallback: exact computation via BRepExtrema_DistShapeShape.
   return ExactDistanceToOut(p);
 }
@@ -679,7 +690,7 @@ const G4OCCTSolid::SurfaceSamplingCache& G4OCCTSolid::GetOrBuildSurfaceCache() c
     }
 
     // Register this face once in the deduplicated faces array.
-    const std::uint32_t faceIndex = static_cast<std::uint32_t>(cache.faces.size());
+    const auto faceIndex = static_cast<std::uint32_t>(cache.faces.size());
     cache.faces.push_back(face);
 
     const gp_Trsf& transform  = loc.Transformation();
@@ -721,7 +732,7 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
     G4ExceptionDescription msg;
     msg << "Shape is null for solid \"" << GetName() << "\".  Returning origin.";
     G4Exception("G4OCCTSolid::GetPointOnSurface", "GeomMgt1001", JustWarning, msg);
-    return G4ThreeVector(0.0, 0.0, 0.0);
+    return {0.0, 0.0, 0.0};
   }
 
   const SurfaceSamplingCache& cache = GetOrBuildSurfaceCache();
@@ -731,14 +742,13 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
     msg << "Tessellation of solid \"" << GetName()
         << "\" produced no valid triangles.  Returning origin.";
     G4Exception("G4OCCTSolid::GetPointOnSurface", "GeomMgt1001", JustWarning, msg);
-    return G4ThreeVector(0.0, 0.0, 0.0);
+    return {0.0, 0.0, 0.0};
   }
 
   // Select a triangle with probability proportional to its area using a
   // binary search on the cumulative-area array.
   const G4double target = G4UniformRand() * cache.totalArea;
-  const auto it =
-      std::lower_bound(cache.cumulativeAreas.begin(), cache.cumulativeAreas.end(), target);
+  const auto it         = std::ranges::lower_bound(cache.cumulativeAreas, target);
   const std::size_t idx = std::min(static_cast<std::size_t>(it - cache.cumulativeAreas.begin()),
                                    cache.triangles.size() - 1);
   const SurfaceTriangle& chosen = cache.triangles[idx];
@@ -774,7 +784,7 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
       if (!loc.IsIdentity()) {
         projectedPoint.Transform(loc.Transformation());
       }
-      return G4ThreeVector(projectedPoint.X(), projectedPoint.Y(), projectedPoint.Z());
+      return {projectedPoint.X(), projectedPoint.Y(), projectedPoint.Z()};
     }
   }
 
@@ -785,12 +795,12 @@ G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 
 G4VisExtent G4OCCTSolid::GetExtent() const {
   if (!fCachedBounds) {
-    return G4VisExtent(kFallbackExtentMin, kFallbackExtentMax, kFallbackExtentMin,
-                       kFallbackExtentMax, kFallbackExtentMin, kFallbackExtentMax);
+    return {kFallbackExtentMin, kFallbackExtentMax, kFallbackExtentMin,
+            kFallbackExtentMax, kFallbackExtentMin, kFallbackExtentMax};
   }
 
-  return G4VisExtent(fCachedBounds->min.x(), fCachedBounds->max.x(), fCachedBounds->min.y(),
-                     fCachedBounds->max.y(), fCachedBounds->min.z(), fCachedBounds->max.z());
+  return {fCachedBounds->min.x(), fCachedBounds->max.x(), fCachedBounds->min.y(),
+          fCachedBounds->max.y(), fCachedBounds->min.z(), fCachedBounds->max.z()};
 }
 
 void G4OCCTSolid::BoundingLimits(G4ThreeVector& pMin, G4ThreeVector& pMax) const {
