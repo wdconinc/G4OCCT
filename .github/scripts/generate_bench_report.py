@@ -118,10 +118,12 @@ def _parse_bench_json(data: dict) -> dict:
     agg_inside_mismatches  = 0.0
     agg_dti_native_ms      = 0.0
     agg_dti_imported_ms    = 0.0
-    agg_dti_mismatches     = 0.0
+    agg_dti_exact_ms       = 0.0
+    agg_dti_lb_violations  = 0.0
     agg_dto_native_ms      = 0.0
     agg_dto_imported_ms    = 0.0
-    agg_dto_mismatches     = 0.0
+    agg_dto_exact_ms       = 0.0
+    agg_dto_lb_violations  = 0.0
     agg_poly_native_ms     = 0.0
     agg_poly_imported_ms   = 0.0
 
@@ -183,28 +185,52 @@ def _parse_bench_json(data: dict) -> dict:
             agg_inside_mismatches  += _get_ctr(inside_bm, "mismatches")
 
         if safety_bm:
-            dti_n = _get_ctr(safety_bm, "safety_in_native_ms")
-            dti_i = _get_ctr(safety_bm, "safety_in_imported_ms")
-            dto_n = _get_ctr(safety_bm, "safety_out_native_ms")
-            dto_i = _get_ctr(safety_bm, "safety_out_imported_ms")
+            dti_n   = _get_ctr(safety_bm, "safety_in_native_ms")
+            dti_i   = _get_ctr(safety_bm, "safety_in_imported_ms")
+            dti_e   = _get_ctr(safety_bm, "safety_in_exact_ms")
+            dto_n   = _get_ctr(safety_bm, "safety_out_native_ms")
+            dto_i   = _get_ctr(safety_bm, "safety_out_imported_ms")
+            dto_e   = _get_ctr(safety_bm, "safety_out_exact_ms")
+            dti_lbv = _get_ctr(safety_bm, "safety_in_lb_violations")
+            dto_lbv = _get_ctr(safety_bm, "safety_out_lb_violations")
+            dti_lb_r   = _get_ctr(safety_bm, "safety_in_avg_lb_ratio")
+            dto_lb_r   = _get_ctr(safety_bm, "safety_out_avg_lb_ratio")
+            dti_g4r    = _get_ctr(safety_bm, "safety_in_avg_g4_occt_ratio")
+            dto_g4r    = _get_ctr(safety_bm, "safety_out_avg_g4_occt_ratio")
             methods["DistanceToIn(p)"] = {
-                "native_ms":   dti_n,
-                "imported_ms": dti_i,
-                "ratio":       _fmt_ratio(dti_n, dti_i),
-                "mismatches":  int(_get_ctr(safety_bm, "safety_in_mismatches")),
+                "native_ms":         dti_n,
+                "imported_ms":       dti_i,
+                "ratio":             _fmt_ratio(dti_n, dti_i),
+                "avg_g4_occt_ratio": dti_g4r,
             }
             methods["DistanceToOut(p)"] = {
-                "native_ms":   dto_n,
-                "imported_ms": dto_i,
-                "ratio":       _fmt_ratio(dto_n, dto_i),
-                "mismatches":  int(_get_ctr(safety_bm, "safety_out_mismatches")),
+                "native_ms":         dto_n,
+                "imported_ms":       dto_i,
+                "ratio":             _fmt_ratio(dto_n, dto_i),
+                "avg_g4_occt_ratio": dto_g4r,
             }
-            agg_dti_native_ms   += dti_n
-            agg_dti_imported_ms += dti_i
-            agg_dti_mismatches  += _get_ctr(safety_bm, "safety_in_mismatches")
-            agg_dto_native_ms   += dto_n
-            agg_dto_imported_ms += dto_i
-            agg_dto_mismatches  += _get_ctr(safety_bm, "safety_out_mismatches")
+            methods["DistanceToIn(p) OCCT/Exact"] = {
+                "native_ms":   dti_i,
+                "imported_ms": dti_e,
+                "ratio":       _fmt_ratio(dti_i, dti_e),
+                "avg_lb_ratio":  dti_lb_r,
+                "lb_violations": int(dti_lbv),
+            }
+            methods["DistanceToOut(p) OCCT/Exact"] = {
+                "native_ms":   dto_i,
+                "imported_ms": dto_e,
+                "ratio":       _fmt_ratio(dto_i, dto_e),
+                "avg_lb_ratio":  dto_lb_r,
+                "lb_violations": int(dto_lbv),
+            }
+            agg_dti_native_ms     += dti_n
+            agg_dti_imported_ms   += dti_i
+            agg_dti_exact_ms      += dti_e
+            agg_dti_lb_violations += dti_lbv
+            agg_dto_native_ms     += dto_n
+            agg_dto_imported_ms   += dto_i
+            agg_dto_exact_ms      += dto_e
+            agg_dto_lb_violations += dto_lbv
 
         if poly_bm:
             p_n = _get_ctr(poly_bm, "native_ms")
@@ -270,16 +296,36 @@ def _parse_bench_json(data: dict) -> dict:
             "native_ms":    agg_dti_native_ms,
             "imported_ms":  agg_dti_imported_ms,
             "ratio":        _fmt_ratio(agg_dti_native_ms, agg_dti_imported_ms),
-            "mismatches":   int(agg_dti_mismatches),
+            "mismatches":   None,
             "exp_failures": None,
+            "extra":        "G4 vs OCCT timing",
         },
         {
             "method":       "DistanceToOut(p)",
             "native_ms":    agg_dto_native_ms,
             "imported_ms":  agg_dto_imported_ms,
             "ratio":        _fmt_ratio(agg_dto_native_ms, agg_dto_imported_ms),
-            "mismatches":   int(agg_dto_mismatches),
+            "mismatches":   None,
             "exp_failures": None,
+            "extra":        "G4 vs OCCT timing",
+        },
+        {
+            "method":       "DistanceToIn(p) OCCT/Exact",
+            "native_ms":    agg_dti_imported_ms,
+            "imported_ms":  agg_dti_exact_ms,
+            "ratio":        _fmt_ratio(agg_dti_imported_ms, agg_dti_exact_ms),
+            "mismatches":   int(agg_dti_lb_violations),
+            "exp_failures": None,
+            "extra":        "OCCT lower bound vs exact",
+        },
+        {
+            "method":       "DistanceToOut(p) OCCT/Exact",
+            "native_ms":    agg_dto_imported_ms,
+            "imported_ms":  agg_dto_exact_ms,
+            "ratio":        _fmt_ratio(agg_dto_imported_ms, agg_dto_exact_ms),
+            "mismatches":   int(agg_dto_lb_violations),
+            "exp_failures": None,
+            "extra":        "OCCT lower bound vs exact",
         },
         {
             "method":       "SurfaceNormal(p)",
@@ -353,8 +399,8 @@ def _render_report(data: dict, viewer_path: str,
     else:
         lines += [
             "",
-            "| Method | Native (ms) | Imported (ms) | Ratio | Mismatches | Exp. Failures |",
-            "|--------|------------:|--------------:|------:|-----------:|--------------:|",
+            "| Method | Col A (ms) | Col B (ms) | Ratio | Violations | Exp. Failures | Notes |",
+            "|--------|----------:|-----------:|------:|-----------:|--------------:|-------|",
         ]
         total_exp_failures = 0
         for row in aggregate:
@@ -362,14 +408,25 @@ def _render_report(data: dict, viewer_path: str,
             imported_str = _format_timing(row["imported_ms"])
             mm_str  = "---" if row["mismatches"] is None else str(row["mismatches"])
             ef_str  = "---" if row["exp_failures"] is None else str(row["exp_failures"])
+            extra   = row.get("extra", "")
             lines.append(
                 f"| {md_escape(row['method'])} | {native_str} | {imported_str} "
-                f"| {row['ratio']} | {mm_str} | {ef_str} |"
+                f"| {row['ratio']} | {mm_str} | {ef_str} | {extra} |"
             )
             # All methods report the same exp_failures count (one per expected-failure
             # fixture); take the maximum to get the fixture-level count.
             if row["exp_failures"] is not None and row["exp_failures"] > total_exp_failures:
                 total_exp_failures = row["exp_failures"]
+
+        lines += [
+            "",
+            "> **Column guide:** For most methods, **Col A** = Geant4/native (ms) and"
+            " **Col B** = OCCT/imported (ms)."
+            " For `OCCT/Exact` rows, **Col A** = OCCT lower-bound (ms) and"
+            " **Col B** = OCCT exact (ms)."
+            " **Violations** for `OCCT/Exact` rows counts points where the lower bound"
+            " exceeded the exact distance (hard fail); `---` means not applicable.",
+        ]
 
         if total_exp_failures:
             lines += [
@@ -385,18 +442,20 @@ def _render_report(data: dict, viewer_path: str,
             "> ⚠️ No fixture results found in output.",
         ]
     else:
-        # Ordered list of (column_header, method_key, has_timing, is_polyhedron)
+        # Ordered list of (column_header, method_key, has_timing, is_polyhedron, is_safety_occt_exact)
         method_columns = [
-            ("DTI/DTO(p,v)",   "DistanceToIn/Out(p,v)", True,  False),
-            ("Exit normals",   "Exit normals",           False, False),
-            ("Inside(p)",      "Inside(p)",              True,  False),
-            ("DTI(p)",         "DistanceToIn(p)",        True,  False),
-            ("DTO(p)",         "DistanceToOut(p)",       True,  False),
-            ("SN(p)",          "SurfaceNormal(p)",       True,  False),
-            ("Polyhedron",     "CreatePolyhedron()",     True,  True),
+            ("DTI/DTO(p,v)",       "DistanceToIn/Out(p,v)",       True,  False, False),
+            ("Exit normals",       "Exit normals",                 False, False, False),
+            ("Inside(p)",          "Inside(p)",                    True,  False, False),
+            ("DTI(p) G4↔OCCT",    "DistanceToIn(p)",              True,  False, False),
+            ("DTI(p) OCCT↔Exact", "DistanceToIn(p) OCCT/Exact",   True,  False, True),
+            ("DTO(p) G4↔OCCT",    "DistanceToOut(p)",             True,  False, False),
+            ("DTO(p) OCCT↔Exact", "DistanceToOut(p) OCCT/Exact",  True,  False, True),
+            ("SN(p)",              "SurfaceNormal(p)",             True,  False, False),
+            ("Polyhedron",         "CreatePolyhedron()",           True,  True,  False),
         ]
 
-        col_headers = " | ".join(h for h, _, _, _ in method_columns)
+        col_headers = " | ".join(h for h, _, _, _, _ in method_columns)
         col_sep     = "|".join(":---:" for _ in method_columns)
 
         onshape_note = (" 🔗 links open the fixture in the Onshape web viewer."
@@ -405,11 +464,13 @@ def _render_report(data: dict, viewer_path: str,
             "",
             "## Per-Fixture Results",
             "",
-            "Each cell shows `native ms → imported ms (ratio) [mismatches]`."
-            " ✅ = no mismatches; N ⚠️ = N result mismatches between native and imported."
+            "Each cell shows `native ms → imported ms (ratio)`."
+            " ✅ = no violations; N ⚠️ = N lower-bound violations (hard fail)."
             " Exit normals has no separate timing (normals are computed as part of DistanceToOut)."
             " Column abbreviations: **DTI/DTO(p,v)** = DistanceToIn/Out(p,v),"
-            " **DTI(p)** = DistanceToIn safety, **DTO(p)** = DistanceToOut safety,"
+            " **DTI(p) G4↔OCCT** = DistanceToIn(p) Geant4 vs OCCT timing with avg distance ratio,"
+            " **DTI(p) OCCT↔Exact** = OCCT lower-bound vs exact timing with avg lb ratio and violations,"
+            " **DTO(p)** columns analogous to DTI(p),"
             " **SN(p)** = SurfaceNormal,"
             " **Polyhedron** = CreatePolyhedron() timing with native/imported vertex and facet counts."
             " Fixtures marked ⚠️ are expected failures and do not block CI."
@@ -421,7 +482,7 @@ def _render_report(data: dict, viewer_path: str,
 
         for f in fixtures:
             cells = []
-            for _, method_key, has_timing, is_polyhedron in method_columns:
+            for _, method_key, has_timing, is_polyhedron, is_safety_occt_exact in method_columns:
                 d = f["methods"].get(method_key)
                 if d is None:
                     cells.append("---")
@@ -438,15 +499,33 @@ def _render_report(data: dict, viewer_path: str,
                     n_str = _format_timing(n, precision=2)
                     i_str = _format_timing(i, precision=2)
                     cells.append(f"{n_str} → {i_str} ({r})<br/>{nv}/{iv} verts, {nf}/{imported_facets} facets")
-                elif has_timing:
-                    mm     = d.get("mismatches", 0)
-                    mm_str = "✅" if mm == 0 else f"{mm} ⚠️"
-                    n = d.get("native_ms")
-                    i = d.get("imported_ms")
-                    r = d.get("ratio", "---")
+                elif is_safety_occt_exact:
+                    # OCCT lower-bound vs exact: show timing, avg lb ratio, and violations.
+                    n   = d.get("native_ms")
+                    i   = d.get("imported_ms")
+                    r   = d.get("ratio", "---")
+                    lbr = d.get("avg_lb_ratio", 0.0)
+                    lbv = d.get("lb_violations", 0)
+                    viol_str = "✅" if lbv == 0 else f"{lbv} ⚠️"
                     n_str = _format_timing(n, precision=2)
                     i_str = _format_timing(i, precision=2)
-                    cells.append(f"{n_str} → {i_str} ({r}) [{mm_str}]")
+                    cells.append(
+                        f"{n_str} → {i_str} ({r})<br/>avg lb/exact: {lbr:.2f} [{viol_str}]"
+                    )
+                elif has_timing:
+                    n   = d.get("native_ms")
+                    i   = d.get("imported_ms")
+                    r   = d.get("ratio", "---")
+                    # G4↔OCCT safety rows: show timing and avg OCCT/G4 distance ratio.
+                    g4r = d.get("avg_g4_occt_ratio")
+                    n_str = _format_timing(n, precision=2)
+                    i_str = _format_timing(i, precision=2)
+                    if g4r is not None:
+                        cells.append(f"{n_str} → {i_str} ({r})<br/>avg OCCT/G4: {g4r:.2f}")
+                    else:
+                        mm     = d.get("mismatches", 0)
+                        mm_str = "✅" if mm == 0 else f"{mm} ⚠️"
+                        cells.append(f"{n_str} → {i_str} ({r}) [{mm_str}]")
                 else:
                     mm     = d.get("mismatches", 0)
                     mm_str = "✅" if mm == 0 else f"{mm} ⚠️"

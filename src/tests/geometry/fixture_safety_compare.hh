@@ -16,7 +16,7 @@ namespace g4occt::tests::geometry {
 struct FixtureSafetyComparisonOptions {
   /// Total number of test points to evaluate (split between inside and outside).
   std::size_t point_count{2048};
-  /// Maximum number of detailed mismatch diagnostics to emit per fixture.
+  /// Maximum number of detailed lower-bound violation diagnostics to emit per fixture.
   std::size_t max_reported_mismatches{8};
 };
 
@@ -28,18 +28,39 @@ struct FixtureSafetyComparisonSummary {
   std::string geant4_class;
   /// Total number of test points evaluated.
   std::size_t point_count{0};
-  /// Number of `DistanceToIn(p)` mismatches (outside points).
-  std::size_t safety_in_mismatch_count{0};
-  /// Number of `DistanceToOut(p)` mismatches (inside points).
-  std::size_t safety_out_mismatch_count{0};
-  /// Elapsed time for all native `DistanceToIn(p)` calls (milliseconds).
+
+  // ── Geant4 vs OCCT timing ────────────────────────────────────────────────
+
+  /// Elapsed time for all native Geant4 `DistanceToIn(p)` calls (milliseconds).
   double native_safety_in_ms{0.0};
-  /// Elapsed time for all imported `DistanceToIn(p)` calls (milliseconds).
+  /// Elapsed time for all imported OCCT `DistanceToIn(p)` calls (milliseconds).
   double imported_safety_in_ms{0.0};
-  /// Elapsed time for all native `DistanceToOut(p)` calls (milliseconds).
+  /// Elapsed time for all native Geant4 `DistanceToOut(p)` calls (milliseconds).
   double native_safety_out_ms{0.0};
-  /// Elapsed time for all imported `DistanceToOut(p)` calls (milliseconds).
+  /// Elapsed time for all imported OCCT `DistanceToOut(p)` calls (milliseconds).
   double imported_safety_out_ms{0.0};
+
+  // ── Within OCCT: lower-bound vs exact ───────────────────────────────────
+
+  /// Elapsed time for all OCCT `ExactDistanceToIn(p)` calls (milliseconds).
+  double exact_safety_in_ms{0.0};
+  /// Elapsed time for all OCCT `ExactDistanceToOut(p)` calls (milliseconds).
+  double exact_safety_out_ms{0.0};
+  /// Number of outside points where `DistanceToIn(p) > ExactDistanceToIn(p)` (hard-fail).
+  std::size_t occt_lower_bound_in_violations{0};
+  /// Number of inside points where `DistanceToOut(p) > ExactDistanceToOut(p)` (hard-fail).
+  std::size_t occt_lower_bound_out_violations{0};
+  /// Average of `DistanceToIn(p) / ExactDistanceToIn(p)` over outside points with valid ratios.
+  double avg_dti_lb_ratio{0.0};
+  /// Average of `DistanceToOut(p) / ExactDistanceToOut(p)` over inside points with valid ratios.
+  double avg_dto_lb_ratio{0.0};
+
+  // ── Between Geant4 and OCCT: average safety ratios ───────────────────────
+
+  /// Average of `imported DistanceToIn(p) / native DistanceToIn(p)` (OCCT / Geant4).
+  double avg_dti_g4_occt_ratio{0.0};
+  /// Average of `imported DistanceToOut(p) / native DistanceToOut(p)` (OCCT / Geant4).
+  double avg_dto_g4_occt_ratio{0.0};
 };
 
 /**
@@ -55,16 +76,31 @@ struct FixtureSafetyComparisonSummary {
  *  - `kInside`  points → `DistanceToOut(p)` is timed and compared.
  *  - `kSurface` points → skipped (safety distance is 0 by definition).
  *
- * Validation tolerance uses a relative formula:
- *   `max(kSurfaceTolerance, 0.01 * expected_value)`
+ * Three analyses are performed and reported via `summary`:
+ *
+ *  1. **Geant4 vs OCCT timing** — elapsed time for native and imported
+ *     `DistanceToIn(p)` and `DistanceToOut(p)` calls, plus the average
+ *     per-point ratio of imported / native safety distances.
+ *
+ *  2. **Within OCCT lower-bound validity** — each `DistanceToIn(p)` and
+ *     `DistanceToOut(p)` value is compared against the corresponding
+ *     `ExactDistanceToIn(p)` / `ExactDistanceToOut(p)`.  The accelerated
+ *     overloads must never exceed the exact value.  A violation produces a
+ *     hard-fail error and is counted in `occt_lower_bound_in_violations` /
+ *     `occt_lower_bound_out_violations`.  The average ratio of lower-bound to
+ *     exact distance is accumulated in `avg_dti_lb_ratio` / `avg_dto_lb_ratio`.
+ *
+ *  3. **Timing of OCCT lower-bound vs exact** — elapsed time for the exact
+ *     methods is reported alongside the accelerated timing so callers can
+ *     compute the speedup factor.
  *
  * Validation codes:
- *  - `fixture.safety_in_distance_mismatch`  — `DistanceToIn(p)` disagreement.
- *  - `fixture.safety_out_distance_mismatch` — `DistanceToOut(p)` disagreement.
+ *  - `fixture.occt_lower_bound_in_violation`  — `DistanceToIn(p)` exceeds `ExactDistanceToIn(p)`.
+ *  - `fixture.occt_lower_bound_out_violation` — `DistanceToOut(p)` exceeds `ExactDistanceToOut(p)`.
  *
  * @param request  Fixture and manifest to process.
- * @param options  Tuning parameters (point count, mismatch report limit).
- * @param summary  Optional output struct for timing and mismatch counts.
+ * @param options  Tuning parameters (point count, violation report limit).
+ * @param summary  Optional output struct for timings, ratios, and violation counts.
  * @return         Validation report with info, warning, and error messages.
  */
 ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
