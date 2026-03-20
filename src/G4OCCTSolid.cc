@@ -11,6 +11,7 @@
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
 #include <BRepGProp.hxx>
+#include <BRepLib.hxx>
 #include <BRepLProp_SLProps.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <BRep_Builder.hxx>
@@ -228,6 +229,16 @@ void G4OCCTSolid::ComputeBounds() {
     builder.MakeCompound(fFaceCompound);
     fFaceBoundsCache.clear();
     return;
+  }
+
+  // Pre-build PCurves for edges on planar faces so BRep_Tool::CurveOnPlane()
+  // returns the stored result on every Inside() query instead of recomputing
+  // via GeomProjLib::ProjectOnPlane each time (~3.3% of total instructions).
+  for (TopExp_Explorer faceEx(fShape, TopAbs_FACE); faceEx.More(); faceEx.Next()) {
+    const TopoDS_Face& face = TopoDS::Face(faceEx.Current());
+    for (TopExp_Explorer edgeEx(face, TopAbs_EDGE); edgeEx.More(); edgeEx.Next()) {
+      BRepLib::BuildPCurveForEdgeOnPlane(TopoDS::Edge(edgeEx.Current()), face);
+    }
   }
 
   // Build a compound of all faces so that BRepExtrema_DistShapeShape queries
