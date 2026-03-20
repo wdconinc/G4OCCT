@@ -512,7 +512,9 @@ Core navigation works. Per-thread caching eliminates dominant overheads. Test su
 <script src="https://remarkjs.com/downloads/remark-0.15.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
-  mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+  if (window.mermaid) {
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+  }
 
   var slideshow = remark.create({
     ratio: '16:9',
@@ -522,15 +524,18 @@ Core navigation works. Per-thread caching eliminates dominant overheads. Test su
     navigation: { scroll: false },
   });
 
-  slideshow.on('afterShowSlide', function () {
-    document.querySelectorAll('.language-mermaid').forEach(function (el) {
-      var div = document.createElement('div');
-      div.className = 'mermaid';
-      div.textContent = el.textContent;
-      el.parentNode.replaceChild(div, el);
-      mermaid.init(undefined, div);
+  if (window.mermaid) {
+    slideshow.on('afterShowSlide', function () {
+      document.querySelectorAll('.language-mermaid').forEach(function (el) {
+        var container = (typeof el.closest === 'function') ? (el.closest('pre') || el) : el;
+        var div = document.createElement('div');
+        div.className = 'mermaid';
+        div.textContent = el.textContent;
+        container.parentNode.replaceChild(div, container);
+        mermaid.init(undefined, div);
+      });
     });
-  });
+  }
 </script>
 </body>
 </html>
