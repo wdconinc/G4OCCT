@@ -48,14 +48,14 @@ find_file(
   DOC "Path to G4GDMLParser.hh from a Geant4 GDML-enabled installation")
 
 if(G4GDMLPARSER_HH)
-  # G4GDMLParser.hh transitively includes <xercesc/...> headers, so XercesC
-  # must be on the include path at compile time.  Any Geant4 installation with
-  # GDML enabled implies XercesC is present; QUIET suppresses the redundant
-  # "found" message (the package was already located via Geant4Config.cmake).
-  # Guard the entire bench_assembly_navigator build on the XercesC::XercesC
-  # target being available so the outcome is always deterministic: if XercesC
-  # cannot be found the benchmark is skipped with an explicit STATUS message
-  # rather than created but left unable to compile.
+  # G4GDMLParser.hh transitively includes <xercesc/...> headers, so XercesC must
+  # be on the include path at compile time.  Any Geant4 installation with GDML
+  # enabled implies XercesC is present; QUIET suppresses the redundant "found"
+  # message (the package was already located via Geant4Config.cmake). Guard the
+  # entire bench_assembly_navigator build on the XercesC::XercesC target being
+  # available so the outcome is always deterministic: if XercesC cannot be found
+  # the benchmark is skipped with an explicit STATUS message rather than created
+  # but left unable to compile.
   find_package(XercesC QUIET)
   if(TARGET XercesC::XercesC)
     g4occt_benchmark(bench_assembly_navigator bench_assembly_navigator.cc
@@ -69,8 +69,7 @@ if(G4GDMLPARSER_HH)
       STATUS "Found G4GDMLParser.hh; bench_assembly_navigator will be built")
   else()
     message(
-      STATUS
-        "XercesC not found; bench_assembly_navigator will not be built")
+      STATUS "XercesC not found; bench_assembly_navigator will not be built")
   endif()
 else()
   message(
