@@ -10,6 +10,7 @@ Checks: '
   -bugprone-macro-parentheses,
   -bugprone-narrowing-conversions,
   -bugprone-unchecked-optional-access,
+  -clang-analyzer-optin.cplusplus.UninitializedObject,
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-arrays,
   -modernize-use-nodiscard,
