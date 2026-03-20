@@ -69,6 +69,7 @@ std::string BuildSingleBoxSTEP(const std::string& tmpPath, const std::string& pa
   // Write to STEP via the CAF writer
   STEPCAFControl_Writer writer;
   writer.SetNameMode(Standard_True);
+  writer.SetMatMode(Standard_True);
   if (writer.Transfer(doc) != Standard_True) {
     throw std::runtime_error("BuildSingleBoxSTEP: Transfer failed");
   }
