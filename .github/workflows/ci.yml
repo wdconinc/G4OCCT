@@ -110,6 +110,17 @@ jobs:
             # Fail the step if any example exited with an error
             [ "$B1_EXIT" -eq 0 ] && [ "$B4C_EXIT" -eq 0 ]
 
+      - name: Upload STEP fixtures to Onshape
+        if: always()
+        env:
+          ONSHAPE_ACCESS_KEY: ${{ secrets.ONSHAPE_ACCESS_KEY }}
+          ONSHAPE_SECRET_KEY: ${{ secrets.ONSHAPE_SECRET_KEY }}
+        run: |
+          (pip3 install --quiet requests pyyaml &&
+          python3 .github/scripts/upload_step_to_onshape.py \
+            src/tests/fixtures/geometry/manifest.yaml \
+            reports/onshape_links.json) || true
+
       - name: Generate Markdown reports
         if: always()
         run: |
@@ -117,7 +128,8 @@ jobs:
           python3 .github/scripts/generate_test_report.py \
             test-results.xml reports/test-results.md
           python3 .github/scripts/generate_bench_report.py \
-            bench_raw.json reports/bench-results.md reports/point_cloud_viewer.html
+            bench_raw.json reports/bench-results.md reports/point_cloud_viewer.html \
+            reports/onshape_links.json
           python3 .github/scripts/generate_assembly_report.py \
             bench_assembly_raw.json reports/bench-assembly-results.md \
             reports/point_cloud_viewer.html

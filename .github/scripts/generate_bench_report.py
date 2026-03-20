@@ -313,7 +313,8 @@ def _fixture_viewer_link(fixture_id: str, viewer_path: str) -> str:
     return f"{viewer_path}?fixture={quote(fixture_id, safe='')}"
 
 
-def _render_report(data: dict, viewer_path: str) -> str:
+def _render_report(data: dict, viewer_path: str,
+                   onshape_links: dict[str, str] | None = None) -> str:
     """Render the Markdown string for benchmark data."""
     ts           = timestamp()
     aggregate    = data.get("aggregate", [])
@@ -398,6 +399,8 @@ def _render_report(data: dict, viewer_path: str) -> str:
         col_headers = " | ".join(h for h, _, _, _ in method_columns)
         col_sep     = "|".join(":---:" for _ in method_columns)
 
+        onshape_note = (" 🔗 links open the fixture in the Onshape web viewer."
+                        if onshape_links else "")
         lines += [
             "",
             "## Per-Fixture Results",
@@ -409,7 +412,8 @@ def _render_report(data: dict, viewer_path: str) -> str:
             " **DTI(p)** = DistanceToIn safety, **DTO(p)** = DistanceToOut safety,"
             " **SN(p)** = SurfaceNormal,"
             " **Polyhedron** = CreatePolyhedron() timing with native/imported vertex and facet counts."
-            " Fixtures marked ⚠️ are expected failures and do not block CI.",
+            " Fixtures marked ⚠️ are expected failures and do not block CI."
+            f"{onshape_note}",
             "",
             f"| Fixture | Geant4 Class | {col_headers} |",
             f"|---------|:-------------|{col_sep}|",
@@ -451,8 +455,10 @@ def _render_report(data: dict, viewer_path: str) -> str:
             fixture_link = _fixture_viewer_link(f["id"], viewer_path)
             ef_marker    = " ⚠️" if f["has_expected_failure"] else ""
             cell_str = " | ".join(cells)
+            onshape_url  = onshape_links.get(f["id"]) if onshape_links else None
+            onshape_badge = f" [🔗]({onshape_url})" if onshape_url else ""
             lines.append(
-                f"| [{md_escape(f['id'])}]({fixture_link}){ef_marker} "
+                f"| [{md_escape(f['id'])}]({fixture_link}){onshape_badge}{ef_marker} "
                 f"| {md_escape(f['class'])} | {cell_str} |"
             )
 
@@ -469,14 +475,35 @@ def _render_error(message: str) -> str:
 
 
 def main() -> None:
-    if len(sys.argv) not in (3, 4):
-        print(f"Usage: {sys.argv[0]} <bench-results.json> <output.md> [viewer-path]",
-              file=sys.stderr)
+    if len(sys.argv) not in (3, 4, 5):
+        print(
+            f"Usage: {sys.argv[0]} <bench-results.json> <output.md> [viewer-path] [onshape-links.json]",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     json_path   = sys.argv[1]
     md_path     = sys.argv[2]
-    viewer_path = sys.argv[3] if len(sys.argv) == 4 else "point_cloud_viewer.html"
+    viewer_path = sys.argv[3] if len(sys.argv) >= 4 else "point_cloud_viewer.html"
+
+    onshape_links: dict[str, str] | None = None
+    if len(sys.argv) == 5:
+        links_path = Path(sys.argv[4])
+        try:
+            loaded_links = json.loads(links_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError) as exc:
+            print(f"Warning: could not load Onshape links from {links_path}: {exc}",
+                  file=sys.stderr)
+        else:
+            if isinstance(loaded_links, dict):
+                onshape_links = loaded_links
+            else:
+                print(
+                    "Warning: ignoring Onshape links from "
+                    f"{links_path}: expected JSON object at top level, "
+                    f"got {type(loaded_links).__name__}",
+                    file=sys.stderr,
+                )
 
     try:
         raw = json.loads(Path(json_path).read_text(encoding="utf-8"))
@@ -486,7 +513,7 @@ def main() -> None:
         return
 
     data = _parse_bench_json(raw)
-    md   = _render_report(data, viewer_path)
+    md   = _render_report(data, viewer_path, onshape_links)
     write_report(Path(md_path), md, label="Benchmark report")
 
 
