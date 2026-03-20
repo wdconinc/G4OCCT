@@ -26,6 +26,16 @@ def fmt(percent: float) -> str:
 
 
 def main() -> None:
+    """Read a gcovr JSON summary and write a Markdown coverage report.
+
+    Reads the gcovr ``--json-summary`` output from ``sys.argv[1]``, which
+    contains top-level keys ``line_percent``, ``line_covered``,
+    ``line_total``, ``function_percent``, ``function_covered``,
+    ``function_total``, ``branch_percent``, ``branch_covered``,
+    ``branch_total``, and an optional ``files`` list with per-file
+    breakdowns.  Writes a Markdown table (with emoji traffic-light
+    indicators) to ``sys.argv[2]``.
+    """
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <summary.json> <output.md>", file=sys.stderr)
         sys.exit(1)

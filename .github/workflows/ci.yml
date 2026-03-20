@@ -362,7 +362,13 @@ jobs:
             cmake --build build -- -j$(nproc)
 
             # ── Test ───────────────────────────────────────────────────────
-            ctest --test-dir build --output-on-failure -j$(nproc) || true
+            # Capture the exit code so that gcovr always runs (collecting
+            # coverage from any tests that did execute) while still failing
+            # the job if tests fail.
+            set +e
+            ctest --test-dir build --output-on-failure -j$(nproc)
+            CTEST_EXIT=$?
+            set -e
 
             # ── Generate coverage data ─────────────────────────────────────
             pip3 install --quiet gcovr
@@ -379,6 +385,9 @@ jobs:
               --json-summary coverage-summary.json \
               --print-summary \
               build/
+
+            # Propagate test failures after coverage data has been collected.
+            exit $CTEST_EXIT
 
       - name: Generate coverage Markdown report
         if: always()
