@@ -170,7 +170,10 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
       // Hard-fail if lower bound exceeds exact distance beyond tolerance.
       if (lb_dist > exact_dist + surface_tolerance) {
         ++local_summary.occt_lower_bound_in_violations;
-        if (reported_in_violations < options.max_reported_violations) {
+        // Always emit the first violation; cap per-point detailed messages at
+        // max_reported_violations to avoid spamming the report.
+        if (reported_in_violations == 0U ||
+            reported_in_violations < options.max_reported_violations) {
           ++reported_in_violations;
           std::ostringstream message;
           message << "Point " << index
@@ -203,7 +206,10 @@ ValidationReport CompareFixtureSafety(const FixtureValidationRequest& request,
       // Hard-fail if lower bound exceeds exact distance beyond tolerance.
       if (lb_dist > exact_dist + surface_tolerance) {
         ++local_summary.occt_lower_bound_out_violations;
-        if (reported_out_violations < options.max_reported_violations) {
+        // Always emit the first violation; cap per-point detailed messages at
+        // max_reported_violations to avoid spamming the report.
+        if (reported_out_violations == 0U ||
+            reported_out_violations < options.max_reported_violations) {
           ++reported_out_violations;
           std::ostringstream message;
           message << "Point " << index

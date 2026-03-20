@@ -399,8 +399,8 @@ def _render_report(data: dict, viewer_path: str,
     else:
         lines += [
             "",
-            "| Method | Col A (ms) | Col B (ms) | Ratio | Violations | Exp. Failures | Notes |",
-            "|--------|----------:|-----------:|------:|-----------:|--------------:|-------|",
+            "| Method | Col A (ms) | Col B (ms) | Ratio | Mismatches/Violations | Exp. Failures | Notes |",
+            "|--------|----------:|-----------:|------:|----------------------:|--------------:|-------|",
         ]
         total_exp_failures = 0
         for row in aggregate:
@@ -424,8 +424,10 @@ def _render_report(data: dict, viewer_path: str,
             " **Col B** = OCCT/imported (ms)."
             " For `OCCT/Exact` rows, **Col A** = OCCT lower-bound (ms) and"
             " **Col B** = OCCT exact (ms)."
-            " **Violations** for `OCCT/Exact` rows counts points where the lower bound"
-            " exceeded the exact distance (hard fail); `---` means not applicable.",
+            " **Mismatches/Violations**: for ray/inside/normal rows this counts"
+            " native-vs-imported result disagreements; for `OCCT/Exact` rows it counts"
+            " points where the lower bound exceeded the exact distance (hard fail);"
+            " `---` means not applicable.",
         ]
 
         if total_exp_failures:
@@ -467,7 +469,11 @@ def _render_report(data: dict, viewer_path: str,
             "Each cell shows `col-A ms → col-B ms (ratio)`."
             " For most methods: col A = Geant4/native, col B = OCCT/imported."
             " For `OCCT↔Exact` cells: col A = OCCT lower-bound, col B = OCCT exact."
-            " ✅ = no violations; N ⚠️ = N lower-bound violations (hard fail)."
+            " **✅/⚠️ semantics by column:**"
+            " For ray/inside/normal columns ✅ = no native-vs-imported result mismatches,"
+            " N ⚠️ = N mismatches."
+            " For `OCCT↔Exact` columns ✅ = no lower-bound violations,"
+            " N ⚠️ = N violations (hard fail: lower-bound exceeded exact)."
             " Exit normals has no separate timing (normals are computed as part of DistanceToOut)."
             " Column abbreviations: **DTI/DTO(p,v)** = DistanceToIn/Out(p,v),"
             " **DTI(p) G4↔OCCT** = DistanceToIn(p) Geant4 vs OCCT timing with avg distance ratio,"
