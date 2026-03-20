@@ -191,8 +191,8 @@ class: slide-title
 
 ---
 
-**Geant4** drives particle-physics detector simulations worldwide.  
-**OCCT** is the premier open-source CAD geometry kernel.  
+**Geant4** drives particle-physics detector simulations worldwide.
+**OCCT** is the premier open-source CAD geometry kernel.
 **G4OCCT** bridges them — zero geometry re-entry, zero discrepancy.
 
 .meta[
@@ -207,7 +207,7 @@ class: slide-title
 .box.box-gold[
 ## Status Quo
 
-- Geant4 geometry: hand-coded CSG  
+- Geant4 geometry: hand-coded CSG
   *(boxes, spheres, tubes, …)*
 - Engineering designs: STEP/CAD files
 - **Two separate worlds**, maintained by different teams
@@ -218,11 +218,11 @@ class: slide-title
 .box.box-blue[
 ## Consequences
 
-- Geometry discrepancies between CAD and simulation  
-- Maintenance bottleneck slows detector studies  
-- Tessellated meshes lose precision at boundaries  
-- Long iteration cycles delay physics results  
-- Risk of undetected design-vs-simulation drift  
+- Geometry discrepancies between CAD and simulation
+- Maintenance bottleneck slows detector studies
+- Tessellated meshes lose precision at boundaries
+- Long iteration cycles delay physics results
+- Risk of undetected design-vs-simulation drift
 ]
 ]
 
@@ -239,7 +239,7 @@ High-energy physics detectors like **ePIC** (EIC) and future collider experiment
 
 > *"The real detector looks like the CAD. The simulation should too."*
 
-Current approaches (GDML hand-conversion, TGeo export, tessellated meshes)  
+Current approaches (GDML hand-conversion, TGeo export, tessellated meshes)
 all introduce manual steps that are error-prone and time-consuming.
 
 ---
@@ -266,7 +266,7 @@ all introduce manual steps that are error-prone and time-consuming.
 - Not a material database
 - Not a full MCAD import stack
 
-All listed items are explicitly **out of scope for v0.x**,  
+All listed items are explicitly **out of scope for v0.x**,
 keeping the library focused and auditable.
 ]
 ]
@@ -284,7 +284,7 @@ class: slide-section
 
 ### Thin wrapper, not a replacement
 
-OCCT shapes live **inside** Geant4 constructs.  
+OCCT shapes live **inside** Geant4 constructs.
 The navigator, scoring, and visualisation remain untouched.
 
 ```
@@ -301,7 +301,7 @@ The navigator, scoring, and visualisation remain untouched.
            └────────────────────┘
 ```
 
-Navigation queries (`Inside`, `DistanceToIn/Out`, `SurfaceNormal`)  
+Navigation queries (`Inside`, `DistanceToIn/Out`, `SurfaceNormal`)
 are **delegated to OCCT BRep algorithms**.  Everything else is Geant4.
 
 ---
@@ -375,7 +375,7 @@ auto assembly = G4OCCTAssemblyVolume::FromSTEP(
 
 # Material Bridging
 
-STEP files carry material names as metadata strings.  
+STEP files carry material names as metadata strings.
 G4OCCT maps these to `G4Material*` objects — **no silent fallbacks**.
 
 ```cpp
@@ -387,8 +387,8 @@ materials.Add("StainlessSteel", G4NistManager::Instance()->FindOrBuildMaterial("
 auto assembly = G4OCCTAssemblyVolume::FromSTEP("part.step", materials, world);
 ```
 
-**Policy: fail loudly.**  
-Every unmapped material name terminates the run.  
+**Policy: fail loudly.**
+Every unmapped material name terminates the run.
 Preferred alternative: use a GDML overlay (`G4GDMLParser`) to inject materials.
 
 ---
@@ -402,7 +402,7 @@ class: slide-section
 
 # Thread Safety
 
-Geant4 runs **N worker threads** sharing one geometry (read-only).  
+Geant4 runs **N worker threads** sharing one geometry (read-only).
 OCCT algorithm objects maintain **mutable internal state** — they can't be shared.
 
 **Solution: `G4Cache<T>` per-thread caching**
@@ -415,8 +415,8 @@ class G4OCCTSolid : public G4VSolid {
 };
 ```
 
-- O(N_faces) initialisation paid **once per thread**, not per call  
-- `SetOCCTShape()` atomically increments generation → lazy per-thread rebuild  
+- O(N_faces) initialisation paid **once per thread**, not per call
+- `SetOCCTShape()` atomically increments generation → lazy per-thread rebuild
 - `TopoDS_Shape` is a reference-counted handle → safe to copy across threads
 
 ---
@@ -432,8 +432,8 @@ class G4OCCTSolid : public G4VSolid {
 | `DistanceToOut(p)` | O(1) analytic | O(N_faces) per-face objects | planned: 1 object |
 | `BoundingLimits` | O(1) stored | O(1) *(cached at construction)* | — ✅ |
 
-> For shapes with **≤ ~20 faces**, performance is within a small constant factor  
-> of native solids.  Complex STEP parts (100s–1000s of faces) will be slower —  
+> For shapes with **≤ ~20 faces**, performance is within a small constant factor
+> of native solids.  Complex STEP parts (100s–1000s of faces) will be slower —
 > this is a fundamental property of general BRep navigation, not a deficiency.
 
 ---
@@ -464,7 +464,7 @@ Methods benchmarked per fixture:
 ]
 ]
 
-Output: per-method wall-clock time, **imported/native speed ratio**, correctness mismatches.  
+Output: per-method wall-clock time, **imported/native speed ratio**, correctness mismatches.
 CI runs benchmarks in every PR — results published in [Benchmark Results](reports/bench-results.md) (CI-generated).
 
 ---
@@ -480,7 +480,7 @@ CI runs benchmarks in every PR — results published in [Benchmark Results](repo
 | 5 | Cache `G4Polyhedron` in `CreatePolyhedron` | <span class="tag tag-plan">🔲 Planned</span> |
 | 6 | BVH / AABB-tree front-end for ray–shape intersection | <span class="tag tag-plan">🔲 Planned</span> |
 
-Items 1–3 together eliminate the dominant per-call overhead for the most frequent  
+Items 1–3 together eliminate the dominant per-call overhead for the most frequent
 navigation methods (`Inside`, `DistanceToIn/Out(p, v)`, `BoundingLimits`).
 
 ---
@@ -506,10 +506,10 @@ Tests live in `src/tests/` and are driven by **CTest + GoogleTest**:
 ]
 .box[
 ### What Is Validated
-- `Inside` classification matches on 2048 random points  
-- `DistanceToIn/Out(p, v)` agrees within tolerance  
-- `SurfaceNormal` is consistent with reported hit points  
-- Assembly import reproduces correct placement hierarchy  
+- `Inside` classification matches on 2048 random points
+- `DistanceToIn/Out(p, v)` agrees within tolerance
+- `SurfaceNormal` is consistent with reported hit points
+- Assembly import reproduces correct placement hierarchy
 - Expected-failure allowlist tracks known edge cases
 ]
 ]
@@ -547,9 +547,9 @@ RelWithDebInfo build
 1. Configure & build
 2. `ctest --output-on-failure`
 
-Suppression files:  
-`.github/asan.supp`  
-`.github/lsan.supp`  
+Suppression files:
+`.github/asan.supp`
+`.github/lsan.supp`
 `.github/ubsan.supp`
 ]
 ]
@@ -572,7 +572,7 @@ auto logical = new G4OCCTLogicalVolume(
     solid, water, "WaterBox");
 ```
 
-Gamma beam through a water phantom —  
+Gamma beam through a water phantom —
 exact geometry from a CAD file.
 ]
 .box.box-blue[
@@ -585,7 +585,7 @@ auto assembly = G4OCCTAssemblyVolume::FromSTEP(
     "calorimeter.step", materialMap, world);
 ```
 
-Demonstrates full assembly import with  
+Demonstrates full assembly import with
 automatic material bridging and placement hierarchy.
 ]
 ]
@@ -618,16 +618,16 @@ class: slide-section
 .col2[
 .box[
 ### Near Term
-- **BVH acceleration** — reduce O(N_faces) ray tests to O(log N) for complex STEP solids  
-- **Full primitive coverage** — pass all NIST CTC fixtures  
+- **BVH acceleration** — reduce O(N_faces) ray tests to O(log N) for complex STEP solids
+- **Full primitive coverage** — pass all NIST CTC fixtures
 - **Assembly builder** — higher-level API for constructing STEP-driven detector geometries
 ]
 .box[
 ### Longer Term
-- **GDML round-trip** — export OCCT geometry back to GDML  
-- **Magnetic field integration** — curved tracks in BRep volumes  
-- **GPU navigation** — VecGeom or AdePT with OCCT-defined shapes  
-- **Material database** — automatic G4NIST lookup from STEP names  
+- **GDML round-trip** — export OCCT geometry back to GDML
+- **Magnetic field integration** — curved tracks in BRep volumes
+- **GPU navigation** — VecGeom or AdePT with OCCT-defined shapes
+- **Material database** — automatic G4NIST lookup from STEP names
 ]
 ]
 
@@ -650,11 +650,11 @@ Requirements: **CMake ≥ 3.16**, **Geant4 ≥ 11.3**, **OCCT ≥ 7.8**
 ]
 .box.box-blue[
 ### Contribute
-- Read [AGENTS.md](../AGENTS.md) for coding conventions  
-- Run pre-commit hooks: `pip install pre-commit && pre-commit install`  
-- Code style: LLVM, C++20, 100-col limit  
-- Every PR needs SPDX headers, Doxygen on public API  
-- Open issues or PRs on GitHub  
+- Read [AGENTS.md](../AGENTS.md) for coding conventions
+- Run pre-commit hooks: `pip install pre-commit && pre-commit install`
+- Code style: LLVM, C++20, 100-col limit
+- Every PR needs SPDX headers, Doxygen on public API
+- Open issues or PRs on GitHub
 ]
 ]
 
@@ -682,9 +682,9 @@ Core navigation works. Per-thread caching eliminates dominant overheads. Test su
 
 ---
 
-**Slides:** [wdconinc.github.io/G4OCCT/slides.html](https://wdconinc.github.io/G4OCCT/slides.html)  
-**Docs:** [wdconinc.github.io/G4OCCT](https://wdconinc.github.io/G4OCCT)  
-**Repo:** [github.com/wdconinc/G4OCCT](https://github.com/wdconinc/G4OCCT)  
+**Slides:** [wdconinc.github.io/G4OCCT/slides.html](https://wdconinc.github.io/G4OCCT/slides.html)
+**Docs:** [wdconinc.github.io/G4OCCT](https://wdconinc.github.io/G4OCCT)
+**Repo:** [github.com/wdconinc/G4OCCT](https://github.com/wdconinc/G4OCCT)
 **License:** LGPL-2.1-or-later
 
 </textarea>
