@@ -437,12 +437,21 @@ jobs:
 
             mkdir -p coverage reports
 
+            # Resolve the canonical (symlink-free) absolute path of the project
+            # root.  Inside the Singularity container used by eic-shell, $PWD
+            # may differ from realpath(.) because the workspace bind-mount does
+            # not preserve the host symlink chain.  GCC records source paths
+            # using realpath at compile time, so gcovr's --root and --filter
+            # must use the same canonical form to avoid a mismatch that causes
+            # "All coverage data is filtered out".
+            ROOT=$(realpath .)
+
             # Include only project library sources; exclude tests, benchmarks,
             # examples, and any third-party headers caught by --coverage.
             "${PWD}/.venv-gcovr/bin/gcovr" \
-              --root . \
-              --filter 'src/G4OCCT.*' \
-              --filter 'include/G4OCCT/.*' \
+              --root "${ROOT}" \
+              --filter "${ROOT}/src/G4OCCT.*" \
+              --filter "${ROOT}/include/G4OCCT/.*" \
               --html-details coverage/index.html \
               --json-summary coverage-summary.json \
               --print-summary \
