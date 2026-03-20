@@ -9,6 +9,7 @@
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepBndLib.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
+#include <BRepClass_FaceClassifier.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
 #include <BRepGProp.hxx>
 #include <BRepLProp_SLProps.hxx>
@@ -36,6 +37,7 @@
 #include <gp_Dir.hxx>
 #include <gp_Lin.hxx>
 #include <gp_Pnt.hxx>
+#include <gp_Pnt2d.hxx>
 #include <gp_Vec.hxx>
 
 #include <G4BoundingEnvelope.hh>
@@ -263,7 +265,7 @@ void G4OCCTSolid::ComputeBounds() {
   fFaceBoundsCache.clear();
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     Bnd_Box faceBox;
-    BRepBndLib::Add(ex.Current(), faceBox);
+    BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
   }
@@ -293,15 +295,28 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
 
     // Use Extrema_ExtPS for a lighter-weight point-to-surface distance that
     // avoids the NCollection_Sequence allocations of BRepExtrema_DistShapeShape.
-    const Standard_Real tol = Precision::Confusion();
-    Extrema_ExtPS ext(queryPoint, fb.adaptor, tol, tol);
-    G4double candidateDistance = kInfinity;
+    // Tolerances are in parametric (UV) space — convert from the 3D surface tolerance.
+    const Standard_Real tolU = fb.adaptor.UResolution(IntersectionTolerance());
+    const Standard_Real tolV = fb.adaptor.VResolution(IntersectionTolerance());
+    Extrema_ExtPS        ext(queryPoint, fb.adaptor, tolU, tolV);
+    G4double             candidateDistance = kInfinity;
     if (ext.IsDone() && ext.NbExt() > 0) {
+      // Only count extrema whose UV point lies inside/on the *trimmed* face.
+      // Extrema_ExtPS minimises over the rectangular UV domain; for trimmed
+      // non-rectangular faces an extremum can lie outside the actual face.
+      const Standard_Real classifyTol = IntersectionTolerance();
       for (Standard_Integer k = 1; k <= ext.NbExt(); ++k) {
-        candidateDistance = std::min(candidateDistance, std::sqrt(ext.SquareDistance(k)));
+        Standard_Real u = 0.0, v = 0.0;
+        ext.Point(k).Parameter(u, v);
+        BRepClass_FaceClassifier faceClass(fb.face, gp_Pnt2d(u, v), classifyTol);
+        if (faceClass.State() == TopAbs_IN || faceClass.State() == TopAbs_ON) {
+          candidateDistance = std::min(candidateDistance, std::sqrt(ext.SquareDistance(k)));
+        }
       }
-    } else {
-      // Fallback: Extrema_ExtPS found no solutions (e.g. degenerate surface).
+    }
+    if (candidateDistance == kInfinity) {
+      // Fallback: Extrema_ExtPS found no valid solutions (degenerate surface or
+      // all extrema outside the trimmed face boundary).
       BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
       if (!distance.IsDone() || distance.NbSolution() == 0) {
         continue;
