@@ -198,10 +198,14 @@ void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume*
       const TDF_Label& comp = components.Value(i); // always a reference label
 
       // Extract the component's placement in the parent frame.
-      // XCAFDoc_Location::Get(label) returns the TopLoc_Location stored on
-      // the label, or an identity location if none is present.
-      const TopLoc_Location compLoc = XCAFDoc_Location::Get(comp);
-      gp_Trsf compTrsf              = LocationToTrsf(compLoc);
+      // FindAttribute returns false if no location is stored; in that case
+      // compLoc remains default-constructed (identity).
+      TopLoc_Location compLoc;
+      Handle(XCAFDoc_Location) locAttr;
+      if (comp.FindAttribute(XCAFDoc_Location::GetID(), locAttr)) {
+        compLoc = locAttr->Get();
+      }
+      gp_Trsf compTrsf = LocationToTrsf(compLoc);
 
       // Compose: first apply component's local placement, then the parent's.
       gp_Trsf childTrsf = composedTrsf;
