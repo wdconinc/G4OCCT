@@ -21,8 +21,7 @@ namespace {
 
 /// Write @p content to a temporary file and return its path.
 std::string WriteTempXML(const std::string& filename, const std::string& content) {
-  const std::string path =
-      (std::filesystem::temp_directory_path() / filename).string();
+  const std::string path = (std::filesystem::temp_directory_path() / filename).string();
   std::ofstream out(path);
   out << content;
   return path;

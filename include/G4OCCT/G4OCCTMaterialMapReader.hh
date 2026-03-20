@@ -59,7 +59,7 @@
  */
 class G4OCCTMaterialMapReader : public G4GDMLReadStructure {
 public:
-  G4OCCTMaterialMapReader()  = default;
+  G4OCCTMaterialMapReader()           = default;
   ~G4OCCTMaterialMapReader() override = default;
 
   /**

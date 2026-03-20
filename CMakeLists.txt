@@ -37,9 +37,10 @@ find_package(OpenCASCADE REQUIRED)
 # ─── Library ─────────────────────────────────────────────────────────────────
 
 add_library(
-  G4OCCT src/G4OCCTSolid.cc src/G4OCCTLogicalVolume.cc src/G4OCCTPlacement.cc
-         src/G4OCCTMaterialMap.cc src/G4OCCTMaterialMapReader.cc
-         src/G4OCCTAssemblyVolume.cc)
+  G4OCCT
+  src/G4OCCTSolid.cc src/G4OCCTLogicalVolume.cc src/G4OCCTPlacement.cc
+  src/G4OCCTMaterialMap.cc src/G4OCCTMaterialMapReader.cc
+  src/G4OCCTAssemblyVolume.cc)
 add_library(G4OCCT::G4OCCT ALIAS G4OCCT)
 
 target_include_directories(
