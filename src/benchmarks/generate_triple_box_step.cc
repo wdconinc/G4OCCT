@@ -78,9 +78,8 @@ int main(int argc, char** argv) {
 
     // XDE material attribute (density only; G4OCCTAssemblyVolume reads the name).
     TDF_Label matLabel = matTool->AddMaterial(
-        new TCollection_HAsciiString("Component"), new TCollection_HAsciiString("G4_Al"),
-        2.699, new TCollection_HAsciiString("g/cm3"),
-        new TCollection_HAsciiString("homogeneous"));
+        new TCollection_HAsciiString("Component"), new TCollection_HAsciiString("G4_Al"), 2.699,
+        new TCollection_HAsciiString("g/cm3"), new TCollection_HAsciiString("homogeneous"));
     matTool->SetMaterial(shapeLabel, matLabel);
   }
 

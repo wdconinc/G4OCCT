@@ -56,405 +56,398 @@
 namespace g4occt::benchmarks::assembly {
 namespace {
 
-// ─── Default fixture root (relative to the source tree) ──────────────────────
+  // ─── Default fixture root (relative to the source tree) ──────────────────────
 
 #ifndef G4OCCT_TEST_SOURCE_DIR
 #define G4OCCT_TEST_SOURCE_DIR "."
 #endif
 
-std::filesystem::path DefaultAssemblyFixtureRoot() {
-  return std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "assembly-comparison";
-}
-
-// ─── Component specification ──────────────────────────────────────────────────
-
-/// One placed component in an assembly: a solid plus its world-frame transform.
-struct ComponentSpec {
-  G4VSolid*       solid{nullptr};
-  G4ThreeVector   translation;
-  G4RotationMatrix rotation; // identity for our axis-aligned boxes
-  std::string     name;
-};
-
-// ─── Boundary-crossing record ─────────────────────────────────────────────────
-
-/// A single surface-boundary crossing point collected during ray tracing.
-struct Crossing {
-  double       distance{0.0}; ///< Along the ray from the launch origin.
-  G4ThreeVector point;        ///< World-frame coordinates.
-};
-
-// ─── Ray-direction generation (Fibonacci sphere) ──────────────────────────────
-
-/// Return @p n ray directions uniformly distributed on the unit sphere using
-/// the Fibonacci / golden-angle lattice.  The same sequence is used for every
-/// run, making benchmark timing reproducible across iterations.
-std::vector<G4ThreeVector> GenerateDirections(std::size_t n) {
-  std::vector<G4ThreeVector> dirs;
-  dirs.reserve(n);
-  constexpr double kGoldenAngle = 2.399963229728653; // 2π(1 − 1/φ)
-  for (std::size_t i = 0; i < n; ++i) {
-    const double phi   = std::acos(1.0 - 2.0 * (static_cast<double>(i) + 0.5) /
-                                            static_cast<double>(n));
-    const double theta = kGoldenAngle * static_cast<double>(i);
-    dirs.emplace_back(std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta),
-                      std::cos(phi));
-  }
-  return dirs;
-}
-
-// ─── Ray-through-assembly tracing ─────────────────────────────────────────────
-
-/// Compute all boundary-crossing distances for a ray through the assembly.
-///
-/// Each component is tested individually.  For a ray that starts outside the
-/// component solid (kOutside) the function calls DistanceToIn; if the ray
-/// enters, a subsequent DistanceToOut gives the exit distance.  Crossings are
-/// returned sorted by ascending distance from @p origin.
-std::vector<Crossing> TraceRay(const std::vector<ComponentSpec>& components,
-                                const G4ThreeVector& origin,
-                                const G4ThreeVector& direction) {
-  std::vector<Crossing> crossings;
-  crossings.reserve(components.size() * 2U);
-
-  for (const auto& comp : components) {
-    // Transform the ray into the component's local frame.
-    // For our fixture all boxes are axis-aligned so the rotation is identity.
-    const G4ThreeVector local_origin =
-        comp.rotation.inverse() * (origin - comp.translation);
-    const G4ThreeVector local_dir = comp.rotation.inverse() * direction;
-
-    const EInside state = comp.solid->Inside(local_origin);
-
-    if (state == kOutside) {
-      const G4double dist_in = comp.solid->DistanceToIn(local_origin, local_dir);
-      if (dist_in >= 0.5 * kInfinity) {
-        continue;
-      }
-      const G4ThreeVector entry_world = origin + dist_in * direction;
-      crossings.push_back({dist_in, entry_world});
-
-      const G4ThreeVector local_entry = local_origin + dist_in * local_dir;
-      const G4double dist_out =
-          comp.solid->DistanceToOut(local_entry, local_dir, false, nullptr, nullptr);
-      if (dist_out < 0.5 * kInfinity) {
-        const G4ThreeVector exit_world = origin + (dist_in + dist_out) * direction;
-        crossings.push_back({dist_in + dist_out, exit_world});
-      }
-    } else if (state == kInside) {
-      const G4double dist_out =
-          comp.solid->DistanceToOut(local_origin, local_dir, false, nullptr, nullptr);
-      if (dist_out < 0.5 * kInfinity) {
-        const G4ThreeVector exit_world = origin + dist_out * direction;
-        crossings.push_back({dist_out, exit_world});
-      }
-    }
-    // kSurface: skip — boundary origin is ambiguous for both solids.
+  std::filesystem::path DefaultAssemblyFixtureRoot() {
+    return std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "assembly-comparison";
   }
 
-  std::sort(crossings.begin(), crossings.end(),
-            [](const Crossing& a, const Crossing& b) { return a.distance < b.distance; });
-  return crossings;
-}
+  // ─── Component specification ──────────────────────────────────────────────────
 
-// ─── Component extraction helpers ────────────────────────────────────────────
-
-/// Extract G4VSolid + world-frame transforms from all daughter volumes of @p lv.
-std::vector<ComponentSpec> ExtractComponents(G4LogicalVolume* lv) {
-  std::vector<ComponentSpec> specs;
-  const int n = static_cast<int>(lv->GetNoDaughters());
-  specs.reserve(static_cast<std::size_t>(n));
-  for (int i = 0; i < n; ++i) {
-    const G4VPhysicalVolume* child = lv->GetDaughter(i);
-    ComponentSpec spec;
-    spec.solid       = child->GetLogicalVolume()->GetSolid();
-    spec.translation = child->GetTranslation();
-    const G4RotationMatrix* rot = child->GetFrameRotation();
-    if (rot != nullptr) {
-      spec.rotation = *rot;
-    }
-    spec.name = child->GetName();
-    specs.push_back(spec);
-  }
-  return specs;
-}
-
-// ─── Point-cloud JSON output ─────────────────────────────────────────────────
-
-/// Escape @p s for embedding as a JSON string value.
-std::string JsonString(const std::string& s) {
-  std::string out;
-  out.reserve(s.size() + 2U);
-  out += '"';
-  for (const char ch : s) {
-    const auto uc = static_cast<unsigned char>(ch);
-    if (ch == '"') {
-      out += "\\\"";
-    } else if (ch == '\\') {
-      out += "\\\\";
-    } else if (uc < 0x20U) {
-      char buf[7];
-      std::snprintf(buf, sizeof(buf), "\\u%04X", uc);
-      out += buf;
-    } else {
-      out += ch;
-    }
-  }
-  out += '"';
-  return out;
-}
-
-/// Write a gzip-compressed JSON point-cloud file compatible with the
-/// generate_point_cloud_report.py viewer.
-void WritePointCloud(const std::filesystem::path& output_path, const std::string& fixture_id,
-                     std::size_t ray_count,
-                     const std::vector<G4ThreeVector>& gdml_hits,
-                     const std::vector<G4ThreeVector>& step_hits) {
-  std::filesystem::create_directories(output_path.parent_path());
-
-  const std::string path_str = output_path.string();
-  gzFile gz                  = gzopen(path_str.c_str(), "wb");
-  if (gz == nullptr) {
-    throw std::runtime_error("Cannot open point-cloud output: " + path_str);
-  }
-
-  auto write_gz = [&gz, &path_str](const std::string& s) {
-    if (s.empty()) {
-      return;
-    }
-    if (s.size() > static_cast<std::size_t>(std::numeric_limits<unsigned int>::max())) {
-      throw std::runtime_error("Chunk too large for gzwrite: " + path_str);
-    }
-    const int written = gzwrite(gz, s.data(), static_cast<unsigned int>(s.size()));
-    if (written != static_cast<int>(s.size())) {
-      throw std::runtime_error("gzwrite failed: " + path_str);
-    }
+  /// One placed component in an assembly: a solid plus its world-frame transform.
+  struct ComponentSpec {
+    G4VSolid* solid{nullptr};
+    G4ThreeVector translation;
+    G4RotationMatrix rotation; // identity for our axis-aligned boxes
+    std::string name;
   };
 
-  auto write_vec_array = [&write_gz](const std::vector<G4ThreeVector>& pts) {
-    write_gz("[");
-    for (std::size_t i = 0; i < pts.size(); ++i) {
-      if (i > 0U) {
-        write_gz(",");
-      }
-      std::ostringstream oss;
-      oss << std::setprecision(15) << '[' << pts[i].x() << ',' << pts[i].y() << ','
-          << pts[i].z() << ']';
-      write_gz(oss.str());
-    }
-    write_gz("]");
+  // ─── Boundary-crossing record ─────────────────────────────────────────────────
+
+  /// A single surface-boundary crossing point collected during ray tracing.
+  struct Crossing {
+    double distance{0.0}; ///< Along the ray from the launch origin.
+    G4ThreeVector point;  ///< World-frame coordinates.
   };
 
-  try {
-    // Use the assembly centre (origin) as the shared pre-step origin so the
-    // viewer can draw crossing points relative to a single reference point.
-    std::ostringstream hdr;
-    hdr << "{\n";
-    hdr << "  \"fixture_id\": " << JsonString(fixture_id) << ",\n";
-    hdr << "  \"geant4_class\": " << JsonString("G4OCCTAssemblyVolume") << ",\n";
-    hdr << "  \"ray_count\": " << ray_count << ",\n";
-    hdr << "  \"native_pre_step_origin\": [0,0,0],\n";
-    hdr << "  \"imported_pre_step_origin\": [0,0,0],\n";
-    hdr << "  \"native_post_step_hits\": ";
-    write_gz(hdr.str());
-    write_vec_array(gdml_hits);
-    write_gz(",\n  \"imported_post_step_hits\": ");
-    write_vec_array(step_hits);
-    write_gz("\n}\n");
-  } catch (...) {
-    gzclose(gz);
-    throw;
-  }
+  // ─── Ray-direction generation (Fibonacci sphere) ──────────────────────────────
 
-  if (gzclose(gz) != Z_OK) {
-    throw std::runtime_error("gzclose failed: " + path_str);
-  }
-}
-
-// ─── Comparison ──────────────────────────────────────────────────────────────
-
-/// Compare two crossing sequences for a single ray.  Returns the mismatch
-/// count contribution: counts count differences and per-crossing distance
-/// mismatches beyond @p tolerance.
-std::size_t CompareRayCrossings(const std::vector<Crossing>& gdml,
-                                const std::vector<Crossing>& step,
-                                G4double tolerance) {
-  if (gdml.size() != step.size()) {
-    // Count mismatch is one error per extra/missing crossing.
-    return std::max(gdml.size(), step.size()) - std::min(gdml.size(), step.size());
-  }
-  std::size_t mismatches = 0U;
-  for (std::size_t i = 0; i < gdml.size(); ++i) {
-    if (std::fabs(gdml[i].distance - step[i].distance) > tolerance) {
-      ++mismatches;
+  /// Return @p n ray directions uniformly distributed on the unit sphere using
+  /// the Fibonacci / golden-angle lattice.  The same sequence is used for every
+  /// run, making benchmark timing reproducible across iterations.
+  std::vector<G4ThreeVector> GenerateDirections(std::size_t n) {
+    std::vector<G4ThreeVector> dirs;
+    dirs.reserve(n);
+    constexpr double kGoldenAngle = 2.399963229728653; // 2π(1 − 1/φ)
+    for (std::size_t i = 0; i < n; ++i) {
+      const double phi =
+          std::acos(1.0 - 2.0 * (static_cast<double>(i) + 0.5) / static_cast<double>(n));
+      const double theta = kGoldenAngle * static_cast<double>(i);
+      dirs.emplace_back(std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta),
+                        std::cos(phi));
     }
+    return dirs;
   }
-  return mismatches;
-}
 
-// ─── Shared benchmark state ───────────────────────────────────────────────────
+  // ─── Ray-through-assembly tracing ─────────────────────────────────────────────
 
-struct BenchmarkResult {
-  std::string  fixture_id;
-  double       gdml_ms{0.0};
-  double       step_ms{0.0};
-  std::size_t  ray_count{0U};
-  std::size_t  mismatches{0U};
-  std::size_t  gdml_crossings{0U};
-  std::size_t  step_crossings{0U};
-};
+  /// Compute all boundary-crossing distances for a ray through the assembly.
+  ///
+  /// Each component is tested individually.  For a ray that starts outside the
+  /// component solid (kOutside) the function calls DistanceToIn; if the ray
+  /// enters, a subsequent DistanceToOut gives the exit distance.  Crossings are
+  /// returned sorted by ascending distance from @p origin.
+  std::vector<Crossing> TraceRay(const std::vector<ComponentSpec>& components,
+                                 const G4ThreeVector& origin, const G4ThreeVector& direction) {
+    std::vector<Crossing> crossings;
+    crossings.reserve(components.size() * 2U);
 
-struct SharedState {
-  std::vector<BenchmarkResult> results;
-  std::mutex                   mu;
-};
+    for (const auto& comp : components) {
+      // Transform the ray into the component's local frame.
+      // For our fixture all boxes are axis-aligned so the rotation is identity.
+      const G4ThreeVector local_origin = comp.rotation.inverse() * (origin - comp.translation);
+      const G4ThreeVector local_dir    = comp.rotation.inverse() * direction;
 
-static SharedState* g_state = // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
-    nullptr;
+      const EInside state = comp.solid->Inside(local_origin);
 
-// ─── Benchmark registration ───────────────────────────────────────────────────
+      if (state == kOutside) {
+        const G4double dist_in = comp.solid->DistanceToIn(local_origin, local_dir);
+        if (dist_in >= 0.5 * kInfinity) {
+          continue;
+        }
+        const G4ThreeVector entry_world = origin + dist_in * direction;
+        crossings.push_back({dist_in, entry_world});
 
-void RunAssemblyBenchmark(benchmark::State& state, const std::string& fixture_id,
-                          const std::filesystem::path& gdml_path,
-                          const std::filesystem::path& step_path,
-                          std::size_t ray_count,
-                          const std::filesystem::path& point_cloud_dir) {
-  // Load GDML reference geometry.
-  G4GDMLParser gdml_parser;
-  gdml_parser.SetValidate(false);
-  gdml_parser.Read(gdml_path.string());
-  G4VPhysicalVolume* gdml_world_pv = gdml_parser.GetWorldVolume();
-  G4LogicalVolume*   gdml_world_lv = gdml_world_pv->GetLogicalVolume();
-  const std::vector<ComponentSpec> gdml_components = ExtractComponents(gdml_world_lv);
-
-  // Load STEP assembly.
-  G4OCCTMaterialMap mat_map;
-  mat_map.Add("Component",
-              G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
-
-  // Create a world LV for imprinting the STEP assembly (no placement needed;
-  // we extract daughter solids + transforms directly after MakeImprint).
-  auto* step_world_box = new G4Box("AssemblyStepWorld_" + fixture_id, 25.0, 15.0, 15.0);
-  G4Material* air = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
-  auto* step_world_lv =
-      new G4LogicalVolume(step_world_box, air, "AssemblyStepWorldLV_" + fixture_id);
-  G4ThreeVector    step_pos;
-  G4RotationMatrix step_rot;
-  G4OCCTAssemblyVolume* step_assembly =
-      G4OCCTAssemblyVolume::FromSTEP(step_path.string(), mat_map);
-  step_assembly->MakeImprint(step_world_lv, step_pos, &step_rot);
-  const std::vector<ComponentSpec> step_components = ExtractComponents(step_world_lv);
-
-  // Ray launch origin: far enough outside the assembly (radius 40 mm).
-  constexpr double kRayRadius = 40.0; // mm
-
-  const std::vector<G4ThreeVector> directions = GenerateDirections(ray_count);
-
-  // Tolerance: one surface tolerance unit (Geant4 standard).
-  constexpr double kTolerance = 1.0e-3; // mm (≈ Geant4 surface tolerance)
-
-  for (auto _ : state) {
-    // ── GDML timing ──────────────────────────────────────────────────────
-    std::vector<std::vector<Crossing>> gdml_crossings_per_ray(ray_count);
-    const auto gdml_begin = std::chrono::steady_clock::now();
-    for (std::size_t i = 0; i < directions.size(); ++i) {
-      const G4ThreeVector origin = -kRayRadius * directions[i];
-      gdml_crossings_per_ray[i] = TraceRay(gdml_components, origin, directions[i]);
-    }
-    const auto gdml_end = std::chrono::steady_clock::now();
-    const double gdml_ms =
-        std::chrono::duration<double, std::milli>(gdml_end - gdml_begin).count();
-
-    // ── STEP timing ───────────────────────────────────────────────────────
-    std::vector<std::vector<Crossing>> step_crossings_per_ray(ray_count);
-    const auto step_begin = std::chrono::steady_clock::now();
-    for (std::size_t i = 0; i < directions.size(); ++i) {
-      const G4ThreeVector origin = -kRayRadius * directions[i];
-      step_crossings_per_ray[i] = TraceRay(step_components, origin, directions[i]);
-    }
-    const auto step_end = std::chrono::steady_clock::now();
-    const double step_ms =
-        std::chrono::duration<double, std::milli>(step_end - step_begin).count();
-
-    // ── Compare ───────────────────────────────────────────────────────────
-    std::size_t mismatches        = 0U;
-    std::size_t gdml_crossing_cnt = 0U;
-    std::size_t step_crossing_cnt = 0U;
-    std::vector<G4ThreeVector> gdml_hits;
-    std::vector<G4ThreeVector> step_hits;
-    gdml_hits.reserve(ray_count * 6U);
-    step_hits.reserve(ray_count * 6U);
-
-    for (std::size_t i = 0; i < ray_count; ++i) {
-      mismatches +=
-          CompareRayCrossings(gdml_crossings_per_ray[i], step_crossings_per_ray[i], kTolerance);
-      gdml_crossing_cnt += gdml_crossings_per_ray[i].size();
-      step_crossing_cnt += step_crossings_per_ray[i].size();
-      for (const auto& c : gdml_crossings_per_ray[i]) {
-        gdml_hits.push_back(c.point);
+        const G4ThreeVector local_entry = local_origin + dist_in * local_dir;
+        const G4double dist_out =
+            comp.solid->DistanceToOut(local_entry, local_dir, false, nullptr, nullptr);
+        if (dist_out < 0.5 * kInfinity) {
+          const G4ThreeVector exit_world = origin + (dist_in + dist_out) * direction;
+          crossings.push_back({dist_in + dist_out, exit_world});
+        }
+      } else if (state == kInside) {
+        const G4double dist_out =
+            comp.solid->DistanceToOut(local_origin, local_dir, false, nullptr, nullptr);
+        if (dist_out < 0.5 * kInfinity) {
+          const G4ThreeVector exit_world = origin + dist_out * direction;
+          crossings.push_back({dist_out, exit_world});
+        }
       }
-      for (const auto& c : step_crossings_per_ray[i]) {
-        step_hits.push_back(c.point);
+      // kSurface: skip — boundary origin is ambiguous for both solids.
+    }
+
+    std::sort(crossings.begin(), crossings.end(),
+              [](const Crossing& a, const Crossing& b) { return a.distance < b.distance; });
+    return crossings;
+  }
+
+  // ─── Component extraction helpers ────────────────────────────────────────────
+
+  /// Extract G4VSolid + world-frame transforms from all daughter volumes of @p lv.
+  std::vector<ComponentSpec> ExtractComponents(G4LogicalVolume* lv) {
+    std::vector<ComponentSpec> specs;
+    const int n = static_cast<int>(lv->GetNoDaughters());
+    specs.reserve(static_cast<std::size_t>(n));
+    for (int i = 0; i < n; ++i) {
+      const G4VPhysicalVolume* child = lv->GetDaughter(i);
+      ComponentSpec spec;
+      spec.solid                  = child->GetLogicalVolume()->GetSolid();
+      spec.translation            = child->GetTranslation();
+      const G4RotationMatrix* rot = child->GetFrameRotation();
+      if (rot != nullptr) {
+        spec.rotation = *rot;
+      }
+      spec.name = child->GetName();
+      specs.push_back(spec);
+    }
+    return specs;
+  }
+
+  // ─── Point-cloud JSON output ─────────────────────────────────────────────────
+
+  /// Escape @p s for embedding as a JSON string value.
+  std::string JsonString(const std::string& s) {
+    std::string out;
+    out.reserve(s.size() + 2U);
+    out += '"';
+    for (const char ch : s) {
+      const auto uc = static_cast<unsigned char>(ch);
+      if (ch == '"') {
+        out += "\\\"";
+      } else if (ch == '\\') {
+        out += "\\\\";
+      } else if (uc < 0x20U) {
+        char buf[7];
+        std::snprintf(buf, sizeof(buf), "\\u%04X", uc);
+        out += buf;
+      } else {
+        out += ch;
       }
     }
+    out += '"';
+    return out;
+  }
 
-    state.SetIterationTime(step_ms / 1000.0);
-    state.counters["gdml_ms"]          = gdml_ms;
-    state.counters["step_ms"]          = step_ms;
-    state.counters["ray_count"]        = static_cast<double>(ray_count);
-    state.counters["mismatches"]       = static_cast<double>(mismatches);
-    state.counters["gdml_crossings"]   = static_cast<double>(gdml_crossing_cnt);
-    state.counters["step_crossings"]   = static_cast<double>(step_crossing_cnt);
+  /// Write a gzip-compressed JSON point-cloud file compatible with the
+  /// generate_point_cloud_report.py viewer.
+  void WritePointCloud(const std::filesystem::path& output_path, const std::string& fixture_id,
+                       std::size_t ray_count, const std::vector<G4ThreeVector>& gdml_hits,
+                       const std::vector<G4ThreeVector>& step_hits) {
+    std::filesystem::create_directories(output_path.parent_path());
 
-    if (g_state != nullptr) {
-      std::lock_guard<std::mutex> lk(g_state->mu);
-      BenchmarkResult res;
-      res.fixture_id     = fixture_id;
-      res.gdml_ms        = gdml_ms;
-      res.step_ms        = step_ms;
-      res.ray_count      = ray_count;
-      res.mismatches     = mismatches;
-      res.gdml_crossings = gdml_crossing_cnt;
-      res.step_crossings = step_crossing_cnt;
-      g_state->results.push_back(res);
+    const std::string path_str = output_path.string();
+    gzFile gz                  = gzopen(path_str.c_str(), "wb");
+    if (gz == nullptr) {
+      throw std::runtime_error("Cannot open point-cloud output: " + path_str);
     }
 
-    // ── Point cloud output ────────────────────────────────────────────────
-    if (!point_cloud_dir.empty()) {
-      try {
-        const std::filesystem::path out_file =
-            point_cloud_dir /
-            (std::string("BM_assembly_rays_") + fixture_id + ".json.gz");
-        WritePointCloud(out_file, "assembly-comparison/" + fixture_id, ray_count, gdml_hits,
-                        step_hits);
-      } catch (const std::exception& err) {
-        std::cerr << "Warning: could not write point cloud: " << err.what() << '\n';
+    auto write_gz = [&gz, &path_str](const std::string& s) {
+      if (s.empty()) {
+        return;
+      }
+      if (s.size() > static_cast<std::size_t>(std::numeric_limits<unsigned int>::max())) {
+        throw std::runtime_error("Chunk too large for gzwrite: " + path_str);
+      }
+      const int written = gzwrite(gz, s.data(), static_cast<unsigned int>(s.size()));
+      if (written != static_cast<int>(s.size())) {
+        throw std::runtime_error("gzwrite failed: " + path_str);
+      }
+    };
+
+    auto write_vec_array = [&write_gz](const std::vector<G4ThreeVector>& pts) {
+      write_gz("[");
+      for (std::size_t i = 0; i < pts.size(); ++i) {
+        if (i > 0U) {
+          write_gz(",");
+        }
+        std::ostringstream oss;
+        oss << std::setprecision(15) << '[' << pts[i].x() << ',' << pts[i].y() << ',' << pts[i].z()
+            << ']';
+        write_gz(oss.str());
+      }
+      write_gz("]");
+    };
+
+    try {
+      // Use the assembly centre (origin) as the shared pre-step origin so the
+      // viewer can draw crossing points relative to a single reference point.
+      std::ostringstream hdr;
+      hdr << "{\n";
+      hdr << "  \"fixture_id\": " << JsonString(fixture_id) << ",\n";
+      hdr << "  \"geant4_class\": " << JsonString("G4OCCTAssemblyVolume") << ",\n";
+      hdr << "  \"ray_count\": " << ray_count << ",\n";
+      hdr << "  \"native_pre_step_origin\": [0,0,0],\n";
+      hdr << "  \"imported_pre_step_origin\": [0,0,0],\n";
+      hdr << "  \"native_post_step_hits\": ";
+      write_gz(hdr.str());
+      write_vec_array(gdml_hits);
+      write_gz(",\n  \"imported_post_step_hits\": ");
+      write_vec_array(step_hits);
+      write_gz("\n}\n");
+    } catch (...) {
+      gzclose(gz);
+      throw;
+    }
+
+    if (gzclose(gz) != Z_OK) {
+      throw std::runtime_error("gzclose failed: " + path_str);
+    }
+  }
+
+  // ─── Comparison ──────────────────────────────────────────────────────────────
+
+  /// Compare two crossing sequences for a single ray.  Returns the mismatch
+  /// count contribution: counts count differences and per-crossing distance
+  /// mismatches beyond @p tolerance.
+  std::size_t CompareRayCrossings(const std::vector<Crossing>& gdml,
+                                  const std::vector<Crossing>& step, G4double tolerance) {
+    if (gdml.size() != step.size()) {
+      // Count mismatch is one error per extra/missing crossing.
+      return std::max(gdml.size(), step.size()) - std::min(gdml.size(), step.size());
+    }
+    std::size_t mismatches = 0U;
+    for (std::size_t i = 0; i < gdml.size(); ++i) {
+      if (std::fabs(gdml[i].distance - step[i].distance) > tolerance) {
+        ++mismatches;
+      }
+    }
+    return mismatches;
+  }
+
+  // ─── Shared benchmark state ───────────────────────────────────────────────────
+
+  struct BenchmarkResult {
+    std::string fixture_id;
+    double gdml_ms{0.0};
+    double step_ms{0.0};
+    std::size_t ray_count{0U};
+    std::size_t mismatches{0U};
+    std::size_t gdml_crossings{0U};
+    std::size_t step_crossings{0U};
+  };
+
+  struct SharedState {
+    std::vector<BenchmarkResult> results;
+    std::mutex mu;
+  };
+
+  static SharedState* g_state = // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+      nullptr;
+
+  // ─── Benchmark registration ───────────────────────────────────────────────────
+
+  void RunAssemblyBenchmark(benchmark::State& state, const std::string& fixture_id,
+                            const std::filesystem::path& gdml_path,
+                            const std::filesystem::path& step_path, std::size_t ray_count,
+                            const std::filesystem::path& point_cloud_dir) {
+    // Load GDML reference geometry.
+    G4GDMLParser gdml_parser;
+    gdml_parser.SetValidate(false);
+    gdml_parser.Read(gdml_path.string());
+    G4VPhysicalVolume* gdml_world_pv                 = gdml_parser.GetWorldVolume();
+    G4LogicalVolume* gdml_world_lv                   = gdml_world_pv->GetLogicalVolume();
+    const std::vector<ComponentSpec> gdml_components = ExtractComponents(gdml_world_lv);
+
+    // Load STEP assembly.
+    G4OCCTMaterialMap mat_map;
+    mat_map.Add("Component", G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
+
+    // Create a world LV for imprinting the STEP assembly (no placement needed;
+    // we extract daughter solids + transforms directly after MakeImprint).
+    auto* step_world_box = new G4Box("AssemblyStepWorld_" + fixture_id, 25.0, 15.0, 15.0);
+    G4Material* air      = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
+    auto* step_world_lv =
+        new G4LogicalVolume(step_world_box, air, "AssemblyStepWorldLV_" + fixture_id);
+    G4ThreeVector step_pos;
+    G4RotationMatrix step_rot;
+    G4OCCTAssemblyVolume* step_assembly =
+        G4OCCTAssemblyVolume::FromSTEP(step_path.string(), mat_map);
+    step_assembly->MakeImprint(step_world_lv, step_pos, &step_rot);
+    const std::vector<ComponentSpec> step_components = ExtractComponents(step_world_lv);
+
+    // Ray launch origin: far enough outside the assembly (radius 40 mm).
+    constexpr double kRayRadius = 40.0; // mm
+
+    const std::vector<G4ThreeVector> directions = GenerateDirections(ray_count);
+
+    // Tolerance: one surface tolerance unit (Geant4 standard).
+    constexpr double kTolerance = 1.0e-3; // mm (≈ Geant4 surface tolerance)
+
+    for (auto _ : state) {
+      // ── GDML timing ──────────────────────────────────────────────────────
+      std::vector<std::vector<Crossing>> gdml_crossings_per_ray(ray_count);
+      const auto gdml_begin = std::chrono::steady_clock::now();
+      for (std::size_t i = 0; i < directions.size(); ++i) {
+        const G4ThreeVector origin = -kRayRadius * directions[i];
+        gdml_crossings_per_ray[i]  = TraceRay(gdml_components, origin, directions[i]);
+      }
+      const auto gdml_end = std::chrono::steady_clock::now();
+      const double gdml_ms =
+          std::chrono::duration<double, std::milli>(gdml_end - gdml_begin).count();
+
+      // ── STEP timing ───────────────────────────────────────────────────────
+      std::vector<std::vector<Crossing>> step_crossings_per_ray(ray_count);
+      const auto step_begin = std::chrono::steady_clock::now();
+      for (std::size_t i = 0; i < directions.size(); ++i) {
+        const G4ThreeVector origin = -kRayRadius * directions[i];
+        step_crossings_per_ray[i]  = TraceRay(step_components, origin, directions[i]);
+      }
+      const auto step_end = std::chrono::steady_clock::now();
+      const double step_ms =
+          std::chrono::duration<double, std::milli>(step_end - step_begin).count();
+
+      // ── Compare ───────────────────────────────────────────────────────────
+      std::size_t mismatches        = 0U;
+      std::size_t gdml_crossing_cnt = 0U;
+      std::size_t step_crossing_cnt = 0U;
+      std::vector<G4ThreeVector> gdml_hits;
+      std::vector<G4ThreeVector> step_hits;
+      gdml_hits.reserve(ray_count * 6U);
+      step_hits.reserve(ray_count * 6U);
+
+      for (std::size_t i = 0; i < ray_count; ++i) {
+        mismatches +=
+            CompareRayCrossings(gdml_crossings_per_ray[i], step_crossings_per_ray[i], kTolerance);
+        gdml_crossing_cnt += gdml_crossings_per_ray[i].size();
+        step_crossing_cnt += step_crossings_per_ray[i].size();
+        for (const auto& c : gdml_crossings_per_ray[i]) {
+          gdml_hits.push_back(c.point);
+        }
+        for (const auto& c : step_crossings_per_ray[i]) {
+          step_hits.push_back(c.point);
+        }
+      }
+
+      state.SetIterationTime(step_ms / 1000.0);
+      state.counters["gdml_ms"]        = gdml_ms;
+      state.counters["step_ms"]        = step_ms;
+      state.counters["ray_count"]      = static_cast<double>(ray_count);
+      state.counters["mismatches"]     = static_cast<double>(mismatches);
+      state.counters["gdml_crossings"] = static_cast<double>(gdml_crossing_cnt);
+      state.counters["step_crossings"] = static_cast<double>(step_crossing_cnt);
+
+      if (g_state != nullptr) {
+        std::lock_guard<std::mutex> lk(g_state->mu);
+        BenchmarkResult res;
+        res.fixture_id     = fixture_id;
+        res.gdml_ms        = gdml_ms;
+        res.step_ms        = step_ms;
+        res.ray_count      = ray_count;
+        res.mismatches     = mismatches;
+        res.gdml_crossings = gdml_crossing_cnt;
+        res.step_crossings = step_crossing_cnt;
+        g_state->results.push_back(res);
+      }
+
+      // ── Point cloud output ────────────────────────────────────────────────
+      if (!point_cloud_dir.empty()) {
+        try {
+          const std::filesystem::path out_file =
+              point_cloud_dir / (std::string("BM_assembly_rays_") + fixture_id + ".json.gz");
+          WritePointCloud(out_file, "assembly-comparison/" + fixture_id, ray_count, gdml_hits,
+                          step_hits);
+        } catch (const std::exception& err) {
+          std::cerr << "Warning: could not write point cloud: " << err.what() << '\n';
+        }
       }
     }
   }
-}
 
-// ─── Summary printing ─────────────────────────────────────────────────────────
+  // ─── Summary printing ─────────────────────────────────────────────────────────
 
-void PrintSummary(std::ostream& out, const SharedState& state) {
-  out << "\n=== Assembly GDML vs STEP comparison ===\n\n";
-  out << std::left << std::setw(40) << "Fixture" << "  " << std::right << std::setw(8) << "GDML ms"
-      << "  " << std::setw(8) << "STEP ms" << "  " << std::setw(6) << "Ratio" << "  "
-      << std::setw(8) << "Mismatches" << "  " << std::setw(12) << "GDML cross." << "  "
-      << std::setw(12) << "STEP cross." << '\n';
-  out << std::string(100U, '-') << '\n';
+  void PrintSummary(std::ostream& out, const SharedState& state) {
+    out << "\n=== Assembly GDML vs STEP comparison ===\n\n";
+    out << std::left << std::setw(40) << "Fixture" << "  " << std::right << std::setw(8)
+        << "GDML ms"
+        << "  " << std::setw(8) << "STEP ms" << "  " << std::setw(6) << "Ratio" << "  "
+        << std::setw(8) << "Mismatches" << "  " << std::setw(12) << "GDML cross." << "  "
+        << std::setw(12) << "STEP cross." << '\n';
+    out << std::string(100U, '-') << '\n';
 
-  for (const auto& r : state.results) {
-    const double ratio =
-        (r.gdml_ms > 0.0) ? (r.step_ms / r.gdml_ms) : 0.0;
-    out << std::left << std::setw(40) << r.fixture_id << "  " << std::right << std::fixed
-        << std::setprecision(2) << std::setw(8) << r.gdml_ms << "  " << std::setw(8) << r.step_ms
-        << "  " << std::setw(5) << std::setprecision(1) << ratio << "x  " << std::setw(8)
-        << r.mismatches << "  " << std::setw(12) << r.gdml_crossings << "  " << std::setw(12)
-        << r.step_crossings << '\n';
+    for (const auto& r : state.results) {
+      const double ratio = (r.gdml_ms > 0.0) ? (r.step_ms / r.gdml_ms) : 0.0;
+      out << std::left << std::setw(40) << r.fixture_id << "  " << std::right << std::fixed
+          << std::setprecision(2) << std::setw(8) << r.gdml_ms << "  " << std::setw(8) << r.step_ms
+          << "  " << std::setw(5) << std::setprecision(1) << ratio << "x  " << std::setw(8)
+          << r.mismatches << "  " << std::setw(12) << r.gdml_crossings << "  " << std::setw(12)
+          << r.step_crossings << '\n';
+    }
+    out << '\n';
   }
-  out << '\n';
-}
 
 } // namespace
 } // namespace g4occt::benchmarks::assembly
@@ -500,8 +493,7 @@ int main(int argc, char** argv) {
     g4occt::benchmarks::assembly::SharedState shared_state;
     g4occt::benchmarks::assembly::g_state = &shared_state;
 
-    for (const auto& entry :
-         std::filesystem::directory_iterator(fixture_root)) {
+    for (const auto& entry : std::filesystem::directory_iterator(fixture_root)) {
       if (!entry.is_directory()) {
         continue;
       }
@@ -521,8 +513,7 @@ int main(int argc, char** argv) {
       benchmark::RegisterBenchmark(
           ("BM_assembly_rays/assembly-comparison/" + fixture_id).c_str(),
           [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir](benchmark::State& st) {
-            RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path, ray_count,
-                                 point_cloud_dir);
+            RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path, ray_count, point_cloud_dir);
           })
           ->UseManualTime()
           ->Iterations(1)
