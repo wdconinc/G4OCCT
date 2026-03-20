@@ -20,6 +20,8 @@
       subMaxLevel: 3,
       auto2top: true,
       homepage: 'goals.md',
+      coverpage: '_coverpage.md',
+      onlyCover: false,
       search: {
         paths: 'auto',
         placeholder: 'Search docs…',
@@ -31,7 +33,8 @@
             // Redirect standalone HTML report pages so they are served directly
             // rather than being fetched and rendered as Markdown by docsify.
             // Matches: #/reports/some-page.html and #/reports/some-page.html?query=...
-            var standaloneHtmlPattern = /^#\/reports\/[^?#]*\.html(\?|$)/;
+            // Also matches top-level standalone HTML files like #/slides.html.
+            var standaloneHtmlPattern = /^#\/(reports\/[^?#]*|slides)\.html(\?|$)/;
             function redirectStandalonePage() {
               var hash = window.location.hash;
               if (hash.startsWith('#/api/') || standaloneHtmlPattern.test(hash)) {

@@ -137,6 +137,8 @@ G4OCCT/
 Full documentation is available at **<https://wdconinc.github.io/G4OCCT/>**,
 including:
 
+- [**Project Overview Slides**](https://wdconinc.github.io/G4OCCT/slides.html) —
+  20-slide deck covering motivation, architecture, performance, and roadmap.
 - [Project Goals](https://wdconinc.github.io/G4OCCT/#/goals) — Vision,
   motivation, design philosophy, and roadmap.
 - [Geometry Mapping](https://wdconinc.github.io/G4OCCT/#/geometry_mapping) —

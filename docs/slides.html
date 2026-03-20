@@ -1,0 +1,702 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>G4OCCT — Project Overview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    :root {
+      --blue:   #1a73e8;
+      --dark:   #1a1a2e;
+      --mid:    #16213e;
+      --accent: #0f3460;
+      --gold:   #e94560;
+      --light:  #f0f4ff;
+      --green:  #34a853;
+      --orange: #fbbc04;
+    }
+
+    body { margin: 0; font-family: 'Inter', sans-serif; }
+
+    /* ── remark defaults ──────────────────────────────────── */
+    .remark-slide-content {
+      background: var(--dark);
+      color: #e8eaf6;
+      font-size: 20px;
+      padding: 2em 3em;
+    }
+    .remark-slide-content h1 {
+      font-size: 2.0em;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 0.3em;
+      border-bottom: 3px solid var(--gold);
+      padding-bottom: 0.2em;
+    }
+    .remark-slide-content h2 {
+      font-size: 1.4em;
+      font-weight: 600;
+      color: #90caf9;
+      margin: 0.8em 0 0.4em;
+    }
+    .remark-slide-content h3 {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: #b0bec5;
+      margin: 0.6em 0 0.2em;
+    }
+    .remark-slide-content ul {
+      margin: 0.3em 0;
+      padding-left: 1.4em;
+      line-height: 1.7;
+    }
+    .remark-slide-content li { margin: 0.25em 0; }
+    .remark-slide-content code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82em;
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #80cbc4;
+    }
+    .remark-slide-content pre code {
+      background: rgba(0,0,0,0.4);
+      display: block;
+      padding: 0.8em 1em;
+      border-radius: 6px;
+      border-left: 3px solid var(--blue);
+      font-size: 0.78em;
+      color: #cfd8dc;
+      overflow-x: auto;
+    }
+    .remark-slide-content table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.82em;
+      margin: 0.5em 0;
+    }
+    .remark-slide-content th {
+      background: var(--accent);
+      color: #90caf9;
+      padding: 6px 10px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .remark-slide-content td {
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      color: #cfd8dc;
+    }
+    .remark-slide-content tr:nth-child(even) td {
+      background: rgba(255,255,255,0.03);
+    }
+    .remark-slide-content blockquote {
+      border-left: 4px solid var(--gold);
+      margin: 0.6em 0;
+      padding: 0.3em 1em;
+      color: #b0bec5;
+      font-style: italic;
+    }
+
+    /* ── layout helpers ───────────────────────────────────── */
+    .col2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; }
+    .col3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; }
+    .box {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 0.8em 1em;
+    }
+    .box-blue  { border-color: var(--blue);   background: rgba(26,115,232,0.08); }
+    .box-gold  { border-color: var(--gold);   background: rgba(233,69,96,0.08); }
+    .box-green { border-color: var(--green);  background: rgba(52,168,83,0.08); }
+
+    .tag {
+      display: inline-block;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 0.72em;
+      font-weight: 600;
+      margin: 2px;
+    }
+    .tag-done   { background: rgba(52,168,83,0.25);   color: #81c995; }
+    .tag-wip    { background: rgba(251,188,4,0.25);   color: #fdd663; }
+    .tag-plan   { background: rgba(26,115,232,0.25);  color: #8ab4f8; }
+
+    /* ── title slide ──────────────────────────────────────── */
+    .slide-title {
+      background: linear-gradient(135deg, var(--dark) 0%, var(--accent) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .slide-title h1 {
+      font-size: 3.2em;
+      border: none;
+      margin-bottom: 0.1em;
+      background: linear-gradient(90deg, #fff, #90caf9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .slide-title .subtitle {
+      font-size: 1.2em;
+      color: #90caf9;
+      margin-bottom: 0.5em;
+    }
+    .slide-title .meta {
+      font-size: 0.82em;
+      color: #607d8b;
+      margin-top: 1em;
+    }
+    .slide-title a { color: #90caf9; }
+
+    /* ── section slides ───────────────────────────────────── */
+    .slide-section {
+      background: linear-gradient(135deg, var(--mid) 0%, var(--accent) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .slide-section h1 {
+      border: none;
+      font-size: 2.8em;
+      color: #fff;
+    }
+    .slide-section .section-sub {
+      font-size: 1em;
+      color: #90caf9;
+    }
+
+    /* slide number */
+    .remark-slide-number { color: #455a64; font-size: 0.75em; }
+
+    /* link colour */
+    a { color: #90caf9; }
+  </style>
+</head>
+<body>
+<textarea id="source">
+
+class: slide-title
+
+# G4OCCT
+
+.subtitle[CAD-to-Simulation: Geant4 meets Open CASCADE Technology]
+
+---
+
+**Geant4** drives particle-physics detector simulations worldwide.  
+**OCCT** is the premier open-source CAD geometry kernel.  
+**G4OCCT** bridges them — zero geometry re-entry, zero discrepancy.
+
+.meta[
+[github.com/wdconinc/G4OCCT](https://github.com/wdconinc/G4OCCT) &nbsp;·&nbsp; LGPL-2.1-or-later
+]
+
+---
+
+# The Problem
+
+.col2[
+.box.box-gold[
+## Status Quo
+
+- Geant4 geometry: hand-coded CSG  
+  *(boxes, spheres, tubes, …)*
+- Engineering designs: STEP/CAD files
+- **Two separate worlds**, maintained by different teams
+- Every design change needs **manual re-implementation**
+- CSG can't express fillets, swept surfaces, blends
+]
+
+.box.box-blue[
+## Consequences
+
+- Geometry discrepancies between CAD and simulation  
+- Maintenance bottleneck slows detector studies  
+- Tessellated meshes lose precision at boundaries  
+- Long iteration cycles delay physics results  
+- Risk of undetected design-vs-simulation drift  
+]
+]
+
+---
+
+# Why This Matters
+
+High-energy physics detectors like **ePIC** (EIC) and future collider experiments:
+
+- Contain **tens of thousands** of placed volumes
+- Require geometry to match engineering drawings **exactly**
+- Undergo frequent **incremental design revisions**
+- Demand **nanosecond-level** navigation throughput
+
+> *"The real detector looks like the CAD. The simulation should too."*
+
+Current approaches (GDML hand-conversion, TGeo export, tessellated meshes)  
+all introduce manual steps that are error-prone and time-consuming.
+
+---
+
+# Introducing G4OCCT
+
+.col2[
+.box.box-green[
+## What It Does
+
+- Wraps OCCT **BRep shapes** as `G4VSolid` objects
+- Imports STEP files — **single shape** or **full assembly**
+- Bridges **material names** from STEP metadata
+- Plugs into the **unmodified** Geant4 navigator
+- Ships as a standard **CMake package**
+]
+
+.box[
+## What It Is Not
+
+- Not a replacement navigator
+- Not a GDML exporter
+- Not a GPU geometry engine *(yet)*
+- Not a material database
+- Not a full MCAD import stack
+
+All listed items are explicitly **out of scope for v0.x**,  
+keeping the library focused and auditable.
+]
+]
+
+---
+class: slide-section
+
+# Architecture
+
+.section-sub[Thin wrapper. Zero Geant4 changes.]
+
+---
+
+# Design Philosophy
+
+### Thin wrapper, not a replacement
+
+OCCT shapes live **inside** Geant4 constructs.  
+The navigator, scoring, and visualisation remain untouched.
+
+```
+┌──────────────────────────────────────────────────────┐
+│                   Geant4 Navigator                   │
+│  G4SafetyHelper · G4VoxelNavigator · G4PropagatorInField │
+└────────────────────┬─────────────────────────────────┘
+                     │  G4VSolid virtual interface
+           ┌─────────▼──────────┐
+           │    G4OCCTSolid     │  ◄─ new in G4OCCT
+           │  ┌──────────────┐  │
+           │  │ TopoDS_Shape │  │  ◄─ OCCT BRep handle
+           │  └──────────────┘  │
+           └────────────────────┘
+```
+
+Navigation queries (`Inside`, `DistanceToIn/Out`, `SurfaceNormal`)  
+are **delegated to OCCT BRep algorithms**.  Everything else is Geant4.
+
+---
+
+# Class Hierarchy
+
+| G4OCCT class | Inherits from | Embeds | Role |
+|---|---|---|---|
+| `G4OCCTSolid` | `G4VSolid` | `TopoDS_Shape` | Solid geometry queries |
+| `G4OCCTLogicalVolume` | `G4LogicalVolume` | `TopoDS_Shape` (opt.) | Volume with material |
+| `G4OCCTPlacement` | `G4PVPlacement` | `TopLoc_Location` | Placed instance |
+| `G4OCCTAssemblyVolume` | — | STEP hierarchy | Multi-shape assembly |
+| `G4OCCTMaterialMap` | — | `std::map` | STEP name → `G4Material*` |
+
+Standard downstream usage:
+
+```cmake
+find_package(G4OCCT REQUIRED)
+target_link_libraries(myApp PRIVATE G4OCCT::G4OCCT)
+```
+
+Dependencies (`Geant4 ≥ 11.3`, `OCCT ≥ 7.8`) propagate automatically.
+
+---
+
+# Navigation: Query Mapping
+
+Each `G4VSolid` virtual method maps to an OCCT algorithm:
+
+| `G4VSolid` method | OCCT algorithm | Notes |
+|---|---|---|
+| `Inside(p)` | `BRepClass3d_SolidClassifier` | Per-thread cached via `G4Cache` |
+| `DistanceToIn(p, v)` | `IntCurvesFace_ShapeIntersector` | Per-thread cached |
+| `DistanceToOut(p, v)` | `IntCurvesFace_ShapeIntersector` | Per-thread cached |
+| `DistanceToIn(p)` | `BRepExtrema_DistShapeShape` | Point-to-shape distance |
+| `DistanceToOut(p)` | `BRepExtrema_DistShapeShape` (per face) | Planned: single object |
+| `SurfaceNormal(p)` | `GeomAPI_ProjectPointOnSurf` | UV projection + retry on seam |
+| `BoundingLimits` | `BRepBndLib::AddOptimal` | Cached at construction |
+
+---
+
+# STEP Assembly Import
+
+Multi-shape STEP files are imported via **OCCT's XDE framework**:
+
+```cpp
+auto assembly = G4OCCTAssemblyVolume::FromSTEP(
+    "detector.step",
+    materialMap,        // STEP name → G4Material*
+    worldLogical);
+```
+
+.col2[
+.box[
+### XDE Traversal
+- `STEPCAFControl_Reader` with name + material + colour modes
+- Depth-first traversal of XDE label tree
+- Shape → `G4OCCTSolid` + `G4OCCTLogicalVolume`
+- Placement → `G4OCCTPlacement` with `TopLoc_Location`
+]
+.box[
+### Prototype Caching
+- Identical sub-shapes (same OCCT label) → **single** `G4LogicalVolume`
+- Multiple `G4PVPlacement` instances share one solid
+- Memory-efficient for assemblies with repeated components
+- Prototype key: XDE entry label string
+]
+]
+
+---
+
+# Material Bridging
+
+STEP files carry material names as metadata strings.  
+G4OCCT maps these to `G4Material*` objects — **no silent fallbacks**.
+
+```cpp
+G4OCCTMaterialMap materials;
+materials.Add("Aluminum6061",  G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
+materials.Add("StainlessSteel", G4NistManager::Instance()->FindOrBuildMaterial("G4_STAINLESS-STEEL"));
+
+// Unmapped name → G4Exception FatalException (not a warning)
+auto assembly = G4OCCTAssemblyVolume::FromSTEP("part.step", materials, world);
+```
+
+**Policy: fail loudly.**  
+Every unmapped material name terminates the run.  
+Preferred alternative: use a GDML overlay (`G4GDMLParser`) to inject materials.
+
+---
+class: slide-section
+
+# Thread Safety & Performance
+
+.section-sub[Multi-threaded Geant4 · OCCT algorithm caching]
+
+---
+
+# Thread Safety
+
+Geant4 runs **N worker threads** sharing one geometry (read-only).  
+OCCT algorithm objects maintain **mutable internal state** — they can't be shared.
+
+**Solution: `G4Cache<T>` per-thread caching**
+
+```cpp
+class G4OCCTSolid : public G4VSolid {
+  mutable G4Cache<ClassifierCache>  fClassifierCache;   // one per thread
+  mutable G4Cache<IntersectorCache> fIntersectorCache;  // one per thread
+  std::atomic<std::uint64_t>        fShapeGeneration{0};
+};
+```
+
+- O(N_faces) initialisation paid **once per thread**, not per call  
+- `SetOCCTShape()` atomically increments generation → lazy per-thread rebuild  
+- `TopoDS_Shape` is a reference-counted handle → safe to copy across threads
+
+---
+
+# Performance Profile
+
+| Method | Native Geant4 | G4OCCTSolid (current) | Remaining overhead |
+|---|---|---|---|
+| `Inside` | O(1) analytic | O(1) classify *(load amortised)* | — ✅ |
+| `DistanceToIn(p, v)` | O(1) analytic | O(N_faces) ray test *(load amortised)* | O(N_faces) |
+| `DistanceToOut(p, v)` | O(1) analytic | O(N_faces) ray test *(load amortised)* | O(N_faces) |
+| `DistanceToIn(p)` | O(1) analytic | O(1) classify + O(N_faces) distance | O(N_faces) |
+| `DistanceToOut(p)` | O(1) analytic | O(N_faces) per-face objects | planned: 1 object |
+| `BoundingLimits` | O(1) stored | O(1) *(cached at construction)* | — ✅ |
+
+> For shapes with **≤ ~20 faces**, performance is within a small constant factor  
+> of native solids.  Complex STEP parts (100s–1000s of faces) will be slower —  
+> this is a fundamental property of general BRep navigation, not a deficiency.
+
+---
+
+# Benchmarking
+
+The `bench_navigator` tool compares native Geant4 vs. G4OCCTSolid for every registered fixture:
+
+```bash
+cmake -S . -B build -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build -- -j$(nproc)
+./build/bench_navigator 2048   # 2048 random rays per fixture
+```
+
+Methods benchmarked per fixture:
+
+.col2[
+.box[
+- `DistanceToIn(p, v)` — directional ray
+- `DistanceToOut(p, v)` — directional ray
+- Exit normals — from `DistanceToOut`
+- `Inside(p)` — point classification
+]
+.box[
+- `DistanceToIn(p)` — safety from outside
+- `DistanceToOut(p)` — safety from inside
+- `SurfaceNormal(p)` — at hit points
+]
+]
+
+Output: per-method wall-clock time, **imported/native speed ratio**, correctness mismatches.  
+CI runs benchmarks in every PR — results published in [Benchmark Results](reports/bench-results.md) (CI-generated).
+
+---
+
+# Optimisation Roadmap
+
+| # | Optimisation | Status |
+|---|---|---|
+| 1 | Cache `BRepClass3d_SolidClassifier` per thread (PR #45) | <span class="tag tag-done">✅ Done</span> |
+| 2 | Cache `IntCurvesFace_ShapeIntersector` per thread (PR #47) | <span class="tag tag-done">✅ Done</span> |
+| 3 | Cache bounding box at construction | <span class="tag tag-done">✅ Done</span> |
+| 4 | Single `BRepExtrema_DistShapeShape` for `DistanceToOut(p)` | <span class="tag tag-plan">🔲 Planned</span> |
+| 5 | Cache `G4Polyhedron` in `CreatePolyhedron` | <span class="tag tag-plan">🔲 Planned</span> |
+| 6 | BVH / AABB-tree front-end for ray–shape intersection | <span class="tag tag-plan">🔲 Planned</span> |
+
+Items 1–3 together eliminate the dominant per-call overhead for the most frequent  
+navigation methods (`Inside`, `DistanceToIn/Out(p, v)`, `BoundingLimits`).
+
+---
+class: slide-section
+
+# Validation & CI
+
+.section-sub[Correctness first. Performance second.]
+
+---
+
+# Test Suite
+
+Tests live in `src/tests/` and are driven by **CTest + GoogleTest**:
+
+.col2[
+.box[
+### Geometry Fixtures
+- All Geant4 primitive shapes: `G4Box`, `G4Sphere`, `G4Tubs`, `G4Cons`, `G4Trd`, `G4Trap`, …
+- Each fixture: native solid vs. `G4OCCTSolid`-wrapped BRep equivalent
+- NIST CTC STEP files for real-world shapes
+- Navigation agreement verified to **numerical precision**
+]
+.box[
+### What Is Validated
+- `Inside` classification matches on 2048 random points  
+- `DistanceToIn/Out(p, v)` agrees within tolerance  
+- `SurfaceNormal` is consistent with reported hit points  
+- Assembly import reproduces correct placement hierarchy  
+- Expected-failure allowlist tracks known edge cases
+]
+]
+
+See [Geometry Test Status](geometry_test_status.md) for per-fixture pass/fail summary.
+
+---
+
+# CI Pipeline
+
+Two jobs run on every PR in the **EIC shell** container (`eic_xl:nightly`):
+
+.col2[
+.box[
+### `build-test-benchmark`
+```
+Release build
+  -DBUILD_TESTING=ON
+  -DBUILD_BENCHMARKS=ON
+  -Werror
+```
+1. Configure & build
+2. `ctest --output-on-failure`
+3. Run `bench_navigator` (2048 rays)
+4. Run examples (B1, B4c)
+5. Publish JUnit + Markdown reports
+]
+.box[
+### `sanitizer`
+```
+RelWithDebInfo build
+  -DUSE_ASAN=ON
+  -DUSE_UBSAN=ON
+```
+1. Configure & build
+2. `ctest --output-on-failure`
+
+Suppression files:  
+`.github/asan.supp`  
+`.github/lsan.supp`  
+`.github/ubsan.supp`
+]
+]
+
+---
+
+# Examples
+
+Two end-to-end examples demonstrate the complete workflow:
+
+.col2[
+.box.box-blue[
+### B1 — Water Phantom
+
+Geant4 basic example B1 adapted for STEP import:
+
+```cpp
+auto solid = G4OCCTSolid::FromSTEP("phantom.step", "WaterBox");
+auto logical = new G4OCCTLogicalVolume(
+    solid, water, "WaterBox");
+```
+
+Gamma beam through a water phantom —  
+exact geometry from a CAD file.
+]
+.box.box-blue[
+### B4c — Sampling Calorimeter
+
+Multi-layer calorimeter from STEP assembly:
+
+```cpp
+auto assembly = G4OCCTAssemblyVolume::FromSTEP(
+    "calorimeter.step", materialMap, world);
+```
+
+Demonstrates full assembly import with  
+automatic material bridging and placement hierarchy.
+]
+]
+
+---
+class: slide-section
+
+# Direction
+
+.section-sub[Where G4OCCT is headed]
+
+---
+
+# Roadmap
+
+| Milestone | Status | Description |
+|---|---|---|
+| **v0.1** | <span class="tag tag-done">✅ Complete</span> | CMake skeleton, stub classes, CI, docs |
+| **v0.2** | <span class="tag tag-done">✅ Complete</span> | `Inside` via `BRepClass3d_SolidClassifier` |
+| **v0.3** | <span class="tag tag-done">✅ Complete</span> | `DistanceToIn/Out` via `IntCurvesFace_ShapeIntersector` |
+| **v0.4** | <span class="tag tag-done">✅ Complete</span> | STEP import end-to-end example (B1) |
+| **v0.5** | <span class="tag tag-wip">🔨 In progress</span> | Full test suite passing for all G4 primitives |
+| **v0.6** | <span class="tag tag-plan">🔲 Planned</span> | Multi-shape STEP assembly (`G4OCCTAssemblyBuilder`) |
+| **v1.0** | <span class="tag tag-plan">🔲 Planned</span> | Production performance, material bridging, docs |
+
+---
+
+# Future Directions
+
+.col2[
+.box[
+### Near Term
+- **BVH acceleration** — reduce O(N_faces) ray tests to O(log N) for complex STEP solids  
+- **Full primitive coverage** — pass all NIST CTC fixtures  
+- **Assembly builder** — higher-level API for constructing STEP-driven detector geometries
+]
+.box[
+### Longer Term
+- **GDML round-trip** — export OCCT geometry back to GDML  
+- **Magnetic field integration** — curved tracks in BRep volumes  
+- **GPU navigation** — VecGeom or AdePT with OCCT-defined shapes  
+- **Material database** — automatic G4NIST lookup from STEP names  
+]
+]
+
+---
+
+# How to Get Involved
+
+.col2[
+.box.box-green[
+### Use It
+```bash
+git clone https://github.com/wdconinc/G4OCCT
+cmake -S G4OCCT -B build \
+  -DBUILD_TESTING=ON \
+  -DBUILD_BENCHMARKS=ON
+cmake --build build -- -j$(nproc)
+ctest --test-dir build
+```
+Requirements: **CMake ≥ 3.16**, **Geant4 ≥ 11.3**, **OCCT ≥ 7.8**
+]
+.box.box-blue[
+### Contribute
+- Read [AGENTS.md](../AGENTS.md) for coding conventions  
+- Run pre-commit hooks: `pip install pre-commit && pre-commit install`  
+- Code style: LLVM, C++20, 100-col limit  
+- Every PR needs SPDX headers, Doxygen on public API  
+- Open issues or PRs on GitHub  
+]
+]
+
+---
+
+# Summary
+
+.col3[
+.box.box-gold[
+### Problem
+
+CAD geometry and Geant4 simulation geometry are maintained separately, causing discrepancies and high maintenance overhead.
+]
+.box[
+### Solution
+
+G4OCCT wraps OCCT BRep shapes as `G4VSolid` objects, importing STEP files directly into Geant4 with no geometry re-entry.
+]
+.box.box-green[
+### Status
+
+Core navigation works. Per-thread caching eliminates dominant overheads. Test suite covers all G4 primitives. Assembly import ready.
+]
+]
+
+---
+
+**Slides:** [wdconinc.github.io/G4OCCT/slides.html](https://wdconinc.github.io/G4OCCT/slides.html)  
+**Docs:** [wdconinc.github.io/G4OCCT](https://wdconinc.github.io/G4OCCT)  
+**Repo:** [github.com/wdconinc/G4OCCT](https://github.com/wdconinc/G4OCCT)  
+**License:** LGPL-2.1-or-later
+
+</textarea>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>
+  var slideshow = remark.create({
+    ratio: '16:9',
+    highlightStyle: 'atom-one-dark',
+    highlightLines: true,
+    countIncrementalSlides: false,
+    navigation: { scroll: false },
+  });
+</script>
+</body>
+</html>
