@@ -150,5 +150,6 @@ int main(int argc, char** argv) {
   delete visManager;
   delete runManager;
   return exitCode != 0 ? 1 : 0;
+}
 
-  //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo.....
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo.....
