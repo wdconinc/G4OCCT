@@ -18,4 +18,5 @@
   - [Benchmark Results](reports/bench-results.md)
   - [Point Cloud Viewer](reports/point_cloud_viewer.html)
   - [Coverage Report](reports/coverage.md)
+  - [Example Logs](reports/example-logs.md)
 - [API Reference](https://wdconinc.github.io/G4OCCT/api/index.html)
