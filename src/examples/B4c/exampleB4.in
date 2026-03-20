@@ -9,7 +9,7 @@
 /run/beamOn 1
 #
 # list the existing physics processes
-/process/list
+#/process/list
 #
 # switch off MultipleScattering
 /process/inactivate msc
