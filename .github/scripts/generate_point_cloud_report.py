@@ -31,7 +31,7 @@ _SCRIPTS_DIR = Path(__file__).parent
 def _load_fixture_data(point_cloud_dir: Path) -> list:
     """Read all *.json.gz files in the directory; return list of dicts."""
     fixtures = []
-    for gz_path in sorted(point_cloud_dir.glob("*.json.gz")):
+    for gz_path in sorted(point_cloud_dir.glob("**/*.json.gz")):
         try:
             with gzip.open(gz_path, "rt", encoding="utf-8") as f:
                 data = json.load(f)
