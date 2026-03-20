@@ -744,8 +744,8 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
   // Select a triangle with probability proportional to its area using a
   // binary search on the cumulative-area array.
   const G4double target = G4UniformRand() * cache.totalArea;
-  const auto it          = std::ranges::lower_bound(cache.cumulativeAreas, target);
-  const std::size_t idx  = std::min(static_cast<std::size_t>(it - cache.cumulativeAreas.begin()),
+  const auto it         = std::ranges::lower_bound(cache.cumulativeAreas, target);
+  const std::size_t idx = std::min(static_cast<std::size_t>(it - cache.cumulativeAreas.begin()),
                                    cache.triangles.size() - 1);
   const SurfaceTriangle& chosen = cache.triangles[idx];
 
