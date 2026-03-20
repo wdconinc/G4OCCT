@@ -9,6 +9,7 @@
 
 #include <G4String.hh>
 
+#include <cstddef>
 #include <map>
 
 class G4Material;
@@ -29,8 +30,8 @@ class G4Material;
  * matMap.Add("Al 6061-T6", G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
  * matMap.Add("FR4",        myFR4Material);
  *
- * G4Material* mat = matMap.Resolve("Al 6061-T6");  // returns the G4_Al pointer
- * G4Material* mat = matMap.Resolve("Unknown");      // throws fatal G4Exception
+ * G4Material* mat        = matMap.Resolve("Al 6061-T6");  // returns the G4_Al pointer
+ * G4Material* unknownMat = matMap.Resolve("Unknown");     // throws fatal G4Exception
  * ```
  */
 class G4OCCTMaterialMap {

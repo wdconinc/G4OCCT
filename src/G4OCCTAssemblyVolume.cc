@@ -35,9 +35,13 @@
 #include <G4RotationMatrix.hh>
 #include <G4ThreeVector.hh>
 
+// CLHEP
+#include <CLHEP/Vector/RotationInterfaces.h>
+
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -114,7 +118,7 @@ G4String GetMaterialName(const TDF_Label& label, const Handle(XCAFDoc_MaterialTo
 ///   T_eff = composedTrsf * Translate(centroid)
 TopoDS_Shape RecenterShape(const TopoDS_Shape& shape, gp_Vec& centroid) {
   Bnd_Box bbox;
-  BRepBndLib::Add(shape, bbox);
+  BRepBndLib::AddOptimal(shape, bbox, Standard_False);
   if (bbox.IsVoid()) {
     centroid = gp_Vec(0.0, 0.0, 0.0);
     return shape;

@@ -31,10 +31,9 @@
  * | XDE entity                          | Geant4 result                       |
  * |-------------------------------------|-------------------------------------|
  * | Top-level assembly label            | `G4OCCTAssemblyVolume` (this class) |
- * | Non-root assembly label             | `G4AssemblyVolume`                  |
  * | Simple-shape label (first use)      | `G4OCCTSolid` + `G4OCCTLogicalVolume` |
  * | Simple-shape label (repeated use)   | Shared `G4OCCTLogicalVolume`        |
- * | Reference label + TopLoc_Location   | `G4OCCTPlacement`                   |
+ * | Reference label + TopLoc_Location   | `AddPlacedVolume()` on parent assembly |
  * | XDE name attribute                  | Volume name string                  |
  * | XDE material attribute              | `G4Material*` via `G4OCCTMaterialMap` |
  *
@@ -78,8 +77,7 @@ public:
    * XDE reader that preserves assembly structure, names, and material
    * attributes).  The label tree is traversed depth-first; each simple-shape
    * leaf creates a `G4OCCTSolid` + `G4OCCTLogicalVolume`, and each placement
-   * creates a `G4OCCTPlacement`.  Sub-assemblies are mapped to
-   * `G4AssemblyVolume` objects.
+   * is recorded via `AddPlacedVolume()` on the top-level assembly.
    *
    * Every material name encountered in the STEP file must be present in
    * @p materialMap; an unresolved name triggers a fatal `G4Exception`.

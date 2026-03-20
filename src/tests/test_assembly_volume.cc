@@ -3,7 +3,7 @@
 
 // test_assembly_volume.cc
 // Tests for G4OCCTAssemblyVolume: verify construction from programmatically
-// built OCCT XDE documents (no STEP file I/O required).
+// built OCCT XDE documents exported to temporary STEP files on disk.
 
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
@@ -15,6 +15,7 @@
 #include <TopoDS_Shape.hxx>
 
 // OCCT XDE
+#include <IFSelect_ReturnStatus.hxx>
 #include <STEPCAFControl_Writer.hxx>
 #include <TCollection_HAsciiString.hxx>
 #include <TDataStd_Name.hxx>
@@ -102,7 +103,7 @@ TEST(AssemblyVolume, FromSTEPSingleBox) {
   EXPECT_EQ(lvMap.size(), 1u);
 
   // The logical volume name should match the part name.
-  EXPECT_TRUE(lvMap.count("Box") > 0 || !lvMap.empty());
+  EXPECT_EQ(lvMap.count("Box"), 1u);
 
   // Clean up
   std::remove(tmpPath.c_str());
