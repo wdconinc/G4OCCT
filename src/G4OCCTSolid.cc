@@ -81,22 +81,19 @@ constexpr Standard_Real kRelativeDeflection = 0.01;
 /// Stored distances are actual distances (not squared) so that the branch
 /// rejection metric is directly comparable to `myDistance`.
 class PointToMeshDistance
-    : public BVH_Distance<Standard_Real, 3, BVH_Vec3d, BRepExtrema_TriangleSet>
-{
+    : public BVH_Distance<Standard_Real, 3, BVH_Vec3d, BRepExtrema_TriangleSet> {
 public:
   /// Prune a BVH branch when its nearest possible point is already farther
   /// than the current best distance.
   Standard_Boolean RejectNode(const BVH_Vec3d& theCornerMin, const BVH_Vec3d& theCornerMax,
-                              Standard_Real& theMetric) const override
-  {
+                              Standard_Real& theMetric) const override {
     theMetric = std::sqrt(
         BVH_Tools<Standard_Real, 3>::PointBoxSquareDistance(myObject, theCornerMin, theCornerMax));
     return RejectMetric(theMetric);
   }
 
   /// Update the minimum distance with the exact point-to-triangle distance.
-  Standard_Boolean Accept(const Standard_Integer theIndex, const Standard_Real&) override
-  {
+  Standard_Boolean Accept(const Standard_Integer theIndex, const Standard_Real&) override {
     BVH_Vec3d v0, v1, v2;
     myBVHSet->GetVertices(theIndex, v0, v1, v2);
     const Standard_Real sq =
@@ -302,9 +299,8 @@ void G4OCCTSolid::ComputeBounds() {
     if (!faceBox.IsVoid()) {
       Standard_Real fx0, fy0, fz0, fx1, fy1, fz1;
       faceBox.Get(fx0, fy0, fz0, fx1, fy1, fz1);
-      const G4double diag =
-          G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
-      maxFaceDiag = std::max(maxFaceDiag, diag);
+      const G4double diag = G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
+      maxFaceDiag         = std::max(maxFaceDiag, diag);
     }
   }
 
