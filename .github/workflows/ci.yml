@@ -66,6 +66,35 @@ jobs:
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
 
+      - name: Run examples inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+            mkdir -p example_logs
+
+            # ── B1 — Water Phantom ─────────────────────────────────────────
+            set +e
+            ./build/src/examples/B1/exampleB1 \
+              "${PWD}/src/examples/B1/run.mac" \
+              > example_logs/B1.log 2>&1
+            B1_EXIT=$?
+            set -e
+            echo "$B1_EXIT" > example_logs/B1.exit
+
+            # ── B4c — Sampling Calorimeter ─────────────────────────────────
+            set +e
+            ./build/src/examples/B4c/exampleB4c \
+              -m "${PWD}/src/examples/B4c/exampleB4.in" \
+              > example_logs/B4c.log 2>&1
+            B4C_EXIT=$?
+            set -e
+            echo "$B4C_EXIT" > example_logs/B4c.exit
+
+            # Fail the step if any example exited with an error
+            [ "$B1_EXIT" -eq 0 ] && [ "$B4C_EXIT" -eq 0 ]
+
       - name: Generate Markdown reports
         if: always()
         run: |
@@ -76,6 +105,8 @@ jobs:
             bench_raw.json reports/bench-results.md reports/point_cloud_viewer.html
           python3 .github/scripts/generate_point_cloud_report.py \
             point_clouds/ reports/point_cloud_viewer.html
+          python3 .github/scripts/generate_example_report.py \
+            example_logs/ reports/example-logs.md
 
       - name: Post reports as step summary
         if: always()
@@ -90,6 +121,10 @@ jobs:
           fi
           if [ -f reports/point_cloud_viewer.html ]; then
             echo "[Point-cloud viewer](./reports/point_cloud_viewer.html)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f reports/example-logs.md ]; then
+            cat reports/example-logs.md >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload test and benchmark reports as artifact
