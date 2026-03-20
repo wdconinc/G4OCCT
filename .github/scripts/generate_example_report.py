@@ -8,6 +8,12 @@ from pathlib import Path
 
 from report_utils import timestamp, write_report
 
+# Emitted by G4UIbatch (Geant4 source: source/interfaces/basic/src/G4UIbatch.cc)
+# when a macro command is not found and the batch session is aborted. Geant4 does
+# not propagate this interruption to the process exit code (always 0), so we also
+# scan the log for this marker.
+_BATCH_INTERRUPTED_MARKER = "Batch is interrupted!!"
+
 _EXAMPLES = [
     {
         "id": "B1",
@@ -35,18 +41,22 @@ def _read_file(path: Path, default: str = "") -> str:
 def _render_report(log_dir: Path) -> str:
     ts = timestamp()
 
-    rows: list[tuple[str, str, str, str, str, int]] = []
+    rows: list[tuple[str, str, str, str, bool, str, int, str]] = []
     for ex in _EXAMPLES:
         exit_str = _read_file(log_dir / f"{ex['id']}.exit", "").strip()
         try:
             exit_code = int(exit_str)
         except ValueError:
             exit_code = -1
-        ok = exit_code == 0
+        log_text = _read_file(log_dir / f"{ex['id']}.log", "(no output captured)")
+        # Geant4's UIbatch does not always set a non-zero exit code when a
+        # command fails and interrupts the batch session, so also scan the log.
+        batch_interrupted = _BATCH_INTERRUPTED_MARKER in log_text
+        ok = exit_code == 0 and not batch_interrupted
         status = "✅ PASS" if ok else "❌ FAIL"
-        rows.append((ex["id"], ex["name"], ex["doc_link"], ex["cmd"], status, exit_code))
+        rows.append((ex["id"], ex["name"], ex["doc_link"], ex["cmd"], ok, status, exit_code, log_text))
 
-    overall_ok = all(exit_code == 0 for *_, exit_code in rows)
+    overall_ok = all(row[4] for row in rows)
     overall_text = (
         "✅ All examples ran successfully."
         if overall_ok
@@ -63,12 +73,11 @@ def _render_report(log_dir: Path) -> str:
         "| Example | Status |",
         "|---------|--------|",
     ]
-    for _, name, doc_link, _, status, _ in rows:
+    for _, name, doc_link, _, _ok, status, _, _ in rows:
         lines.append(f"| [{name}]({doc_link}) | {status} |")
     lines.append("")
 
-    for ex_id, name, doc_link, cmd, status, exit_code in rows:
-        log_text = _read_file(log_dir / f"{ex_id}.log", "(no output captured)")
+    for ex_id, name, doc_link, cmd, _ok, status, exit_code, log_text in rows:
         lines += [
             f"## {name} — {status}",
             "",

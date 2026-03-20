@@ -112,16 +112,14 @@ int main(int argc, char** argv) {
   auto detConstruction = new B4c::DetectorConstruction();
   runManager->SetUserInitialization(detConstruction);
 
-  auto physicsList = new FTFP_BERT;
+  auto physicsList = new FTFP_BERT(0); // 0: suppress physics-list verbosity
   runManager->SetUserInitialization(physicsList);
 
   auto actionInitialization = new B4c::ActionInitialization();
   runManager->SetUserInitialization(actionInitialization);
 
-  // Initialize visualization
-  auto visManager = new G4VisExecutive;
-  // G4VisExecutive can take a verbosity argument - see /vis/verbose guidance.
-  // auto visManager = new G4VisExecutive("Quiet");
+  // Initialize visualization in quiet mode to suppress driver-init noise in logs.
+  auto visManager = new G4VisExecutive("Quiet");
   visManager->Initialize();
 
   // Get the pointer to the User Interface manager
@@ -129,10 +127,11 @@ int main(int argc, char** argv) {
 
   // Process macro or start UI session
   //
+  int exitCode = 0;
   if (macro.size()) {
     // batch mode
     G4String command = "/control/execute ";
-    UImanager->ApplyCommand(command + macro);
+    exitCode         = UImanager->ApplyCommand(command + macro);
   } else {
     // interactive mode : define UI session
     UImanager->ApplyCommand("/control/execute init_vis.mac");
@@ -150,6 +149,7 @@ int main(int argc, char** argv) {
 
   delete visManager;
   delete runManager;
+  return exitCode != 0 ? 1 : 0;
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo.....
