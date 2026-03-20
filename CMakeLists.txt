@@ -56,6 +56,10 @@ include(CTest)
 
 # ─── GoogleTest ───────────────────────────────────────────────────────────────
 
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
 if(BUILD_TESTING)
   include(GoogleTest)
   find_package(GTest QUIET)
@@ -65,8 +69,7 @@ if(BUILD_TESTING)
       googletest
       URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
       URL_HASH
-        SHA256=8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7
-      DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+        SHA256=8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7)
     set(gtest_force_shared_crt
         ON
         CACHE BOOL "" FORCE)
@@ -88,8 +91,7 @@ if(BUILD_BENCHMARKS)
       googlebenchmark
       URL https://github.com/google/benchmark/archive/refs/tags/v1.9.1.tar.gz
       URL_HASH
-        SHA256=32131c08ee31eeff2c8968d7e874f3cb648034377dfc32a4c377fa8796d84981
-      DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+        SHA256=32131c08ee31eeff2c8968d7e874f3cb648034377dfc32a4c377fa8796d84981)
     set(BENCHMARK_ENABLE_TESTING
         OFF
         CACHE BOOL "" FORCE)
