@@ -16,6 +16,7 @@
 #include <BRep_Builder.hxx>
 #include <BRep_Tool.hxx>
 #include <Bnd_Box.hxx>
+#include <Extrema_ExtPS.hxx>
 #include <GProp_GProps.hxx>
 #include <GeomAPI_ProjectPointOnSurf.hxx>
 #include <Geom_Surface.hxx>
@@ -236,7 +237,8 @@ void G4OCCTSolid::ComputeBounds() {
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     Bnd_Box faceBox;
     BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
-    fFaceBoundsCache.push_back({TopoDS::Face(ex.Current()), faceBox});
+    const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
+    fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
   }
 }
 
@@ -262,30 +264,28 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
       continue;
     }
 
-    BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
-    if (!distance.IsDone() || distance.NbSolution() == 0) {
-      continue;
+    // Use Extrema_ExtPS for a lighter-weight point-to-surface distance that
+    // avoids the NCollection_Sequence allocations of BRepExtrema_DistShapeShape.
+    const Standard_Real tol = Precision::Confusion();
+    Extrema_ExtPS ext(queryPoint, fb.adaptor, tol, tol);
+    G4double candidateDistance = kInfinity;
+    if (ext.IsDone() && ext.NbExt() > 0) {
+      for (Standard_Integer k = 1; k <= ext.NbExt(); ++k) {
+        candidateDistance = std::min(candidateDistance, std::sqrt(ext.SquareDistance(k)));
+      }
+    } else {
+      // Fallback: Extrema_ExtPS found no solutions (e.g. degenerate surface).
+      BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
+      if (!distance.IsDone() || distance.NbSolution() == 0) {
+        continue;
+      }
+      candidateDistance = distance.Value();
     }
 
-    const G4double candidateDistance = distance.Value();
     if (bestMatch.has_value() && candidateDistance >= bestMatch->distance) {
       continue;
     }
-
-    for (Standard_Integer solution = 1; solution <= distance.NbSolution(); ++solution) {
-      const BRepExtrema_SupportType supportType = distance.SupportTypeShape2(solution);
-      // Accept interior and boundary solutions.  Vertex support (e.g. the
-      // degenerate south/north pole of a sphere) is also accepted: the
-      // subsequent GeomAPI_ProjectPointOnSurf step obtains correct UV
-      // parameters independently, and the pole-nudge logic in
-      // TryGetOutwardNormal handles degenerate surface points.
-      if (supportType != BRepExtrema_IsInFace && supportType != BRepExtrema_IsOnEdge &&
-          supportType != BRepExtrema_IsVertex) {
-        continue;
-      }
-      bestMatch = ClosestFaceMatch{fb.face, candidateDistance};
-      break;
-    }
+    bestMatch = ClosestFaceMatch{fb.face, candidateDistance};
   }
 
   return bestMatch;

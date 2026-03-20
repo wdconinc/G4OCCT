@@ -13,6 +13,7 @@
 #include <G4VSolid.hh>
 
 // OCCT shape representation
+#include <BRepAdaptor_Surface.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <Bnd_Box.hxx>
 #include <IntCurvesFace_ShapeIntersector.hxx>
@@ -208,6 +209,7 @@ private:
   struct FaceBounds {
     TopoDS_Face face;
     Bnd_Box box;
+    BRepAdaptor_Surface adaptor;
   };
 
   /// Result of the closest-face search.
