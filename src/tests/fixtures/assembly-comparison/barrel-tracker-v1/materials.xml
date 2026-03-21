@@ -1,0 +1,17 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Material map for barrel-tracker-v1.
+
+  DRAWEXE WriteStep emits a three-level XDE hierarchy for each bcut solid:
+    TrackingLayer (assembly) → ASSEMBLY (assembly) → SOLID (simple shape)
+
+  G4OCCTAssemblyVolume::ImportLabel creates a logical volume for each simple-
+  shape label and resolves its material via this map.  The material key is the
+  XDE label name, which for the inner solid is "SOLID".  Both "TrackingLayer"
+  and "SOLID" must therefore be mapped; assemblies are never resolved.
+-->
+<materials>
+  <material stepName="TrackingLayer" geant4Name="G4_Si"/>
+  <material stepName="SOLID"         geant4Name="G4_Si"/>
+</materials>

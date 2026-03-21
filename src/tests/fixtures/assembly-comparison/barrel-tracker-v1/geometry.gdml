@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+
+<!--
+  Barrel-tracker assembly reference geometry.
+
+  Three concentric hollow silicon cylindrical tracking layers centred at z=0:
+    Layer 0: rmin=50 mm, rmax=50.5 mm, z=500 mm
+    Layer 1: rmin=80 mm, rmax=80.5 mm, z=500 mm
+    Layer 2: rmin=110 mm, rmax=110.5 mm, z=500 mm
+
+  The enclosing world is a 270×270×600 mm box filled with air.
+
+  This GDML file is the reference geometry for the assembly-comparison
+  benchmark.  The same geometry is exported as a STEP assembly by the
+  regeneration scripts in this directory (regenerate.sh, generate.tcl for
+  DRAWEXE) so that G4OCCTAssemblyVolume::FromSTEP can import it and the two
+  representations can be compared ray-by-ray.
+-->
+
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
+
+  <define/>
+
+  <materials>
+    <element name="Si" formula="Si" Z="14">
+      <atom value="28.0855"/>
+    </element>
+    <element name="N" formula="N" Z="7">
+      <atom value="14.0067"/>
+    </element>
+    <element name="O" formula="O" Z="8">
+      <atom value="15.9994"/>
+    </element>
+    <!-- Simplified silicon (same density as G4_Si) -->
+    <material name="G4_Si" state="solid">
+      <D unit="g/cm3" value="2.33"/>
+      <fraction n="1" ref="Si"/>
+    </material>
+    <!-- Simplified dry air (same density as G4_AIR) -->
+    <material name="G4_AIR" state="gas">
+      <D unit="g/cm3" value="0.00120479"/>
+      <fraction n="0.755636" ref="N"/>
+      <fraction n="0.231781" ref="O"/>
+    </material>
+  </materials>
+
+  <solids>
+    <box  name="WorldBox"     x="270"  y="270"  z="600"  lunit="mm"/>
+    <tube name="Layer0Tub" rmin="50"   rmax="50.5"  z="500" startphi="0" deltaphi="360" aunit="deg" lunit="mm"/>
+    <tube name="Layer1Tub" rmin="80"   rmax="80.5"  z="500" startphi="0" deltaphi="360" aunit="deg" lunit="mm"/>
+    <tube name="Layer2Tub" rmin="110"  rmax="110.5" z="500" startphi="0" deltaphi="360" aunit="deg" lunit="mm"/>
+  </solids>
+
+  <structure>
+    <volume name="TrackingLayer0LV">
+      <materialref ref="G4_Si"/>
+      <solidref   ref="Layer0Tub"/>
+    </volume>
+    <volume name="TrackingLayer1LV">
+      <materialref ref="G4_Si"/>
+      <solidref   ref="Layer1Tub"/>
+    </volume>
+    <volume name="TrackingLayer2LV">
+      <materialref ref="G4_Si"/>
+      <solidref   ref="Layer2Tub"/>
+    </volume>
+    <volume name="WorldLV">
+      <materialref ref="G4_AIR"/>
+      <solidref   ref="WorldBox"/>
+      <physvol name="TrackingLayer0PV">
+        <volumeref ref="TrackingLayer0LV"/>
+      </physvol>
+      <physvol name="TrackingLayer1PV">
+        <volumeref ref="TrackingLayer1LV"/>
+      </physvol>
+      <physvol name="TrackingLayer2PV">
+        <volumeref ref="TrackingLayer2LV"/>
+      </physvol>
+    </volume>
+  </structure>
+
+  <setup name="Default" version="1.0">
+    <world ref="WorldLV"/>
+  </setup>
+
+</gdml>
