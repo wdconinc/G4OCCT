@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Material map for string-array-v1.
+  OpticalModule → inline borosilicate glass definition.
+  Exercises G4OCCTMaterialMapReader with a multi-element inline material.
+-->
+<materials>
+  <!-- Borosilicate glass (Schott N-BK7 approximation):
+       O 80.7%, B 3.3%, Na 2.8%, Al 2.8%, Si 10.4% by mass fraction -->
+  <material stepName="OpticalModule" name="Borosilicate" state="solid">
+    <D value="2.23" unit="g/cm3"/>
+    <fraction n="0.807" ref="G4_O"/>
+    <fraction n="0.033" ref="G4_B"/>
+    <fraction n="0.028" ref="G4_Na"/>
+    <fraction n="0.028" ref="G4_Al"/>
+    <fraction n="0.104" ref="G4_Si"/>
+  </material>
+</materials>
