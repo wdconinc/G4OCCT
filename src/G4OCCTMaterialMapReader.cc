@@ -155,11 +155,17 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
                           .c_str());
           continue;
         }
-        // Delegate the full GDML material parsing to the inherited method.
-        // MaterialRead() creates the G4Material and registers it in the
-        // Geant4 material table under GenerateName(gdmlName).
-        MaterialRead(child);
-        mat = GetMaterial(GenerateName(gdmlName));
+        // Reuse the material if it was already registered in the global
+        // G4 material table (e.g. by a preceding G4GDMLParser::Read call
+        // on the reference geometry).  Creating a duplicate G4Material
+        // with the same name is a fatal error in Geant4.
+        mat = G4Material::GetMaterial(GenerateName(gdmlName), /*warning=*/false);
+        if (mat == nullptr) {
+          // Material not yet registered — delegate full GDML parsing to
+          // the inherited method, which creates the G4Material.
+          MaterialRead(child);
+          mat = GetMaterial(GenerateName(gdmlName));
+        }
         if (!mat) {
           G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader009", FatalException,
                       ("Failed to create inline material '" + gdmlName + "' (stepName='" +
