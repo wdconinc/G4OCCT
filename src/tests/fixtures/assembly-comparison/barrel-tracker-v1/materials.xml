@@ -1,0 +1,9 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Material map for barrel-tracker-v1.
+  TrackingLayer → Geant4 NIST silicon.
+-->
+<materials>
+  <material stepName="TrackingLayer" geant4Name="G4_Si"/>
+</materials>
