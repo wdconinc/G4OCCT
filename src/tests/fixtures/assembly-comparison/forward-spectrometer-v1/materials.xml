@@ -1,0 +1,16 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Material map for forward-spectrometer-v1.
+  NIST aliases for the three component materials.
+
+  Note: the DipoleMagnet is a boolean-subtraction solid. DRAWEXE WriteStep
+  exports it as a two-level XDE assembly (DipoleMagnet → SOLID), where SOLID
+  is the actual MANIFOLD_SOLID_BREP.  Only simple-shape labels receive material
+  resolution, so "SOLID" must be mapped here rather than "DipoleMagnet".
+-->
+<materials>
+  <material stepName="TrackingPlane" geant4Name="G4_Si"/>
+  <material stepName="SOLID"         geant4Name="G4_Fe"/>
+  <material stepName="ECALBlock"     geant4Name="G4_Pb"/>
+</materials>
