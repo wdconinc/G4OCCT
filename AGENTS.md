@@ -132,12 +132,11 @@ Do not lower these version floors without an explicit project decision.
 
 - All tests are CTest-integrated (`add_test`).
 - Unit tests live in `src/tests/`.
-- The downstream integration test lives in `src/tests/downstream_test/` and
-  is registered as a four-step CTest fixture chain:
-  `install_g4occt` → `downstream_configure` → `downstream_build` →
-  `test_downstream_findpackage`.
 - Tests must pass with `ctest --test-dir build --output-on-failure -j$(nproc)`.
-- Do not remove or disable existing tests.
+- Avoid removing or disabling existing tests.  Removal is allowed only when
+  equivalent or better coverage is provided by other tests in the same PR, and
+  the PR description clearly explains the rationale and references the
+  replacement coverage.
 - Tests that cover multiple geometry fixtures must be split into **per-fixture
   CTest sub-tests** (using `GLOB` discovery), not a single monolithic binary.
 - Use **`yaml-cpp`** for all YAML parsing; it is available in the eic-shell
