@@ -27,6 +27,12 @@ jobs:
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: _fetchcontent
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+
       - name: Build, test, and install inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
@@ -42,7 +48,8 @@ jobs:
               -DBUILD_EXAMPLES=ON \
               -DENABLE_WERROR=ON \
               -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-              -DCMAKE_INSTALL_PREFIX="${PWD}/install"
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
+              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
 
             # ── Build ──────────────────────────────────────────────────────
             cmake --build build -- -j$(nproc)
@@ -250,6 +257,12 @@ jobs:
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: _fetchcontent
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+
       - name: Build, profile, and annotate inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
@@ -267,7 +280,8 @@ jobs:
               -DBUILD_BENCHMARKS=ON \
               -DENABLE_WERROR=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
-              -DVALGRIND_INCLUDE_DIR=/opt/local/include
+              -DVALGRIND_INCLUDE_DIR=/opt/local/include \
+              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
 
             # ── Build ──────────────────────────────────────────────────────
             cmake --build build --target bench_callgrind -- -j$(nproc)
@@ -340,6 +354,12 @@ jobs:
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: _fetchcontent
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+
       - name: Build and test with ASAN and UBSAN inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
@@ -355,7 +375,8 @@ jobs:
               -DUSE_ASAN=ON \
               -DUSE_UBSAN=ON \
               -DENABLE_WERROR=ON \
-              -DCMAKE_INSTALL_PREFIX="${PWD}/install"
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
+              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
 
             # ── Build ──────────────────────────────────────────────────────
             cmake --build build -- -j$(nproc)
@@ -384,6 +405,12 @@ jobs:
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: _fetchcontent
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+
       - name: Build and test with TSAN inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
@@ -398,7 +425,8 @@ jobs:
               -DBUILD_EXAMPLES=ON \
               -DUSE_TSAN=ON \
               -DENABLE_WERROR=ON \
-              -DCMAKE_INSTALL_PREFIX="${PWD}/install"
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
+              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
 
             # ── Build ──────────────────────────────────────────────────────
             cmake --build build -- -j$(nproc)
@@ -428,6 +456,12 @@ jobs:
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: _fetchcontent
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+
       - name: Build and test with coverage inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
@@ -442,7 +476,8 @@ jobs:
             cmake -S . -B build \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_TESTING=ON \
-              -DUSE_COVERAGE=ON
+              -DUSE_COVERAGE=ON \
+              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
 
             # ── Build ──────────────────────────────────────────────────────
             cmake --build build -- -j$(nproc)
