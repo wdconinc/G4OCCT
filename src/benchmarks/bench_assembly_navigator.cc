@@ -358,8 +358,9 @@ namespace {
 
     // Create a world LV for imprinting the STEP assembly (no placement needed;
     // we extract daughter solids + transforms directly after MakeImprint).
-    auto* step_world_box = new G4Box("AssemblyStepWorld_" + fixture_id, world_hx, world_hy, world_hz);
-    G4Material* air      = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
+    auto* step_world_box =
+        new G4Box("AssemblyStepWorld_" + fixture_id, world_hx, world_hy, world_hz);
+    G4Material* air = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
     auto* step_world_lv =
         new G4LogicalVolume(step_world_box, air, "AssemblyStepWorldLV_" + fixture_id);
     G4ThreeVector step_pos;
@@ -374,7 +375,8 @@ namespace {
     // small margin so rays always start outside the geometry.
     constexpr double kWorldMarginFactor = 1.2;
     const double kRayRadius =
-        kWorldMarginFactor * std::sqrt(world_hx * world_hx + world_hy * world_hy + world_hz * world_hz);
+        kWorldMarginFactor *
+        std::sqrt(world_hx * world_hx + world_hy * world_hy + world_hz * world_hz);
 
     const std::vector<G4ThreeVector> directions = GenerateDirections(ray_count);
 
@@ -516,16 +518,15 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
       continue;
     }
 
-    const std::string fixture_id                     = entry.path().filename().string();
-    const std::filesystem::path materials_path       = entry.path() / "materials.xml";
+    const std::string fixture_id               = entry.path().filename().string();
+    const std::filesystem::path materials_path = entry.path() / "materials.xml";
 
-    benchmark::RegisterBenchmark(
-        ("BM_assembly_rays/assembly-comparison/" + fixture_id).c_str(),
-        [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir,
-         materials_path](benchmark::State& st) {
-          RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path, ray_count, point_cloud_dir,
-                               materials_path);
-        })
+    benchmark::RegisterBenchmark(("BM_assembly_rays/assembly-comparison/" + fixture_id).c_str(),
+                                 [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir,
+                                  materials_path](benchmark::State& st) {
+                                   RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path,
+                                                        ray_count, point_cloud_dir, materials_path);
+                                 })
         ->UseManualTime()
         ->Iterations(1)
         ->Unit(benchmark::kMillisecond);
