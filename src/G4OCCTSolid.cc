@@ -63,9 +63,9 @@
 
 namespace {
 
-/// Fall-back minimum extent coordinate used when the shape is null or void.
+/// Fall-back minimum extent coordinate used when the bounding box is void.
 constexpr G4double kFallbackExtentMin = -1.0;
-/// Fall-back maximum extent coordinate used when the shape is null or void.
+/// Fall-back maximum extent coordinate used when the bounding box is void.
 constexpr G4double kFallbackExtentMax = 1.0;
 
 /// Relative linear deflection used when tessellating the OCCT shape for
@@ -225,6 +225,9 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
     : G4VSolid(name), fShape(shape) {
+  if (fShape.IsNull()) {
+    throw std::invalid_argument("G4OCCTSolid: shape must not be null");
+  }
   ComputeBounds();
 }
 
@@ -248,14 +251,6 @@ G4OCCTSolid* G4OCCTSolid::FromSTEP(const G4String& name, const std::string& path
 // ── G4OCCTSolid private helpers ───────────────────────────────────────────────
 
 void G4OCCTSolid::ComputeBounds() {
-  if (fShape.IsNull()) {
-    fCachedBounds = std::nullopt;
-    fFaceBoundsCache.clear();
-    fTriangleSet.Nullify();
-    fBVHDeflection = 0.0;
-    return;
-  }
-
   // Pre-build PCurves for edges on planar faces so BRep_Tool::CurveOnPlane()
   // returns the stored result on every Inside() query instead of recomputing
   // via GeomProjLib::ProjectOnPlane each time (~3.3% of total instructions).
@@ -411,10 +406,6 @@ IntCurvesFace_ShapeIntersector& G4OCCTSolid::GetOrCreateIntersector() const {
 // ── G4VSolid pure-virtual implementations ────────────────────────────────────
 
 EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
-  if (fShape.IsNull()) {
-    return kOutside;
-  }
-
   const G4double tolerance = IntersectionTolerance();
   if (fCachedBounds.has_value()) {
     const AxisAlignedBounds& bounds = *fCachedBounds;
@@ -431,10 +422,6 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
 }
 
 G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
-  if (fShape.IsNull()) {
-    return FallbackNormal();
-  }
-
   // Use face-local extrema + projection instead of a single solid-wide
   // BRepExtrema_DistShapeShape(vertex, solid) query. On imported periodic
   // surfaces (notably the torus seam hit at (15,0,0) in the geometry-fixture
@@ -475,7 +462,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {
-  if (fShape.IsNull() || v.mag2() == 0.0) {
+  if (v.mag2() == 0.0) {
     return kInfinity;
   }
 
@@ -500,10 +487,6 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& 
 }
 
 G4double G4OCCTSolid::ExactDistanceToIn(const G4ThreeVector& p) const {
-  if (fShape.IsNull()) {
-    return kInfinity;
-  }
-
   BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
   classifier.Perform(ToPoint(p), IntersectionTolerance());
   if (classifier.State() == TopAbs_IN || classifier.State() == TopAbs_ON) {
@@ -569,7 +552,7 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
     *validNorm = false;
   }
 
-  if (fShape.IsNull() || v.mag2() == 0.0) {
+  if (v.mag2() == 0.0) {
     return 0.0;
   }
 
@@ -611,10 +594,6 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
 }
 
 G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
-  if (fShape.IsNull()) {
-    return 0.0;
-  }
-
   // Use the pre-built per-face AABB cache to prune candidates before calling
   // BRepExtrema on individual faces: each query performs O(N_faces) cheap AABB
   // checks, but only O(k) faces require expensive extrema evaluations.
@@ -639,9 +618,6 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
 G4double G4OCCTSolid::GetCubicVolume() {
   std::unique_lock<std::mutex> lock(fVolumeAreaMutex);
   if (!fCachedVolume) {
-    if (fShape.IsNull()) {
-      return 0.0;
-    }
     GProp_GProps props;
     BRepGProp::VolumeProperties(fShape, props);
     fCachedVolume = props.Mass();
@@ -652,9 +628,6 @@ G4double G4OCCTSolid::GetCubicVolume() {
 G4double G4OCCTSolid::GetSurfaceArea() {
   std::unique_lock<std::mutex> lock(fVolumeAreaMutex);
   if (!fCachedSurfaceArea) {
-    if (fShape.IsNull()) {
-      return 0.0;
-    }
     GProp_GProps props;
     BRepGProp::SurfaceProperties(fShape, props);
     fCachedSurfaceArea = props.Mass();
@@ -728,13 +701,6 @@ const G4OCCTSolid::SurfaceSamplingCache& G4OCCTSolid::GetOrBuildSurfaceCache() c
 }
 
 G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
-  if (fShape.IsNull()) {
-    G4ExceptionDescription msg;
-    msg << "Shape is null for solid \"" << GetName() << "\".  Returning origin.";
-    G4Exception("G4OCCTSolid::GetPointOnSurface", "GeomMgt1001", JustWarning, msg);
-    return {0.0, 0.0, 0.0};
-  }
-
   const SurfaceSamplingCache& cache = GetOrBuildSurfaceCache();
 
   if (cache.triangles.empty() || cache.totalArea == 0.0) {
@@ -827,10 +793,6 @@ G4bool G4OCCTSolid::CalculateExtent(const EAxis pAxis, const G4VoxelLimits& pVox
 void G4OCCTSolid::DescribeYourselfTo(G4VGraphicsScene& scene) const { scene.AddSolid(*this); }
 
 G4Polyhedron* G4OCCTSolid::CreatePolyhedron() const {
-  if (fShape.IsNull()) {
-    return nullptr;
-  }
-
   const auto currentGeneration = fShapeGeneration.load(std::memory_order_acquire);
 
   {

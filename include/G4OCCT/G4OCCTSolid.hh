@@ -28,6 +28,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -68,6 +69,7 @@ public:
    *
    * @param name  Name registered with the Geant4 solid store.
    * @param shape OCCT boundary-representation shape to wrap.
+   * @throws std::invalid_argument if @p shape is null.
    */
   G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape);
 
@@ -107,7 +109,7 @@ public:
   /// valid conservative lower bound and avoids any OCCT call for distant exterior points.
   ///
   /// **Fallback:** Points within `IntersectionTolerance()` of the AABB, or when the AABB is
-  /// unavailable, fall through to `ExactDistanceToIn(p)`.
+  /// unavailable (shape has no geometry), fall through to `ExactDistanceToIn(p)`.
   ///
   /// For the exact shortest distance, use ExactDistanceToIn(p).
   G4double DistanceToIn(const G4ThreeVector& p) const override;
@@ -141,20 +143,20 @@ public:
   /// The tessellation is cached per shape generation so repeated calls only
   /// require an O(log N_triangles) area selection plus one surface projection.
   ///
-  /// Emits a @c JustWarning G4Exception and returns the origin if the shape is
-  /// null or the tessellation produces no valid triangles.
+  /// Emits a @c JustWarning G4Exception and returns the origin if the
+  /// tessellation produces no valid triangles.
   G4ThreeVector GetPointOnSurface() const override;
 
   // ── G4OCCTSolid distance functions ────────────────────────────────────────
 
   /// Exact shortest distance from external point @p p to the solid surface.
   /// Returns 0 if @p p is on or inside the surface, or kInfinity if the
-  /// shape is null or the calculation fails.
+  /// calculation fails.
   G4double ExactDistanceToIn(const G4ThreeVector& p) const;
 
   /// Exact shortest distance from internal point @p p to the solid surface.
   /// Returns 0 if @p p is within IntersectionTolerance() of the surface, or if
-  /// the shape is null or the calculation fails. For points outside the solid,
+  /// the calculation fails. For points outside the solid,
   /// returns the positive distance to the nearest surface.
   G4double ExactDistanceToOut(const G4ThreeVector& p) const;
 
@@ -200,7 +202,11 @@ public:
   ///       intersector on its next navigation call.  The shape update itself
   ///       is not atomic with respect to ongoing navigation; avoid calling
   ///       this while a simulation run is in progress.
+  /// @throws std::invalid_argument if @p shape is null.
   void SetOCCTShape(const TopoDS_Shape& shape) {
+    if (shape.IsNull()) {
+      throw std::invalid_argument("G4OCCTSolid::SetOCCTShape: shape must not be null");
+    }
     fShape = shape;
     ComputeBounds();
     {
@@ -290,11 +296,13 @@ private:
     G4double totalArea{0.0};
   };
 
+  /// The underlying OCCT shape.  Guaranteed non-null: the constructor and
+  /// SetOCCTShape() both throw std::invalid_argument when given a null shape.
   TopoDS_Shape fShape;
 
   /// Cached axis-aligned bounding box; computed eagerly in the constructor and
   /// recomputed by `ComputeBounds()` whenever `SetOCCTShape()` is called.
-  /// `std::nullopt` when the shape is null or has no geometry.
+  /// `std::nullopt` when the shape has no geometry (e.g. an empty compound).
   std::optional<AxisAlignedBounds> fCachedBounds;
 
   /// Per-face bounding boxes, populated alongside `fCachedBounds` in `ComputeBounds()`.
@@ -308,7 +316,7 @@ private:
   ///
   /// Built once in `ComputeBounds()` after `BRepMesh_IncrementalMesh` tessellates
   /// the shape.  Used by `BVHLowerBoundDistance()` to compute O(log T) lower bounds
-  /// on the point-to-surface distance.  Null when the shape is null or has no faces.
+  /// on the point-to-surface distance.  Null when the shape has no faces.
   /// Written only in `ComputeBounds()`; read-only (const BVH traversal) during
   /// navigation — no additional synchronisation is required beyond the construction
   /// ordering already guaranteed by the geometry-build phase.
@@ -407,7 +415,7 @@ private:
   /// Compute the axis-aligned bounding box of @c fShape and store it in
   /// @c fCachedBounds, and populate @c fFaceBoundsCache with per-face bounding
   /// boxes.  Sets @c fCachedBounds to @c std::nullopt and clears @c fFaceBoundsCache
-  /// when the shape is null or has no geometry.  Called from the constructor and
+  /// when the shape has no geometry.  Called from the constructor and
   /// @c SetOCCTShape().
   void ComputeBounds();
 

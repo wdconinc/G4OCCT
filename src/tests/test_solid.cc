@@ -18,6 +18,7 @@
 
 #include <numbers>
 #include <cmath>
+#include <stdexcept>
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
@@ -216,4 +217,19 @@ TEST(SolidBasicAPI, GetPointOnSurfaceSphere) {
     const EInside inside = solid.Inside(pt);
     EXPECT_EQ(inside, kSurface) << "GetPointOnSurface returned non-surface point at sample " << i;
   }
+}
+
+TEST(SolidInvariant, ConstructorRejectsNullShape) {
+  // The G4OCCTSolid invariant: fShape is never null.  Passing a default-
+  // constructed (null) TopoDS_Shape must throw std::invalid_argument.
+  EXPECT_THROW(G4OCCTSolid("NullShapeSolid", TopoDS_Shape{}), std::invalid_argument);
+}
+
+TEST(SolidInvariant, SetOCCTShapeRejectsNullShape) {
+  // SetOCCTShape() must also enforce the non-null invariant.
+  TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 20.0, 30.0).Shape();
+  G4OCCTSolid solid("BoxForSetShapeTest", box);
+  EXPECT_THROW(solid.SetOCCTShape(TopoDS_Shape{}), std::invalid_argument);
+  // The original shape must be unchanged after a rejected update.
+  EXPECT_FALSE(solid.GetOCCTShape().IsNull());
 }
