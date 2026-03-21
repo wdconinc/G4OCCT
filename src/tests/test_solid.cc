@@ -232,4 +232,5 @@ TEST(SolidInvariant, SetOCCTShapeRejectsNullShape) {
   EXPECT_THROW(solid.SetOCCTShape(TopoDS_Shape{}), std::invalid_argument);
   // The original shape must be unchanged after a rejected update.
   EXPECT_FALSE(solid.GetOCCTShape().IsNull());
+  EXPECT_TRUE(solid.GetOCCTShape().IsEqual(box));
 }

@@ -137,7 +137,7 @@ TEST(DistanceToInLowerBound, FallbackWhenAABBUnavailable) {
   BRep_Builder builder;
   TopoDS_Compound emptyCompound{};
   builder.MakeCompound(emptyCompound);
-  G4OCCTSolid emptyShapeSolid("FallbackAABBNull", emptyCompound);
+  G4OCCTSolid emptyShapeSolid("EmptyShapeNoGeometry", emptyCompound);
   const G4ThreeVector anyPoint(100.0 * mm, 0.0, 0.0);
 
   const G4double safety = emptyShapeSolid.DistanceToIn(anyPoint);
