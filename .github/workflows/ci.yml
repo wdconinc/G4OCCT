@@ -251,10 +251,26 @@ jobs:
         fixture:
           - name: g4box
             id: g4box-box-20x30x40-v1
+          - name: g4unionsolid
+            id: g4unionsolid-box-overlap-x10-v1
+          - name: g4tessellatedsolid
+            id: g4tessellatedsolid-tessellated-tet-right-20x30x40-v1
+          - name: g4twistedbox
+            id: g4twistedbox-box-dx10-dy8-z20-phi30-v1
+          - name: g4ellipsoid
+            id: g4ellipsoid-ellipsoid-15x10x20-v1
+          - name: g4displacedsolid
+            id: g4displacedsolid-translated-box-offset-v1
+          - name: nist-ctc-01
+            id: nist-ctc-01-v1
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Fetch NIST CTC STEP fixtures
+        if: contains(matrix.fixture.id, 'nist-ctc')
+        uses: ./.github/actions/fetch-nist-ctc
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
@@ -342,6 +358,81 @@ jobs:
         with:
           name: callgrind-links-${{ matrix.fixture.name }}
           path: callgrind-links/callgrind_links_${{ matrix.fixture.name }}.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  callgrind-assembly:
+    name: Callgrind profile (string-array-v1 assembly, eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Build, profile, and annotate inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            # RelWithDebInfo retains debug symbols so callgrind_annotate can
+            # map instruction costs back to source lines.
+            # VALGRIND_INCLUDE_DIR points find_path() to the valgrind headers
+            # provided by the container's valgrind installation at /opt/local.
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              -DBUILD_BENCHMARKS=ON \
+              -DENABLE_WERROR=ON \
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
+              -DVALGRIND_INCLUDE_DIR=/opt/local/include
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build --target bench_assembly_navigator -- -j$(nproc)
+
+            # ── Profile ────────────────────────────────────────────────────
+            # Single-fixture mode: pass the fixture directory directly so that
+            # only string-array-v1 is loaded, keeping the profile uncontaminated
+            # by other fixture preloading costs.
+            # --instr-atstart=no / --collect-atstart=no: bench_assembly_navigator
+            #   uses CALLGRIND_START_INSTRUMENTATION + CALLGRIND_TOGGLE_COLLECT to
+            #   gate collection around benchmark::RunSpecifiedBenchmarks(), excluding
+            #   GDML parse, STEP import, and geometry construction from the profile.
+            # --benchmark_iterations=1: one iteration per benchmark variant keeps
+            #   the callgrind run fast while still profiling the full navigation loop.
+            valgrind --tool=callgrind \
+              --instr-atstart=no \
+              --collect-atstart=no \
+              --callgrind-out-file=callgrind.out \
+              ./build/src/benchmarks/bench_assembly_navigator \
+                --benchmark_iterations=1 \
+                2048 \
+                src/tests/fixtures/assembly-comparison/string-array-v1
+
+            # ── Annotate ───────────────────────────────────────────────────
+            mkdir -p reports
+            cp callgrind.out reports/callgrind_assembly.out
+            callgrind_annotate --auto=yes \
+              --include="${PWD}/src" \
+              --include="${PWD}/include" \
+              callgrind.out \
+              > reports/callgrind_annotate_assembly.txt
+            head -60 reports/callgrind_annotate_assembly.txt || true
+
+      - name: Upload callgrind reports as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: callgrind-reports-assembly
+          path: |
+            reports/callgrind_annotate_assembly.txt
+            reports/callgrind_assembly.out
           if-no-files-found: warn
           retention-days: 7
 
