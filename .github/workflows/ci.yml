@@ -446,10 +446,88 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  callgrind-b4c:
+    name: Callgrind profile (B4c G4OCCTSolid, eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Build, profile, and annotate inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            # RelWithDebInfo retains debug symbols for source-level annotation.
+            # B4C_CHECK_OVERLAPS=OFF: prevents Inside() calls during placement
+            # overlap checking from inflating the profiled call counts.
+            # BUILD_EXAMPLES=ON: required to generate the exampleB4c target.
+            # BUILD_TESTING=OFF / BUILD_BENCHMARKS=OFF: skip unneeded targets.
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              -DBUILD_EXAMPLES=ON \
+              -DBUILD_TESTING=OFF \
+              -DBUILD_BENCHMARKS=OFF \
+              -DENABLE_WERROR=ON \
+              -DB4C_CHECK_OVERLAPS=OFF \
+              -DVALGRIND_INCLUDE_DIR=/opt/local/include \
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install"
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build --target exampleB4c -- -j$(nproc)
+
+            # ── Profile ────────────────────────────────────────────────────
+            # RunAction wraps BeginOfRunAction/EndOfRunAction with CALLGRIND
+            # macros so geometry construction (STEP import, BVH build, overlap
+            # check) and physics initialisation are excluded from the profile.
+            # --instr-atstart=no: Valgrind does not instrument code before the
+            #   first CALLGRIND_START_INSTRUMENTATION call, keeping init fast.
+            # --collect-atstart=no: Even once instrumented, do not count until
+            #   CALLGRIND_TOGGLE_COLLECT is called inside BeginOfRunAction.
+            # run_profile.mac: 100 events of e- 300 MeV — enough statistics
+            #   for stable per-method call ratios without excessive CI runtime.
+            valgrind --tool=callgrind \
+              --instr-atstart=no \
+              --collect-atstart=no \
+              --callgrind-out-file=callgrind.b4c.out \
+              ./build/src/examples/B4c/exampleB4c \
+                src/examples/B4c/run_profile.mac
+
+            # ── Annotate ───────────────────────────────────────────────────
+            mkdir -p reports
+            cp callgrind.b4c.out reports/callgrind_b4c.out
+            callgrind_annotate --auto=yes \
+              --include="${PWD}/src/examples/B4c/src" \
+              --include="${PWD}/src" \
+              --include="${PWD}/include" \
+              callgrind.b4c.out \
+              > reports/callgrind_annotate_b4c.txt
+            head -80 reports/callgrind_annotate_b4c.txt || true
+
+      - name: Upload callgrind reports as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: callgrind-reports-b4c
+          path: |
+            reports/callgrind_annotate_b4c.txt
+            reports/callgrind_b4c.out
+          if-no-files-found: warn
+          retention-days: 7
+
   report:
     name: Generate combined benchmark report
     runs-on: ubuntu-latest
-    needs: [build-test-benchmark, callgrind]
+    needs: [build-test-benchmark, callgrind, callgrind-assembly, callgrind-b4c]
     if: always()
     permissions:
       contents: read

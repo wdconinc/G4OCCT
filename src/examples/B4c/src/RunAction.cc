@@ -27,6 +27,18 @@
 
 #include "RunAction.hh"
 
+// Callgrind instrumentation macros — gate collection around the tracking run
+// so initialization (STEP load, geometry construction, physics init) is excluded
+// from the profile. When valgrind headers are not available the macros expand to
+// no-ops so the binary is usable without valgrind.
+#ifdef HAVE_VALGRIND_CALLGRIND_H
+#include <valgrind/callgrind.h>
+#else
+#define CALLGRIND_START_INSTRUMENTATION do {} while (0)
+#define CALLGRIND_STOP_INSTRUMENTATION  do {} while (0)
+#define CALLGRIND_TOGGLE_COLLECT        do {} while (0)
+#endif
+
 #include "G4AnalysisManager.hh"
 #include "G4RunManager.hh"
 #include "G4SystemOfUnits.hh"
@@ -75,6 +87,8 @@ RunAction::RunAction() {
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 void RunAction::BeginOfRunAction(const G4Run* /*run*/) {
+  CALLGRIND_START_INSTRUMENTATION;
+  CALLGRIND_TOGGLE_COLLECT;
   // inform the runManager to save random number seed
   // G4RunManager::GetRunManager()->SetRandomNumberStore(true);
 
@@ -95,6 +109,8 @@ void RunAction::BeginOfRunAction(const G4Run* /*run*/) {
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 void RunAction::EndOfRunAction(const G4Run* /*run*/) {
+  CALLGRIND_TOGGLE_COLLECT;
+  CALLGRIND_STOP_INSTRUMENTATION;
   // print histogram statistics
   //
   auto analysisManager = G4AnalysisManager::Instance();
