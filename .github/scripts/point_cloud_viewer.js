@@ -56,11 +56,11 @@ scene.add(new THREE.AxesHelper(50));
 const GRID_DIVS_COUNT   = 100;
 const GRID_COLOR_CENTER = 0x444466;
 const GRID_COLOR_LINE   = 0x222244;
-let gridXY          = null;
-let gridXZ          = null;
-let gridYZ          = null;
-let currentGridStep = 0; // 0 = uninitialised
-let showGrid        = false;
+let gridXY              = null;
+let gridXZ              = null;
+let gridYZ              = null;
+let currentGridStep     = 0; // 0 = uninitialised
+let showGrid            = false;
 
 // Return the smallest "round" step (1/2/5 × 10^n) such that ≈5 steps fit in dist/2.
 function niceGridStep(dist) {
@@ -84,22 +84,22 @@ function niceGridStep(dist) {
 
 // Rebuild all three GridHelpers with a new step size and make them match showGrid.
 function buildGrid(step) {
-  for (const g of [ gridXY, gridXZ, gridYZ ]) {
+  for (const g of [gridXY, gridXZ, gridYZ]) {
     if (g) {
       scene.remove(g);
       g.geometry.dispose();
       g.material.dispose();
     }
   }
-  const size        = step * GRID_DIVS_COUNT;
-  gridXY            = new THREE.GridHelper(size, GRID_DIVS_COUNT, GRID_COLOR_CENTER, GRID_COLOR_LINE);
+  const size = step * GRID_DIVS_COUNT;
+  gridXY     = new THREE.GridHelper(size, GRID_DIVS_COUNT, GRID_COLOR_CENTER, GRID_COLOR_LINE);
   gridXY.rotation.x = Math.PI / 2; // XZ → XY plane
   gridXY.visible    = showGrid;
   scene.add(gridXY);
   gridXZ         = new THREE.GridHelper(size, GRID_DIVS_COUNT, GRID_COLOR_CENTER, GRID_COLOR_LINE);
   gridXZ.visible = showGrid; // already in XZ plane
   scene.add(gridXZ);
-  gridYZ            = new THREE.GridHelper(size, GRID_DIVS_COUNT, GRID_COLOR_CENTER, GRID_COLOR_LINE);
+  gridYZ = new THREE.GridHelper(size, GRID_DIVS_COUNT, GRID_COLOR_CENTER, GRID_COLOR_LINE);
   gridYZ.rotation.z = Math.PI / 2; // XZ → YZ plane
   gridYZ.visible    = showGrid;
   scene.add(gridYZ);
@@ -203,7 +203,7 @@ function toggleGrid() {
     const dist      = activeCam.position.distanceTo(controls.target);
     buildGrid(niceGridStep(dist));
   } else {
-    for (const g of [ gridXY, gridXZ, gridYZ ]) {
+    for (const g of [gridXY, gridXZ, gridYZ]) {
       if (g) {
         g.visible = showGrid;
       }
