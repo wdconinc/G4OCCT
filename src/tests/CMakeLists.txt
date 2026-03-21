@@ -171,4 +171,3 @@ foreach(fixture_id IN LISTS _nist_ctc_fixture_dirs)
            COMMAND test_nist_ctc_inside_volume ${fixture_id})
 endforeach()
 unset(_nist_ctc_fixture_dirs)
-
