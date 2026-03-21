@@ -245,6 +245,7 @@ G4OCCTSolid::~G4OCCTSolid() {
   // attempts to destroy the thread-local storage.
   fClassifierCache.Get().classifier.reset();
   fIntersectorCache.Get().faceIntersectors.clear();
+  fSphereCache.Get().spheres.clear();
 }
 
 // ── G4OCCTSolid static factory ────────────────────────────────────────────────
@@ -345,50 +346,65 @@ void G4OCCTSolid::ComputeBounds() {
     fTriangleSet = new BRepExtrema_TriangleSet(faces);
   }
 
-  // Build the inscribed sphere used as a fast kInside pre-filter in Inside().
-  ComputeInscribedSphere();
+  ComputeInitialSpheres();
 }
 
-void G4OCCTSolid::ComputeInscribedSphere() {
-  fInscribedSphere.reset();
-
-  if (fFaceBoundsCache.empty()) {
+void G4OCCTSolid::ComputeInitialSpheres() {
+  fInitialSpheres.clear();
+  if (!fCachedBounds.has_value()) {
     return;
   }
 
-  // Candidate interior point: the centre of the axis-aligned bounding box.
-  // For many convex or mildly concave shapes this point typically lies well
-  // inside the solid, but we verify this explicitly below.
-  const G4ThreeVector candidate = 0.5 * (fCachedBounds.min + fCachedBounds.max);
+  const G4double tol          = IntersectionTolerance();
+  const G4ThreeVector& bmin   = fCachedBounds->min;
+  const G4ThreeVector& bmax   = fCachedBounds->max;
+  const G4ThreeVector centre  = 0.5 * (bmin + bmax);
+  const G4ThreeVector halfExt = 0.5 * (bmax - bmin);
 
-  // Verify that the candidate point is strictly inside the solid using a
-  // freshly-loaded local classifier built directly from fShape.  We must not
-  // rely on GetOrCreateClassifier() here because SetOCCTShape() updates fShape
-  // and calls ComputeBounds() (hence ComputeInscribedSphere()) *before*
-  // incrementing fShapeGeneration.  The per-thread cache may therefore still
-  // hold a classifier that was loaded for the previous shape (its generation
-  // stamp matches the not-yet-incremented counter), which would silently
-  // evaluate the candidate against stale geometry.
+  // Candidate seed points: AABB centre, 6 face midpoints, 8 octant centres (15 total).
+  std::vector<G4ThreeVector> candidates;
+  candidates.reserve(15);
+  candidates.push_back(centre);
+  for (const G4double s : {-0.5, 0.5}) {
+    candidates.push_back(centre + G4ThreeVector(s * halfExt.x(), 0.0, 0.0));
+    candidates.push_back(centre + G4ThreeVector(0.0, s * halfExt.y(), 0.0));
+    candidates.push_back(centre + G4ThreeVector(0.0, 0.0, s * halfExt.z()));
+  }
+  for (const int sx : {-1, 1}) {
+    for (const int sy : {-1, 1}) {
+      for (const int sz : {-1, 1}) {
+        candidates.push_back(centre + G4ThreeVector(0.75 * sx * halfExt.x(),
+                                                    0.75 * sy * halfExt.y(),
+                                                    0.75 * sz * halfExt.z()));
+      }
+    }
+  }
+
+  // Use a local classifier: construction-time only, no thread-local needed.
   BRepClass3d_SolidClassifier localClassifier;
   localClassifier.Load(fShape);
-  localClassifier.Perform(ToPoint(candidate), IntersectionTolerance());
-  if (localClassifier.State() != TopAbs_IN) {
-    return; // AABB centre is outside or on the surface; skip the optimisation.
-  }
 
-  // Compute the distance from the AABB centre to the nearest analytical face
-  // surface.  TryFindClosestFace uses Extrema_ExtPS on the unbounded parametric
-  // surface, which may find a projection point outside the trim boundary; this
-  // underestimates the true distance, giving a conservatively small sphere.
-  // A 99 % safety margin provides additional headroom for numerical edge cases.
-  const auto match = TryFindClosestFace(fFaceBoundsCache, candidate);
-  if (!match.has_value() || match->distance <= IntersectionTolerance()) {
-    return;
+  for (const G4ThreeVector& cand : candidates) {
+    localClassifier.Perform(ToPoint(cand), tol);
+    if (localClassifier.State() != TopAbs_IN) {
+      continue;
+    }
+    G4double d = BVHLowerBoundDistance(cand);
+    if (d >= kInfinity || d <= tol) {
+      // BVH unavailable or too close to surface; try exact distance.
+      const auto match = TryFindClosestFace(fFaceBoundsCache, cand);
+      if (!match.has_value() || match->distance <= tol) {
+        continue;
+      }
+      d = match->distance;
+    }
+    fInitialSpheres.push_back({cand, d});
   }
-
-  constexpr G4double kRadiusScaleFactor = 0.99;
-  const G4double r                      = kRadiusScaleFactor * match->distance;
-  fInscribedSphere                      = InscribedSphere{candidate, r * r};
+  // Sort descending by radius so the most useful spheres are checked first.
+  std::sort(fInitialSpheres.begin(), fInitialSpheres.end(),
+            [](const InscribedSphere& a, const InscribedSphere& b) {
+              return a.radius > b.radius;
+            });
 }
 
 std::optional<G4OCCTSolid::ClosestFaceMatch>
@@ -472,6 +488,53 @@ G4OCCTSolid::IntersectorCache& G4OCCTSolid::GetOrCreateIntersector() const {
   return cache;
 }
 
+G4OCCTSolid::SphereCacheData& G4OCCTSolid::GetOrInitSphereCache() const {
+  SphereCacheData& cache         = fSphereCache.Get();
+  const std::uint64_t currentGen = fShapeGeneration.load(std::memory_order_acquire);
+  if (cache.generation != currentGen) {
+    // Re-seed from the construction-time initial spheres (already sorted descending).
+    cache.spheres     = fInitialSpheres;
+    cache.generation  = currentGen;
+  }
+  return cache;
+}
+
+void G4OCCTSolid::TryInsertSphere(const G4ThreeVector& centre, G4double d) const {
+  if (d <= 0.0) {
+    return;
+  }
+  SphereCacheData& cache = GetOrInitSphereCache();
+
+  // Quick capacity check: if at capacity and the new radius is no better than
+  // the smallest stored radius, there is nothing to gain.
+  if (cache.spheres.size() >= kMaxInscribedSpheres && d <= cache.spheres.back().radius) {
+    return;
+  }
+
+  // Dominance check: skip if the new sphere is fully contained inside an existing one.
+  // Condition: |centre − cᵢ| + d ≤ rᵢ  ↔  |centre − cᵢ|² ≤ (rᵢ − d)² (when rᵢ ≥ d).
+  for (const InscribedSphere& s : cache.spheres) {
+    if (s.radius >= d) {
+      const G4double gap = s.radius - d;
+      if ((centre - s.centre).mag2() <= gap * gap) {
+        return;
+      }
+    }
+  }
+
+  // Insert in sorted position (descending by radius).
+  const InscribedSphere newSphere{centre, d};
+  const auto it = std::lower_bound(
+      cache.spheres.begin(), cache.spheres.end(), newSphere,
+      [](const InscribedSphere& a, const InscribedSphere& b) { return a.radius > b.radius; });
+  cache.spheres.insert(it, newSphere);
+
+  // Evict the smallest sphere if the cache has grown beyond capacity.
+  if (cache.spheres.size() > kMaxInscribedSpheres) {
+    cache.spheres.pop_back();
+  }
+}
+
 // ── G4VSolid pure-virtual implementations ────────────────────────────────────
 
 EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
@@ -482,13 +545,12 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     return kOutside;
   }
 
-  // Fast path: points within the precomputed inscribed sphere are definitively
-  // inside the solid.  This avoids the expensive BRepClass3d_SolidClassifier
-  // BVH ray-cast for the common case where the query point is deep inside the
-  // solid (e.g. the G4Ellipsoid fixture where most sampled points are interior).
-  if (fInscribedSphere.has_value()) {
-    const G4ThreeVector delta = p - fInscribedSphere->center;
-    if (delta.mag2() < fInscribedSphere->radiusSq) {
+  // Fast inscribed-sphere check: if p lies inside any cached sphere (centre, radius),
+  // every such sphere is provably interior to the solid, so we can return kInside
+  // immediately without an OCCT classifier call.
+  const SphereCacheData& sphereCache = GetOrInitSphereCache();
+  for (const InscribedSphere& s : sphereCache.spheres) {
+    if ((p - s.centre).mag2() <= s.radius * s.radius) {
       return kInside;
     }
   }
@@ -689,11 +751,11 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
   // Tier-1: mesh-BVH lower bound (O(log T)).  For interior points the AABB
   // distance is always 0, so there is no useful Tier-0 AABB shortcut here.
   const G4double bvhDist = BVHLowerBoundDistance(p);
-  if (bvhDist < kInfinity) {
-    return bvhDist;
-  }
-  // Fallback: exact computation via BRepExtrema_DistShapeShape.
-  return ExactDistanceToOut(p);
+  const G4double d       = (bvhDist < kInfinity) ? bvhDist : ExactDistanceToOut(p);
+  // Feed the inscribed-sphere cache: every positive return value proves B(p,d)
+  // is inside the solid and can accelerate future Inside(p) calls.
+  TryInsertSphere(p, d);
+  return d;
 }
 
 G4double G4OCCTSolid::GetCubicVolume() {
