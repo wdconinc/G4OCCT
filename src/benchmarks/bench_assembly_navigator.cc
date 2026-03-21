@@ -337,25 +337,29 @@ namespace {
 
     // Load STEP assembly.
     // Build the material map: use per-fixture materials.xml when present,
-    // otherwise fall back to the legacy default (Component → G4_Al) so that
-    // existing fixtures without a materials.xml continue to work.
+    // otherwise warn and fall back to the legacy default (Component → G4_Al).
+    // The legacy default exists solely for fixtures predating materials.xml support;
+    // new fixtures should always provide materials.xml.
     G4OCCTMaterialMap mat_map;
     const std::filesystem::path mat_xml_path = gdml_path.parent_path() / "materials.xml";
     if (std::filesystem::exists(mat_xml_path)) {
       G4OCCTMaterialMapReader reader;
       mat_map = reader.ReadFile(mat_xml_path.string());
     } else {
+      std::cerr << "Warning: no materials.xml found for fixture '" << fixture_id
+                << "'; applying legacy default (Component → G4_Al).\n";
       mat_map.Add("Component", G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
     }
 
     // Derive the STEP world box half-lengths from the GDML world volume solid
     // so that any fixture size is accommodated automatically.  All assembly-
     // comparison fixtures use a G4Box as the world solid; warn and fall back to
-    // the original 25×15×15 mm defaults if the cast ever fails.
+    // the original 25×15×15 mm half-length defaults (i.e. 50×30×30 mm full extents)
+    // if the cast ever fails.
     const auto* gdml_world_box = dynamic_cast<const G4Box*>(gdml_world_lv->GetSolid());
     if (!gdml_world_box) {
       std::cerr << "Warning: GDML world solid for fixture '" << fixture_id
-                << "' is not a G4Box; using default 25×15×15 mm world for STEP imprint.\n";
+                << "' is not a G4Box; using default 25×15×15 mm half-lengths for STEP world box.\n";
     }
     const double step_hx = gdml_world_box ? gdml_world_box->GetXHalfLength() : 25.0;
     const double step_hy = gdml_world_box ? gdml_world_box->GetYHalfLength() : 15.0;
