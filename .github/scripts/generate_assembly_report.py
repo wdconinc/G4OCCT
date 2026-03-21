@@ -78,22 +78,24 @@ def _parse_bench_json(data: dict) -> dict:
     fixtures: list[dict] = []
     for fixture_id in fixture_order:
         bm = fixture_groups[fixture_id]
-        gdml_ms       = _get_ctr(bm, "gdml_ms")
-        step_ms       = _get_ctr(bm, "step_ms")
-        rays          = int(_get_ctr(bm, "ray_count"))
-        mismatches    = int(_get_ctr(bm, "mismatches"))
-        gdml_cross    = int(_get_ctr(bm, "gdml_crossings"))
-        step_cross    = int(_get_ctr(bm, "step_crossings"))
-        ratio         = f"{step_ms / gdml_ms:.1f}x" if gdml_ms > 0.0 else "---"
+        gdml_ms            = _get_ctr(bm, "gdml_ms")
+        step_ms            = _get_ctr(bm, "step_ms")
+        rays               = int(_get_ctr(bm, "ray_count"))
+        mismatches         = int(_get_ctr(bm, "mismatches"))
+        material_mismatches = int(_get_ctr(bm, "material_mismatches"))
+        gdml_cross         = int(_get_ctr(bm, "gdml_crossings"))
+        step_cross         = int(_get_ctr(bm, "step_crossings"))
+        ratio              = f"{step_ms / gdml_ms:.1f}x" if gdml_ms > 0.0 else "---"
         fixtures.append({
-            "id":            fixture_id,
-            "gdml_ms":       gdml_ms,
-            "step_ms":       step_ms,
-            "ratio":         ratio,
-            "rays":          rays,
-            "mismatches":    mismatches,
-            "gdml_crossings": gdml_cross,
-            "step_crossings": step_cross,
+            "id":                 fixture_id,
+            "gdml_ms":            gdml_ms,
+            "step_ms":            step_ms,
+            "ratio":              ratio,
+            "rays":               rays,
+            "mismatches":         mismatches,
+            "material_mismatches": material_mismatches,
+            "gdml_crossings":     gdml_cross,
+            "step_crossings":     step_cross,
         })
 
     return {
@@ -135,7 +137,8 @@ def _render_report(data: dict, viewer_path: str) -> str:
         "GDML ms",
         "STEP ms",
         "Ratio",
-        "Mismatches",
+        "Pos. mismatches",
+        "Mat. mismatches",
         "GDML crossings",
         "STEP crossings",
     ]
@@ -156,6 +159,7 @@ def _render_report(data: dict, viewer_path: str) -> str:
             f"{fix['step_ms']:.1f}",
             fix["ratio"],
             str(fix["mismatches"]),
+            str(fix["material_mismatches"]),
             str(fix["gdml_crossings"]),
             str(fix["step_crossings"]),
         ]
