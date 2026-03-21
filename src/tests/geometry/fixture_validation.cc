@@ -120,11 +120,6 @@ ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
 FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest& request) {
   const std::string& geant4_class = request.fixture.geant4_class;
 
-  if (geant4_class == "G4Hype" || geant4_class == "G4Paraboloid") {
-    return {true, "fixture STEP uses a faceted profile-loft approximation instead of the analytic "
-                  "Geant4 surface"};
-  }
-
   if (geant4_class == "G4ScaledSolid") {
     return {true,
             "strict native-to-STEP ray-frame alignment for this fixture is not implemented yet"};

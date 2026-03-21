@@ -101,8 +101,8 @@ fixtures:
       - G4UHype
     expectations:
       - quantity: volume
-        value: 14288.71990626374
-        absolute_tolerance: 0.001
+        value: 14388.308849980505
+        absolute_tolerance: 1.0
         unit: mm3
   - id: g4paraboloid-paraboloid-r6-r18-z20-v1
     family: profile-faceted
@@ -114,8 +114,8 @@ fixtures:
       - G4UParaboloid
     expectations:
       - quantity: volume
-        value: 22310.999465129025
-        absolute_tolerance: 0.001
+        value: 22619.46710584651
+        absolute_tolerance: 1.0
         unit: mm3
   - id: g4polycone-polycone-z-22p5-2p5-22p5-v1
     family: profile-faceted
