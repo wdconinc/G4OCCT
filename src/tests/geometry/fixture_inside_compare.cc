@@ -9,6 +9,8 @@
 #include "geometry/fixture_solid_builder.hh"
 #include "geometry/fixture_validation.hh"
 
+#include <yaml-cpp/yaml.h>
+
 #include <G4GeometryTolerance.hh>
 #include <G4ThreeVector.hh>
 
@@ -133,7 +135,23 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
     auto imported_solid =
         std::make_unique<G4OCCTSolid>(request.fixture.id + "_imported", LoadImportedShape(request));
 
-    const G4double tolerance = G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
+    const YAML::Node validation = provenance.document["validation"];
+    const G4double tolerance =
+        (validation.IsDefined() && validation["distance_tolerance_mm"].IsDefined())
+            ? G4double(validation["distance_tolerance_mm"].as<double>())
+            : G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
+    local_summary.surface_tolerance = tolerance;
+
+    if (!std::isfinite(tolerance) || tolerance <= 0.0) {
+      std::ostringstream message;
+      message << "Surface distance tolerance must be finite and positive; got " << tolerance
+              << " mm (from 'validation.distance_tolerance_mm' in provenance YAML)";
+      report.AddError("fixture.inside_compare_invalid_tolerance", message.str(), provenance_path);
+      if (summary != nullptr) {
+        *summary = local_summary;
+      }
+      return report;
+    }
 
     // ── Generate test points ──────────────────────────────────────────────
     // Default to ~50% bounding-box points and ~50% near-surface points, but
@@ -227,7 +245,8 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
                    << "); native=" << local_summary.native_elapsed_ms
                    << " ms, imported=" << local_summary.imported_elapsed_ms
                    << " ms, hard_mismatches=" << local_summary.mismatch_count
-                   << ", surface_ambiguities=" << local_summary.surface_ambiguity_count;
+                   << ", surface_ambiguities=" << local_summary.surface_ambiguity_count
+                   << ", surface_tolerance=" << local_summary.surface_tolerance;
     report.AddInfo("fixture.inside_compare_summary", timing_summary.str(), provenance_path);
 
   } catch (const std::exception& error) {

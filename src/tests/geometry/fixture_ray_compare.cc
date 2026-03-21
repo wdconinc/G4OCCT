@@ -7,6 +7,8 @@
 
 #include "geometry/fixture_solid_builder.hh"
 
+#include <yaml-cpp/yaml.h>
+
 #include <G4GeometryTolerance.hh>
 #include <G4ThreeVector.hh>
 
@@ -213,6 +215,20 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
     const auto provenance_path = ResolveFixtureProvenancePath(request.manifest, request.fixture);
     const FixtureProvenance provenance = ParseFixtureProvenance(provenance_path);
     local_summary.geant4_class         = Geant4Class(provenance);
+
+    const YAML::Node validation = provenance.document["validation"];
+    if (validation.IsDefined() && validation["distance_tolerance_mm"].IsDefined()) {
+      const double configured_tolerance = validation["distance_tolerance_mm"].as<double>();
+      if (!std::isfinite(configured_tolerance) || configured_tolerance <= 0.0) {
+        std::ostringstream message;
+        message << "Invalid validation.distance_tolerance_mm=" << configured_tolerance
+                << " for fixture '" << request.fixture.id
+                << "': tolerance must be finite and > 0 mm.";
+        report.AddError("fixture.invalid_distance_tolerance_mm", message.str(), provenance_path);
+      } else {
+        local_summary.distance_tolerance = configured_tolerance;
+      }
+    }
 
     std::unique_ptr<G4VSolid> native_solid = BuildNativeSolidForRequest(request, provenance);
     auto imported_solid =

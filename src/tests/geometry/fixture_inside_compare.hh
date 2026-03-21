@@ -39,6 +39,8 @@ struct FixtureInsideComparisonSummary {
   std::size_t mismatch_count{0};
   /// Number of `kSurface`-vs-`kInside/kOutside` boundary ambiguities (warnings).
   std::size_t surface_ambiguity_count{0};
+  /// Surface proximity tolerance used for near-surface point generation (mm).
+  double surface_tolerance{0.0};
   /// Elapsed time for all native `Inside()` calls (milliseconds).
   double native_elapsed_ms{0.0};
   /// Elapsed time for all imported `Inside()` calls (milliseconds).
@@ -58,6 +60,12 @@ struct FixtureInsideComparisonSummary {
  *    from the bounding-box centre and then offsetting each hit slightly inward
  *    and outward by one surface-tolerance step.  These stress the boundary
  *    region where classification disagreements are most likely.
+ *
+ * The near-surface offset defaults to
+ * `G4GeometryTolerance::GetInstance()->GetSurfaceTolerance()`.
+ * Fixtures with approximate STEP representations may specify a larger offset via
+ * `validation.distance_tolerance_mm` in `provenance.yaml`; this widens the boundary
+ * zone so that test points are placed clear of the approximation error band.
  *
  * Classification agreement rules:
  *  - `kInside` vs `kOutside` → hard error (`fixture.inside_classification_mismatch`).

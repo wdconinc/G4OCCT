@@ -76,6 +76,12 @@ G4double DefaultRayComparisonTolerance();
  *  - `fixture.ray_normal_mismatch`       — DistanceToOut exit normals disagree.
  *  - `fixture.surface_normal_mismatch`   — SurfaceNormal(p) normals disagree.
  *
+ * The distance tolerance defaults to `DefaultRayComparisonTolerance()` (the Geant4
+ * surface tolerance).  Fixtures with approximate STEP representations may specify a
+ * larger value via `validation.distance_tolerance_mm` in `provenance.yaml`; this
+ * widens the acceptance band for DTI(p,v) and DTO(p,v) distance comparisons to
+ * match the expected geometric error of the approximation.
+ *
  * The comparison origin is chosen as follows:
  * - `G4Tet`: centroid of the four vertices from the fixture provenance
  *   (`vertices_mm`).  A non-degenerate tetrahedron's centroid is always inside.
