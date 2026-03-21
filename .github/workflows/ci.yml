@@ -338,7 +338,6 @@ jobs:
     if: always()
     permissions:
       contents: read
-      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -349,7 +348,7 @@ jobs:
         with:
           name: ci-reports
           path: ci-reports/
-        continue-on-error: true
+        continue-on-error: ${{ needs.build-test-benchmark.result != 'success' }}
 
       - name: Download callgrind links artifacts
         uses: actions/download-artifact@v7
@@ -357,7 +356,7 @@ jobs:
           pattern: callgrind-links-*
           path: callgrind-links/
           merge-multiple: true
-        continue-on-error: true
+        continue-on-error: ${{ needs.callgrind.result != 'success' }}
 
       - name: Merge callgrind links and regenerate bench report
         if: always()
