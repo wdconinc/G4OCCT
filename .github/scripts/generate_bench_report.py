@@ -386,8 +386,6 @@ def _render_report(data: dict, viewer_path: str,
         "",
         meta_line,
         "",
-        f"[Open point-cloud viewer]({viewer_path})",
-        "",
         "## Aggregate Results",
     ]
 
