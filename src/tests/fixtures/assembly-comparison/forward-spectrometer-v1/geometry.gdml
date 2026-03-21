@@ -70,8 +70,8 @@
     <!-- Simplified dry air (same density as G4_AIR) -->
     <material name="G4_AIR" state="gas">
       <D unit="g/cm3" value="0.00120479"/>
-      <fraction n="0.755636" ref="N"/>
-      <fraction n="0.231781" ref="O"/>
+      <fraction n="0.765263" ref="N"/>
+      <fraction n="0.234737" ref="O"/>
     </material>
   </materials>
 
