@@ -345,32 +345,58 @@ namespace {
     step_assembly->MakeImprint(step_world_lv, step_pos, &step_rot);
     const std::vector<ComponentSpec> step_components = ExtractComponents(step_world_lv);
 
-    // Ray launch origin: far enough outside the assembly (radius 40 mm).
-    constexpr double kRayRadius = 40.0; // mm
+    // Compute the world-frame centre of each GDML component solid: the centre
+    // of the local bounding-box AABB transformed by the component's placement.
+    // These origins are used as the shared launch points for both GDML and STEP
+    // traces so that per-ray crossings remain comparable between the two
+    // representations.
+    auto ComponentCenter = [](const ComponentSpec& comp) -> G4ThreeVector {
+      G4ThreeVector bbox_min;
+      G4ThreeVector bbox_max;
+      comp.solid->BoundingLimits(bbox_min, bbox_max);
+      const G4ThreeVector local_center = 0.5 * (bbox_min + bbox_max);
+      return comp.translation + comp.rotation * local_center;
+    };
+
+    std::vector<G4ThreeVector> gdml_centers;
+    gdml_centers.reserve(gdml_components.size());
+    for (const auto& comp : gdml_components) {
+      gdml_centers.push_back(ComponentCenter(comp));
+    }
 
     const std::vector<G4ThreeVector> directions = GenerateDirections(ray_count);
+
+    // Total rays: ray_count directions from each component's centre.
+    const std::size_t n_components = std::min(gdml_components.size(), step_components.size());
+    const std::size_t total_rays   = n_components * directions.size();
 
     // Tolerance: Geant4 surface tolerance (canonical geometry comparison threshold).
     const G4double kTolerance = G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
 
     for (auto _ : state) {
       // ── GDML timing ──────────────────────────────────────────────────────
-      std::vector<std::vector<Crossing>> gdml_crossings_per_ray(ray_count);
+      std::vector<std::vector<Crossing>> gdml_crossings_per_ray(total_rays);
       const auto gdml_begin = std::chrono::steady_clock::now();
-      for (std::size_t i = 0; i < directions.size(); ++i) {
-        const G4ThreeVector origin = -kRayRadius * directions[i];
-        gdml_crossings_per_ray[i]  = TraceRay(gdml_components, origin, directions[i]);
+      for (std::size_t c = 0; c < n_components; ++c) {
+        for (std::size_t i = 0; i < directions.size(); ++i) {
+          gdml_crossings_per_ray[c * directions.size() + i] =
+              TraceRay(gdml_components, gdml_centers[c], directions[i]);
+        }
       }
       const auto gdml_end = std::chrono::steady_clock::now();
       const double gdml_ms =
           std::chrono::duration<double, std::milli>(gdml_end - gdml_begin).count();
 
       // ── STEP timing ───────────────────────────────────────────────────────
-      std::vector<std::vector<Crossing>> step_crossings_per_ray(ray_count);
+      std::vector<std::vector<Crossing>> step_crossings_per_ray(total_rays);
       const auto step_begin = std::chrono::steady_clock::now();
-      for (std::size_t i = 0; i < directions.size(); ++i) {
-        const G4ThreeVector origin = -kRayRadius * directions[i];
-        step_crossings_per_ray[i]  = TraceRay(step_components, origin, directions[i]);
+      for (std::size_t c = 0; c < n_components; ++c) {
+        for (std::size_t i = 0; i < directions.size(); ++i) {
+          // Use the same world-space ray origins as GDML to ensure
+          // per-ray comparability between the two geometries.
+          step_crossings_per_ray[c * directions.size() + i] =
+              TraceRay(step_components, gdml_centers[c], directions[i]);
+        }
       }
       const auto step_end = std::chrono::steady_clock::now();
       const double step_ms =
@@ -382,10 +408,10 @@ namespace {
       std::size_t step_crossing_cnt = 0U;
       std::vector<G4ThreeVector> gdml_hits;
       std::vector<G4ThreeVector> step_hits;
-      gdml_hits.reserve(ray_count * 6U);
-      step_hits.reserve(ray_count * 6U);
+      gdml_hits.reserve(total_rays * 6U);
+      step_hits.reserve(total_rays * 6U);
 
-      for (std::size_t i = 0; i < ray_count; ++i) {
+      for (std::size_t i = 0; i < total_rays; ++i) {
         mismatches +=
             CompareRayCrossings(gdml_crossings_per_ray[i], step_crossings_per_ray[i], kTolerance);
         gdml_crossing_cnt += gdml_crossings_per_ray[i].size();
@@ -401,7 +427,7 @@ namespace {
       state.SetIterationTime(step_ms / 1000.0);
       state.counters["gdml_ms"]        = gdml_ms;
       state.counters["step_ms"]        = step_ms;
-      state.counters["ray_count"]      = static_cast<double>(ray_count);
+      state.counters["ray_count"]      = static_cast<double>(total_rays);
       state.counters["mismatches"]     = static_cast<double>(mismatches);
       state.counters["gdml_crossings"] = static_cast<double>(gdml_crossing_cnt);
       state.counters["step_crossings"] = static_cast<double>(step_crossing_cnt);
@@ -412,7 +438,7 @@ namespace {
         res.fixture_id     = fixture_id;
         res.gdml_ms        = gdml_ms;
         res.step_ms        = step_ms;
-        res.ray_count      = ray_count;
+        res.ray_count      = total_rays;
         res.mismatches     = mismatches;
         res.gdml_crossings = gdml_crossing_cnt;
         res.step_crossings = step_crossing_cnt;
@@ -424,7 +450,7 @@ namespace {
         try {
           const std::filesystem::path out_file =
               point_cloud_dir / (std::string("BM_assembly_rays_") + fixture_id + ".json.gz");
-          WritePointCloud(out_file, "assembly-comparison/" + fixture_id, ray_count, gdml_hits,
+          WritePointCloud(out_file, "assembly-comparison/" + fixture_id, total_rays, gdml_hits,
                           step_hits);
         } catch (const std::exception& err) {
           std::cerr << "Warning: could not write point cloud: " << err.what() << '\n';
