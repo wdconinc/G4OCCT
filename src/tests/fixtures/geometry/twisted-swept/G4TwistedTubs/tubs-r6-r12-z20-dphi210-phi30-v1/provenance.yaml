@@ -16,3 +16,7 @@ shape:
     phi_twist_deg: 30.0
 validation:
   expected_volume_mm3: 7563.26
+  # The twisted lateral faces are approximated with a 64-section B-spline loft.
+  # Maximum surface deviation from the true helicoid: ~0.10 µm.
+  # This tolerance covers DTI/DTO distance comparisons and Inside() boundary placement.
+  distance_tolerance_mm: 1.0e-3
