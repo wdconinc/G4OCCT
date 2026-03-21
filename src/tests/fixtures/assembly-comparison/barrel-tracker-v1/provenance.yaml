@@ -15,7 +15,7 @@ generator:
     file: geometry.gdml
     description: >
       GDML reference geometry; tubes defined as G4Tubs solids placed at the
-      origin in a 270×270×600 mm BT_AIR world volume.
+      origin in a 270×270×600 mm G4_AIR world volume.
   step:
     tool: DRAWEXE (generate.tcl)
     script: generate.tcl

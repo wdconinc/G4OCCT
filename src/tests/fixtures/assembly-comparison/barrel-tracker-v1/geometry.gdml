@@ -28,10 +28,10 @@
     <element name="Si" formula="Si" Z="14">
       <atom value="28.0855"/>
     </element>
-    <element name="BT_N" formula="N" Z="7">
+    <element name="N" formula="N" Z="7">
       <atom value="14.0067"/>
     </element>
-    <element name="BT_O" formula="O" Z="8">
+    <element name="O" formula="O" Z="8">
       <atom value="15.9994"/>
     </element>
     <!-- Simplified silicon (same density as G4_Si) -->
@@ -39,20 +39,16 @@
       <D unit="g/cm3" value="2.33"/>
       <fraction n="1" ref="Si"/>
     </material>
-    <!-- Simplified dry air; element and material names are fixture-unique so
-         that no conflicts arise in the global Geant4 material table even when
-         the per-fixture process isolation described in the bench_assembly_navigator
-         docstring is not in effect (e.g., when the binary is run in multi-fixture
-         mode for local development). -->
-    <material name="BT_AIR" state="gas">
+    <!-- Simplified dry air (same density as G4_AIR) -->
+    <material name="G4_AIR" state="gas">
       <D unit="g/cm3" value="0.00120479"/>
-      <fraction n="0.755636" ref="BT_N"/>
-      <fraction n="0.231781" ref="BT_O"/>
+      <fraction n="0.755636" ref="N"/>
+      <fraction n="0.231781" ref="O"/>
     </material>
   </materials>
 
   <solids>
-    <box  name="BarrelTrackerWorldBox" x="270"  y="270"  z="600"  lunit="mm"/>
+    <box  name="WorldBox"     x="270"  y="270"  z="600"  lunit="mm"/>
     <tube name="Layer0Tub" rmin="50"   rmax="50.5"  z="500" startphi="0" deltaphi="360" aunit="deg" lunit="mm"/>
     <tube name="Layer1Tub" rmin="80"   rmax="80.5"  z="500" startphi="0" deltaphi="360" aunit="deg" lunit="mm"/>
     <tube name="Layer2Tub" rmin="110"  rmax="110.5" z="500" startphi="0" deltaphi="360" aunit="deg" lunit="mm"/>
@@ -71,9 +67,9 @@
       <materialref ref="G4_Si"/>
       <solidref   ref="Layer2Tub"/>
     </volume>
-    <volume name="BarrelTrackerWorldLV">
-      <materialref ref="BT_AIR"/>
-      <solidref   ref="BarrelTrackerWorldBox"/>
+    <volume name="WorldLV">
+      <materialref ref="G4_AIR"/>
+      <solidref   ref="WorldBox"/>
       <physvol name="TrackingLayer0PV">
         <volumeref ref="TrackingLayer0LV"/>
       </physvol>
@@ -87,7 +83,7 @@
   </structure>
 
   <setup name="Default" version="1.0">
-    <world ref="BarrelTrackerWorldLV"/>
+    <world ref="WorldLV"/>
   </setup>
 
 </gdml>
