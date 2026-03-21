@@ -546,10 +546,10 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
 
   // Helper lambda: register one fixture directory as a Google Benchmark.
   auto RegisterFixture = [ray_count, &point_cloud_dir](const std::filesystem::path& fixture_dir) {
-    const std::filesystem::path gdml_path   = fixture_dir / "geometry.gdml";
-    const std::filesystem::path step_path   = fixture_dir / "shape.step";
-    const auto                  normalized  = fixture_dir.lexically_normal();
-    auto                        fixture_name = normalized.filename();
+    const std::filesystem::path gdml_path = fixture_dir / "geometry.gdml";
+    const std::filesystem::path step_path = fixture_dir / "shape.step";
+    const auto normalized                 = fixture_dir.lexically_normal();
+    auto fixture_name                     = normalized.filename();
     if (fixture_name.empty()) {
       fixture_name = normalized.parent_path().filename();
     }
@@ -564,10 +564,10 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
         ->Unit(benchmark::kMillisecond);
   };
 
-  const std::filesystem::path root_gdml     = fixture_root / "geometry.gdml";
-  const std::filesystem::path root_step     = fixture_root / "shape.step";
-  const bool                  root_has_gdml = std::filesystem::exists(root_gdml);
-  const bool                  root_has_step = std::filesystem::exists(root_step);
+  const std::filesystem::path root_gdml = fixture_root / "geometry.gdml";
+  const std::filesystem::path root_step = fixture_root / "shape.step";
+  const bool root_has_gdml              = std::filesystem::exists(root_gdml);
+  const bool root_has_step              = std::filesystem::exists(root_step);
   if (root_has_gdml && root_has_step) {
     // Single-fixture mode: fixture_root IS the fixture directory.
     RegisterFixture(fixture_root);
