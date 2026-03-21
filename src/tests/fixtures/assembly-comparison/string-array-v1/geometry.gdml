@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+
+<!--
+  String-array-v1 reference geometry.
+
+  3×3 array of detector strings, each string carrying 5 cylindrical
+  optical modules. Total: 45 modules.
+  Inspired by IceCube-like neutrino telescope geometry.
+
+  Module: cylinder R=60 mm, H=120 mm, material Borosilicate glass.
+  String positions: sx, sy ∈ {−500, 0, 500} mm (500 mm pitch).
+  Module z centres: −400, −200, 0, 200, 400 mm (200 mm pitch).
+  World: 1300×1300×1100 mm box filled with G4_AIR.
+-->
+
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
+
+  <define>
+    <position name="pos_-500_-500_-400" x="-500" y="-500" z="-400" unit="mm"/>
+    <position name="pos_-500_-500_-200" x="-500" y="-500" z="-200" unit="mm"/>
+    <position name="pos_-500_-500_0" x="-500" y="-500" z="0" unit="mm"/>
+    <position name="pos_-500_-500_200" x="-500" y="-500" z="200" unit="mm"/>
+    <position name="pos_-500_-500_400" x="-500" y="-500" z="400" unit="mm"/>
+    <position name="pos_-500_0_-400" x="-500" y="0" z="-400" unit="mm"/>
+    <position name="pos_-500_0_-200" x="-500" y="0" z="-200" unit="mm"/>
+    <position name="pos_-500_0_0" x="-500" y="0" z="0" unit="mm"/>
+    <position name="pos_-500_0_200" x="-500" y="0" z="200" unit="mm"/>
+    <position name="pos_-500_0_400" x="-500" y="0" z="400" unit="mm"/>
+    <position name="pos_-500_500_-400" x="-500" y="500" z="-400" unit="mm"/>
+    <position name="pos_-500_500_-200" x="-500" y="500" z="-200" unit="mm"/>
+    <position name="pos_-500_500_0" x="-500" y="500" z="0" unit="mm"/>
+    <position name="pos_-500_500_200" x="-500" y="500" z="200" unit="mm"/>
+    <position name="pos_-500_500_400" x="-500" y="500" z="400" unit="mm"/>
+    <position name="pos_0_-500_-400" x="0" y="-500" z="-400" unit="mm"/>
+    <position name="pos_0_-500_-200" x="0" y="-500" z="-200" unit="mm"/>
+    <position name="pos_0_-500_0" x="0" y="-500" z="0" unit="mm"/>
+    <position name="pos_0_-500_200" x="0" y="-500" z="200" unit="mm"/>
+    <position name="pos_0_-500_400" x="0" y="-500" z="400" unit="mm"/>
+    <position name="pos_0_0_-400" x="0" y="0" z="-400" unit="mm"/>
+    <position name="pos_0_0_-200" x="0" y="0" z="-200" unit="mm"/>
+    <position name="pos_0_0_0" x="0" y="0" z="0" unit="mm"/>
+    <position name="pos_0_0_200" x="0" y="0" z="200" unit="mm"/>
+    <position name="pos_0_0_400" x="0" y="0" z="400" unit="mm"/>
+    <position name="pos_0_500_-400" x="0" y="500" z="-400" unit="mm"/>
+    <position name="pos_0_500_-200" x="0" y="500" z="-200" unit="mm"/>
+    <position name="pos_0_500_0" x="0" y="500" z="0" unit="mm"/>
+    <position name="pos_0_500_200" x="0" y="500" z="200" unit="mm"/>
+    <position name="pos_0_500_400" x="0" y="500" z="400" unit="mm"/>
+    <position name="pos_500_-500_-400" x="500" y="-500" z="-400" unit="mm"/>
+    <position name="pos_500_-500_-200" x="500" y="-500" z="-200" unit="mm"/>
+    <position name="pos_500_-500_0" x="500" y="-500" z="0" unit="mm"/>
+    <position name="pos_500_-500_200" x="500" y="-500" z="200" unit="mm"/>
+    <position name="pos_500_-500_400" x="500" y="-500" z="400" unit="mm"/>
+    <position name="pos_500_0_-400" x="500" y="0" z="-400" unit="mm"/>
+    <position name="pos_500_0_-200" x="500" y="0" z="-200" unit="mm"/>
+    <position name="pos_500_0_0" x="500" y="0" z="0" unit="mm"/>
+    <position name="pos_500_0_200" x="500" y="0" z="200" unit="mm"/>
+    <position name="pos_500_0_400" x="500" y="0" z="400" unit="mm"/>
+    <position name="pos_500_500_-400" x="500" y="500" z="-400" unit="mm"/>
+    <position name="pos_500_500_-200" x="500" y="500" z="-200" unit="mm"/>
+    <position name="pos_500_500_0" x="500" y="500" z="0" unit="mm"/>
+    <position name="pos_500_500_200" x="500" y="500" z="200" unit="mm"/>
+    <position name="pos_500_500_400" x="500" y="500" z="400" unit="mm"/>
+  </define>
+
+  <materials>
+    <element name="B"  formula="B"  Z="5" ><atom value="10.811"/></element>
+    <element name="O"  formula="O"  Z="8" ><atom value="15.9994"/></element>
+    <element name="Na" formula="Na" Z="11"><atom value="22.9898"/></element>
+    <element name="Al" formula="Al" Z="13"><atom value="26.9815"/></element>
+    <element name="Si" formula="Si" Z="14"><atom value="28.0855"/></element>
+    <element name="N"  formula="N"  Z="7" ><atom value="14.0067"/></element>
+    <!-- Borosilicate glass (Schott N-BK7 approximation) -->
+    <material name="Borosilicate" state="solid">
+      <D unit="g/cm3" value="2.23"/>
+      <fraction n="0.807" ref="O"/>
+      <fraction n="0.033" ref="B"/>
+      <fraction n="0.028" ref="Na"/>
+      <fraction n="0.028" ref="Al"/>
+      <fraction n="0.104" ref="Si"/>
+    </material>
+    <!-- Simplified dry air (same density as G4_AIR) -->
+    <material name="G4_AIR" state="gas">
+      <D unit="g/cm3" value="0.00120479"/>
+      <fraction n="0.755636" ref="N"/>
+      <fraction n="0.231781" ref="O"/>
+    </material>
+  </materials>
+
+  <solids>
+    <tube name="ModuleTube" rmin="0" rmax="60" z="120" lunit="mm"/>
+    <box  name="WorldBox"   x="1300" y="1300" z="1100" lunit="mm"/>
+  </solids>
+
+  <structure>
+    <volume name="OpticalModuleLV">
+      <materialref ref="Borosilicate"/>
+      <solidref   ref="ModuleTube"/>
+    </volume>
+    <volume name="WorldLV">
+      <materialref ref="G4_AIR"/>
+      <solidref   ref="WorldBox"/>
+      <physvol name="OptMod_-500_-500_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_-500_-400"/>
+      </physvol>
+      <physvol name="OptMod_-500_-500_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_-500_-200"/>
+      </physvol>
+      <physvol name="OptMod_-500_-500_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_-500_0"/>
+      </physvol>
+      <physvol name="OptMod_-500_-500_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_-500_200"/>
+      </physvol>
+      <physvol name="OptMod_-500_-500_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_-500_400"/>
+      </physvol>
+      <physvol name="OptMod_-500_0_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_0_-400"/>
+      </physvol>
+      <physvol name="OptMod_-500_0_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_0_-200"/>
+      </physvol>
+      <physvol name="OptMod_-500_0_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_0_0"/>
+      </physvol>
+      <physvol name="OptMod_-500_0_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_0_200"/>
+      </physvol>
+      <physvol name="OptMod_-500_0_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_0_400"/>
+      </physvol>
+      <physvol name="OptMod_-500_500_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_500_-400"/>
+      </physvol>
+      <physvol name="OptMod_-500_500_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_500_-200"/>
+      </physvol>
+      <physvol name="OptMod_-500_500_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_500_0"/>
+      </physvol>
+      <physvol name="OptMod_-500_500_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_500_200"/>
+      </physvol>
+      <physvol name="OptMod_-500_500_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_-500_500_400"/>
+      </physvol>
+      <physvol name="OptMod_0_-500_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_-500_-400"/>
+      </physvol>
+      <physvol name="OptMod_0_-500_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_-500_-200"/>
+      </physvol>
+      <physvol name="OptMod_0_-500_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_-500_0"/>
+      </physvol>
+      <physvol name="OptMod_0_-500_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_-500_200"/>
+      </physvol>
+      <physvol name="OptMod_0_-500_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_-500_400"/>
+      </physvol>
+      <physvol name="OptMod_0_0_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_0_-400"/>
+      </physvol>
+      <physvol name="OptMod_0_0_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_0_-200"/>
+      </physvol>
+      <physvol name="OptMod_0_0_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_0_0"/>
+      </physvol>
+      <physvol name="OptMod_0_0_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_0_200"/>
+      </physvol>
+      <physvol name="OptMod_0_0_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_0_400"/>
+      </physvol>
+      <physvol name="OptMod_0_500_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_500_-400"/>
+      </physvol>
+      <physvol name="OptMod_0_500_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_500_-200"/>
+      </physvol>
+      <physvol name="OptMod_0_500_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_500_0"/>
+      </physvol>
+      <physvol name="OptMod_0_500_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_500_200"/>
+      </physvol>
+      <physvol name="OptMod_0_500_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_0_500_400"/>
+      </physvol>
+      <physvol name="OptMod_500_-500_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_-500_-400"/>
+      </physvol>
+      <physvol name="OptMod_500_-500_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_-500_-200"/>
+      </physvol>
+      <physvol name="OptMod_500_-500_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_-500_0"/>
+      </physvol>
+      <physvol name="OptMod_500_-500_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_-500_200"/>
+      </physvol>
+      <physvol name="OptMod_500_-500_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_-500_400"/>
+      </physvol>
+      <physvol name="OptMod_500_0_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_0_-400"/>
+      </physvol>
+      <physvol name="OptMod_500_0_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_0_-200"/>
+      </physvol>
+      <physvol name="OptMod_500_0_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_0_0"/>
+      </physvol>
+      <physvol name="OptMod_500_0_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_0_200"/>
+      </physvol>
+      <physvol name="OptMod_500_0_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_0_400"/>
+      </physvol>
+      <physvol name="OptMod_500_500_-400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_500_-400"/>
+      </physvol>
+      <physvol name="OptMod_500_500_-200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_500_-200"/>
+      </physvol>
+      <physvol name="OptMod_500_500_0PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_500_0"/>
+      </physvol>
+      <physvol name="OptMod_500_500_200PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_500_200"/>
+      </physvol>
+      <physvol name="OptMod_500_500_400PV">
+        <volumeref ref="OpticalModuleLV"/>
+        <positionref ref="pos_500_500_400"/>
+      </physvol>
+    </volume>
+  </structure>
+
+  <setup name="Default" version="1.0">
+    <world ref="WorldLV"/>
+  </setup>
+
+</gdml>
