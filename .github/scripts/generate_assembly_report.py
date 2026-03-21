@@ -3,14 +3,20 @@
 
 """Convert bench_assembly_navigator JSON output to a Markdown report.
 
-Parses the Google Benchmark JSON file produced by bench_assembly_navigator
+Parses the Google Benchmark JSON file(s) produced by bench_assembly_navigator
 and renders a Markdown table comparing GDML-reference vs STEP-imported
 assembly ray-casting performance and mismatch counts.
 
 Usage:
-    python3 generate_assembly_report.py <bench_json> <output_md> [viewer_path]
+    python3 generate_assembly_report.py <bench_json_glob> <output_md> [viewer_path]
+
+<bench_json_glob> is either a single JSON path or a glob pattern such as
+``bench_assembly_raw_*.json``.  When CI runs bench_assembly_navigator once per
+fixture (for process isolation), each invocation writes its own JSON file and
+the glob pattern collects them all for a merged report.
 """
 
+import glob
 import json
 import re
 import sys
@@ -166,26 +172,45 @@ def _render_error(message: str) -> str:
 def main() -> None:
     if len(sys.argv) < 3:
         print(
-            "Usage: generate_assembly_report.py <bench_json> <output_md> [viewer_path]",
+            "Usage: generate_assembly_report.py <bench_json_glob> <output_md> [viewer_path]",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    bench_json_path  = Path(sys.argv[1])
+    json_pattern     = sys.argv[1]
     output_md_path   = Path(sys.argv[2])
     viewer_path      = sys.argv[3] if len(sys.argv) > 3 else ""
 
-    if not bench_json_path.exists():
-        write_report(output_md_path, _render_error(f"Benchmark JSON not found: {bench_json_path}"))
+    # Expand the glob pattern to obtain a sorted list of JSON paths.  A literal
+    # file path that matches no glob characters is handled identically (glob
+    # returns [path] when the file exists or [] when it does not).
+    json_paths = sorted(glob.glob(json_pattern))
+    if not json_paths:
+        write_report(output_md_path,
+                     _render_error(f"No benchmark JSON files found matching: {json_pattern}"))
         return
 
-    try:
-        data = json.loads(bench_json_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError, ValueError) as exc:
-        write_report(output_md_path, _render_error(f"Failed to parse JSON: {exc}"))
-        return
+    # Merge benchmark entries from all matching JSON files.  When CI runs
+    # bench_assembly_navigator once per fixture (for process isolation), each
+    # invocation writes its own JSON; this merge step reassembles them into a
+    # single logical report.  The context section (ray count, fixture root) is
+    # taken from the first file — all per-fixture invocations use the same
+    # ray count argument, so context values are consistent across files.
+    merged_benchmarks: list[dict] = []
+    merged_context: dict          = {}
+    for json_path in json_paths:
+        try:
+            file_data = json.loads(Path(json_path).read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError, ValueError) as exc:
+            write_report(output_md_path,
+                         _render_error(f"Failed to parse JSON {json_path}: {exc}"))
+            return
+        if not merged_context:
+            merged_context = file_data.get("context", {})
+        merged_benchmarks.extend(file_data.get("benchmarks", []))
 
-    parsed  = _parse_bench_json(data)
+    merged_data = {"context": merged_context, "benchmarks": merged_benchmarks}
+    parsed  = _parse_bench_json(merged_data)
     report  = _render_report(parsed, viewer_path)
     write_report(output_md_path, report)
 
