@@ -1,0 +1,104 @@
+{
+  "context": {
+    "date": "2026-03-21T11:05:58-05:00",
+    "host_name": "menelaos",
+    "executable": "./build/src/benchmarks/bench_assembly_navigator",
+    "num_cpus": 8,
+    "mhz_per_cpu": 4900,
+    "cpu_scaling_enabled": true,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 262144,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 8388608,
+        "num_sharing": 8
+      }
+    ],
+    "load_avg": [5.38086,5.06689,3.67041],
+    "library_version": "v1.9.1",
+    "library_build_type": "release",
+    "json_schema_version": 1,
+    "assembly_fixture_root": "src/tests/fixtures/assembly-comparison",
+    "assembly_ray_count": "2048"
+  },
+  "benchmarks": [
+    {
+      "name": "BM_assembly_rays/assembly-comparison/string-array-v1/iterations:1/manual_time",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "BM_assembly_rays/assembly-comparison/string-array-v1/iterations:1/manual_time",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 8.8783027839999995e+03,
+      "cpu_time": 1.0862088772999999e+04,
+      "time_unit": "ms",
+      "gdml_crossings": 1.2252400000000000e+05,
+      "gdml_ms": 1.7482950900000000e+02,
+      "mismatches": 0.0000000000000000e+00,
+      "ray_count": 9.2160000000000000e+04,
+      "step_crossings": 1.2252400000000000e+05,
+      "step_ms": 8.8783027839999995e+03
+    },
+    {
+      "name": "BM_assembly_rays/assembly-comparison/barrel-tracker-v1/iterations:1/manual_time",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "BM_assembly_rays/assembly-comparison/barrel-tracker-v1/iterations:1/manual_time",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 4.9970542999999999e+01,
+      "cpu_time": 1.2903432999999964e+02,
+      "time_unit": "ms",
+      "gdml_crossings": 8.0400000000000000e+03,
+      "gdml_ms": 5.7910500000000003e+00,
+      "mismatches": 8.0380000000000000e+03,
+      "ray_count": 6.1440000000000000e+03,
+      "step_crossings": 4.3000000000000000e+02,
+      "step_ms": 4.9970542999999999e+01
+    },
+    {
+      "name": "BM_assembly_rays/assembly-comparison/triple-box-v1/iterations:1/manual_time",
+      "family_index": 2,
+      "per_family_instance_index": 0,
+      "run_name": "BM_assembly_rays/assembly-comparison/triple-box-v1/iterations:1/manual_time",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 5.1332312999999999e+01,
+      "cpu_time": 1.2383172200000025e+02,
+      "time_unit": "ms",
+      "gdml_crossings": 8.0400000000000000e+03,
+      "gdml_ms": 6.0666300000000000e+00,
+      "mismatches": 8.0380000000000000e+03,
+      "ray_count": 6.1440000000000000e+03,
+      "step_crossings": 2.0000000000000000e+00,
+      "step_ms": 5.1332312999999999e+01
+    }
+  ]
+}

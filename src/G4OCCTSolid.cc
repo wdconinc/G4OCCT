@@ -231,6 +231,17 @@ G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
   ComputeBounds();
 }
 
+G4OCCTSolid::~G4OCCTSolid() {
+  // Manually clear cached OCCT objects to avoid G4Exception during static destruction.
+  // G4Cache::Destroy() calls G4Exception with FatalException if cache size validation
+  // fails, which can happen when G4SolidStore cleanup occurs during exit() and the
+  // thread-local storage has already been torn down.
+  // Resetting the optional values here releases the OCCT objects before G4Cache
+  // attempts to destroy the thread-local storage.
+  fClassifierCache.Get().classifier.reset();
+  fIntersectorCache.Get().intersector.reset();
+}
+
 // ── G4OCCTSolid static factory ────────────────────────────────────────────────
 
 G4OCCTSolid* G4OCCTSolid::FromSTEP(const G4String& name, const std::string& path) {
