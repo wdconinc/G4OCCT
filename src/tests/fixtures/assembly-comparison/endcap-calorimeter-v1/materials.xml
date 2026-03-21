@@ -1,0 +1,15 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Material map for endcap-calorimeter-v1.
+  CaloModule → inline lead-glass definition (Pb+Si+O mixture).
+  Exercises G4OCCTMaterialMapReader inline material parsing.
+-->
+<materials>
+  <material stepName="CaloModule" name="LeadGlass" state="solid">
+    <D value="3.86" unit="g/cm3"/>
+    <fraction n="0.751" ref="G4_Pb"/>
+    <fraction n="0.124" ref="G4_Si"/>
+    <fraction n="0.125" ref="G4_O"/>
+  </material>
+</materials>
