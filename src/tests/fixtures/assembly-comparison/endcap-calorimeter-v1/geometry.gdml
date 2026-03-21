@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+
+<!--
+  Endcap calorimeter reference geometry.
+
+  5×5 grid of 40×40×200 mm lead-glass calorimeter tower modules.
+  Module centres at x,y ∈ {−120,−60,0,60,120} mm with 60 mm pitch.
+  All modules share a single CaloModuleLV; z centre at 100 mm
+  (modules span z = 0–200 mm).  The enclosing world is a
+  320×320×250 mm box filled with air.
+
+  This GDML file is the reference geometry for the assembly-comparison
+  benchmark.  The same geometry is exported as a STEP assembly by
+  generate.tcl (DRAWEXE) so that G4OCCTAssemblyVolume::FromSTEP can
+  import it and the two representations can be compared ray-by-ray.
+-->
+
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
+
+  <define>
+    <position name="pos_-120_-120" x="-120" y="-120" z="100" unit="mm"/>
+    <position name="pos_-120_-60"  x="-120" y="-60"  z="100" unit="mm"/>
+    <position name="pos_-120_0"    x="-120" y="0"    z="100" unit="mm"/>
+    <position name="pos_-120_60"   x="-120" y="60"   z="100" unit="mm"/>
+    <position name="pos_-120_120"  x="-120" y="120"  z="100" unit="mm"/>
+    <position name="pos_-60_-120"  x="-60"  y="-120" z="100" unit="mm"/>
+    <position name="pos_-60_-60"   x="-60"  y="-60"  z="100" unit="mm"/>
+    <position name="pos_-60_0"     x="-60"  y="0"    z="100" unit="mm"/>
+    <position name="pos_-60_60"    x="-60"  y="60"   z="100" unit="mm"/>
+    <position name="pos_-60_120"   x="-60"  y="120"  z="100" unit="mm"/>
+    <position name="pos_0_-120"    x="0"    y="-120" z="100" unit="mm"/>
+    <position name="pos_0_-60"     x="0"    y="-60"  z="100" unit="mm"/>
+    <position name="pos_0_0"       x="0"    y="0"    z="100" unit="mm"/>
+    <position name="pos_0_60"      x="0"    y="60"   z="100" unit="mm"/>
+    <position name="pos_0_120"     x="0"    y="120"  z="100" unit="mm"/>
+    <position name="pos_60_-120"   x="60"   y="-120" z="100" unit="mm"/>
+    <position name="pos_60_-60"    x="60"   y="-60"  z="100" unit="mm"/>
+    <position name="pos_60_0"      x="60"   y="0"    z="100" unit="mm"/>
+    <position name="pos_60_60"     x="60"   y="60"   z="100" unit="mm"/>
+    <position name="pos_60_120"    x="60"   y="120"  z="100" unit="mm"/>
+    <position name="pos_120_-120"  x="120"  y="-120" z="100" unit="mm"/>
+    <position name="pos_120_-60"   x="120"  y="-60"  z="100" unit="mm"/>
+    <position name="pos_120_0"     x="120"  y="0"    z="100" unit="mm"/>
+    <position name="pos_120_60"    x="120"  y="60"   z="100" unit="mm"/>
+    <position name="pos_120_120"   x="120"  y="120"  z="100" unit="mm"/>
+  </define>
+
+  <materials>
+    <element name="Pb" formula="Pb" Z="82"><atom value="207.2"/></element>
+    <element name="Si" formula="Si" Z="14"><atom value="28.0855"/></element>
+    <element name="O"  formula="O"  Z="8" ><atom value="15.9994"/></element>
+    <element name="N"  formula="N"  Z="7" ><atom value="14.0067"/></element>
+    <!-- Lead-glass (Pb+Si+O mixture, density 3.86 g/cm³) -->
+    <material name="LeadGlass" state="solid">
+      <D unit="g/cm3" value="3.86"/>
+      <fraction n="0.751" ref="Pb"/>
+      <fraction n="0.124" ref="Si"/>
+      <fraction n="0.125" ref="O"/>
+    </material>
+    <!-- Simplified dry air (same density as G4_AIR; named uniquely to avoid
+         conflicts when multiple fixture GDMLs are parsed in the same process) -->
+    <material name="CaloWorldAir" state="gas">
+      <D unit="g/cm3" value="0.00120479"/>
+      <fraction n="0.755636" ref="N"/>
+      <fraction n="0.231781" ref="O"/>
+    </material>
+  </materials>
+
+  <solids>
+    <box name="WorldBox"    x="320" y="320" z="250" lunit="mm"/>
+    <box name="ModuleBox"   x="40"  y="40"  z="200" lunit="mm"/>
+  </solids>
+
+  <structure>
+    <volume name="CaloModuleLV">
+      <materialref ref="LeadGlass"/>
+      <solidref   ref="ModuleBox"/>
+    </volume>
+    <volume name="WorldLV">
+      <materialref ref="CaloWorldAir"/>
+      <solidref   ref="WorldBox"/>
+      <physvol name="CaloModulePV_-120_-120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-120_-120"/>
+      </physvol>
+      <physvol name="CaloModulePV_-120_-60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-120_-60"/>
+      </physvol>
+      <physvol name="CaloModulePV_-120_0">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-120_0"/>
+      </physvol>
+      <physvol name="CaloModulePV_-120_60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-120_60"/>
+      </physvol>
+      <physvol name="CaloModulePV_-120_120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-120_120"/>
+      </physvol>
+      <physvol name="CaloModulePV_-60_-120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-60_-120"/>
+      </physvol>
+      <physvol name="CaloModulePV_-60_-60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-60_-60"/>
+      </physvol>
+      <physvol name="CaloModulePV_-60_0">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-60_0"/>
+      </physvol>
+      <physvol name="CaloModulePV_-60_60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-60_60"/>
+      </physvol>
+      <physvol name="CaloModulePV_-60_120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_-60_120"/>
+      </physvol>
+      <physvol name="CaloModulePV_0_-120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_0_-120"/>
+      </physvol>
+      <physvol name="CaloModulePV_0_-60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_0_-60"/>
+      </physvol>
+      <physvol name="CaloModulePV_0_0">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_0_0"/>
+      </physvol>
+      <physvol name="CaloModulePV_0_60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_0_60"/>
+      </physvol>
+      <physvol name="CaloModulePV_0_120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_0_120"/>
+      </physvol>
+      <physvol name="CaloModulePV_60_-120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_60_-120"/>
+      </physvol>
+      <physvol name="CaloModulePV_60_-60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_60_-60"/>
+      </physvol>
+      <physvol name="CaloModulePV_60_0">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_60_0"/>
+      </physvol>
+      <physvol name="CaloModulePV_60_60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_60_60"/>
+      </physvol>
+      <physvol name="CaloModulePV_60_120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_60_120"/>
+      </physvol>
+      <physvol name="CaloModulePV_120_-120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_120_-120"/>
+      </physvol>
+      <physvol name="CaloModulePV_120_-60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_120_-60"/>
+      </physvol>
+      <physvol name="CaloModulePV_120_0">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_120_0"/>
+      </physvol>
+      <physvol name="CaloModulePV_120_60">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_120_60"/>
+      </physvol>
+      <physvol name="CaloModulePV_120_120">
+        <volumeref   ref="CaloModuleLV"/>
+        <positionref ref="pos_120_120"/>
+      </physvol>
+    </volume>
+  </structure>
+
+  <setup name="Default" version="1.0">
+    <world ref="WorldLV"/>
+  </setup>
+
+</gdml>

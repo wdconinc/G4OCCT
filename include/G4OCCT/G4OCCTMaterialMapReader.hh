@@ -25,12 +25,16 @@
  *
  * The root element must be `<materials>`.  Two entry types are supported:
  *
- * **Type 1 — NIST alias** (no `<fraction>` children required):
+ * **Type 1 — Named lookup** (no `<fraction>` children required):
  * ```xml
  * <material stepName="AISI 316L" geant4Name="G4_STAINLESS-STEEL"/>
+ * <material stepName="CaloModule" geant4Name="LeadGlass"/>
  * ```
- * `geant4Name` is passed directly to
- * `G4NistManager::FindOrBuildMaterial()`.  An unrecognised name is a fatal
+ * `geant4Name` is passed to `G4NistManager::FindOrBuildMaterial()`, which
+ * first checks the global `G4MaterialTable` and then falls back to the NIST
+ * database.  This means any material already registered (e.g. by a preceding
+ * `G4GDMLParser::Read()` call with name-stripping) can be referenced by its
+ * plain name — not only NIST materials.  An unrecognised name is a fatal
  * error.
  *
  * **Type 2 — Inline GDML material definition**:
@@ -45,7 +49,11 @@
  * ```
  * The `name` attribute is the GDML registry key; it must be present for
  * inline definitions.  Setting `name` equal to `stepName` is recommended
- * for clarity.
+ * for clarity.  If a material with the same `name` (or its GDML-generated
+ * decorated form) is already in the G4MaterialTable, it is reused without
+ * re-creation.  **Prefer Type 1 when the material is already defined in the
+ * reference geometry GDML**, to avoid creating duplicate G4 objects (extra
+ * elements and materials) that can disturb the Geant4 thread-local cache.
  *
  * `<element>` and `<isotope>` definitions must appear before `<material>`
  * entries that reference them.
