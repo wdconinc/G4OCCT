@@ -41,8 +41,9 @@
       <D unit="g/cm3" value="2.699"/>
       <fraction n="1" ref="Al"/>
     </material>
-    <!-- Simplified dry air (same density as G4_AIR) -->
-    <material name="G4_AIR" state="gas">
+    <!-- Simplified dry air (same density as G4_AIR; named uniquely to avoid
+         conflicts when multiple fixture GDMLs are parsed in the same process) -->
+    <material name="TripleBoxWorldAir" state="gas">
       <D unit="g/cm3" value="0.00120479"/>
       <fraction n="0.755636" ref="N"/>
       <fraction n="0.231781" ref="O"/>
@@ -67,7 +68,7 @@
       <solidref   ref="ComponentBox"/>
     </volume>
     <volume name="WorldLV">
-      <materialref ref="G4_AIR"/>
+      <materialref ref="TripleBoxWorldAir"/>
       <solidref   ref="WorldBox"/>
       <physvol name="Component1PV">
         <volumeref   ref="Component1LV"/>
