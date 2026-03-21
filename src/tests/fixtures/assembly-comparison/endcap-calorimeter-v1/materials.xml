@@ -6,9 +6,9 @@
   Exercises G4OCCTMaterialMapReader inline material parsing.
 -->
 <materials>
-  <element name="Pb" formula="Pb" Z="82"><atom type="A" value="207.2"/></element>
-  <element name="Si" formula="Si" Z="14"><atom type="A" value="28.085"/></element>
-  <element name="O"  formula="O"  Z="8" ><atom type="A" value="15.999"/></element>
+  <element name="Pb" formula="Pb" Z="82"><atom value="207.2"/></element>
+  <element name="Si" formula="Si" Z="14"><atom value="28.085"/></element>
+  <element name="O"  formula="O"  Z="8" ><atom value="15.999"/></element>
   <material stepName="CaloModule" name="LeadGlass" state="solid">
     <D value="3.86" unit="g/cm3"/>
     <fraction n="0.751" ref="Pb"/>
