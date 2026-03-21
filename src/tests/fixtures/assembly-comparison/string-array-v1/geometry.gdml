@@ -67,6 +67,7 @@
   </define>
 
   <materials>
+    <element name="Ar" formula="Ar" Z="18"><atom value="39.948"/></element>
     <element name="B"  formula="B"  Z="5" ><atom value="10.811"/></element>
     <element name="O"  formula="O"  Z="8" ><atom value="15.9994"/></element>
     <element name="Na" formula="Na" Z="11"><atom value="22.9898"/></element>
@@ -82,16 +83,17 @@
       <fraction n="0.028" ref="Al"/>
       <fraction n="0.104" ref="Si"/>
     </material>
-    <!-- Simplified dry air (same density as G4_AIR) -->
+    <!-- Simplified dry air matching G4_AIR composition -->
     <material name="G4_AIR" state="gas">
       <D unit="g/cm3" value="0.00120479"/>
       <fraction n="0.755636" ref="N"/>
       <fraction n="0.231781" ref="O"/>
+      <fraction n="0.012583" ref="Ar"/>
     </material>
   </materials>
 
   <solids>
-    <tube name="ModuleTube" rmin="0" rmax="60" z="120" lunit="mm"/>
+    <tube name="ModuleTube" rmin="0" rmax="60" z="120" startphi="0" deltaphi="360" aunit="deg" lunit="mm"/>
     <box  name="WorldBox"   x="1300" y="1300" z="1100" lunit="mm"/>
   </solids>
 
