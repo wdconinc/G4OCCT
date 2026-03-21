@@ -337,7 +337,7 @@ namespace {
     // (which will produce a FatalException at import time if the STEP file
     // references any material names).
     G4OCCTMaterialMap mat_map;
-    if (!materials_path.empty() && std::filesystem::exists(materials_path)) {
+    if (std::filesystem::exists(materials_path)) {
       G4OCCTMaterialMapReader reader;
       mat_map = reader.ReadFile(materials_path.string());
     } else {
