@@ -3,6 +3,9 @@
 
 #include "navigation_test_harness.hh"
 
+#include <BRep_Builder.hxx>
+#include <TopoDS_Compound.hxx>
+
 #include <G4GeometryTolerance.hh>
 #include <G4SystemOfUnits.hh>
 
@@ -126,22 +129,25 @@ TEST(DistanceToInLowerBound, AABBIsConservativeForDiagonalExterior) {
 
 TEST(DistanceToInLowerBound, FallbackWhenAABBUnavailable) {
   // Regression test for the "AABB unavailable" path: when fCachedBounds is
-  // std::nullopt (triggered here by a null shape), AABBLowerBound() returns
-  // kInfinity.  Before the fix, DistanceToIn() would short-circuit and return
-  // kInfinity instead of falling through to ExactDistanceToIn().
+  // std::nullopt (triggered here by a shape with no geometry), AABBLowerBound()
+  // returns kInfinity.  Before the fix, DistanceToIn() would short-circuit and
+  // return kInfinity instead of falling through to ExactDistanceToIn().
   // The fixed guard (std::isfinite) ensures the fallback is always reached,
   // so the result is consistent with ExactDistanceToIn().
-  G4OCCTSolid nullShapeSolid("FallbackAABBNull", TopoDS_Shape{});
+  BRep_Builder builder;
+  TopoDS_Compound emptyCompound{};
+  builder.MakeCompound(emptyCompound);
+  G4OCCTSolid emptyShapeSolid("EmptyShapeNoGeometry", emptyCompound);
   const G4ThreeVector anyPoint(100.0 * mm, 0.0, 0.0);
 
-  const G4double safety = nullShapeSolid.DistanceToIn(anyPoint);
-  const G4double exact  = nullShapeSolid.ExactDistanceToIn(anyPoint);
+  const G4double safety = emptyShapeSolid.DistanceToIn(anyPoint);
+  const G4double exact  = emptyShapeSolid.ExactDistanceToIn(anyPoint);
 
-  // Both return kInfinity for a null shape — this confirms DistanceToIn()
+  // Both return kInfinity for a shape with no geometry — this confirms DistanceToIn()
   // correctly reaches the exact-solver fallback instead of misreporting kInfinity
   // from the AABB sentinel alone.
-  EXPECT_TRUE(std::isinf(safety)) << "null-shape: DistanceToIn must return kInfinity";
-  EXPECT_EQ(safety, exact) << "null-shape: DistanceToIn must match ExactDistanceToIn";
+  EXPECT_TRUE(std::isinf(safety)) << "empty-shape: DistanceToIn must return kInfinity";
+  EXPECT_EQ(safety, exact) << "empty-shape: DistanceToIn must match ExactDistanceToIn";
 }
 
 } // namespace
