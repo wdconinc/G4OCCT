@@ -5,34 +5,37 @@
 <!--
   Forward-spectrometer-v1 reference geometry.
 
-  Eight 300×300×1 mm silicon tracking planes at z = 0, 200, 400, 600,
-  1400, 1600, 1800, 2000 mm; an iron dipole magnet (500×300×600 mm outer
-  yoke with a 100×100×600 mm rectangular gap) at z = 700–1300 mm; and a
-  400×400×300 mm lead ECAL block at z = 2100–2400 mm.
+  Fixed-target forward spectrometer.  All positions are in the world frame,
+  with the world centre at z = 0.  The world spans z = −1250 to +1250 mm.
+
+  Eight 300×300×1 mm silicon tracking planes at world z = −1250, −1050,
+  −850, −650, 150, 350, 550, 750 mm (low face); an iron dipole magnet
+  (500×300×600 mm outer yoke with a 100×100×600 mm rectangular gap) at
+  world z = −550 to +50 mm; and a 400×400×300 mm lead ECAL block at
+  world z = 850–1150 mm.
 
   The enclosing world is a 700×700×2500 mm box of air, centred at the
-  spectrometer midpoint z = 1250 mm.  All physvol positions are given
-  relative to the world centre (i.e. subtract 1250 mm from the absolute
-  z coordinate of each component centre).
+  origin.  All physvol positions below are given relative to the world
+  centre (world frame).
 -->
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
 
   <define>
-    <!-- Tracking plane centres: z_abs + 0.5 mm (half thickness) − 1250 mm -->
+    <!-- Upstream tracking planes: world z = low-face + 0.5 mm (half thickness) -->
     <position name="pos_tp1"   x="0" y="0" z="-1249.5" unit="mm"/>
     <position name="pos_tp2"   x="0" y="0" z="-1049.5" unit="mm"/>
     <position name="pos_tp3"   x="0" y="0" z=" -849.5" unit="mm"/>
     <position name="pos_tp4"   x="0" y="0" z=" -649.5" unit="mm"/>
-    <!-- Dipole magnet centre: z_abs = 700 + 300 = 1000 → 1000 − 1250 = −250 -->
+    <!-- Dipole magnet centre: world z = (−550 + 50) / 2 = −250 mm -->
     <position name="pos_dipole" x="0" y="0" z="-250"   unit="mm"/>
     <!-- Downstream tracking planes -->
     <position name="pos_tp5"   x="0" y="0" z="  150.5" unit="mm"/>
     <position name="pos_tp6"   x="0" y="0" z="  350.5" unit="mm"/>
     <position name="pos_tp7"   x="0" y="0" z="  550.5" unit="mm"/>
     <position name="pos_tp8"   x="0" y="0" z="  750.5" unit="mm"/>
-    <!-- ECAL block centre: z_abs = 2100 + 150 = 2250 → 2250 − 1250 = 1000 -->
+    <!-- ECAL block centre: world z = (850 + 1150) / 2 = 1000 mm -->
     <position name="pos_ecal"  x="0" y="0" z=" 1000"   unit="mm"/>
   </define>
 
