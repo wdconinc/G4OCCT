@@ -47,6 +47,7 @@
 #include <G4GDMLParser.hh>
 #include <G4GeometryTolerance.hh>
 #include <G4LogicalVolume.hh>
+#include <G4Material.hh>
 #include <G4NistManager.hh>
 #include <G4RotationMatrix.hh>
 #include <G4ThreeVector.hh>
@@ -96,6 +97,7 @@ namespace {
     G4ThreeVector translation;
     G4RotationMatrix rotation; // identity for our axis-aligned boxes
     std::string name;
+    G4Material* material{nullptr};
   };
 
   // ─── Boundary-crossing record ─────────────────────────────────────────────────
@@ -179,7 +181,7 @@ namespace {
 
   // ─── Component extraction helpers ────────────────────────────────────────────
 
-  /// Extract G4VSolid + world-frame transforms from all daughter volumes of @p lv.
+  /// Extract G4VSolid + world-frame transforms + material from all daughter volumes of @p lv.
   std::vector<ComponentSpec> ExtractComponents(G4LogicalVolume* lv) {
     std::vector<ComponentSpec> specs;
     const int n = static_cast<int>(lv->GetNoDaughters());
@@ -193,7 +195,8 @@ namespace {
       if (rot != nullptr) {
         spec.rotation = *rot;
       }
-      spec.name = child->GetName();
+      spec.name     = child->GetName();
+      spec.material = child->GetLogicalVolume()->GetMaterial();
       specs.push_back(spec);
     }
     return specs;
@@ -310,6 +313,65 @@ namespace {
     return mismatches;
   }
 
+  /// Count the number of material mismatches between @p step and @p gdml
+  /// component lists using a greedy one-to-one nearest-neighbour matching.
+  ///
+  /// Each STEP component is matched to the nearest (by Euclidean translation
+  /// distance) *unmatched* GDML component.  Once a GDML component is claimed
+  /// it cannot be matched again, preventing many-to-one assignments that would
+  /// otherwise mask missing or duplicate components.  A mismatch is counted
+  /// when:
+  ///   - the matched GDML component carries a null material pointer, or
+  ///   - the STEP component carries a null material pointer, or
+  ///   - the material names differ, or
+  ///   - no unmatched GDML component remains for a STEP component (STEP has
+  ///     more components than GDML).
+  /// Any GDML components left unmatched after all STEP components have been
+  /// processed (GDML has more components than STEP) are also counted as
+  /// mismatches.  Position mismatches are reported separately via
+  /// CompareRayCrossings.
+  std::size_t CountMaterialMismatches(const std::vector<ComponentSpec>& gdml,
+                                      const std::vector<ComponentSpec>& step) {
+    if (gdml.empty()) {
+      // Nothing to match against; every STEP component is a mismatch.
+      return step.size();
+    }
+    std::vector<bool> gdml_matched(gdml.size(), false);
+    std::size_t mismatches = 0U;
+    for (const auto& s : step) {
+      double min_dist2     = std::numeric_limits<double>::max();
+      std::size_t best_idx = gdml.size(); // sentinel: no unmatched candidate found
+      for (std::size_t i = 0; i < gdml.size(); ++i) {
+        if (gdml_matched[i]) {
+          continue;
+        }
+        const double d2 = (s.translation - gdml[i].translation).mag2();
+        if (d2 < min_dist2) {
+          min_dist2 = d2;
+          best_idx  = i;
+        }
+      }
+      if (best_idx == gdml.size()) {
+        // All GDML components already matched; excess STEP component.
+        ++mismatches;
+        continue;
+      }
+      gdml_matched[best_idx] = true;
+      const ComponentSpec& g = gdml[best_idx];
+      if (g.material == nullptr || s.material == nullptr ||
+          g.material->GetName() != s.material->GetName()) {
+        ++mismatches;
+      }
+    }
+    // Any GDML components that were never matched (GDML has more than STEP).
+    for (const bool matched : gdml_matched) {
+      if (!matched) {
+        ++mismatches;
+      }
+    }
+    return mismatches;
+  }
+
   // ─── Shared benchmark state ───────────────────────────────────────────────────
 
   struct BenchmarkResult {
@@ -318,6 +380,7 @@ namespace {
     double step_ms{0.0};
     std::size_t ray_count{0U};
     std::size_t mismatches{0U};
+    std::size_t material_mismatches{0U};
     std::size_t gdml_crossings{0U};
     std::size_t step_crossings{0U};
   };
@@ -387,6 +450,10 @@ namespace {
         G4OCCTAssemblyVolume::FromSTEP(step_path.string(), mat_map);
     step_assembly->MakeImprint(step_world_lv, step_pos, &step_rot);
     const std::vector<ComponentSpec> step_components = ExtractComponents(step_world_lv);
+
+    // Count material mismatches between GDML and STEP components (one-time check).
+    const std::size_t material_mismatches =
+        CountMaterialMismatches(gdml_components, step_components);
 
     // Compute the world-frame centre of each GDML component solid: the centre
     // of the local bounding-box AABB transformed by the component's placement.
@@ -468,23 +535,25 @@ namespace {
       }
 
       state.SetIterationTime(step_ms / 1000.0);
-      state.counters["gdml_ms"]        = gdml_ms;
-      state.counters["step_ms"]        = step_ms;
-      state.counters["ray_count"]      = static_cast<double>(total_rays);
-      state.counters["mismatches"]     = static_cast<double>(mismatches);
-      state.counters["gdml_crossings"] = static_cast<double>(gdml_crossing_cnt);
-      state.counters["step_crossings"] = static_cast<double>(step_crossing_cnt);
+      state.counters["gdml_ms"]             = gdml_ms;
+      state.counters["step_ms"]             = step_ms;
+      state.counters["ray_count"]           = static_cast<double>(total_rays);
+      state.counters["mismatches"]          = static_cast<double>(mismatches);
+      state.counters["material_mismatches"] = static_cast<double>(material_mismatches);
+      state.counters["gdml_crossings"]      = static_cast<double>(gdml_crossing_cnt);
+      state.counters["step_crossings"]      = static_cast<double>(step_crossing_cnt);
 
       if (g_state != nullptr) {
         std::lock_guard<std::mutex> lk(g_state->mu);
         BenchmarkResult res;
-        res.fixture_id     = fixture_id;
-        res.gdml_ms        = gdml_ms;
-        res.step_ms        = step_ms;
-        res.ray_count      = total_rays;
-        res.mismatches     = mismatches;
-        res.gdml_crossings = gdml_crossing_cnt;
-        res.step_crossings = step_crossing_cnt;
+        res.fixture_id          = fixture_id;
+        res.gdml_ms             = gdml_ms;
+        res.step_ms             = step_ms;
+        res.ray_count           = total_rays;
+        res.mismatches          = mismatches;
+        res.material_mismatches = material_mismatches;
+        res.gdml_crossings      = gdml_crossing_cnt;
+        res.step_crossings      = step_crossing_cnt;
         g_state->results.push_back(res);
       }
 
@@ -509,17 +578,17 @@ namespace {
     out << std::left << std::setw(40) << "Fixture" << "  " << std::right << std::setw(8)
         << "GDML ms"
         << "  " << std::setw(8) << "STEP ms" << "  " << std::setw(6) << "Ratio" << "  "
-        << std::setw(8) << "Mismatches" << "  " << std::setw(12) << "GDML cross." << "  "
-        << std::setw(12) << "STEP cross." << '\n';
-    out << std::string(100U, '-') << '\n';
+        << std::setw(10) << "Pos.mm." << "  " << std::setw(8) << "Mat.mm." << "  " << std::setw(12)
+        << "GDML cross." << "  " << std::setw(12) << "STEP cross." << '\n';
+    out << std::string(115U, '-') << '\n';
 
     for (const auto& r : state.results) {
       const double ratio = (r.gdml_ms > 0.0) ? (r.step_ms / r.gdml_ms) : 0.0;
       out << std::left << std::setw(40) << r.fixture_id << "  " << std::right << std::fixed
           << std::setprecision(2) << std::setw(8) << r.gdml_ms << "  " << std::setw(8) << r.step_ms
-          << "  " << std::setw(5) << std::setprecision(1) << ratio << "x  " << std::setw(8)
-          << r.mismatches << "  " << std::setw(12) << r.gdml_crossings << "  " << std::setw(12)
-          << r.step_crossings << '\n';
+          << "  " << std::setw(5) << std::setprecision(1) << ratio << "x  " << std::setw(10)
+          << r.mismatches << "  " << std::setw(8) << r.material_mismatches << "  " << std::setw(12)
+          << r.gdml_crossings << "  " << std::setw(12) << r.step_crossings << '\n';
     }
     out << '\n';
   }

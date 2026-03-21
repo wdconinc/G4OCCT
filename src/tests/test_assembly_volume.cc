@@ -8,7 +8,12 @@
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
 
+#include <G4Box.hh>
+#include <G4LogicalVolume.hh>
 #include <G4NistManager.hh>
+#include <G4RotationMatrix.hh>
+#include <G4ThreeVector.hh>
+#include <G4VPhysicalVolume.hh>
 
 // OCCT BRep primitives
 #include <BRepPrimAPI_MakeBox.hxx>
@@ -127,4 +132,63 @@ TEST(AssemblyVolume, MaterialMapLookupFails) {
   EXPECT_FALSE(emptyMap.Contains("UnknownMaterial"));
 
   std::remove(tmpPath.c_str());
+}
+
+TEST(AssemblyVolume, MaterialAssignedToLogicalVolume) {
+  // Verify that the G4Material assigned in the material map is recorded on
+  // the logical volume created by FromSTEP.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_mat_lv.step").string();
+  BuildSingleBoxSTEP(tmpPath, "CopperPart", "Copper material", 10.0, 10.0, 10.0);
+
+  G4Material* cu = G4NistManager::Instance()->FindOrBuildMaterial("G4_Cu");
+  ASSERT_NE(cu, nullptr);
+
+  G4OCCTMaterialMap matMap;
+  matMap.Add("CopperPart", cu);
+
+  G4OCCTAssemblyVolume* assembly = nullptr;
+  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });
+  ASSERT_NE(assembly, nullptr);
+
+  const auto& lvMap = assembly->GetLogicalVolumes();
+  ASSERT_EQ(lvMap.count("CopperPart"), 1u);
+  EXPECT_EQ(lvMap.at("CopperPart")->GetMaterial(), cu);
+
+  std::remove(tmpPath.c_str());
+  delete assembly;
+}
+
+TEST(AssemblyVolume, MaterialPreservedAfterMakeImprint) {
+  // After MakeImprint the daughter physical volumes in the world logical
+  // volume must carry the material that was specified in the material map.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_mat_imprint.step").string();
+  BuildSingleBoxSTEP(tmpPath, "LeadPart", "Lead material", 10.0, 10.0, 10.0);
+
+  G4Material* pb = G4NistManager::Instance()->FindOrBuildMaterial("G4_Pb");
+  ASSERT_NE(pb, nullptr);
+
+  G4OCCTMaterialMap matMap;
+  matMap.Add("LeadPart", pb);
+
+  G4OCCTAssemblyVolume* assembly = nullptr;
+  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });
+  ASSERT_NE(assembly, nullptr);
+
+  // Imprint the assembly into a temporary world volume.
+  auto* worldBox  = new G4Box("MatImprintTestWorld", 100.0, 100.0, 100.0);
+  G4Material* air = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
+  auto* worldLV   = new G4LogicalVolume(worldBox, air, "MatImprintTestWorldLV");
+  G4ThreeVector pos;
+  G4RotationMatrix rot;
+  assembly->MakeImprint(worldLV, pos, &rot);
+
+  // The single daughter should use the material from the map.
+  ASSERT_EQ(worldLV->GetNoDaughters(), 1);
+  const G4VPhysicalVolume* daughter = worldLV->GetDaughter(0);
+  EXPECT_EQ(daughter->GetLogicalVolume()->GetMaterial(), pb);
+
+  std::remove(tmpPath.c_str());
+  delete assembly;
 }
