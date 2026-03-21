@@ -19,6 +19,7 @@ const btnGrid           = document.getElementById('btn-grid');
 const btnOrtho          = document.getElementById('btn-ortho');
 const statsEl           = document.getElementById('stats-body');
 const countEl           = document.getElementById('count-overlay');
+const gridSpacingEl     = document.getElementById('grid-spacing-overlay');
 const emptyMsg          = document.getElementById('empty-msg');
 const sidebarEl         = document.getElementById('sidebar');
 const sidebarToggle     = document.getElementById('sidebar-toggle');
@@ -49,23 +50,112 @@ controls.screenSpacePanning = true;
 // Axes helper — always visible to provide orientation reference
 scene.add(new THREE.AxesHelper(50));
 
-// ── Grid helpers (one per coordinate plane) ───────────────────────────────────
-const GRID_SIZE         = 500;
-const GRID_DIVS         = 50;
+// ── Adaptive infinite grid ────────────────────────────────────────────────────
+// Grids are rebuilt whenever the "nice" step size changes with camera distance,
+// and their centres are snapped to multiples of the step so they tile infinitely.
+const GRID_DIVS_COUNT   = 100;
 const GRID_COLOR_CENTER = 0x444466;
 const GRID_COLOR_LINE   = 0x222244;
-const gridXY      = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
-gridXY.rotation.x = Math.PI / 2; // rotate default XZ grid to lie in XY plane (z = 0)
-gridXY.visible    = false;
-scene.add(gridXY);
-const gridXZ   = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
-gridXZ.visible = false; // default GridHelper already lies in XZ plane (y = 0)
-scene.add(gridXZ);
-const gridYZ      = new THREE.GridHelper(GRID_SIZE, GRID_DIVS, GRID_COLOR_CENTER, GRID_COLOR_LINE);
-gridYZ.rotation.z = Math.PI / 2; // rotate default XZ grid to lie in YZ plane (x = 0)
-gridYZ.visible    = false;
-scene.add(gridYZ);
-let showGrid = false;
+let gridXY              = null;
+let gridXZ              = null;
+let gridYZ              = null;
+let currentGridStep     = 0; // 0 = uninitialised
+let showGrid            = false;
+
+// Return the smallest "round" step (1/2/5 × 10^n) such that ≈5 steps fit in dist/2.
+function niceGridStep(dist) {
+  const raw = dist / 5;
+  if (raw <= 0) {
+    return 1;
+  }
+  const exp  = Math.floor(Math.log10(raw));
+  const base = Math.pow(10, exp);
+  if (raw / base < 1.5) {
+    return base;
+  }
+  if (raw / base < 3.5) {
+    return 2 * base;
+  }
+  if (raw / base < 7.5) {
+    return 5 * base;
+  }
+  return 10 * base;
+}
+
+// Rebuild all three GridHelpers with a new step size and make them match showGrid.
+function buildGrid(step) {
+  for (const g of [gridXY, gridXZ, gridYZ]) {
+    if (g) {
+      scene.remove(g);
+      g.geometry.dispose();
+      g.material.dispose();
+    }
+  }
+  const size = step * GRID_DIVS_COUNT;
+  gridXY     = new THREE.GridHelper(size, GRID_DIVS_COUNT, GRID_COLOR_CENTER, GRID_COLOR_LINE);
+  gridXY.rotation.x = Math.PI / 2; // XZ → XY plane
+  gridXY.visible    = showGrid;
+  scene.add(gridXY);
+  gridXZ         = new THREE.GridHelper(size, GRID_DIVS_COUNT, GRID_COLOR_CENTER, GRID_COLOR_LINE);
+  gridXZ.visible = showGrid; // already in XZ plane
+  scene.add(gridXZ);
+  gridYZ = new THREE.GridHelper(size, GRID_DIVS_COUNT, GRID_COLOR_CENTER, GRID_COLOR_LINE);
+  gridYZ.rotation.z = Math.PI / 2; // XZ → YZ plane
+  gridYZ.visible    = showGrid;
+  scene.add(gridYZ);
+  currentGridStep = step;
+}
+
+// Update the grid-spacing overlay text.
+function updateGridSpacingOverlay() {
+  if (!showGrid || currentGridStep === 0) {
+    gridSpacingEl.textContent = '';
+    return;
+  }
+  let label;
+  if (currentGridStep >= 1) {
+    label = String(currentGridStep);
+  } else {
+    const decimals = Math.max(0, -Math.floor(Math.log10(currentGridStep)));
+    label          = currentGridStep.toFixed(decimals);
+  }
+  gridSpacingEl.textContent = `grid: ${label} mm`;
+}
+
+// Move each grid centre to follow the camera target (snapped to step) and
+// rebuild with a new step size when the camera distance changes significantly.
+function updateGrid() {
+  if (!showGrid) {
+    return;
+  }
+  const target = controls.target;
+
+  // Derive a scale metric for the grid step.
+  // In perspective mode use the camera-target distance as before.
+  // In orthographic mode OrbitControls zooms by adjusting orthoCamera.zoom rather
+  // than moving the camera, so use the visible frustum size in world units instead.
+  let scaleMetric;
+  if (useOrtho && orthoCamera && typeof orthoCamera.zoom === 'number' && orthoCamera.zoom > 0) {
+    const visibleHeight = (orthoCamera.top - orthoCamera.bottom) / orthoCamera.zoom;
+    const visibleWidth  = (orthoCamera.right - orthoCamera.left) / orthoCamera.zoom;
+    scaleMetric         = Math.max(Math.abs(visibleWidth), Math.abs(visibleHeight));
+  } else {
+    scaleMetric = camera.position.distanceTo(target);
+  }
+
+  const step = niceGridStep(scaleMetric);
+  if (step !== currentGridStep) {
+    buildGrid(step);
+    updateGridSpacingOverlay();
+  }
+  // Snap grid centres to the nearest multiple of step so the grid tiles infinitely.
+  const sx = Math.round(target.x / step) * step;
+  const sy = Math.round(target.y / step) * step;
+  const sz = Math.round(target.z / step) * step;
+  gridXY.position.set(sx, sy, 0); // XY plane: follow x,y; fixed at z = 0
+  gridXZ.position.set(sx, 0, sz); // XZ plane: follow x,z; fixed at y = 0
+  gridYZ.position.set(0, sy, sz); // YZ plane: follow y,z; fixed at x = 0
+}
 
 // ── Point-cloud state ─────────────────────────────────────────────────────────
 let nativeCloud   = null;
@@ -118,11 +208,27 @@ function setAxisView(axis) {
 
 // ── Grid toggle ───────────────────────────────────────────────────────────────
 function toggleGrid() {
-  showGrid       = !showGrid;
-  gridXY.visible = showGrid;
-  gridXZ.visible = showGrid;
-  gridYZ.visible = showGrid;
+  showGrid = !showGrid;
+  if (showGrid && currentGridStep === 0) {
+    // Build the grid for the first time using the current scale metric.
+    let scaleMetric;
+    if (useOrtho && orthoCamera && typeof orthoCamera.zoom === 'number' && orthoCamera.zoom > 0) {
+      const visibleHeight = (orthoCamera.top - orthoCamera.bottom) / orthoCamera.zoom;
+      const visibleWidth  = (orthoCamera.right - orthoCamera.left) / orthoCamera.zoom;
+      scaleMetric         = Math.max(Math.abs(visibleWidth), Math.abs(visibleHeight));
+    } else {
+      scaleMetric = camera.position.distanceTo(controls.target);
+    }
+    buildGrid(niceGridStep(scaleMetric));
+  } else {
+    for (const g of [gridXY, gridXZ, gridYZ]) {
+      if (g) {
+        g.visible = showGrid;
+      }
+    }
+  }
   btnGrid.classList.toggle('active', showGrid);
+  updateGridSpacingOverlay();
 }
 
 // ── Projection toggle ─────────────────────────────────────────────────────────
@@ -458,6 +564,7 @@ onResize();
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+  updateGrid();
   renderer.render(scene, useOrtho ? orthoCamera : camera);
 }
 animate();
