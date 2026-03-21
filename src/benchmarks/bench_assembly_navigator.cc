@@ -546,9 +546,14 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
 
   // Helper lambda: register one fixture directory as a Google Benchmark.
   auto RegisterFixture = [ray_count, &point_cloud_dir](const std::filesystem::path& fixture_dir) {
-    const std::filesystem::path gdml_path = fixture_dir / "geometry.gdml";
-    const std::filesystem::path step_path = fixture_dir / "shape.step";
-    const std::string fixture_id          = fixture_dir.filename().string();
+    const std::filesystem::path gdml_path   = fixture_dir / "geometry.gdml";
+    const std::filesystem::path step_path   = fixture_dir / "shape.step";
+    const auto                  normalized  = fixture_dir.lexically_normal();
+    auto                        fixture_name = normalized.filename();
+    if (fixture_name.empty()) {
+      fixture_name = normalized.parent_path().filename();
+    }
+    const std::string fixture_id = fixture_name.string();
     benchmark::RegisterBenchmark(
         ("BM_assembly_rays/assembly-comparison/" + fixture_id).c_str(),
         [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir](benchmark::State& st) {
@@ -559,11 +564,19 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
         ->Unit(benchmark::kMillisecond);
   };
 
-  const std::filesystem::path root_gdml = fixture_root / "geometry.gdml";
-  const std::filesystem::path root_step = fixture_root / "shape.step";
-  if (std::filesystem::exists(root_gdml) && std::filesystem::exists(root_step)) {
+  const std::filesystem::path root_gdml     = fixture_root / "geometry.gdml";
+  const std::filesystem::path root_step     = fixture_root / "shape.step";
+  const bool                  root_has_gdml = std::filesystem::exists(root_gdml);
+  const bool                  root_has_step = std::filesystem::exists(root_step);
+  if (root_has_gdml && root_has_step) {
     // Single-fixture mode: fixture_root IS the fixture directory.
     RegisterFixture(fixture_root);
+  } else if (root_has_gdml != root_has_step) {
+    // Incomplete single-fixture root: one of geometry.gdml / shape.step is missing.
+    std::cerr << "Error: fixture root \"" << fixture_root.string()
+              << "\" is incomplete; expected both geometry.gdml and shape.step.\n";
+    g_state = nullptr;
+    return EXIT_FAILURE;
   } else {
     // Multi-fixture mode: scan subdirectories of fixture_root.
     for (const auto& entry : std::filesystem::directory_iterator(fixture_root)) {

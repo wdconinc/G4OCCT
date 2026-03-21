@@ -73,13 +73,14 @@ jobs:
             # The benchmark is only built when Geant4 was compiled with GDML
             # support; skip gracefully when it is absent.
             if [ -f ./build/src/benchmarks/bench_assembly_navigator ]; then
-              for fixture_dir in src/tests/fixtures/assembly-comparison/*/; do
+              for fixture_dir in src/tests/fixtures/assembly-comparison/*; do
+                [ -d "${fixture_dir}" ] || continue
                 fixture_id=$(basename "${fixture_dir}")
                 # Pre-filter: skip incomplete fixtures without spawning a process
                 # (the binary also handles missing files gracefully, but this
                 # avoids the overhead of launching with nothing to benchmark).
-                [ -f "${fixture_dir}geometry.gdml" ] || continue
-                [ -f "${fixture_dir}shape.step" ]    || continue
+                [ -f "${fixture_dir}/geometry.gdml" ] || continue
+                [ -f "${fixture_dir}/shape.step" ]    || continue
                 # Benchmarks are not gatekeepers: a single fixture failure must
                 # not block the remaining fixtures or the install step.
                 ./build/src/benchmarks/bench_assembly_navigator \
