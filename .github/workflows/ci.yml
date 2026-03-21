@@ -267,8 +267,7 @@ jobs:
         if: contains(matrix.fixture.id, 'nist-ctc')
         run: |
           set -euo pipefail
-          FIXTURE_DIR="src/tests/fixtures/geometry/${{ matrix.fixture.id }}"
-          FIXTURE_STEP="${FIXTURE_DIR}/shape.step"
+          FIXTURE_STEP="src/tests/fixtures/geometry/nist-ctc/G4OCCTSolid/${{ matrix.fixture.id }}/shape.step"
           if [ ! -f "${FIXTURE_STEP}" ]; then
             echo "::error title=NIST CTC fixture missing::Expected STEP file '${FIXTURE_STEP}' not found. The NIST CTC fetch action may have failed; aborting callgrind profiling for this fixture."
             exit 1
