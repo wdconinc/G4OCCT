@@ -345,9 +345,11 @@ namespace {
     step_assembly->MakeImprint(step_world_lv, step_pos, &step_rot);
     const std::vector<ComponentSpec> step_components = ExtractComponents(step_world_lv);
 
-    // Compute the world-frame bounding-box centre of each component solid.
-    // Rays are launched from the centre of each solid so that every component
-    // is guaranteed to be exercised regardless of the assembly geometry.
+    // Compute the world-frame centre of each GDML component solid: the centre
+    // of the local bounding-box AABB transformed by the component's placement.
+    // These origins are used as the shared launch points for both GDML and STEP
+    // traces so that per-ray crossings remain comparable between the two
+    // representations.
     auto ComponentCenter = [](const ComponentSpec& comp) -> G4ThreeVector {
       G4ThreeVector bbox_min;
       G4ThreeVector bbox_max;
@@ -360,12 +362,6 @@ namespace {
     gdml_centers.reserve(gdml_components.size());
     for (const auto& comp : gdml_components) {
       gdml_centers.push_back(ComponentCenter(comp));
-    }
-
-    std::vector<G4ThreeVector> step_centers;
-    step_centers.reserve(step_components.size());
-    for (const auto& comp : step_components) {
-      step_centers.push_back(ComponentCenter(comp));
     }
 
     const std::vector<G4ThreeVector> directions = GenerateDirections(ray_count);
@@ -396,8 +392,10 @@ namespace {
       const auto step_begin = std::chrono::steady_clock::now();
       for (std::size_t c = 0; c < n_components; ++c) {
         for (std::size_t i = 0; i < directions.size(); ++i) {
+          // Use the same world-space ray origins as GDML to ensure
+          // per-ray comparability between the two geometries.
           step_crossings_per_ray[c * directions.size() + i] =
-              TraceRay(step_components, step_centers[c], directions[i]);
+              TraceRay(step_components, gdml_centers[c], directions[i]);
         }
       }
       const auto step_end = std::chrono::steady_clock::now();
