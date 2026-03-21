@@ -556,7 +556,8 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
     const std::string fixture_id = fixture_name.string();
     benchmark::RegisterBenchmark(
         ("BM_assembly_rays/assembly-comparison/" + fixture_id).c_str(),
-        [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir](benchmark::State& st) {
+        [fixture_id, gdml_path, step_path, ray_count,
+         point_cloud_dir](benchmark::State& st) {
           RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path, ray_count, point_cloud_dir);
         })
         ->UseManualTime()
