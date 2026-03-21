@@ -106,8 +106,10 @@ if(VALGRIND_INCLUDE_DIR)
   target_compile_definitions(bench_callgrind PRIVATE HAVE_VALGRIND_CALLGRIND_H)
   target_include_directories(bench_callgrind PRIVATE "${VALGRIND_INCLUDE_DIR}")
   if(TARGET bench_assembly_navigator)
-    target_compile_definitions(bench_assembly_navigator PRIVATE HAVE_VALGRIND_CALLGRIND_H)
-    target_include_directories(bench_assembly_navigator PRIVATE "${VALGRIND_INCLUDE_DIR}")
+    target_compile_definitions(bench_assembly_navigator
+                               PRIVATE HAVE_VALGRIND_CALLGRIND_H)
+    target_include_directories(bench_assembly_navigator
+                               PRIVATE "${VALGRIND_INCLUDE_DIR}")
   endif()
 else()
   message(
