@@ -562,8 +562,8 @@ namespace {
     out << std::left << std::setw(40) << "Fixture" << "  " << std::right << std::setw(8)
         << "GDML ms"
         << "  " << std::setw(8) << "STEP ms" << "  " << std::setw(6) << "Ratio" << "  "
-        << std::setw(10) << "Pos.mm." << "  " << std::setw(8) << "Mat.mm." << "  "
-        << std::setw(12) << "GDML cross." << "  " << std::setw(12) << "STEP cross." << '\n';
+        << std::setw(10) << "Pos.mm." << "  " << std::setw(8) << "Mat.mm." << "  " << std::setw(12)
+        << "GDML cross." << "  " << std::setw(12) << "STEP cross." << '\n';
     out << std::string(115U, '-') << '\n';
 
     for (const auto& r : state.results) {

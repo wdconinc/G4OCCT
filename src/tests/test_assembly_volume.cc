@@ -177,9 +177,9 @@ TEST(AssemblyVolume, MaterialPreservedAfterMakeImprint) {
   ASSERT_NE(assembly, nullptr);
 
   // Imprint the assembly into a temporary world volume.
-  auto* worldBox    = new G4Box("MatImprintTestWorld", 100.0, 100.0, 100.0);
-  G4Material* air   = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
-  auto* worldLV     = new G4LogicalVolume(worldBox, air, "MatImprintTestWorldLV");
+  auto* worldBox  = new G4Box("MatImprintTestWorld", 100.0, 100.0, 100.0);
+  G4Material* air = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
+  auto* worldLV   = new G4LogicalVolume(worldBox, air, "MatImprintTestWorldLV");
   G4ThreeVector pos;
   G4RotationMatrix rot;
   assembly->MakeImprint(worldLV, pos, &rot);
