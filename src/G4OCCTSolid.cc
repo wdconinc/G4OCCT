@@ -402,9 +402,7 @@ void G4OCCTSolid::ComputeInitialSpheres() {
   }
   // Sort descending by radius so the most useful spheres are checked first.
   std::sort(fInitialSpheres.begin(), fInitialSpheres.end(),
-            [](const InscribedSphere& a, const InscribedSphere& b) {
-              return a.radius > b.radius;
-            });
+            [](const InscribedSphere& a, const InscribedSphere& b) { return a.radius > b.radius; });
 }
 
 std::optional<G4OCCTSolid::ClosestFaceMatch>
@@ -493,8 +491,8 @@ G4OCCTSolid::SphereCacheData& G4OCCTSolid::GetOrInitSphereCache() const {
   const std::uint64_t currentGen = fShapeGeneration.load(std::memory_order_acquire);
   if (cache.generation != currentGen) {
     // Re-seed from the construction-time initial spheres (already sorted descending).
-    cache.spheres     = fInitialSpheres;
-    cache.generation  = currentGen;
+    cache.spheres    = fInitialSpheres;
+    cache.generation = currentGen;
   }
   return cache;
 }
