@@ -1,0 +1,18 @@
+# Macro file for B4c callgrind profiling
+#
+# Runs 100 events of e- 300 MeV through the G4OCCT calorimeter.
+# Designed for use with the callgrind-b4c CI job:
+#   valgrind --tool=callgrind --instr-atstart=no --collect-atstart=no \
+#     ./exampleB4c run_profile.mac
+# RunAction wraps BeginOfRunAction/EndOfRunAction with CALLGRIND macros so
+# geometry construction and physics initialization are excluded from the profile.
+#
+/run/verbose 0
+/run/initialize
+#
+# e- 300 MeV along +Z through the calorimeter
+/gun/particle e-
+/gun/energy 300 MeV
+#
+/run/printProgress 10
+/run/beamOn 100

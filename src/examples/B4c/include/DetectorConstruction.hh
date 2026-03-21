@@ -74,7 +74,7 @@ private:
   static G4ThreadLocal G4GlobalMagFieldMessenger* fMagFieldMessenger;
   // magnetic field messenger
 
-  G4bool fCheckOverlaps = true; // option to activate checking of volumes overlaps
+  G4bool fCheckOverlaps = B4C_CHECK_OVERLAPS; // option to activate checking of volumes overlaps
   G4int fNofLayers      = -1;   // number of layers
 };
 
