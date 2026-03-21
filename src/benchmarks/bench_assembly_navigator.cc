@@ -576,9 +576,9 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
         continue;
       }
       if (!std::filesystem::exists(step_path)) {
-        std::cerr
-            << "Info: STEP file not found for fixture " << entry.path().filename().string()
-            << "; run src/tests/fixtures/assembly-comparison/regenerate.sh to regenerate fixtures.\n";
+        std::cerr << "Info: STEP file not found for fixture " << entry.path().filename().string()
+                  << "; run src/tests/fixtures/assembly-comparison/regenerate.sh to regenerate "
+                     "fixtures.\n";
         continue;
       }
       RegisterFixture(entry.path());
