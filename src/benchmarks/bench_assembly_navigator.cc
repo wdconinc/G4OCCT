@@ -4,10 +4,16 @@
 /// @file bench_assembly_navigator.cc
 /// @brief Benchmark comparing GDML vs STEP assembly ray-casting.
 ///
-/// Loads the same triple-box assembly in two representations:
-///   - GDML reference: three G4Box solids placed in a world volume.
-///   - STEP import:    G4OCCTAssemblyVolume::FromSTEP, yielding three
-///                     G4OCCTSolid objects at the same positions.
+/// For each fixture directory under assembly-comparison that contains both
+/// geometry.gdml and shape.step, loads the same assembly in two representations:
+///   - GDML reference: solids placed in a world volume parsed from geometry.gdml.
+///   - STEP import:    G4OCCTAssemblyVolume::FromSTEP, yielding G4OCCTSolid
+///                     objects at the same positions.
+///
+/// Per-fixture material mapping is loaded from materials.xml when present;
+/// fixtures without materials.xml fall back to Component→G4_Al (legacy default).
+/// The STEP world volume dimensions are derived from the GDML world box so that
+/// fixtures of any size are accommodated automatically.
 ///
 /// For each ray direction sampled from the unit sphere the benchmark
 /// computes all volume-boundary crossing distances through each
@@ -25,6 +31,7 @@
 
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
+#include "G4OCCT/G4OCCTMaterialMapReader.hh"
 
 #include <G4Box.hh>
 #include <G4GDMLParser.hh>
@@ -329,12 +336,38 @@ namespace {
     const std::vector<ComponentSpec> gdml_components = ExtractComponents(gdml_world_lv);
 
     // Load STEP assembly.
+    // Build the material map: use per-fixture materials.xml when present,
+    // otherwise warn and fall back to the legacy default (Component → G4_Al).
+    // The legacy default exists solely for fixtures predating materials.xml support;
+    // new fixtures should always provide materials.xml.
     G4OCCTMaterialMap mat_map;
-    mat_map.Add("Component", G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
+    const std::filesystem::path mat_xml_path = gdml_path.parent_path() / "materials.xml";
+    if (std::filesystem::exists(mat_xml_path)) {
+      G4OCCTMaterialMapReader reader;
+      mat_map = reader.ReadFile(mat_xml_path.string());
+    } else {
+      std::cerr << "Warning: no materials.xml found for fixture '" << fixture_id
+                << "'; applying legacy default (Component → G4_Al).\n";
+      mat_map.Add("Component", G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
+    }
+
+    // Derive the STEP world box half-lengths from the GDML world volume solid
+    // so that any fixture size is accommodated automatically.  All assembly-
+    // comparison fixtures use a G4Box as the world solid; warn and fall back to
+    // the original 25×15×15 mm half-length defaults (i.e. 50×30×30 mm full extents)
+    // if the cast ever fails.
+    const auto* gdml_world_box = dynamic_cast<const G4Box*>(gdml_world_lv->GetSolid());
+    if (!gdml_world_box) {
+      std::cerr << "Warning: GDML world solid for fixture '" << fixture_id
+                << "' is not a G4Box; using default 25×15×15 mm half-lengths for STEP world box.\n";
+    }
+    const double step_hx = gdml_world_box ? gdml_world_box->GetXHalfLength() : 25.0;
+    const double step_hy = gdml_world_box ? gdml_world_box->GetYHalfLength() : 15.0;
+    const double step_hz = gdml_world_box ? gdml_world_box->GetZHalfLength() : 15.0;
 
     // Create a world LV for imprinting the STEP assembly (no placement needed;
     // we extract daughter solids + transforms directly after MakeImprint).
-    auto* step_world_box = new G4Box("AssemblyStepWorld_" + fixture_id, 25.0, 15.0, 15.0);
+    auto* step_world_box = new G4Box("AssemblyStepWorld_" + fixture_id, step_hx, step_hy, step_hz);
     G4Material* air      = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
     auto* step_world_lv =
         new G4LogicalVolume(step_world_box, air, "AssemblyStepWorldLV_" + fixture_id);
@@ -468,7 +501,7 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
                  const std::filesystem::path& point_cloud_dir, bool json_to_stdout) {
   // ── Fixture discovery ───────────────────────────────────────────────────────
   // Scan subdirectories of fixture_root that contain both geometry.gdml and
-  // shape.step.  Currently the only fixture is triple-box-v1.
+  // shape.step.
   SharedState shared_state;
   g_state = &shared_state;
 
