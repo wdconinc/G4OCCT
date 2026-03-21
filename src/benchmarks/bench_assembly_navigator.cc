@@ -4,10 +4,12 @@
 /// @file bench_assembly_navigator.cc
 /// @brief Benchmark comparing GDML vs STEP assembly ray-casting.
 ///
-/// Loads the same triple-box assembly in two representations:
-///   - GDML reference: three G4Box solids placed in a world volume.
-///   - STEP import:    G4OCCTAssemblyVolume::FromSTEP, yielding three
-///                     G4OCCTSolid objects at the same positions.
+/// Discovers all fixture subdirectories under fixture_root that contain
+/// both geometry.gdml and shape.step, then for each fixture loads the same
+/// assembly in two representations:
+///   - GDML reference: daughter volumes read by G4GDMLParser.
+///   - STEP import:    G4OCCTAssemblyVolume::FromSTEP with materials loaded
+///                     from a per-fixture materials.xml when present.
 ///
 /// For each ray direction sampled from the unit sphere the benchmark
 /// computes all volume-boundary crossing distances through each
@@ -25,6 +27,7 @@
 
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
+#include "G4OCCT/G4OCCTMaterialMapReader.hh"
 
 #include <G4Box.hh>
 #include <G4GDMLParser.hh>
@@ -318,7 +321,8 @@ namespace {
   void RunAssemblyBenchmark(benchmark::State& state, const std::string& fixture_id,
                             const std::filesystem::path& gdml_path,
                             const std::filesystem::path& step_path, std::size_t ray_count,
-                            const std::filesystem::path& point_cloud_dir) {
+                            const std::filesystem::path& point_cloud_dir,
+                            const std::filesystem::path& materials_path) {
     // Load GDML reference geometry.
     // Pass validate=false: G4GDMLParser::SetValidate() was removed in Geant4
     // 11.3; the validation flag is now passed directly to Read().
@@ -329,12 +333,32 @@ namespace {
     const std::vector<ComponentSpec> gdml_components = ExtractComponents(gdml_world_lv);
 
     // Load STEP assembly.
+    // Prefer per-fixture materials.xml when present; fall back to an empty map
+    // (which will produce a FatalException at import time if the STEP file
+    // references any material names).
     G4OCCTMaterialMap mat_map;
-    mat_map.Add("Component", G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
+    if (!materials_path.empty() && std::filesystem::exists(materials_path)) {
+      G4OCCTMaterialMapReader reader;
+      mat_map = reader.ReadFile(materials_path.string());
+    } else {
+      std::cerr << "Info: no materials.xml for fixture '" << fixture_id
+                << "'; STEP import will fail if any material names are referenced.\n";
+    }
+
+    // Size the STEP world box from the GDML world solid so every fixture
+    // uses the correct enclosing volume without any hardcoded dimensions.
+    const auto* gdml_world_box = dynamic_cast<G4Box*>(gdml_world_lv->GetSolid());
+    if (!gdml_world_box) {
+      state.SkipWithError("GDML world solid is not a G4Box — cannot size STEP world volume.");
+      return;
+    }
+    const double world_hx = gdml_world_box->GetXHalfLength();
+    const double world_hy = gdml_world_box->GetYHalfLength();
+    const double world_hz = gdml_world_box->GetZHalfLength();
 
     // Create a world LV for imprinting the STEP assembly (no placement needed;
     // we extract daughter solids + transforms directly after MakeImprint).
-    auto* step_world_box = new G4Box("AssemblyStepWorld_" + fixture_id, 25.0, 15.0, 15.0);
+    auto* step_world_box = new G4Box("AssemblyStepWorld_" + fixture_id, world_hx, world_hy, world_hz);
     G4Material* air      = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
     auto* step_world_lv =
         new G4LogicalVolume(step_world_box, air, "AssemblyStepWorldLV_" + fixture_id);
@@ -345,8 +369,12 @@ namespace {
     step_assembly->MakeImprint(step_world_lv, step_pos, &step_rot);
     const std::vector<ComponentSpec> step_components = ExtractComponents(step_world_lv);
 
-    // Ray launch origin: far enough outside the assembly (radius 40 mm).
-    constexpr double kRayRadius = 40.0; // mm
+    // Ray launch origin: far enough outside the assembly to encompass all
+    // components.  Use the half-diagonal of the GDML world box scaled by a
+    // small margin so rays always start outside the geometry.
+    constexpr double kWorldMarginFactor = 1.2;
+    const double kRayRadius =
+        kWorldMarginFactor * std::sqrt(world_hx * world_hx + world_hy * world_hy + world_hz * world_hz);
 
     const std::vector<G4ThreeVector> directions = GenerateDirections(ray_count);
 
@@ -468,7 +496,7 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
                  const std::filesystem::path& point_cloud_dir, bool json_to_stdout) {
   // ── Fixture discovery ───────────────────────────────────────────────────────
   // Scan subdirectories of fixture_root that contain both geometry.gdml and
-  // shape.step.  Currently the only fixture is triple-box-v1.
+  // shape.step.  A per-fixture materials.xml is loaded when present.
   SharedState shared_state;
   g_state = &shared_state;
 
@@ -488,12 +516,15 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
       continue;
     }
 
-    const std::string fixture_id = entry.path().filename().string();
+    const std::string fixture_id                     = entry.path().filename().string();
+    const std::filesystem::path materials_path       = entry.path() / "materials.xml";
 
     benchmark::RegisterBenchmark(
         ("BM_assembly_rays/assembly-comparison/" + fixture_id).c_str(),
-        [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir](benchmark::State& st) {
-          RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path, ray_count, point_cloud_dir);
+        [fixture_id, gdml_path, step_path, ray_count, point_cloud_dir,
+         materials_path](benchmark::State& st) {
+          RunAssemblyBenchmark(st, fixture_id, gdml_path, step_path, ray_count, point_cloud_dir,
+                               materials_path);
         })
         ->UseManualTime()
         ->Iterations(1)
