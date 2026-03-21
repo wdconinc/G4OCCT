@@ -75,7 +75,7 @@ private:
   // magnetic field messenger
 
   G4bool fCheckOverlaps = B4C_CHECK_OVERLAPS; // option to activate checking of volumes overlaps
-  G4int fNofLayers      = -1;   // number of layers
+  G4int fNofLayers      = -1;                 // number of layers
 };
 
 } // namespace B4c
