@@ -313,45 +313,61 @@ namespace {
     return mismatches;
   }
 
-  /// Count the number of components whose material in @p step does not match
-  /// the material of the nearest (by translation) component in @p gdml.
+  /// Count the number of material mismatches between @p step and @p gdml
+  /// component lists using a greedy one-to-one nearest-neighbour matching.
   ///
-  /// Each STEP component is matched to the GDML component whose translation
-  /// is closest in Euclidean distance.  Components for which either side
-  /// carries a null material pointer are also counted as mismatches.
-  /// GDML components that exceed the STEP component count (i.e. unmatched
-  /// because STEP has fewer components) are counted as additional mismatches.
-  /// Position mismatches are reported separately via CompareRayCrossings.
+  /// Each STEP component is matched to the nearest (by Euclidean translation
+  /// distance) *unmatched* GDML component.  Once a GDML component is claimed
+  /// it cannot be matched again, preventing many-to-one assignments that would
+  /// otherwise mask missing or duplicate components.  A mismatch is counted
+  /// when:
+  ///   - the matched GDML component carries a null material pointer, or
+  ///   - the STEP component carries a null material pointer, or
+  ///   - the material names differ, or
+  ///   - no unmatched GDML component remains for a STEP component (STEP has
+  ///     more components than GDML).
+  /// Any GDML components left unmatched after all STEP components have been
+  /// processed (GDML has more components than STEP) are also counted as
+  /// mismatches.  Position mismatches are reported separately via
+  /// CompareRayCrossings.
   std::size_t CountMaterialMismatches(const std::vector<ComponentSpec>& gdml,
                                       const std::vector<ComponentSpec>& step) {
-    std::size_t mismatches = 0U;
     if (gdml.empty()) {
       // Nothing to match against; every STEP component is a mismatch.
       return step.size();
     }
+    std::vector<bool> gdml_matched(gdml.size(), false);
+    std::size_t mismatches = 0U;
     for (const auto& s : step) {
-      double min_dist2               = std::numeric_limits<double>::max();
-      const ComponentSpec* best_gdml = nullptr;
-      for (const auto& g : gdml) {
-        const double d2 = (s.translation - g.translation).mag2();
+      double min_dist2     = std::numeric_limits<double>::max();
+      std::size_t best_idx = gdml.size(); // sentinel: no unmatched candidate found
+      for (std::size_t i = 0; i < gdml.size(); ++i) {
+        if (gdml_matched[i]) {
+          continue;
+        }
+        const double d2 = (s.translation - gdml[i].translation).mag2();
         if (d2 < min_dist2) {
           min_dist2 = d2;
-          best_gdml = &g;
+          best_idx  = i;
         }
       }
-      // best_gdml is non-null here (gdml is non-empty, guaranteed by the
-      // early return above).
-      if (best_gdml->material == nullptr || s.material == nullptr) {
+      if (best_idx == gdml.size()) {
+        // All GDML components already matched; excess STEP component.
         ++mismatches;
         continue;
       }
-      if (best_gdml->material->GetName() != s.material->GetName()) {
+      gdml_matched[best_idx] = true;
+      const ComponentSpec& g = gdml[best_idx];
+      if (g.material == nullptr || s.material == nullptr ||
+          g.material->GetName() != s.material->GetName()) {
         ++mismatches;
       }
     }
-    // Components present in GDML but unmatched in STEP also count.
-    if (gdml.size() > step.size()) {
-      mismatches += gdml.size() - step.size();
+    // Any GDML components that were never matched (GDML has more than STEP).
+    for (const bool matched : gdml_matched) {
+      if (!matched) {
+        ++mismatches;
+      }
     }
     return mismatches;
   }
