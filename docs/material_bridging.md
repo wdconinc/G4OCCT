@@ -51,8 +51,13 @@ before the simulation can run.
   <material stepName="AISI 316L" geant4Name="G4_STAINLESS-STEEL"/>
   <material stepName="Al 6061"   geant4Name="G4_Al"/>
 
-  <!-- Custom multi-element material -->
-  <material stepName="FR4" name="FR4" density="1.86" unit="g/cm3">
+  <!-- Map STEP name → material already defined in geometry.gdml -->
+  <material stepName="OpticalModule" geant4Name="Borosilicate"/>
+  <!-- DRAWEXE WriteStep also emits a "SOLID" leaf label; map it too -->
+  <material stepName="SOLID"         geant4Name="Borosilicate"/>
+
+  <!-- Custom multi-element material defined inline using GDML vocabulary -->
+  <material stepName="FR4" name="FR4" state="solid">
     <D value="1.86" unit="g/cm3"/>
     <fraction n="0.18" ref="G4_Si"/>
     <fraction n="0.39" ref="G4_O"/>
@@ -78,8 +83,21 @@ auto* assembly = G4OCCTAssemblyVolume::FromSTEP("detector.step", map);
 ```
 
 **Two entry types:**
-* `stepName` + `geant4Name` → `G4NistManager::FindOrBuildMaterial(geant4Name)`
+* `stepName` + `geant4Name` → `G4NistManager::FindOrBuildMaterial(geant4Name)`.
+  This first checks the Geant4 `G4MaterialTable`, so it resolves any material
+  already constructed (e.g. from a previously parsed GDML file) as well as
+  all standard NIST materials.
 * `stepName` + `name` + content children → full GDML inline material definition
+
+**Material resolution from STEP:**
+G4OCCT resolves the map key for each STEP shape in two steps:
+1. If the XDE label carries a material attribute (set in the CAD tool), that
+   attribute string is used as the `stepName` lookup key.
+2. If no material attribute is present, the XDE label *name* is used instead.
+   This accommodates STEP writers (such as DRAWEXE) that do not write material
+   attributes.  For DRAWEXE output, label names typically include the part name
+   (e.g. `"OpticalModule"`, `"TrackingLayer"`) and the generic leaf name
+   `"SOLID"` — both must appear in the map.
 
 **Behaviour:**
 * Every material name encountered in the STEP file **must** appear in the
@@ -186,11 +204,14 @@ materials fragment.
    `G4MaterialPropertiesTable`) has no STEP equivalent at all.  These must
    always be specified via GDML or user code.
 
-4. **Material de-duplication:** When the same material name appears on
-   multiple volumes, G4OCCT must ensure a single `G4Material*` is shared
-   rather than creating duplicate objects.
+4. **Material de-duplication:** ✅ Resolved.  When the same material name
+   appears on multiple volumes, `G4NistManager::FindOrBuildMaterial` returns
+   the same `G4Material*` for repeated `geant4Name` lookups, and inline
+   definitions register once in the GDML material registry.  Using
+   `geant4Name` to reference a material already in the `G4MaterialTable`
+   (e.g. from a GDML file) avoids duplicate-object errors entirely.
 
-5. **Error handling:** When a STEP material name is not found in the mapping,
-   G4OCCT must abort with a clear diagnostic listing the unmapped name(s)
-   and the STEP file path from which they were read.  Silent fallbacks are
-   not permitted.
+5. **Error handling:** ✅ Resolved.  When a STEP material name is not found
+   in the mapping, `G4OCCTMaterialMap::Resolve` issues a
+   `G4Exception(FatalException)` with a diagnostic identifying the unmapped
+   name.  Silent fallbacks are not permitted.
