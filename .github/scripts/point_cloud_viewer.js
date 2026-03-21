@@ -55,7 +55,7 @@ scene.add(new THREE.AxesHelper(50));
 // and their centres are snapped to multiples of the step so they tile infinitely.
 const GRID_DIVS_COUNT   = 100;
 const GRID_COLOR_CENTER = 0x444466;
-const GRID_COLOR_LINE   = 0x222244;
+const GRID_COLOR_LINE   = 0x333355;
 let gridXY              = null;
 let gridXZ              = null;
 let gridYZ              = null;
