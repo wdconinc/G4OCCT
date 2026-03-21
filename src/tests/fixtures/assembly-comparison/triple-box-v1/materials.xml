@@ -1,0 +1,9 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Material map for triple-box-v1.
+  Component -> NIST aluminium.
+-->
+<materials>
+  <material stepName="Component" geant4Name="G4_Al"/>
+</materials>

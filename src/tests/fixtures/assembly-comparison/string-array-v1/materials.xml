@@ -1,0 +1,13 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Material map for string-array-v1.
+  OpticalModule (assembly label) and SOLID (leaf shape label emitted by
+  DRAWEXE WriteStep) both map to the Borosilicate material defined in
+  geometry.gdml, which is already in the Geant4 material table when this
+  map is read.
+-->
+<materials>
+  <material stepName="OpticalModule" geant4Name="Borosilicate"/>
+  <material stepName="SOLID"         geant4Name="Borosilicate"/>
+</materials>

@@ -73,7 +73,7 @@ public:
    */
   G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape);
 
-  ~G4OCCTSolid() override = default;
+  ~G4OCCTSolid() override;
 
   /**
    * Load a STEP file and construct a G4OCCTSolid from the first shape found.
