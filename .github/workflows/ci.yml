@@ -30,7 +30,7 @@ jobs:
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
         with:
-          path: _fetchcontent
+          path: _fetchcontent/*-src
           key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Build, test, and install inside eic_xl container
@@ -260,7 +260,7 @@ jobs:
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
         with:
-          path: _fetchcontent
+          path: _fetchcontent/*-src
           key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Build, profile, and annotate inside eic_xl container
@@ -357,7 +357,7 @@ jobs:
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
         with:
-          path: _fetchcontent
+          path: _fetchcontent/*-src
           key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Build and test with ASAN and UBSAN inside eic_xl container
@@ -408,7 +408,7 @@ jobs:
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
         with:
-          path: _fetchcontent
+          path: _fetchcontent/*-src
           key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Build and test with TSAN inside eic_xl container
@@ -459,7 +459,7 @@ jobs:
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
         with:
-          path: _fetchcontent
+          path: _fetchcontent/*-src
           key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Build and test with coverage inside eic_xl container
