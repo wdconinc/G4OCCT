@@ -122,7 +122,7 @@ def _render_report(data: dict, viewer_path: str) -> str:
     lines.append(f"*Generated: {ts}*\n")
 
     if ray_count is not None:
-        lines.append(f"Rays per fixture: **{ray_count:,}**\n")
+        lines.append(f"Rays per object per fixture: **{ray_count:,}**\n")
 
     if not fixtures:
         lines.append(
