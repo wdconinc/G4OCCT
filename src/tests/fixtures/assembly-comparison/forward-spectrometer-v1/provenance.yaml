@@ -5,11 +5,13 @@ schema_version: assembly-comparison-provenance/v1
 fixture_id: forward-spectrometer-v1
 
 description: |
-  Fixed-target forward spectrometer along the z-axis. Eight silicon tracking
-  planes (300×300×1 mm) flank an iron dipole magnet (500×300×600 mm outer,
-  100×100×600 mm gap; built via boolean subtraction) at z = 700–1300 mm.
-  A lead ECAL block (400×400×300 mm) sits downstream. Demonstrates three
-  distinct materials and bcut for the hollow magnet yoke.
+  Fixed-target forward spectrometer along the z-axis. All z positions are in
+  the world frame (world centre at z = 0, spanning −1250 to +1250 mm). Eight
+  silicon tracking planes (300×300×1 mm) flank an iron dipole magnet
+  (500×300×600 mm outer, 100×100×600 mm gap; built via boolean subtraction)
+  at world z = −550 to +50 mm. A lead ECAL block (400×400×300 mm) sits
+  downstream at world z = 850–1150 mm. Demonstrates three distinct materials
+  and bcut for the hollow magnet yoke.
 
 generator:
   gdml:

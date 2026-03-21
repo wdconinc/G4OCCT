@@ -8,8 +8,9 @@
 # z = −1250 to +1250 mm.  All shapes below are created at positions relative
 # to this world centre (absolute detector z minus 1250 mm):
 #
-#   8 silicon tracking planes (300×300×1 mm) at z = −1250, −1050, −850, −650,
-#                                                     150,   350,  550,  750 mm;
+#   8 silicon tracking planes (300×300×1 mm) low-face at z = −1250, −1050, −850, −650,
+#                                                              150,   350,  550,  750 mm
+#                                          (centres at z + 0.5 mm);
 #   iron dipole magnet (500×300×600 mm outer, 100×100×600 mm gap) at
 #                                                     z = −550 to +50 mm;
 #   lead ECAL block (400×400×300 mm) at z = 850–1150 mm.
