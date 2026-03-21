@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+
+<!--
+  Forward-spectrometer-v1 reference geometry.
+
+  Eight 300×300×1 mm silicon tracking planes at z = 0, 200, 400, 600,
+  1400, 1600, 1800, 2000 mm; an iron dipole magnet (500×300×600 mm outer
+  yoke with a 100×100×600 mm rectangular gap) at z = 700–1300 mm; and a
+  400×400×300 mm lead ECAL block at z = 2100–2400 mm.
+
+  The enclosing world is a 700×700×2500 mm box of air, centred at the
+  spectrometer midpoint z = 1250 mm.  All physvol positions are given
+  relative to the world centre (i.e. subtract 1250 mm from the absolute
+  z coordinate of each component centre).
+-->
+
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
+
+  <define>
+    <!-- Tracking plane centres: z_abs + 0.5 mm (half thickness) − 1250 mm -->
+    <position name="pos_tp1"   x="0" y="0" z="-1249.5" unit="mm"/>
+    <position name="pos_tp2"   x="0" y="0" z="-1049.5" unit="mm"/>
+    <position name="pos_tp3"   x="0" y="0" z=" -849.5" unit="mm"/>
+    <position name="pos_tp4"   x="0" y="0" z=" -649.5" unit="mm"/>
+    <!-- Dipole magnet centre: z_abs = 700 + 300 = 1000 → 1000 − 1250 = −250 -->
+    <position name="pos_dipole" x="0" y="0" z="-250"   unit="mm"/>
+    <!-- Downstream tracking planes -->
+    <position name="pos_tp5"   x="0" y="0" z="  150.5" unit="mm"/>
+    <position name="pos_tp6"   x="0" y="0" z="  350.5" unit="mm"/>
+    <position name="pos_tp7"   x="0" y="0" z="  550.5" unit="mm"/>
+    <position name="pos_tp8"   x="0" y="0" z="  750.5" unit="mm"/>
+    <!-- ECAL block centre: z_abs = 2100 + 150 = 2250 → 2250 − 1250 = 1000 -->
+    <position name="pos_ecal"  x="0" y="0" z=" 1000"   unit="mm"/>
+  </define>
+
+  <materials>
+    <element name="Si" formula="Si" Z="14">
+      <atom value="28.0855"/>
+    </element>
+    <element name="Fe" formula="Fe" Z="26">
+      <atom value="55.845"/>
+    </element>
+    <element name="Pb" formula="Pb" Z="82">
+      <atom value="207.2"/>
+    </element>
+    <element name="N" formula="N" Z="7">
+      <atom value="14.0067"/>
+    </element>
+    <element name="O" formula="O" Z="8">
+      <atom value="15.9994"/>
+    </element>
+    <!-- Simplified silicon (same density as G4_Si) -->
+    <material name="G4_Si" state="solid">
+      <D unit="g/cm3" value="2.33"/>
+      <fraction n="1" ref="Si"/>
+    </material>
+    <!-- Simplified iron (same density as G4_Fe) -->
+    <material name="G4_Fe" state="solid">
+      <D unit="g/cm3" value="7.874"/>
+      <fraction n="1" ref="Fe"/>
+    </material>
+    <!-- Simplified lead (same density as G4_Pb) -->
+    <material name="G4_Pb" state="solid">
+      <D unit="g/cm3" value="11.35"/>
+      <fraction n="1" ref="Pb"/>
+    </material>
+    <!-- Simplified dry air (same density as G4_AIR) -->
+    <material name="G4_AIR" state="gas">
+      <D unit="g/cm3" value="0.00120479"/>
+      <fraction n="0.755636" ref="N"/>
+      <fraction n="0.231781" ref="O"/>
+    </material>
+  </materials>
+
+  <solids>
+    <box name="WorldBox"          x="700" y="700" z="2500" lunit="mm"/>
+    <box name="TrackingPlaneSolid" x="300" y="300" z="1"   lunit="mm"/>
+    <box name="DipoleMagnetOuter" x="500" y="300" z="600"  lunit="mm"/>
+    <box name="DipoleMagnetGap"   x="100" y="100" z="600"  lunit="mm"/>
+    <subtraction name="DipoleMagnetSolid">
+      <first  ref="DipoleMagnetOuter"/>
+      <second ref="DipoleMagnetGap"/>
+    </subtraction>
+    <box name="ECALBlockSolid"    x="400" y="400" z="300"  lunit="mm"/>
+  </solids>
+
+  <structure>
+    <volume name="TrackingPlaneLV">
+      <materialref ref="G4_Si"/>
+      <solidref   ref="TrackingPlaneSolid"/>
+    </volume>
+    <volume name="DipoleMagnetLV">
+      <materialref ref="G4_Fe"/>
+      <solidref   ref="DipoleMagnetSolid"/>
+    </volume>
+    <volume name="ECALBlockLV">
+      <materialref ref="G4_Pb"/>
+      <solidref   ref="ECALBlockSolid"/>
+    </volume>
+    <volume name="WorldLV">
+      <materialref ref="G4_AIR"/>
+      <solidref   ref="WorldBox"/>
+      <physvol name="TrackingPlane1PV">
+        <volumeref   ref="TrackingPlaneLV"/>
+        <positionref ref="pos_tp1"/>
+      </physvol>
+      <physvol name="TrackingPlane2PV">
+        <volumeref   ref="TrackingPlaneLV"/>
+        <positionref ref="pos_tp2"/>
+      </physvol>
+      <physvol name="TrackingPlane3PV">
+        <volumeref   ref="TrackingPlaneLV"/>
+        <positionref ref="pos_tp3"/>
+      </physvol>
+      <physvol name="TrackingPlane4PV">
+        <volumeref   ref="TrackingPlaneLV"/>
+        <positionref ref="pos_tp4"/>
+      </physvol>
+      <physvol name="DipoleMagnetPV">
+        <volumeref   ref="DipoleMagnetLV"/>
+        <positionref ref="pos_dipole"/>
+      </physvol>
+      <physvol name="TrackingPlane5PV">
+        <volumeref   ref="TrackingPlaneLV"/>
+        <positionref ref="pos_tp5"/>
+      </physvol>
+      <physvol name="TrackingPlane6PV">
+        <volumeref   ref="TrackingPlaneLV"/>
+        <positionref ref="pos_tp6"/>
+      </physvol>
+      <physvol name="TrackingPlane7PV">
+        <volumeref   ref="TrackingPlaneLV"/>
+        <positionref ref="pos_tp7"/>
+      </physvol>
+      <physvol name="TrackingPlane8PV">
+        <volumeref   ref="TrackingPlaneLV"/>
+        <positionref ref="pos_tp8"/>
+      </physvol>
+      <physvol name="ECALBlockPV">
+        <volumeref   ref="ECALBlockLV"/>
+        <positionref ref="pos_ecal"/>
+      </physvol>
+    </volume>
+  </structure>
+
+  <setup name="Default" version="1.0">
+    <world ref="WorldLV"/>
+  </setup>
+
+</gdml>

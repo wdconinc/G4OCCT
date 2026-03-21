@@ -29,6 +29,7 @@ run_fixture() {
 run_fixture "${script_dir}/triple-box-v1"
 run_fixture "${script_dir}/barrel-tracker-v1"
 run_fixture "${script_dir}/string-array-v1"
+run_fixture "${script_dir}/forward-spectrometer-v1"
 
 normalizer="${script_dir}/../geometry/tools/normalize_step_header.py"
 if [ ! -f "$normalizer" ]; then
@@ -37,4 +38,5 @@ else
   python3 "$normalizer" "${script_dir}/triple-box-v1/shape.step"
   python3 "$normalizer" "${script_dir}/barrel-tracker-v1/shape.step"
   python3 "$normalizer" "${script_dir}/string-array-v1/shape.step"
+  python3 "$normalizer" "${script_dir}/forward-spectrometer-v1/shape.step"
 fi
