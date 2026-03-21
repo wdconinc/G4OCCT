@@ -72,6 +72,10 @@ html, body {
   position: absolute; bottom: 10px; left: 12px;
   font-size: 0.75rem; color: #556; pointer-events: none;
 }
+#grid-spacing-overlay {
+  position: absolute; bottom: 28px; left: 12px;
+  font-size: 0.75rem; color: #556; pointer-events: none;
+}
 .view-row { display: flex; gap: 6px; margin-bottom: 12px; }
 .view-btn {
   flex: 1; padding: 5px 0; border: 1px solid #334; border-radius: 4px;
