@@ -39,9 +39,11 @@
       <D unit="g/cm3" value="2.33"/>
       <fraction n="1" ref="Si"/>
     </material>
-    <!-- Simplified dry air; fixture-unique name avoids G4 material-table
-         conflicts when multiple assembly-comparison GDMLs are parsed in the
-         same benchmark process. -->
+    <!-- Simplified dry air; element and material names are fixture-unique so
+         that no conflicts arise in the global Geant4 material table even when
+         the per-fixture process isolation described in the bench_assembly_navigator
+         docstring is not in effect (e.g., when the binary is run in multi-fixture
+         mode for local development). -->
     <material name="BT_AIR" state="gas">
       <D unit="g/cm3" value="0.00120479"/>
       <fraction n="0.755636" ref="BT_N"/>
