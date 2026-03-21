@@ -128,10 +128,22 @@ function updateGrid() {
   if (!showGrid) {
     return;
   }
-  const activeCam = useOrtho ? orthoCamera : camera;
-  const target    = controls.target;
-  const dist      = activeCam.position.distanceTo(target);
-  const step      = niceGridStep(dist);
+  const target = controls.target;
+
+  // Derive a scale metric for the grid step.
+  // In perspective mode use the camera-target distance as before.
+  // In orthographic mode OrbitControls zooms by adjusting orthoCamera.zoom rather
+  // than moving the camera, so use the visible frustum size in world units instead.
+  let scaleMetric;
+  if (useOrtho && orthoCamera && typeof orthoCamera.zoom === 'number' && orthoCamera.zoom > 0) {
+    const visibleHeight = (orthoCamera.top - orthoCamera.bottom) / orthoCamera.zoom;
+    const visibleWidth  = (orthoCamera.right - orthoCamera.left) / orthoCamera.zoom;
+    scaleMetric         = Math.max(Math.abs(visibleWidth), Math.abs(visibleHeight));
+  } else {
+    scaleMetric = camera.position.distanceTo(target);
+  }
+
+  const step = niceGridStep(scaleMetric);
   if (step !== currentGridStep) {
     buildGrid(step);
     updateGridSpacingOverlay();
@@ -198,10 +210,16 @@ function setAxisView(axis) {
 function toggleGrid() {
   showGrid = !showGrid;
   if (showGrid && currentGridStep === 0) {
-    // Build the grid for the first time using the current camera distance.
-    const activeCam = useOrtho ? orthoCamera : camera;
-    const dist      = activeCam.position.distanceTo(controls.target);
-    buildGrid(niceGridStep(dist));
+    // Build the grid for the first time using the current scale metric.
+    let scaleMetric;
+    if (useOrtho && orthoCamera && typeof orthoCamera.zoom === 'number' && orthoCamera.zoom > 0) {
+      const visibleHeight = (orthoCamera.top - orthoCamera.bottom) / orthoCamera.zoom;
+      const visibleWidth  = (orthoCamera.right - orthoCamera.left) / orthoCamera.zoom;
+      scaleMetric         = Math.max(Math.abs(visibleWidth), Math.abs(visibleHeight));
+    } else {
+      scaleMetric = camera.position.distanceTo(controls.target);
+    }
+    buildGrid(niceGridStep(scaleMetric));
   } else {
     for (const g of [gridXY, gridXZ, gridYZ]) {
       if (g) {
