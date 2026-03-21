@@ -39,21 +39,7 @@
 ///   fixture_root   = <source tree>/src/tests/fixtures/assembly-comparison
 ///   point_cloud_dir = "" (no point-cloud output)
 
-// Callgrind instrumentation macros.  When the binary runs outside valgrind, or
-// when the valgrind headers are absent at build time, these expand to no-ops.
-#ifdef HAVE_VALGRIND_CALLGRIND_H
-#include <valgrind/callgrind.h>
-#else
-#define CALLGRIND_START_INSTRUMENTATION                                                            \
-  do {                                                                                             \
-  } while (0)
-#define CALLGRIND_STOP_INSTRUMENTATION                                                             \
-  do {                                                                                             \
-  } while (0)
-#define CALLGRIND_TOGGLE_COLLECT                                                                   \
-  do {                                                                                             \
-  } while (0)
-#endif
+#include "callgrind_macros.hh"
 
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
