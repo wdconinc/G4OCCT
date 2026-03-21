@@ -341,7 +341,9 @@ private:
   /// Inscribed spheres seeded at construction time by `ComputeInitialSpheres()`.
   ///
   /// Evaluated once per shape at up to 15 interior candidate points (AABB centre,
-  /// 6 face midpoints, 8 octant centres) using `BVHLowerBoundDistance`.
+  /// 6 axis-offset interior points each placed at half the distance from the AABB
+  /// centre to the nearest face along that axis, and 8 octant centres) using
+  /// `BVHLowerBoundDistance`.
   /// Written only in `ComputeBounds()` → `ComputeInitialSpheres()`; thereafter
   /// read-only, so no additional synchronisation is needed.
   /// Copied into each thread's `SphereCacheData` on first cache access.
