@@ -142,6 +142,14 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
             : G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
     local_summary.surface_tolerance = tolerance;
 
+    if (!std::isfinite(tolerance) || tolerance <= 0.0) {
+      std::ostringstream message;
+      message << "Surface distance tolerance must be finite and positive; got " << tolerance
+              << " mm (from 'validation.distance_tolerance_mm' in provenance YAML)";
+      report.AddError("fixture.inside_compare_invalid_tolerance", message.str(), provenance_path);
+      return report;
+    }
+
     // ── Generate test points ──────────────────────────────────────────────
     // Default to ~50% bounding-box points and ~50% near-surface points, but
     // allow callers to disable the boundary-focused samples for pure

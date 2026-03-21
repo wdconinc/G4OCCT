@@ -61,7 +61,8 @@ struct FixtureInsideComparisonSummary {
  *    and outward by one surface-tolerance step.  These stress the boundary
  *    region where classification disagreements are most likely.
  *
- * The near-surface offset defaults to `G4GeometryTolerance::GetSurfaceTolerance()`.
+ * The near-surface offset defaults to
+ * `G4GeometryTolerance::GetInstance()->GetSurfaceTolerance()`.
  * Fixtures with approximate STEP representations may specify a larger offset via
  * `validation.distance_tolerance_mm` in `provenance.yaml`; this widens the boundary
  * zone so that test points are placed clear of the approximation error band.
