@@ -147,6 +147,9 @@ ValidationReport CompareFixtureInside(const FixtureValidationRequest& request,
       message << "Surface distance tolerance must be finite and positive; got " << tolerance
               << " mm (from 'validation.distance_tolerance_mm' in provenance YAML)";
       report.AddError("fixture.inside_compare_invalid_tolerance", message.str(), provenance_path);
+      if (summary != nullptr) {
+        *summary = local_summary;
+      }
       return report;
     }
 
