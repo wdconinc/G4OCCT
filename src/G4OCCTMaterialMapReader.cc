@@ -159,12 +159,24 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
         // G4 material table (e.g. by a preceding G4GDMLParser::Read call
         // on the reference geometry).  Creating a duplicate G4Material
         // with the same name is a fatal error in Geant4.
+        //
+        // G4GDMLParser::Read() appends "0x<ptr>" suffixes (GenerateName)
+        // and then strips them back to plain names via StripNames().  Check
+        // both the generated name (pre-strip) and the plain name (post-strip)
+        // so that inline materials already registered under either convention
+        // are reused without re-creation.
         mat = G4Material::GetMaterial(GenerateName(gdmlName), /*warning=*/false);
+        if (mat == nullptr) {
+          mat = G4Material::GetMaterial(gdmlName, /*warning=*/false);
+        }
         if (mat == nullptr) {
           // Material not yet registered — delegate full GDML parsing to
           // the inherited method, which creates the G4Material.
           MaterialRead(child);
           mat = GetMaterial(GenerateName(gdmlName));
+          if (mat == nullptr) {
+            mat = G4Material::GetMaterial(gdmlName, /*warning=*/false);
+          }
         }
         if (!mat) {
           G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader009", FatalException,
