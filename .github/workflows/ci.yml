@@ -184,7 +184,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ci-reports
-          path: reports/
+          path: |
+            reports/
+            bench_raw.json
           if-no-files-found: ignore
           retention-days: 1
 
@@ -301,6 +303,7 @@ jobs:
             head -60 reports/callgrind_annotate_${{ matrix.fixture.name }}.txt || true
 
       - name: Upload callgrind reports as artifact
+        id: upload-callgrind-reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -310,6 +313,92 @@ jobs:
             reports/callgrind_${{ matrix.fixture.name }}.out
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Write callgrind links JSON
+        if: always()
+        run: |
+          mkdir -p callgrind-links
+          printf '{"${{ matrix.fixture.id }}": "%s"}\n' \
+            "${{ steps.upload-callgrind-reports.outputs.artifact-url }}" \
+            > callgrind-links/callgrind_links_${{ matrix.fixture.name }}.json
+
+      - name: Upload callgrind links as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: callgrind-links-${{ matrix.fixture.name }}
+          path: callgrind-links/callgrind_links_${{ matrix.fixture.name }}.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  report:
+    name: Generate combined benchmark report
+    runs-on: ubuntu-latest
+    needs: [build-test-benchmark, callgrind]
+    if: always()
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download ci-reports artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ci-reports
+          path: ci-reports/
+        continue-on-error: ${{ needs.build-test-benchmark.result != 'success' }}
+
+      - name: Download callgrind links artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: callgrind-links-*
+          path: callgrind-links/
+          merge-multiple: true
+        continue-on-error: ${{ needs.callgrind.result != 'success' }}
+
+      - name: Merge callgrind links and regenerate bench report
+        if: always()
+        run: |
+          pip3 install --quiet jinja2
+          # Merge all per-fixture callgrind_links_*.json files into one dict.
+          python3 - <<'EOF'
+          import json, glob, pathlib, sys
+          merged = {}
+          for f in glob.glob("callgrind-links/callgrind_links_*.json"):
+              try:
+                  merged.update(json.loads(pathlib.Path(f).read_text()))
+              except Exception as exc:
+                  print(f"Warning: could not read {f}: {exc}", file=sys.stderr)
+          pathlib.Path("callgrind_links.json").write_text(json.dumps(merged))
+          print(f"Merged callgrind links: {merged}")
+          EOF
+
+          # Regenerate the bench report with callgrind links if raw JSON is available.
+          if [ -f ci-reports/bench_raw.json ]; then
+            mkdir -p reports
+            # Copy existing report files so we only overwrite bench-results.md.
+            if [ -d ci-reports/reports ]; then
+              cp -r ci-reports/reports/. reports/
+            fi
+            python3 .github/scripts/generate_bench_report.py \
+              ci-reports/bench_raw.json \
+              reports/bench-results.md \
+              reports/point_cloud_viewer.html \
+              ci-reports/reports/onshape_links.json \
+              callgrind_links.json
+          else
+            echo "Warning: bench_raw.json not found in ci-reports artifact; skipping bench report regeneration."
+          fi
+
+      - name: Post updated bench report as step summary
+        if: always()
+        run: |
+          if [ -f reports/bench-results.md ]; then
+            cat reports/bench-results.md >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   sanitizer:
     name: Build and test with sanitizers (eic_xl)
