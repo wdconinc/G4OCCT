@@ -225,20 +225,20 @@ TopoDS_Shape MakeTwistedTrap() {
 ///     a B-spline loft "overshoots" and produces curved faces.
 TopoDS_Shape MakeGenericTwistedFaceted() {
   const double dz      = 20.0;
-  const double phi     = 30.0;  // twist angle [deg]
+  const double phi     = 30.0; // twist angle [deg]
   const double theta   = 8.0 * kPi / 180.0;
   const double azimuth = 20.0 * kPi / 180.0;
   const double shift_r = 2.0 * dz * std::tan(theta);
   const double shift_x = shift_r * std::cos(azimuth);
   const double shift_y = shift_r * std::sin(azimuth);
-  const double talpha  = std::tan(12.0 * kPi / 180.0);  // tan(alpha)
+  const double talpha  = std::tan(12.0 * kPi / 180.0); // tan(alpha)
 
   // G4VTwistedFaceted constructor parameters (half-widths in mm):
   //   G4VTwistedFaceted(phi_twist, dz, theta, azimuth,
   //                     dy1, dx1, dx2, dy2, dx3, dx4, alpha)
-  const double dx1 = 9.0, dx2 = 12.0;   // half-x at z = -dz, y = ∓dy1
-  const double dx3 = 7.0, dx4 = 13.0;   // half-x at z = +dz, y = ∓dy2
-  const double dy1 = 8.0, dy2 = 10.0;   // half-y at z = ∓dz
+  const double dx1 = 9.0, dx2 = 12.0; // half-x at z = -dz, y = ∓dy1
+  const double dx3 = 7.0, dx4 = 13.0; // half-x at z = +dz, y = ∓dy2
+  const double dy1 = 8.0, dy2 = 10.0; // half-y at z = ∓dz
 
   std::vector<TopoDS_Wire> wires;
   wires.reserve(kLoftSectionCount);
@@ -249,24 +249,24 @@ TopoDS_Shape MakeGenericTwistedFaceted() {
 
     // Linearly interpolated half-widths at this z (matches G4 linear interp).
     const double dy_i  = dy1 + t * (dy2 - dy1);
-    const double dxm_i = dx1 + t * (dx3 - dx1);  // half-x at y = −dy_i
-    const double dxp_i = dx2 + t * (dx4 - dx2);  // half-x at y = +dy_i
-    const double shear = dy_i * talpha;            // alpha shift at this dy
+    const double dxm_i = dx1 + t * (dx3 - dx1); // half-x at y = −dy_i
+    const double dxp_i = dx2 + t * (dx4 - dx2); // half-x at y = +dy_i
+    const double shear = dy_i * talpha;         // alpha shift at this dy
 
     // Vertices in local (pre-twist) frame, following G4VTwistedFaceted
     // GetSurfaceArea() vertex ordering: at y = −dy the shear subtracts,
     // at y = +dy it adds.
     const std::vector<SectionPoint> section{
         {-dxm_i - shear, -dy_i},
-        { dxm_i - shear, -dy_i},
-        { dxp_i + shear,  dy_i},
-        {-dxp_i + shear,  dy_i},
+        {dxm_i - shear, -dy_i},
+        {dxp_i + shear, dy_i},
+        {-dxp_i + shear, dy_i},
     };
 
     // Tilt: G4 centres the cross-section at global (shift_x·z/(2·dz), …),
     // i.e. (t − 0.5)·shift_x, so z = 0 maps to the global origin.
-    wires.push_back(MakePolygonWire(section, z_i, theta_i,
-                                    (t - 0.5) * shift_x, (t - 0.5) * shift_y));
+    wires.push_back(
+        MakePolygonWire(section, z_i, theta_i, (t - 0.5) * shift_x, (t - 0.5) * shift_y));
   }
   return MakeRuledLoftSolid(wires);
 }
