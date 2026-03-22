@@ -473,10 +473,6 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {
-  if (v.mag2() == 0.0) {
-    return kInfinity;
-  }
-
   IntCurvesFace_ShapeIntersector& intersector = GetOrCreateIntersector();
 
   const gp_Lin ray(ToPoint(p), gp_Dir(v.x(), v.y(), v.z()));
@@ -561,10 +557,6 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
                                     G4ThreeVector* n) const {
   if (validNorm != nullptr) {
     *validNorm = false;
-  }
-
-  if (v.mag2() == 0.0) {
-    return 0.0;
   }
 
   const G4double tolerance = IntersectionTolerance();
