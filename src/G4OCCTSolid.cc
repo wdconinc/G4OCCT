@@ -26,7 +26,7 @@
 #include <GeomAPI_ProjectPointOnSurf.hxx>
 #include <Geom_Surface.hxx>
 #include <IFSelect_ReturnStatus.hxx>
-#include <IntCurvesFace_ShapeIntersector.hxx>
+#include <IntCurvesFace_Intersector.hxx>
 #include <Poly_Triangulation.hxx>
 #include <Precision.hxx>
 #include <STEPControl_Reader.hxx>
@@ -244,7 +244,7 @@ G4OCCTSolid::~G4OCCTSolid() {
   // Resetting the optional values here releases the OCCT objects before G4Cache
   // attempts to destroy the thread-local storage.
   fClassifierCache.Get().classifier.reset();
-  fIntersectorCache.Get().intersector.reset();
+  fIntersectorCache.Get().faceIntersectors.clear();
 }
 
 // ── G4OCCTSolid static factory ────────────────────────────────────────────────
@@ -406,16 +406,25 @@ BRepClass3d_SolidClassifier& G4OCCTSolid::GetOrCreateClassifier() const {
   return *cache.classifier;
 }
 
-IntCurvesFace_ShapeIntersector& G4OCCTSolid::GetOrCreateIntersector() const {
+G4OCCTSolid::IntersectorCache& G4OCCTSolid::GetOrCreateIntersector() const {
   IntersectorCache& cache        = fIntersectorCache.Get();
   const std::uint64_t currentGen = fShapeGeneration.load(std::memory_order_acquire);
   if (cache.generation != currentGen) {
-    cache.intersector.emplace();
-    cache.intersector->Load(fShape,
-                            IntersectionTolerance()); // O(N_faces) — paid once per thread per shape
+    const G4double tol = IntersectionTolerance();
+    cache.faceIntersectors.clear();
+    cache.faceIntersectors.reserve(fFaceBoundsCache.size());
+    cache.expandedBoxes.clear();
+    cache.expandedBoxes.reserve(fFaceBoundsCache.size());
+    for (const auto& fb : fFaceBoundsCache) {
+      cache.faceIntersectors.push_back(
+          std::make_unique<IntCurvesFace_Intersector>(fb.face, tol)); // O(1) per face
+      Bnd_Box expanded = fb.box;
+      expanded.Enlarge(tol); // prevent false-positive IsOut for zero-thickness planar face boxes
+      cache.expandedBoxes.push_back(std::move(expanded));
+    }
     cache.generation = currentGen;
   }
-  return *cache.intersector;
+  return cache;
 }
 
 // ── G4VSolid pure-virtual implementations ────────────────────────────────────
@@ -474,20 +483,26 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {
-  IntCurvesFace_ShapeIntersector& intersector = GetOrCreateIntersector();
-
+  const G4double tolerance = IntersectionTolerance();
   const gp_Lin ray(ToPoint(p), gp_Dir(v.x(), v.y(), v.z()));
-  intersector.Perform(ray, IntersectionTolerance(), Precision::Infinite());
 
-  if (!intersector.IsDone() || intersector.NbPnt() == 0) {
-    return kInfinity;
-  }
+  IntersectorCache& cache = GetOrCreateIntersector();
 
   G4double minDistance = kInfinity;
-  for (Standard_Integer index = 1; index <= intersector.NbPnt(); ++index) {
-    const G4double candidateDistance = intersector.WParameter(index);
-    if (candidateDistance > IntersectionTolerance() && candidateDistance < minDistance) {
-      minDistance = candidateDistance;
+  for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
+    if (cache.expandedBoxes[i].IsOut(ray)) {
+      continue;
+    }
+    IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
+    fi.Perform(ray, tolerance, Precision::Infinite());
+    if (!fi.IsDone()) {
+      continue;
+    }
+    for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
+      const G4double w = fi.WParameter(j);
+      if (w > tolerance && w < minDistance) {
+        minDistance = w;
+      }
     }
   }
 
@@ -558,51 +573,42 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
   const G4double tolerance = IntersectionTolerance();
   const gp_Lin ray(ToPoint(p), gp_Dir(v.x(), v.y(), v.z()));
 
-  IntCurvesFace_ShapeIntersector& intersector = GetOrCreateIntersector();
-  intersector.Perform(ray, tolerance, Precision::Infinite());
+  IntersectorCache& cache = GetOrCreateIntersector();
 
-  if (!intersector.IsDone() || intersector.NbPnt() == 0) {
-    return 0.0;
-  }
+  G4double minDistance                       = kInfinity;
+  std::size_t minFaceIdx                     = std::numeric_limits<std::size_t>::max();
+  G4double minU                              = 0.0;
+  G4double minV                              = 0.0;
+  bool minIsIn                               = false;
 
-  G4double minDistance      = kInfinity;
-  Standard_Integer minIndex = -1;
-  for (Standard_Integer index = 1; index <= intersector.NbPnt(); ++index) {
-    const G4double candidateDistance = intersector.WParameter(index);
-    if (candidateDistance > tolerance && candidateDistance < minDistance) {
-      minDistance = candidateDistance;
-      minIndex    = index;
+  for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
+    if (cache.expandedBoxes[i].IsOut(ray)) {
+      continue;
     }
-  }
-
-  if (minIndex < 1 || minDistance == kInfinity) {
-    return 0.0;
-  }
-
-  if (calcNorm && validNorm != nullptr && n != nullptr &&
-      intersector.State(minIndex) == TopAbs_IN) {
-    const TopoDS_Face& hitFace = intersector.Face(minIndex);
-    // Hash-lookup narrows to the (almost always singleton) bucket of faces
-    // that share the same TShape; IsPartner() then selects the correct located
-    // entry within the bucket, handling instanced sub-shapes where the same
-    // TShape appears at several distinct locations.
-    std::optional<G4ThreeVector> outNorm;
-    const auto bucketIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
-    if (bucketIt != fFaceAdaptorIndex.end()) {
-      const auto& indices = bucketIt->second;
-      const auto faceIt   = std::find_if(indices.begin(), indices.end(), [&](std::size_t i) {
-        return fFaceBoundsCache[i].face.IsPartner(hitFace);
-      });
-      if (faceIt != indices.end()) {
-        outNorm =
-            TryGetOutwardNormal(fFaceBoundsCache[*faceIt].adaptor, hitFace,
-                                intersector.UParameter(minIndex), intersector.VParameter(minIndex));
+    IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
+    fi.Perform(ray, tolerance, Precision::Infinite());
+    if (!fi.IsDone()) {
+      continue;
+    }
+    for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
+      const G4double w = fi.WParameter(j);
+      if (w > tolerance && w < minDistance) {
+        minDistance = w;
+        minFaceIdx  = i;
+        minU        = fi.UParameter(j);
+        minV        = fi.VParameter(j);
+        minIsIn     = (fi.State(j) == TopAbs_IN || fi.State(j) == TopAbs_ON);
       }
     }
-    if (!outNorm) {
-      outNorm = TryGetOutwardNormal(hitFace, intersector.UParameter(minIndex),
-                                    intersector.VParameter(minIndex));
-    }
+  }
+
+  if (minFaceIdx == std::numeric_limits<std::size_t>::max() || minDistance == kInfinity) {
+    return 0.0;
+  }
+
+  if (calcNorm && validNorm != nullptr && n != nullptr && minIsIn) {
+    const FaceBounds& fb = fFaceBoundsCache[minFaceIdx];
+    const auto outNorm   = TryGetOutwardNormal(fb.adaptor, fb.face, minU, minV);
     if (outNorm) {
       *n         = *outNorm;
       *validNorm = true;

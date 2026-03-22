@@ -17,6 +17,7 @@
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepExtrema_TriangleSet.hxx>
 #include <Bnd_Box.hxx>
+#include <IntCurvesFace_Intersector.hxx>
 #include <IntCurvesFace_ShapeIntersector.hxx>
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
@@ -263,15 +264,31 @@ private:
     std::optional<BRepClass3d_SolidClassifier> classifier;
   };
 
-  /// Per-thread intersector cache entry: generation stamp + lazily-built intersector.
+  /// Per-thread intersector cache entry: generation stamp + per-face intersectors.
   ///
   /// The `generation` field is compared against `fShapeGeneration` on every
   /// call to `GetOrCreateIntersector()`; a mismatch triggers a reload.
   /// Initialised to the maximum uint64 value, which can never match generation 0,
   /// so the first call from each thread always builds the intersector.
+  ///
+  /// `faceIntersectors` holds one `IntCurvesFace_Intersector` per entry in
+  /// `fFaceBoundsCache`, in the same order.  Each entry is heap-allocated
+  /// (via `std::unique_ptr`) to avoid requiring movability of
+  /// `IntCurvesFace_Intersector` during vector reallocation.  The per-face
+  /// intersectors are used by `DistanceToIn(p,v)` and `DistanceToOut(p,v,...)`
+  /// in a bbox-prefiltered loop that avoids the `NCollection_Sequence` heap
+  /// overhead of `IntCurvesFace_ShapeIntersector::Perform`.
+  ///
+  /// `expandedBoxes` holds a copy of each entry's `FaceBounds::box`, enlarged
+  /// by `IntersectionTolerance()`.  Planar faces have zero-thickness bounding
+  /// boxes in their normal direction; `Bnd_Box::IsOut(gp_Lin)` can return a
+  /// floating-point false positive for such degenerate boxes when the line
+  /// grazes the bounding plane.  Enlarging by the tolerance ensures every box
+  /// has finite extent in all directions and makes the `IsOut` test robust.
   struct IntersectorCache {
     std::uint64_t generation{std::numeric_limits<std::uint64_t>::max()};
-    std::optional<IntCurvesFace_ShapeIntersector> intersector;
+    std::vector<std::unique_ptr<IntCurvesFace_Intersector>> faceIntersectors;
+    std::vector<Bnd_Box> expandedBoxes; ///< per-face boxes enlarged by `IntersectionTolerance()`
   };
 
   /// Single mesh triangle used by the surface-sampling cache.
@@ -431,9 +448,11 @@ private:
   /// @c fShape whenever the cached generation does not match @c fShapeGeneration.
   BRepClass3d_SolidClassifier& GetOrCreateClassifier() const;
 
-  /// Return a reference to the per-thread intersector, (re-)initialising it from
-  /// @c fShape whenever the cached generation does not match @c fShapeGeneration.
-  IntCurvesFace_ShapeIntersector& GetOrCreateIntersector() const;
+  /// Return a reference to the per-thread intersector cache, (re-)initialising
+  /// it from @c fShape whenever the cached generation does not match
+  /// @c fShapeGeneration.  The cache holds one `IntCurvesFace_Intersector` per
+  /// face in `fFaceBoundsCache`, in the same order.
+  IntersectorCache& GetOrCreateIntersector() const;
 
   /// Compute the axis-aligned bounding box of @c fShape and store it in
   /// @c fCachedBounds, and populate @c fFaceBoundsCache with per-face bounding
