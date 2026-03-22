@@ -571,9 +571,56 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     }
   }
 
-  BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
-  classifier.Perform(ToPoint(p), tolerance);
-  return ToG4Inside(classifier.State());
+  // Tier-2: ray-parity test using per-thread intersector cache.
+  // Cast a ray from p in the canonical +Z direction and count how many faces
+  // the ray crosses strictly through their interior (TopAbs_IN).  Odd = inside.
+  // TopAbs_ON hits (shared edges/vertices) are excluded from the parity count;
+  // any such hit signals a degenerate ray and triggers a classifier fallback so
+  // that altered parity from skipping the crossing does not misclassify the point.
+  IntersectorCache& cache = GetOrCreateIntersector();
+  const gp_Lin ray(ToPoint(p), gp_Dir(0.0, 0.0, 1.0));
+  int crossings      = 0;
+  bool onSurface     = false;
+  bool degenerateRay = false;
+
+  for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
+    if (cache.expandedBoxes[i].IsOut(ray)) {
+      continue;
+    }
+    IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
+    fi.Perform(ray, -tolerance, Precision::Infinite());
+    if (!fi.IsDone()) {
+      continue;
+    }
+    for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
+      const G4double w         = fi.WParameter(j);
+      const TopAbs_State state = fi.State(j);
+      if (std::abs(w) <= tolerance && (state == TopAbs_IN || state == TopAbs_ON)) {
+        // Intersection at (or just behind) the ray origin: p lies on the face.
+        onSurface = true;
+      } else if (w > tolerance && state == TopAbs_IN) {
+        ++crossings;
+      } else if (w > tolerance && state == TopAbs_ON) {
+        // Ray hits a shared edge or vertex: skipping this crossing changes the
+        // parity and can misclassify inside/outside.  Fall back to the classifier.
+        degenerateRay = true;
+      }
+    }
+  }
+
+  if (onSurface) {
+    return kSurface;
+  }
+  // Safety fallback: use the classifier when the parity count is unreliable —
+  // either because no TopAbs_IN crossings were found (ray may pass entirely
+  // through edges/vertices) or because at least one TopAbs_ON edge/vertex hit
+  // was skipped (altering the effective crossing count).
+  if (crossings == 0 || degenerateRay) {
+    BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+    classifier.Perform(ToPoint(p), tolerance);
+    return ToG4Inside(classifier.State());
+  }
+  return (crossings % 2 == 1) ? kInside : kOutside;
 }
 
 G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
