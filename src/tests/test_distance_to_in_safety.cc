@@ -12,7 +12,6 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <cmath>
 #include <string>
 
 namespace {
@@ -127,27 +126,15 @@ TEST(DistanceToInLowerBound, AABBIsConservativeForDiagonalExterior) {
   EXPECT_LT(safety, exact) << "AABB bound must be strictly less than exact for diagonal point";
 }
 
-TEST(DistanceToInLowerBound, FallbackWhenAABBUnavailable) {
-  // Regression test for the "AABB unavailable" path: when fCachedBounds is
-  // std::nullopt (triggered here by a shape with no geometry), AABBLowerBound()
-  // returns kInfinity.  Before the fix, DistanceToIn() would short-circuit and
-  // return kInfinity instead of falling through to ExactDistanceToIn().
-  // The fixed guard (std::isfinite) ensures the fallback is always reached,
-  // so the result is consistent with ExactDistanceToIn().
+TEST(DistanceToInLowerBound, RejectsShapeWithNoGeometry) {
+  // Constructing a G4OCCTSolid from a shape with no geometry (e.g. an empty
+  // TopoDS_Compound) must throw std::invalid_argument because AABB availability
+  // is now a class invariant enforced at construction time.
   BRep_Builder builder;
   TopoDS_Compound emptyCompound{};
   builder.MakeCompound(emptyCompound);
-  G4OCCTSolid emptyShapeSolid("EmptyShapeNoGeometry", emptyCompound);
-  const G4ThreeVector anyPoint(100.0 * mm, 0.0, 0.0);
 
-  const G4double safety = emptyShapeSolid.DistanceToIn(anyPoint);
-  const G4double exact  = emptyShapeSolid.ExactDistanceToIn(anyPoint);
-
-  // Both return kInfinity for a shape with no geometry — this confirms DistanceToIn()
-  // correctly reaches the exact-solver fallback instead of misreporting kInfinity
-  // from the AABB sentinel alone.
-  EXPECT_TRUE(std::isinf(safety)) << "empty-shape: DistanceToIn must return kInfinity";
-  EXPECT_EQ(safety, exact) << "empty-shape: DistanceToIn must match ExactDistanceToIn";
+  EXPECT_THROW(G4OCCTSolid("EmptyShapeNoGeometry", emptyCompound), std::invalid_argument);
 }
 
 } // namespace

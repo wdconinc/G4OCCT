@@ -69,7 +69,7 @@ public:
    *
    * @param name  Name registered with the Geant4 solid store.
    * @param shape OCCT boundary-representation shape to wrap.
-   * @throws std::invalid_argument if @p shape is null.
+   * @throws std::invalid_argument if @p shape is null or has no computable bounding box.
    */
   G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape);
 
@@ -108,8 +108,8 @@ public:
   /// `IntersectionTolerance()`, the AABB distance is returned immediately.  This is always a
   /// valid conservative lower bound and avoids any OCCT call for distant exterior points.
   ///
-  /// **Fallback:** Points within `IntersectionTolerance()` of the AABB, or when the AABB is
-  /// unavailable (shape has no geometry), fall through to `ExactDistanceToIn(p)`.
+  /// **Fallback:** Points within `IntersectionTolerance()` of the AABB fall through to
+  /// `ExactDistanceToIn(p)`.
   ///
   /// For the exact shortest distance, use ExactDistanceToIn(p).
   G4double DistanceToIn(const G4ThreeVector& p) const override;
@@ -202,7 +202,7 @@ public:
   ///       intersector on its next navigation call.  The shape update itself
   ///       is not atomic with respect to ongoing navigation; avoid calling
   ///       this while a simulation run is in progress.
-  /// @throws std::invalid_argument if @p shape is null.
+  /// @throws std::invalid_argument if @p shape is null or has no computable bounding box.
   void SetOCCTShape(const TopoDS_Shape& shape) {
     if (shape.IsNull()) {
       throw std::invalid_argument("G4OCCTSolid::SetOCCTShape: shape must not be null");
@@ -302,8 +302,9 @@ private:
 
   /// Cached axis-aligned bounding box; computed eagerly in the constructor and
   /// recomputed by `ComputeBounds()` whenever `SetOCCTShape()` is called.
-  /// `std::nullopt` when the shape has no geometry (e.g. an empty compound).
-  std::optional<AxisAlignedBounds> fCachedBounds;
+  /// Always valid after construction: the constructor and `SetOCCTShape()` throw
+  /// `std::invalid_argument` if the shape has no computable bounding box.
+  AxisAlignedBounds fCachedBounds;
 
   /// Per-face bounding boxes, populated alongside `fCachedBounds` in `ComputeBounds()`.
   /// Used by `SurfaceNormal` as a lower-bound prefilter to avoid calling
@@ -414,14 +415,13 @@ private:
 
   /// Compute the axis-aligned bounding box of @c fShape and store it in
   /// @c fCachedBounds, and populate @c fFaceBoundsCache with per-face bounding
-  /// boxes.  Sets @c fCachedBounds to @c std::nullopt and clears @c fFaceBoundsCache
-  /// when the shape has no geometry.  Called from the constructor and
+  /// boxes.  Throws `std::invalid_argument` when the shape has no computable
+  /// bounding box (e.g. an empty compound).  Called from the constructor and
   /// @c SetOCCTShape().
   void ComputeBounds();
 
   /// Compute the distance from @p p to the cached axis-aligned bounding box.
   /// Returns 0 when @p p is on or inside the AABB.
-  /// Returns @c kInfinity when @c fCachedBounds is not available.
   G4double AABBLowerBound(const G4ThreeVector& p) const;
 
   /// Compute a conservative lower bound on the distance from @p p to the solid surface
