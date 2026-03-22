@@ -8,8 +8,8 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 
-const ALL_FIXTURES   = JSON.parse(document.getElementById('fixture-data').textContent);
-const FIXTURE_BLOBS  = JSON.parse(document.getElementById('fixture-blobs').textContent);
+const ALL_FIXTURES  = JSON.parse(document.getElementById('fixture-data').textContent);
+const FIXTURE_BLOBS = JSON.parse(document.getElementById('fixture-blobs').textContent);
 
 // ── UI elements ──────────────────────────────────────────────────────────────
 const selectEl          = document.getElementById('fixture-select');
@@ -478,11 +478,11 @@ function populateSelect() {
 populateSelect();
 if (ALL_FIXTURES.length > 0) {
   const requestedFixture = fixtureIdFromUrl();
-  const initialMeta =
-      ALL_FIXTURES.find(x => x.fixture_id === requestedFixture) || ALL_FIXTURES[0];
-  selectEl.value = initialMeta.fixture_id;
+  const initialMeta = ALL_FIXTURES.find(x => x.fixture_id === requestedFixture) || ALL_FIXTURES[0];
+  selectEl.value    = initialMeta.fixture_id;
   setHashForFixture(initialMeta.fixture_id);
-  selectFixtureById(initialMeta.fixture_id).catch(err => console.error('Failed to load fixture:', err));
+  selectFixtureById(initialMeta.fixture_id)
+      .catch(err => console.error('Failed to load fixture:', err));
 }
 
 selectEl.addEventListener('change', () => {
