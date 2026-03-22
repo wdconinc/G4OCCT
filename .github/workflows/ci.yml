@@ -251,18 +251,25 @@ jobs:
         fixture:
           - name: g4box
             id: g4box-box-20x30x40-v1
+            family: direct-primitives
           - name: g4unionsolid
             id: g4unionsolid-box-overlap-x10-v1
+            family: boolean-compound
           - name: g4tessellatedsolid
             id: g4tessellatedsolid-tessellated-tet-right-20x30x40-v1
+            family: tessellated
           - name: g4twistedbox
             id: g4twistedbox-box-dx10-dy8-z20-phi30-v1
+            family: twisted-swept
           - name: g4ellipsoid
             id: g4ellipsoid-ellipsoid-15x10x20-v1
+            family: profile-faceted
           - name: g4displacedsolid
             id: g4displacedsolid-translated-box-offset-v1
+            family: wrapper-decorator
           - name: nist-ctc-01
             id: nist-ctc-01-v1
+            family: nist-ctc
 
     steps:
       - name: Checkout repository
@@ -358,7 +365,7 @@ jobs:
         if: always()
         run: |
           mkdir -p callgrind-links
-          printf '{"${{ matrix.fixture.id }}": "%s"}\n' \
+          printf '{"${{ matrix.fixture.family }}/${{ matrix.fixture.id }}": "%s"}\n' \
             "${{ steps.upload-callgrind-reports.outputs.artifact-url }}" \
             > callgrind-links/callgrind_links_${{ matrix.fixture.name }}.json
 
@@ -910,7 +917,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: ci-reports
-          path: docs/reports/
+          path: docs/
 
       - name: Download regenerated bench report
         uses: actions/download-artifact@v8
