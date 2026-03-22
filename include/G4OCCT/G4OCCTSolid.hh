@@ -232,6 +232,16 @@ public:
   }
 
 private:
+  /// A sphere that is guaranteed to lie entirely within the solid.
+  ///
+  /// Built once in `ComputeInscribedSphere()` after `fFaceBoundsCache` is ready.
+  /// A point whose squared distance from @c center is less than @c radiusSq is
+  /// definitively @c kInside without any OCCT classifier call.
+  struct InscribedSphere {
+    G4ThreeVector center;
+    G4double radiusSq{0.0};
+  };
+
   /// Per-face bounding box entry used to prefilter the closest-face search in
   /// `SurfaceNormal`.
   struct FaceBounds {
@@ -345,6 +355,14 @@ private:
   /// ordering already guaranteed by the geometry-build phase.
   Handle(BRepExtrema_TriangleSet) fTriangleSet;
 
+  /// Inscribed sphere: any point within this sphere is guaranteed to be inside
+  /// the solid.  Built by `ComputeInscribedSphere()` (called from `ComputeBounds()`)
+  /// and used in `Inside()` as a fast O(1) kInside short-circuit before the
+  /// more expensive `BRepClass3d_SolidClassifier` call.
+  /// `std::nullopt` when no valid inscribed sphere could be determined (e.g. the
+  /// AABB center lies outside or on the surface of the solid).
+  std::optional<InscribedSphere> fInscribedSphere;
+
   /// Conservative upper bound on the Hausdorff distance between the analytical
   /// surface of @c fShape and its tessellation stored in @c fTriangleSet.
   ///
@@ -441,6 +459,15 @@ private:
   /// bounding box (e.g. an empty compound).  Called from the constructor and
   /// @c SetOCCTShape().
   void ComputeBounds();
+
+  /// Compute and store the inscribed sphere (@c fInscribedSphere) centred at
+  /// the AABB centre.  The radius is the distance from the AABB centre to the
+  /// nearest analytical face surface (via @c TryFindClosestFace), reduced by a
+  /// small safety margin.  If the AABB centre is not inside the solid or the
+  /// distance cannot be determined, @c fInscribedSphere is left as
+  /// @c std::nullopt.  Called from @c ComputeBounds() after @c fFaceBoundsCache
+  /// and the per-thread classifier have been initialised.
+  void ComputeInscribedSphere();
 
   /// Compute the distance from @p p to the cached axis-aligned bounding box.
   /// Returns 0 when @p p is on or inside the AABB.

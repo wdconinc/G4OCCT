@@ -344,6 +344,51 @@ void G4OCCTSolid::ComputeBounds() {
   } else {
     fTriangleSet = new BRepExtrema_TriangleSet(faces);
   }
+
+  // Build the inscribed sphere used as a fast kInside pre-filter in Inside().
+  ComputeInscribedSphere();
+}
+
+void G4OCCTSolid::ComputeInscribedSphere() {
+  fInscribedSphere.reset();
+
+  if (fFaceBoundsCache.empty()) {
+    return;
+  }
+
+  // Candidate interior point: the centre of the axis-aligned bounding box.
+  // For many convex or mildly concave shapes this point typically lies well
+  // inside the solid, but we verify this explicitly below.
+  const G4ThreeVector candidate = 0.5 * (fCachedBounds.min + fCachedBounds.max);
+
+  // Verify that the candidate point is strictly inside the solid using a
+  // freshly-loaded local classifier built directly from fShape.  We must not
+  // rely on GetOrCreateClassifier() here because SetOCCTShape() updates fShape
+  // and calls ComputeBounds() (hence ComputeInscribedSphere()) *before*
+  // incrementing fShapeGeneration.  The per-thread cache may therefore still
+  // hold a classifier that was loaded for the previous shape (its generation
+  // stamp matches the not-yet-incremented counter), which would silently
+  // evaluate the candidate against stale geometry.
+  BRepClass3d_SolidClassifier localClassifier;
+  localClassifier.Load(fShape);
+  localClassifier.Perform(ToPoint(candidate), IntersectionTolerance());
+  if (localClassifier.State() != TopAbs_IN) {
+    return; // AABB centre is outside or on the surface; skip the optimisation.
+  }
+
+  // Compute the distance from the AABB centre to the nearest analytical face
+  // surface.  TryFindClosestFace uses Extrema_ExtPS on the unbounded parametric
+  // surface, which may find a projection point outside the trim boundary; this
+  // underestimates the true distance, giving a conservatively small sphere.
+  // A 99 % safety margin provides additional headroom for numerical edge cases.
+  const auto match = TryFindClosestFace(fFaceBoundsCache, candidate);
+  if (!match.has_value() || match->distance <= IntersectionTolerance()) {
+    return;
+  }
+
+  constexpr G4double kRadiusScaleFactor = 0.99;
+  const G4double r                      = kRadiusScaleFactor * match->distance;
+  fInscribedSphere                      = InscribedSphere{candidate, r * r};
 }
 
 std::optional<G4OCCTSolid::ClosestFaceMatch>
@@ -426,6 +471,17 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
       p.y() < fCachedBounds.min.y() - tolerance || p.y() > fCachedBounds.max.y() + tolerance ||
       p.z() < fCachedBounds.min.z() - tolerance || p.z() > fCachedBounds.max.z() + tolerance) {
     return kOutside;
+  }
+
+  // Fast path: points within the precomputed inscribed sphere are definitively
+  // inside the solid.  This avoids the expensive BRepClass3d_SolidClassifier
+  // BVH ray-cast for the common case where the query point is deep inside the
+  // solid (e.g. the G4Ellipsoid fixture where most sampled points are interior).
+  if (fInscribedSphere.has_value()) {
+    const G4ThreeVector delta = p - fInscribedSphere->center;
+    if (delta.mag2() < fInscribedSphere->radiusSq) {
+      return kInside;
+    }
   }
 
   BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
