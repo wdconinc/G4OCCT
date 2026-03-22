@@ -21,6 +21,7 @@
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_TShape.hxx>
+#include <gp_Pln.hxx>
 
 #include <atomic>
 #include <condition_variable>
@@ -238,6 +239,7 @@ private:
     TopoDS_Face face;
     Bnd_Box box;
     BRepAdaptor_Surface adaptor;
+    std::optional<gp_Pln> plane; ///< precomputed plane equation for planar faces
   };
 
   /// Result of the closest-face search.
@@ -407,6 +409,11 @@ private:
   /// term `δ` in `s = max(0, mesh_dist − δ)` to guarantee a valid lower bound.
   G4double fBVHDeflection{0.0};
 
+  /// True if every face in @c fFaceBoundsCache has a precomputed plane (i.e. all
+  /// faces are planar).  Set by `ComputeBounds()`.  When true, `DistanceToOut(p)`
+  /// can bypass the BVH triangle-mesh traversal entirely.
+  bool fAllFacesPlanar{false};
+
   /// Monotonically increasing counter; incremented by each `SetOCCTShape()` call.
   /// Read (acquire) in `GetOrCreateClassifier()` and `GetOrCreateIntersector()` const;
   /// written (release) in `SetOCCTShape()`.
@@ -533,6 +540,19 @@ private:
   /// Geant4 safety distance.  Returns @c kInfinity if @c fTriangleSet is not
   /// available (null or empty).
   G4double BVHLowerBoundDistance(const G4ThreeVector& p) const;
+
+  /// Returns the minimum perpendicular distance from @p p to any planar face's
+  /// infinite supporting plane.
+  ///
+  /// When the solid boundary is composed entirely of planar faces, the returned
+  /// value is a conservative safety distance satisfying
+  /// @c 0 ≤ s ≤ true_distance; for interior points of convex all-planar solids
+  /// it is exact. For solids that include any curved faces (mixed-topology
+  /// solids), this quantity is only a heuristic accelerator and is not
+  /// guaranteed to be a strict lower bound on the true distance to the surface.
+  ///
+  /// Returns @c kInfinity if no planar faces exist.
+  G4double PlanarFaceLowerBoundDistance(const G4ThreeVector& p) const;
 
   /// Find the closest trimmed face to @p point using pre-computed per-face bounding
   /// boxes as a lower-bound prefilter.  A face whose AABB distance from @p point
