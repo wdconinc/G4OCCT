@@ -127,21 +127,23 @@ TEST(InsideClassification, InscribedSphereFastPath) {
 // Fix 1 regression: a point that lies outside the solid but exactly on the z-plane
 // of the +z face must NOT be returned as kSurface.
 //
-// Setup: box [−10,10]×[−20,20]×[−30,30].  Point (15, 0, 30) lies on the plane
-// z=30 (the +z face plane) but outside the face boundary (x=15 > 10).
-// The +Z ray from this point intersects the +z face's underlying plane at w=0,
-// but IntCurvesFace_Intersector reports TopAbs_OUT because (15,0) is outside the
-// face rectangle.  With Fix 1, TopAbs_OUT at |w|≤tol is ignored, so onSurface
-// stays false; crossings=0 triggers the classifier fallback which returns kOutside.
+// Setup: cylinder of radius 10 and half-length 30.  The +z face is a circular
+// disk at z=30.  Its AABB on that plane is the square [−10,10]×[−10,10], but the
+// trimmed face only covers the circle x^2 + y^2 <= 10^2.
+//
+// Point (10,10,30) lies on the plane z=30 and inside the AABB, but outside the
+// circular face (x^2 + y^2 = 200 > 100), so it is outside the solid while
+// still exercising the extended-surface / TopAbs_OUT logic in the +Z ray.
+// With Fix 1, TopAbs_OUT at |w|<=tol is ignored, so onSurface stays false;
+// crossings=0 triggers the classifier fallback which returns kOutside.
 TEST(InsideClassification, RayParityOnSurfaceStateCheck) {
-  const BoxFixture box("RayParityOnSurfaceBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
+  const CylinderFixture cyl("RayParityOnSurfaceCylinder", 10.0 * mm, 30.0 * mm);
 
-  // Clearly outside: the +z face plane is extended outward but (15,0,30) is not
-  // on the actual solid surface.
-  ExpectInside("point outside +z plane extension is kOutside", box.solid,
-               G4ThreeVector(15.0 * mm, 0.0, 30.0 * mm), kOutside);
+  // Outside the solid: inside the AABB of the +z face but outside the circular face.
+  ExpectInside("point outside +z circular face but inside AABB is kOutside", cyl.solid,
+               G4ThreeVector(10.0 * mm, 10.0 * mm, 30.0 * mm), kOutside);
   // Sanity: face centre on the same plane is on the surface.
-  ExpectInside("+z face centre is kSurface", box.solid, G4ThreeVector(0.0, 0.0, 30.0 * mm),
+  ExpectInside("+z face centre is kSurface", cyl.solid, G4ThreeVector(0.0, 0.0, 30.0 * mm),
                kSurface);
 }
 
@@ -175,6 +177,16 @@ TEST(InsideClassification, RayParityDegenerateRayEdgeAndVertex) {
                G4ThreeVector(0.0, 20.0 * mm, 30.0 * mm), kSurface);
   ExpectInside("+z/-y top edge midpoint is kSurface", box.solid,
                G4ThreeVector(0.0, -20.0 * mm, 30.0 * mm), kSurface);
+
+  // Midpoints on the four bottom horizontal edges.
+  ExpectInside("-z/+x bottom edge midpoint is kSurface", box.solid,
+               G4ThreeVector(10.0 * mm, 0.0, -30.0 * mm), kSurface);
+  ExpectInside("-z/-x bottom edge midpoint is kSurface", box.solid,
+               G4ThreeVector(-10.0 * mm, 0.0, -30.0 * mm), kSurface);
+  ExpectInside("-z/+y bottom edge midpoint is kSurface", box.solid,
+               G4ThreeVector(0.0, 20.0 * mm, -30.0 * mm), kSurface);
+  ExpectInside("-z/-y bottom edge midpoint is kSurface", box.solid,
+               G4ThreeVector(0.0, -20.0 * mm, -30.0 * mm), kSurface);
 
   // All eight corners of the box must be kSurface.
   ExpectInside("corner (+x,+y,+z) is kSurface", box.solid,
