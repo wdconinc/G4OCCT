@@ -39,6 +39,8 @@
 ///   fixture_root   = <source tree>/src/tests/fixtures/assembly-comparison
 ///   point_cloud_dir = "" (no point-cloud output)
 
+#include "callgrind_macros.hh"
+
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
 #include "G4OCCT/G4OCCTMaterialMapReader.hh"
@@ -670,7 +672,15 @@ int RunBenchmark(const std::filesystem::path& fixture_root, std::size_t ray_coun
   benchmark::AddCustomContext("assembly_ray_count", std::to_string(ray_count));
   benchmark::AddCustomContext("assembly_fixture_root", fixture_root.string());
 
+  // Gate callgrind instrumentation around the benchmark hot loop so that
+  // fixture preloading (GDML parse, STEP import, geometry construction) is
+  // excluded from the profile.  When running outside valgrind, or built
+  // without valgrind headers, all CALLGRIND_* macros expand to no-ops.
+  CALLGRIND_START_INSTRUMENTATION;
+  CALLGRIND_TOGGLE_COLLECT;
   benchmark::RunSpecifiedBenchmarks();
+  CALLGRIND_TOGGLE_COLLECT;
+  CALLGRIND_STOP_INSTRUMENTATION;
   benchmark::Shutdown();
 
   std::ostream& report_out = json_to_stdout ? std::cerr : std::cout;
