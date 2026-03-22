@@ -67,18 +67,25 @@ private:
  * from ray / inside / volume mismatches.  A fixture may have either or both
  * flags set.
  *
- * When `enabled` is true ALL non-equivalence error codes are demoted to
- * warnings (existing behaviour).  `safety_enabled` is reserved for future
- * use; the safety non-equivalence allowlist is currently empty because
- * Geant4-vs-OCCT safety distance differences are no longer treated as errors
- * (see `CompareFixtureSafety`).  OCCT lower-bound violations are hard
- * failures that cannot be reclassified by either flag.
+ * When `enabled` is true and `allowed_codes` is empty, ALL non-equivalence
+ * error codes are demoted to warnings.  When `allowed_codes` is non-empty,
+ * only codes listed there are reclassified; this allows ray-distance failures
+ * to be marked xfail while keeping volume or inside-classification errors as
+ * hard failures.  `safety_enabled` is reserved for future use; the safety
+ * non-equivalence allowlist is currently empty because Geant4-vs-OCCT safety
+ * distance differences are no longer treated as errors (see
+ * `CompareFixtureSafety`).  OCCT lower-bound violations are hard failures that
+ * cannot be reclassified by either flag.
  */
 struct FixtureExpectedFailure {
-  /// Reclassify all non-equivalence errors (ray, inside, volume, safety) as xfail warnings.
+  /// Reclassify non-equivalence errors as xfail warnings.
   bool enabled{false};
-  /// Human-readable reason for the full expected failure.
+  /// Human-readable reason for the expected failure.
   std::string reason;
+
+  /// When non-empty, restrict reclassification to only these error codes.
+  /// When empty, all codes in the non-equivalence allowlist are reclassified.
+  std::set<std::string> allowed_codes;
 
   /// Reclassify only safety scalar distance errors as xfail warnings.
   bool safety_enabled{false};
@@ -144,6 +151,8 @@ std::string ToString(ValidationSeverity severity);
  *    - `fixture.ray_normal_mismatch`
  *    - `fixture.surface_normal_mismatch`
  *    - `fixture.inside_classification_mismatch`
+ *    When `failure.allowed_codes` is non-empty, only codes in that set are
+ *    reclassified from the allowlist above.
  *  - Safety-only (applied when `failure.safety_enabled` is true): currently empty;
  *    reserved for future safety non-equivalence codes.
  *

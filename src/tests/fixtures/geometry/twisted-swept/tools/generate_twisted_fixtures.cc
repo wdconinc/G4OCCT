@@ -200,9 +200,10 @@ TopoDS_Shape MakeTwistedTrap() {
 ///
 /// G4VTwistedFaceted has trapezoidal cross-sections that vary along z and are
 /// rotated (twisted) about the z-axis.  The axis of the solid is tilted by
-/// polar angle θ (8°) toward azimuth φ (20°).  An alpha shear (12°) skews
-/// the cross-sections so that the centre of the top edge (y = +dy) is
-/// displaced by +dy·tan α relative to the centre of the bottom edge (y = −dy).
+/// polar angle θ (8°) toward azimuth φ_tilt (20°).  An alpha shear (12°) skews
+/// the cross-sections so that the centre of the bottom edge (y = −dy) is
+/// shifted by −dy·tan α and the centre of the top edge (y = +dy) by +dy·tan α,
+/// giving a 2·dy·tan α relative displacement between the edge centres.
 ///
 /// Three corrections relative to the original generator:
 ///
