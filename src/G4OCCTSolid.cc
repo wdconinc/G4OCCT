@@ -569,7 +569,7 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
   // that altered parity from skipping the crossing does not misclassify the point.
   IntersectorCache& cache = GetOrCreateIntersector();
   const gp_Lin ray(ToPoint(p), gp_Dir(0.0, 0.0, 1.0));
-  int  crossings     = 0;
+  int crossings      = 0;
   bool onSurface     = false;
   bool degenerateRay = false;
 
@@ -583,8 +583,8 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
       continue;
     }
     for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
-      const G4double      w     = fi.WParameter(j);
-      const TopAbs_State  state = fi.State(j);
+      const G4double w         = fi.WParameter(j);
+      const TopAbs_State state = fi.State(j);
       if (std::abs(w) <= tolerance && (state == TopAbs_IN || state == TopAbs_ON)) {
         // Intersection at (or just behind) the ray origin: p lies on the face.
         onSurface = true;

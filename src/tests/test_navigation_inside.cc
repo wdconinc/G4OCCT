@@ -196,8 +196,8 @@ TEST(InsideClassification, RayParityDegenerateRayEdgeAndVertex) {
 
   // Interior and exterior points must not be affected by the fallback.
   ExpectInside("box centre is kInside", box.solid, G4ThreeVector(0.0, 0.0, 0.0), kInside);
-  ExpectInside("point beyond +x face is kOutside", box.solid,
-               G4ThreeVector(15.0 * mm, 0.0, 0.0), kOutside);
+  ExpectInside("point beyond +x face is kOutside", box.solid, G4ThreeVector(15.0 * mm, 0.0, 0.0),
+               kOutside);
 }
 
 } // namespace
