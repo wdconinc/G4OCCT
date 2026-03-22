@@ -99,8 +99,7 @@ public:
 
   /// Distance from external point @p p along direction @p v to solid surface.
   /// @param p  Point outside (or on) the solid surface.
-  /// @param v  Unit direction vector; must be non-null and normalised (pre-condition
-  ///           invariant required by the G4VSolid contract).
+  /// @param v  Non-zero unit direction vector (precondition required by the G4VSolid contract).
   G4double DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const override;
 
   /// A lower bound on the shortest distance from external point @p p to the solid surface.
@@ -119,8 +118,7 @@ public:
 
   /// Distance from internal point @p p along direction @p v to solid surface.
   /// @param p  Point inside (or on) the solid surface.
-  /// @param v  Unit direction vector; must be non-null and normalised (pre-condition
-  ///           invariant required by the G4VSolid contract).
+  /// @param v  Non-zero unit direction vector (precondition required by the G4VSolid contract).
   G4double DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v,
                          const G4bool calcNorm = false, G4bool* validNorm = nullptr,
                          G4ThreeVector* n = nullptr) const override;
