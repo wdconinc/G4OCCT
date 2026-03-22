@@ -316,7 +316,7 @@ void G4OCCTSolid::ComputeBounds() {
     const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
     const std::size_t idx          = fFaceBoundsCache.size();
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
-    fFaceAdaptorIndex.emplace(currentFace.TShape().get(), idx);
+    fFaceAdaptorIndex[currentFace.TShape().get()].push_back(idx);
     // Track the largest face bounding-box diagonal to bound the tessellation error.
     if (!faceBox.IsVoid()) {
       Standard_Real fx0 = 0.0;
@@ -607,14 +607,24 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
   if (calcNorm && validNorm != nullptr && n != nullptr &&
       intersector.State(minIndex) == TopAbs_IN) {
     const TopoDS_Face& hitFace = intersector.Face(minIndex);
-    // O(1) look-up via the TShape-pointer index built in ComputeBounds().
-    const auto mapIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
+    // Hash-lookup narrows to the (almost always singleton) bucket of faces
+    // that share the same TShape; IsPartner() then selects the correct located
+    // entry within the bucket, handling instanced sub-shapes where the same
+    // TShape appears at several distinct locations.
     std::optional<G4ThreeVector> outNorm;
-    if (mapIt != fFaceAdaptorIndex.end()) {
-      outNorm =
-          TryGetOutwardNormal(fFaceBoundsCache[mapIt->second].adaptor, hitFace,
-                              intersector.UParameter(minIndex), intersector.VParameter(minIndex));
-    } else {
+    const auto                   bucketIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
+    if (bucketIt != fFaceAdaptorIndex.end()) {
+      const auto& indices = bucketIt->second;
+      const auto  faceIt  = std::find_if(indices.begin(), indices.end(), [&](std::size_t i) {
+        return fFaceBoundsCache[i].face.IsPartner(hitFace);
+      });
+      if (faceIt != indices.end()) {
+        outNorm =
+            TryGetOutwardNormal(fFaceBoundsCache[*faceIt].adaptor, hitFace,
+                                intersector.UParameter(minIndex), intersector.VParameter(minIndex));
+      }
+    }
+    if (!outNorm) {
       outNorm = TryGetOutwardNormal(hitFace, intersector.UParameter(minIndex),
                                     intersector.VParameter(minIndex));
     }
