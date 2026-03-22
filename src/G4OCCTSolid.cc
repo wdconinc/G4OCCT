@@ -561,9 +561,47 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     }
   }
 
-  BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
-  classifier.Perform(ToPoint(p), tolerance);
-  return ToG4Inside(classifier.State());
+  // Tier-2: ray-parity test using per-thread intersector cache.
+  // Cast a ray from p in the canonical +Z direction and count how many faces
+  // the ray crosses strictly through their interior (TopAbs_IN).  Odd = inside.
+  // TopAbs_ON hits (at face edges/vertices) are skipped to avoid double-counting
+  // shared edges; if no clean crossings are found we fall back to the classifier.
+  IntersectorCache& cache = GetOrCreateIntersector();
+  const gp_Lin ray(ToPoint(p), gp_Dir(0.0, 0.0, 1.0));
+  int crossings = 0;
+  bool onSurface = false;
+
+  for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
+    if (cache.expandedBoxes[i].IsOut(ray)) {
+      continue;
+    }
+    IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
+    fi.Perform(ray, -tolerance, Precision::Infinite());
+    if (!fi.IsDone()) {
+      continue;
+    }
+    for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
+      const G4double w = fi.WParameter(j);
+      if (std::abs(w) <= tolerance) {
+        onSurface = true;
+      } else if (w > tolerance && fi.State(j) == TopAbs_IN) {
+        ++crossings;
+      }
+    }
+  }
+
+  if (onSurface) {
+    return kSurface;
+  }
+  // Safety fallback for degenerate rays (e.g. through edge/vertex giving 0
+  // TopAbs_IN hits): if we're inside the AABB but got zero crossings, the
+  // classifier handles these corner cases correctly.
+  if (crossings == 0) {
+    BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+    classifier.Perform(ToPoint(p), tolerance);
+    return ToG4Inside(classifier.State());
+  }
+  return (crossings % 2 == 1) ? kInside : kOutside;
 }
 
 G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
