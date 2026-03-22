@@ -16,6 +16,7 @@ Each .json.gz file in <point-cloud-dir> must contain:
     imported_post_step_hits     – [[x,y,z], ...]
 """
 
+import base64
 import gzip
 import json
 import sys
@@ -27,33 +28,44 @@ from report_utils import timestamp, write_report
 
 _SCRIPTS_DIR = Path(__file__).parent
 
+_METADATA_KEYS = ("fixture_id", "geant4_class", "ray_count",
+                  "native_pre_step_origin", "imported_pre_step_origin")
+_REQUIRED_KEYS = _METADATA_KEYS + ("native_post_step_hits", "imported_post_step_hits")
 
-def _load_fixture_data(point_cloud_dir: Path) -> list:
-    """Read all *.json.gz files in the directory tree recursively; return list of dicts."""
-    fixtures = []
+
+def _load_fixture_data(point_cloud_dir: Path) -> tuple:
+    """Read all *.json.gz files in the directory tree recursively.
+
+    Returns a tuple (metadata, blobs) where:
+    - metadata: list of dicts with fixture metadata (no point arrays)
+    - blobs: dict mapping fixture_id to base64-encoded raw gzip bytes
+    """
+    metadata = []
+    blobs = {}
     for gz_path in sorted(point_cloud_dir.glob("**/*.json.gz")):
         rel = gz_path.relative_to(point_cloud_dir)
         try:
+            raw_gz = gz_path.read_bytes()
             with gzip.open(gz_path, "rt", encoding="utf-8") as f:
                 data = json.load(f)
-            for key in ("fixture_id", "geant4_class", "ray_count",
-                        "native_pre_step_origin", "imported_pre_step_origin",
-                        "native_post_step_hits", "imported_post_step_hits"):
+            for key in _REQUIRED_KEYS:
                 if key not in data:
                     print(f"Warning: {rel}: missing key '{key}', skipping",
                           file=sys.stderr)
                     break
             else:
-                fixtures.append(data)
+                metadata.append({k: data[k] for k in _METADATA_KEYS})
+                blobs[data["fixture_id"]] = base64.b64encode(raw_gz).decode("ascii")
         except (json.JSONDecodeError, OSError) as exc:
             print(f"Warning: could not load {rel}: {exc}", file=sys.stderr)
-    return fixtures
+    return metadata, blobs
 
 
-def _make_viewer_html(fixture_json: str, count_str: str) -> str:
+def _make_viewer_html(fixture_json: str, fixture_blobs: str, count_str: str) -> str:
     """Build Jinja2 environment, load assets, and render the viewer template."""
     # autoescape=False: css_content and js_content are trusted local files;
-    # fixture_json is compact JSON whose values are geometry-only strings.
+    # fixture_json and fixture_blobs are compact JSON whose values are geometry-only strings
+    # and base64-encoded gzip blobs.
     env = Environment(
         loader=FileSystemLoader(str(_SCRIPTS_DIR)),
         autoescape=False,
@@ -66,25 +78,29 @@ def _make_viewer_html(fixture_json: str, count_str: str) -> str:
         css_content=css_content,
         js_content=js_content,
         fixture_json=fixture_json,
+        fixture_blobs=fixture_blobs,
         timestamp=timestamp(),
         count_str=count_str,
     )
 
 
-def _render_report(fixtures: list) -> str:
+def _render_report(metadata: list, blobs: dict) -> str:
     """Render a self-contained HTML viewer using the Jinja2 template."""
-    return _make_viewer_html(
+    def _safe_json(obj: object) -> str:
         # Escape "</" so the HTML parser cannot encounter "</script>" (or any
         # other closing tag) while reading the embedded <script> element,
         # regardless of the MIME type attribute.  "<\/" is valid JSON.
-        fixture_json=json.dumps(fixtures, separators=(",", ":")).replace("</", "<\\/"),
-        count_str=f"{len(fixtures)} fixture(s)",
+        return json.dumps(obj, separators=(",", ":")).replace("</", "<\\/")
+    return _make_viewer_html(
+        fixture_json=_safe_json(metadata),
+        fixture_blobs=_safe_json(blobs),
+        count_str=f"{len(metadata)} fixture(s)",
     )
 
 
 def _render_error(message: str) -> str:
     """Render a minimal HTML error page using the Jinja2 template."""
-    return _make_viewer_html(fixture_json="[]", count_str=f"Error: {message}")
+    return _make_viewer_html(fixture_json="[]", fixture_blobs="{}", count_str=f"Error: {message}")
 
 
 def main() -> None:
@@ -102,8 +118,8 @@ def main() -> None:
               file=sys.stderr)
         return
 
-    fixtures = _load_fixture_data(cloud_dir)
-    html     = _render_report(fixtures)
+    fixtures, blobs = _load_fixture_data(cloud_dir)
+    html             = _render_report(fixtures, blobs)
     write_report(html_path, html, label="Point-cloud viewer",
                  suffix=f" ({len(fixtures)} fixture(s))")
 
