@@ -33,7 +33,7 @@ _METADATA_KEYS = ("fixture_id", "geant4_class", "ray_count",
 _REQUIRED_KEYS = _METADATA_KEYS + ("native_post_step_hits", "imported_post_step_hits")
 
 
-def _load_fixture_data(point_cloud_dir: Path) -> tuple:
+def _load_fixture_data(point_cloud_dir: Path) -> tuple[list[dict[str, object]], dict[str, str]]:
     """Read all *.json.gz files in the directory tree recursively.
 
     Returns a tuple (metadata, blobs) where:
@@ -41,7 +41,7 @@ def _load_fixture_data(point_cloud_dir: Path) -> tuple:
     - blobs: dict mapping fixture_id to base64-encoded raw gzip bytes
     """
     metadata = []
-    blobs = {}
+    blobs: dict[str, str] = {}
     for gz_path in sorted(point_cloud_dir.glob("**/*.json.gz")):
         rel = gz_path.relative_to(point_cloud_dir)
         try:
@@ -54,8 +54,15 @@ def _load_fixture_data(point_cloud_dir: Path) -> tuple:
                           file=sys.stderr)
                     break
             else:
+                fixture_id = data["fixture_id"]
+                if fixture_id in blobs:
+                    print(
+                        f"Warning: {rel}: duplicate fixture_id '{fixture_id}', skipping duplicate",
+                        file=sys.stderr,
+                    )
+                    continue
                 metadata.append({k: data[k] for k in _METADATA_KEYS})
-                blobs[data["fixture_id"]] = base64.b64encode(raw_gz).decode("ascii")
+                blobs[fixture_id] = base64.b64encode(raw_gz).decode("ascii")
         except (json.JSONDecodeError, OSError) as exc:
             print(f"Warning: could not load {rel}: {exc}", file=sys.stderr)
     return metadata, blobs
@@ -84,7 +91,7 @@ def _make_viewer_html(fixture_json: str, fixture_blobs: str, count_str: str) -> 
     )
 
 
-def _render_report(metadata: list, blobs: dict) -> str:
+def _render_report(metadata: list[dict[str, object]], blobs: dict[str, str]) -> str:
     """Render a self-contained HTML viewer using the Jinja2 template."""
     def _safe_json(obj: object) -> str:
         # Escape "</" so the HTML parser cannot encounter "</script>" (or any
@@ -118,10 +125,10 @@ def main() -> None:
               file=sys.stderr)
         return
 
-    fixtures, blobs = _load_fixture_data(cloud_dir)
-    html             = _render_report(fixtures, blobs)
+    metadata, blobs = _load_fixture_data(cloud_dir)
+    html             = _render_report(metadata, blobs)
     write_report(html_path, html, label="Point-cloud viewer",
-                 suffix=f" ({len(fixtures)} fixture(s))")
+                 suffix=f" ({len(metadata)} fixture(s))")
 
 
 if __name__ == "__main__":

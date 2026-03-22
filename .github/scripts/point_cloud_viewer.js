@@ -429,23 +429,54 @@ function loadFixture(fixture) {
 // Decode the base64-encoded gzip blob for a fixture and return the full data
 // (including point arrays) as a parsed object.  The browser's DecompressionStream
 // API (gzip) is used so no third-party library is required.
+// Results are cached so repeated selections of the same fixture do not
+// re-decompress or re-parse the data.
+const fixtureCache = new Map();
+
 async function decodeFixtureBlob(fixtureId) {
+  if (fixtureCache.has(fixtureId)) {
+    return fixtureCache.get(fixtureId);
+  }
   if (!(fixtureId in FIXTURE_BLOBS)) {
     return null;
   }
   const bytes  = Uint8Array.from(atob(FIXTURE_BLOBS[fixtureId]), c => c.charCodeAt(0));
   const stream = new DecompressionStream('gzip');
   const writer = stream.writable.getWriter();
-  writer.write(bytes);
-  writer.close();
+  await writer.write(bytes);
+  await writer.close();
+  writer.releaseLock();
   const text = await new Response(stream.readable).text();
-  return JSON.parse(text);
+  const data = JSON.parse(text);
+  fixtureCache.set(fixtureId, data);
+  return data;
 }
 
-// Select a fixture by id: decode its blob lazily, then render.
+// Monotonically-increasing load token used to discard stale async results when
+// the user changes the selection before a previous decode has completed.
+let currentLoadToken = 0;
+
+// Select a fixture by id: decode its blob lazily (with caching), then render.
+// If a newer selection arrives before this one completes the result is discarded.
+// Decode failures are surfaced in the stats panel so the user gets feedback.
 async function selectFixtureById(fixtureId) {
-  const data = await decodeFixtureBlob(fixtureId);
-  loadFixture(data);
+  const token = ++currentLoadToken;
+  try {
+    const data = await decodeFixtureBlob(fixtureId);
+    if (token !== currentLoadToken) {
+      return; // a newer selection superseded this one
+    }
+    loadFixture(data);
+  } catch (err) {
+    if (token !== currentLoadToken) {
+      return; // stale — discard silently
+    }
+    clearClouds();
+    statsEl.innerHTML =
+        `<tr><td colspan="2" style="color:#e87040">Error loading fixture: ${escHtml(String(err))}</td></tr>`;
+    countEl.textContent = '';
+    console.error('Failed to load fixture:', err);
+  }
 }
 
 // ── Populate dropdown ─────────────────────────────────────────────────────────
