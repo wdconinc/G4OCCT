@@ -40,6 +40,7 @@
 #include <TopoDS_Vertex.hxx>
 #include <gp_Dir.hxx>
 #include <gp_Lin.hxx>
+#include <gp_Pln.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Vec.hxx>
 
@@ -307,7 +308,12 @@ void G4OCCTSolid::ComputeBounds() {
     BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
     const std::size_t idx          = fFaceBoundsCache.size();
-    fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
+    BRepAdaptor_Surface adaptor(currentFace);
+    std::optional<gp_Pln> maybePlane;
+    if (adaptor.GetType() == GeomAbs_Plane) {
+      maybePlane = adaptor.Plane();
+    }
+    fFaceBoundsCache.push_back({currentFace, faceBox, std::move(adaptor), std::move(maybePlane)});
     fFaceAdaptorIndex[currentFace.TShape().get()].push_back(idx);
     // Track the largest face bounding-box diagonal to bound the tessellation error.
     if (!faceBox.IsVoid()) {
@@ -326,6 +332,10 @@ void G4OCCTSolid::ComputeBounds() {
   // fBVHDeflection bounds the Hausdorff distance between the analytical surface
   // and the tessellation built with relative deflection kRelativeDeflection.
   fBVHDeflection = kRelativeDeflection * maxFaceDiag;
+
+  // Determine if all faces are planar (enables the fast plane-distance path in DistanceToOut).
+  fAllFacesPlanar = std::all_of(fFaceBoundsCache.begin(), fFaceBoundsCache.end(),
+                                [](const FaceBounds& fb) { return fb.plane.has_value(); });
 
   // Ensure a triangulation is present (idempotent if mesh already exists).
   // Limit lifetime to this scope so mesh resources are released before building
@@ -673,6 +683,21 @@ G4double G4OCCTSolid::BVHLowerBoundDistance(const G4ThreeVector& p) const {
   return std::max(0.0, meshDist - fBVHDeflection);
 }
 
+G4double G4OCCTSolid::PlanarFaceLowerBoundDistance(const G4ThreeVector& p) const {
+  const gp_Pnt pt = ToPoint(p);
+  G4double minDist = kInfinity;
+  for (const FaceBounds& fb : fFaceBoundsCache) {
+    if (!fb.plane.has_value()) {
+      continue;
+    }
+    const G4double d = static_cast<G4double>(fb.plane->Distance(pt));
+    if (d < minDist) {
+      minDist = d;
+    }
+  }
+  return minDist;
+}
+
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
   // Tier-0: AABB lower bound (O(1)).  If the point is clearly outside the shape's
   // axis-aligned bounding box, the AABB distance is a guaranteed conservative lower
@@ -754,10 +779,22 @@ G4double G4OCCTSolid::ExactDistanceToOut(const G4ThreeVector& p) const {
 }
 
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
-  // Tier-1: mesh-BVH lower bound (O(log T)).  For interior points the AABB
-  // distance is always 0, so there is no useful Tier-0 AABB shortcut here.
-  const G4double bvhDist = BVHLowerBoundDistance(p);
-  const G4double d       = (bvhDist < kInfinity) ? bvhDist : ExactDistanceToOut(p);
+  G4double d;
+  if (fAllFacesPlanar) {
+    // All faces are planar: the minimum perpendicular plane distance is exact
+    // for convex solids and a valid conservative lower bound for all others.
+    // This avoids the BVH triangle-mesh traversal entirely.
+    d = PlanarFaceLowerBoundDistance(p);
+    if (d == kInfinity) {
+      d = ExactDistanceToOut(p);
+    }
+  } else {
+    // Mixed geometry (some curved faces): the planar lower bound does not cover
+    // curved faces and is not a valid bound on the true distance.  Fall back to
+    // the BVH lower bound which covers all triangulated faces.
+    const G4double bvhDist = BVHLowerBoundDistance(p);
+    d = (bvhDist < kInfinity) ? bvhDist : ExactDistanceToOut(p);
+  }
   // Feed the inscribed-sphere cache: every positive return value proves B(p,d)
   // is inside the solid and can accelerate future Inside(p) calls.
   TryInsertSphere(p, d);
