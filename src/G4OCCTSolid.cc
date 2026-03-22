@@ -74,8 +74,10 @@ constexpr G4double kFallbackExtentMax = 1.0;
 /// most 1 % of each face's bounding-box size.
 constexpr Standard_Real kRelativeDeflection = 0.01;
 
-/// BVH traversal class that computes the minimum Euclidean distance from a
+/// BVH traversal class that computes the squared minimum distance from a
 /// query point to the nearest triangle in a `BRepExtrema_TriangleSet`.
+/// `ComputeDistance()` returns the squared distance; callers must take
+/// `std::sqrt` to recover the Euclidean distance.
 ///
 /// Used by `G4OCCTSolid::BVHLowerBoundDistance()` to accelerate safety
 /// distance queries.  Follows the pattern of `BRepExtrema_ProximityDistTool`
@@ -95,7 +97,7 @@ public:
     return RejectMetric(theMetric);
   }
 
-  /// Update the minimum distance with the exact point-to-triangle distance.
+  /// Update the minimum with the squared point-to-triangle distance.
   Standard_Boolean Accept(const Standard_Integer theIndex, const Standard_Real&) override {
     BVH_Vec3d v0, v1, v2;
     myBVHSet->GetVertices(theIndex, v0, v1, v2);
