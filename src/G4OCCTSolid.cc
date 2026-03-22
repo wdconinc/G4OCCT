@@ -361,7 +361,9 @@ void G4OCCTSolid::ComputeInitialSpheres() {
   const G4ThreeVector centre  = 0.5 * (bmin + bmax);
   const G4ThreeVector halfExt = 0.5 * (bmax - bmin);
 
-  // Candidate seed points: AABB centre, 6 face midpoints, 8 octant centres (15 total).
+  // Candidate seed points: AABB centre, 6 axis-offset interior points (each at half
+  // the distance from the AABB centre to the nearest face along that axis), and 8 octant
+  // centres (15 total).
   std::vector<G4ThreeVector> candidates;
   candidates.reserve(15);
   candidates.push_back(centre);
@@ -501,6 +503,12 @@ void G4OCCTSolid::TryInsertSphere(const G4ThreeVector& centre, G4double d) const
   if (d <= 0.0) {
     return;
   }
+
+  // Enforce a minimum meaningful radius, consistent with ComputeInitialSpheres().
+  const G4double minRadius = IntersectionTolerance();
+  if (d <= minRadius) {
+    return;
+  }
   SphereCacheData& cache = GetOrInitSphereCache();
 
   // Quick capacity check: if at capacity and the new radius is no better than
@@ -543,12 +551,15 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     return kOutside;
   }
 
-  // Fast inscribed-sphere check: if p lies inside any cached sphere (centre, radius),
-  // every such sphere is provably interior to the solid, so we can return kInside
-  // immediately without an OCCT classifier call.
+  // Fast inscribed-sphere check: if p lies strictly inside any cached sphere
+  // (with a tolerance margin), every such sphere is provably interior to the
+  // solid, so we can return kInside immediately without an OCCT classifier call.
+  // The check uses (radius - tolerance) to avoid misclassifying boundary-adjacent
+  // points as kInside — matching the open-ball guarantee from the safety distance.
   const SphereCacheData& sphereCache = GetOrInitSphereCache();
   for (const InscribedSphere& s : sphereCache.spheres) {
-    if ((p - s.centre).mag2() <= s.radius * s.radius) {
+    const G4double interiorRadius = s.radius - tolerance;
+    if (interiorRadius > 0.0 && (p - s.centre).mag2() < interiorRadius * interiorRadius) {
       return kInside;
     }
   }

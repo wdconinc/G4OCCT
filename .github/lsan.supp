@@ -60,11 +60,13 @@ leak:G4GenericAnalysisManager::Instance
 # ── G4OCCT per-thread caches ──────────────────────────────────────────────────
 # G4Cache<T> allocates per-thread T objects that are intentionally never freed
 # (they live for the duration of the process, matching Geant4's threading model).
-# The BRepClass3d_SolidClassifier held by G4OCCTSolid::fClassifierCache, and
-# the IntCurvesFace_ShapeIntersector held by G4OCCTSolid::fIntersectorCache,
+# The BRepClass3d_SolidClassifier held by G4OCCTSolid::fClassifierCache, the
+# IntCurvesFace_ShapeIntersector held by G4OCCTSolid::fIntersectorCache, and the
+# SphereCacheData (with its inscribed-sphere vector) held by fSphereCache,
 # together with the OCCT data structures they allocate internally via
 # Standard::Allocate, are all reachable from the G4Cache root and are reported
 # as indirect leaks.
-# Scoped to the two GetOrCreate* helpers to avoid masking unrelated leaks.
+# Scoped to the three GetOrCreate*/GetOrInit* helpers to avoid masking unrelated leaks.
 leak:G4OCCTSolid::GetOrCreateClassifier
 leak:G4OCCTSolid::GetOrCreateIntersector
+leak:G4OCCTSolid::GetOrInitSphereCache

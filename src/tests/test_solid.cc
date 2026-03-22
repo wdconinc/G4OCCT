@@ -234,3 +234,60 @@ TEST(SolidInvariant, SetOCCTShapeRejectsNullShape) {
   EXPECT_FALSE(solid.GetOCCTShape().IsNull());
   EXPECT_TRUE(solid.GetOCCTShape().IsEqual(box));
 }
+
+// ── Inscribed-sphere fast-path boundary tests ─────────────────────────────────
+// The Inside() method uses an inscribed-sphere cache for a fast-path: if a
+// query point lies strictly inside a cached sphere (shrunk by IntersectionTolerance),
+// kInside is returned immediately without invoking the OCCT classifier.
+//
+// Regression guard: the old implementation used a closed-ball check (<=), which
+// could classify points exactly on a cached sphere boundary as kInside even when
+// those points are on the solid surface.  The corrected open-ball check uses
+// (radius - tolerance) so boundary-adjacent points fall through to the OCCT
+// classifier and receive the correct kSurface classification.
+//
+// For a 10×10×10 axis-aligned cube [0,10]³:
+//   - AABB centre is (5,5,5).
+//   - The largest construction-time inscribed sphere is centred at (5,5,5)
+//     with radius 5 (distance from centre to each face).
+//   - The face-centre points (0,5,5), (10,5,5), (5,0,5), (5,10,5), (5,5,0),
+//     (5,5,10) lie exactly on this sphere's boundary.
+//   - With the old closed-ball check those points were returned as kInside
+//     (incorrect); with the corrected open-ball check they fall through to
+//     the OCCT classifier which returns kSurface (correct).
+
+TEST(SolidInscribedSphereFastPath, FaceCentrePointsAreKSurface) {
+  // Build a 10×10×10 cube with one corner at the origin.
+  TopoDS_Shape cube = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+  G4OCCTSolid solid("CubeFaceTest", cube);
+
+  // The six face-centre points must be classified as kSurface.
+  // These lie exactly on the boundary of the initial inscribed sphere
+  // (centre (5,5,5), radius 5), so they expose the closed-vs-open-ball bug.
+  EXPECT_EQ(solid.Inside(G4ThreeVector(0.0, 5.0, 5.0)), kSurface) << "-x face centre";
+  EXPECT_EQ(solid.Inside(G4ThreeVector(10.0, 5.0, 5.0)), kSurface) << "+x face centre";
+  EXPECT_EQ(solid.Inside(G4ThreeVector(5.0, 0.0, 5.0)), kSurface) << "-y face centre";
+  EXPECT_EQ(solid.Inside(G4ThreeVector(5.0, 10.0, 5.0)), kSurface) << "+y face centre";
+  EXPECT_EQ(solid.Inside(G4ThreeVector(5.0, 5.0, 0.0)), kSurface) << "-z face centre";
+  EXPECT_EQ(solid.Inside(G4ThreeVector(5.0, 5.0, 10.0)), kSurface) << "+z face centre";
+}
+
+TEST(SolidInscribedSphereFastPath, InteriorPointIsKInside) {
+  // Verify that the fast-path still works for a point well inside the solid
+  // (the sphere fast-path must return kInside without falling through to OCCT).
+  TopoDS_Shape cube = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+  G4OCCTSolid solid("CubeInteriorTest", cube);
+
+  // The centroid (5,5,5) is inside the sphere and well inside the solid.
+  EXPECT_EQ(solid.Inside(G4ThreeVector(5.0, 5.0, 5.0)), kInside) << "box centroid";
+  // A point well inside a face is also interior.
+  EXPECT_EQ(solid.Inside(G4ThreeVector(1.0, 5.0, 5.0)), kInside) << "point near face, inside";
+}
+
+TEST(SolidInscribedSphereFastPath, ExteriorPointIsKOutside) {
+  TopoDS_Shape cube = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+  G4OCCTSolid solid("CubeExteriorTest", cube);
+
+  EXPECT_EQ(solid.Inside(G4ThreeVector(-1.0, 5.0, 5.0)), kOutside) << "outside -x face";
+  EXPECT_EQ(solid.Inside(G4ThreeVector(5.0, 15.0, 5.0)), kOutside) << "outside +y face";
+}
