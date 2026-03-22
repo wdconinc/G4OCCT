@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <string>
+#include <stdexcept>
 
 namespace {
 
