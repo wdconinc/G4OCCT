@@ -568,7 +568,7 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
   // shared edges; if no clean crossings are found we fall back to the classifier.
   IntersectorCache& cache = GetOrCreateIntersector();
   const gp_Lin ray(ToPoint(p), gp_Dir(0.0, 0.0, 1.0));
-  int crossings = 0;
+  int crossings  = 0;
   bool onSurface = false;
 
   for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
