@@ -419,8 +419,10 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: bench-report
-          path: reports/bench-results.md
-          if-no-files-found: error
+          path: |
+            reports/bench-results.md
+            reports/bench-assembly-results.md
+          if-no-files-found: warn
           retention-days: 1
 
   sanitizer:
