@@ -91,11 +91,12 @@ ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
   ValidationReport rewritten;
   for (const auto& message : report.Messages()) {
     if (message.severity == ValidationSeverity::kError) {
-      const bool in_non_safety = kNonSafetyNonEquivalenceCodes.contains(message.code) ||
-                                 kSafetyNonEquivalenceCodes.contains(message.code);
+      const bool in_non_equivalence_allowlist =
+          kNonSafetyNonEquivalenceCodes.contains(message.code) ||
+          kSafetyNonEquivalenceCodes.contains(message.code);
       const bool code_allowed =
           failure.allowed_codes.empty() || failure.allowed_codes.contains(message.code);
-      if (failure.enabled && in_non_safety && code_allowed) {
+      if (failure.enabled && in_non_equivalence_allowlist && code_allowed) {
         rewritten.AddWarning("xfail." + message.code,
                              message.text + " (xfail: " + failure.reason + ")", message.path);
         continue;
