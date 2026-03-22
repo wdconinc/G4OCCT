@@ -114,8 +114,8 @@ TEST(DistanceToOutRay, SphereNormal) {
   // Ray along diagonal exits at the diagonal pole; normal equals the exit direction.
   const G4double kInvSqrt3 = 1.0 / std::sqrt(3.0);
   const G4ThreeVector diagonalDir(kInvSqrt3, kInvSqrt3, kInvSqrt3);
-  ExpectDistanceToOutWithNormal("sphere diagonal normal", sphere.solid, sphere.Center(), diagonalDir,
-                                sphere.radius, diagonalDir, kTolerance);
+  ExpectDistanceToOutWithNormal("sphere diagonal normal", sphere.solid, sphere.Center(),
+                                diagonalDir, sphere.radius, diagonalDir, kTolerance);
 }
 
 // Verify normal retrieval for a cylinder — both the curved lateral face and the

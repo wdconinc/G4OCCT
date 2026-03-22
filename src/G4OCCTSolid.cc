@@ -587,10 +587,10 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
     // entry within the bucket, handling instanced sub-shapes where the same
     // TShape appears at several distinct locations.
     std::optional<G4ThreeVector> outNorm;
-    const auto                   bucketIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
+    const auto bucketIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
     if (bucketIt != fFaceAdaptorIndex.end()) {
       const auto& indices = bucketIt->second;
-      const auto  faceIt  = std::find_if(indices.begin(), indices.end(), [&](std::size_t i) {
+      const auto faceIt   = std::find_if(indices.begin(), indices.end(), [&](std::size_t i) {
         return fFaceBoundsCache[i].face.IsPartner(hitFace);
       });
       if (faceIt != indices.end()) {
