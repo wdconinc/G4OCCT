@@ -40,6 +40,7 @@ Every new file must begin with:
 - Sanitizer runtime options (`ASAN_OPTIONS`, `LSAN_OPTIONS`, `UBSAN_OPTIONS`) are scoped to the `sanitizer` job.
 - Suppression files live in `.github/asan.supp`, `.github/lsan.supp`, `.github/ubsan.supp`.
 - `ci.yml` `pull_request` trigger has no branch filter — CI runs for PRs targeting any branch (supports sub-PR workflows).
+- `iwyu.yml`: separate include-what-you-use workflow; builds in Debug with `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, runs `iwyu_tool.py` + `fix_includes.py`; fails on PRs if IWYU suggests changes. Uses `.github/iwyu.imp` for mappings.
 
 ### Material Bridging
 - No heuristics, no silent fallbacks.

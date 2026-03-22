@@ -195,6 +195,17 @@ Do not lower these version floors without an explicit project decision.
 - **Docs workflow (`docs.yml`):** Builds Doxygen API docs and deploys the
   `docs/` directory (including generated `docs/api/`) to GitHub Pages.
 - **SPDX workflow (`spdx.yml`):** Enforces SPDX headers via `enarx/spdx@master`.
+- **IWYU workflow (`iwyu.yml`):** Runs include-what-you-use on C++ source files.
+  - Triggered on `push` to `main` and `pull_request` (no branch filter).
+  - Builds the project in Debug mode with `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
+    inside `eic_xl:nightly` to produce `build/compile_commands.json`.
+  - For PRs: runs `iwyu_tool.py` iteratively until the diff is stable (up to
+    5 iterations) on changed C++ files only; fails if IWYU suggests changes.
+  - For push: runs `iwyu_tool.py` on all files and uploads the patch as an
+    artifact (informational, does not block merge on `main`).
+  - Uses `.github/iwyu.imp` for G4OCCT-specific IWYU mappings (STL, etc.).
+  - The changed-file list is computed **outside** the container (before
+    `eic/run-cvmfs-osg-eic-shell@v1`) to avoid shallow-checkout `git diff` failures.
 
 ---
 

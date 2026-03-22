@@ -1,0 +1,12 @@
+[
+  # SPDX-License-Identifier: LGPL-2.1-or-later
+  # Copyright (C) 2026 G4OCCT Contributors
+
+  # IWYU mapping file for G4OCCT
+  # See https://github.com/include-what-you-use/include-what-you-use/blob/master/docs/IWYUMappings.md
+
+  # STL / GCC standard headers
+  # These files are provided by IWYU installed at /opt/local in the eic_xl:nightly container.
+  { ref: '/opt/local/share/include-what-you-use/gcc.stl.headers.imp' },
+  { ref: '/opt/local/share/include-what-you-use/libcxx.imp' }
+]

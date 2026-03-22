@@ -1,0 +1,130 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+
+name: IWYU
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  iwyu:
+    name: include-what-you-use (eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: _fetchcontent/*-src
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Build inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_TESTING=ON \
+              -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
+
+            cmake --build build -- -j$(nproc)
+
+      - name: Get changed C++ files
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git fetch --depth=1 origin ${{ github.event.pull_request.base.sha }}
+          git diff --name-only FETCH_HEAD HEAD \
+            | grep -E '\.(cc|hh|cpp|hpp|cxx|h)$' \
+            > changed_cpp_files.txt || true
+          echo "Changed C++ files:"
+          cat changed_cpp_files.txt || echo "(none)"
+
+      - name: Run IWYU on changed files
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            if [ ! -s changed_cpp_files.txt ]; then
+              echo "No C++ files changed in this pull request, skipping IWYU."
+              exit 0
+            fi
+
+            changed_files=$(cat changed_cpp_files.txt | tr '\n' ' ')
+
+            # Run IWYU iteratively until the diff is stable (up to 5 iterations)
+            i=5
+            while [[ $i > 0 && ${sha:-} != $(git diff | sha256sum) ]] ; do
+              ((i--))
+              sha=$(git diff | sha256sum)
+              echo "IWYU iteration $((5 - i)), sha: $sha"
+              iwyu_tool.py -p build $changed_files -- \
+                -Xiwyu --verbose=3 \
+                -Xiwyu --no_fwd_decls \
+                -Xiwyu --cxx17ns \
+                -Xiwyu --mapping_file="${PWD}/.github/iwyu.imp" \
+                -Xiwyu --regex=ecmascript | tee iwyu_fixes.log
+              fix_includes.py --blank_lines --nosafe_headers --reorder \
+                --separate_project_includes="<tld>" \
+                --keep_iwyu_namespace_format < iwyu_fixes.log
+              git diff | tee iwyu_fixes.patch
+            done
+
+            if [[ $i == 0 ]] ; then
+              echo "IWYU did not converge after 5 iterations."
+              exit 1
+            fi
+
+      - name: Run IWYU on all files
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        if: ${{ github.event_name != 'pull_request' }}
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            iwyu_tool.py -p build -j$(nproc) -- \
+              -Xiwyu --verbose=3 \
+              -Xiwyu --no_fwd_decls \
+              -Xiwyu --cxx17ns \
+              -Xiwyu --mapping_file="${PWD}/.github/iwyu.imp" \
+              -Xiwyu --regex=ecmascript | tee iwyu_fixes.log
+            fix_includes.py --blank_lines --nosafe_headers --reorder \
+              --separate_project_includes="<tld>" \
+              --keep_iwyu_namespace_format < iwyu_fixes.log
+            git diff | tee iwyu_fixes.patch
+
+      - name: Upload IWYU patch as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: iwyu-fixes
+          path: iwyu_fixes.patch
+          if-no-files-found: ignore
+
+      - name: Fail if IWYU suggests changes for this pull request
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          if [ -s iwyu_fixes.patch ]; then
+            echo "::error::IWYU suggests include changes. Download the 'iwyu-fixes' artifact and apply with: git apply iwyu_fixes.patch"
+            cat iwyu_fixes.patch
+            exit 1
+          fi
+          echo "No IWYU include changes needed."
