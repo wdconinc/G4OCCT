@@ -472,8 +472,8 @@ async function selectFixtureById(fixtureId) {
       return; // stale — discard silently
     }
     clearClouds();
-    statsEl.innerHTML =
-        `<tr><td colspan="2" style="color:#e87040">Error loading fixture: ${escHtml(String(err))}</td></tr>`;
+    statsEl.innerHTML = `<tr><td colspan="2" style="color:#e87040">Error loading fixture: ${
+        escHtml(String(err))}</td></tr>`;
     countEl.textContent = '';
     console.error('Failed to load fixture:', err);
   }
