@@ -351,13 +351,10 @@ void G4OCCTSolid::ComputeBounds() {
 
 void G4OCCTSolid::ComputeInitialSpheres() {
   fInitialSpheres.clear();
-  if (!fCachedBounds.has_value()) {
-    return;
-  }
 
   const G4double tol          = IntersectionTolerance();
-  const G4ThreeVector& bmin   = fCachedBounds->min;
-  const G4ThreeVector& bmax   = fCachedBounds->max;
+  const G4ThreeVector& bmin   = fCachedBounds.min;
+  const G4ThreeVector& bmax   = fCachedBounds.max;
   const G4ThreeVector centre  = 0.5 * (bmin + bmax);
   const G4ThreeVector halfExt = 0.5 * (bmax - bmin);
 
