@@ -273,8 +273,7 @@ void G4OCCTSolid::ComputeBounds() {
   Bnd_Box boundingBox;
   BRepBndLib::AddOptimal(fShape, boundingBox, /*useTriangulation=*/Standard_False);
   if (boundingBox.IsVoid()) {
-    throw std::invalid_argument(
-        "G4OCCTSolid: shape has no computable bounding box (no geometry)");
+    throw std::invalid_argument("G4OCCTSolid: shape has no computable bounding box (no geometry)");
   }
 
   Standard_Real xMin = 0.0;
