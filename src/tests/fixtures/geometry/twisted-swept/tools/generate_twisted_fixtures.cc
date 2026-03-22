@@ -71,11 +71,54 @@ TopoDS_Shape MakeBSplineLoftSolid(const std::vector<TopoDS_Wire>& wires) {
   return loft.Shape();
 }
 
+/// Build a ruled loft solid through the given cross-section wires.
+///
+/// Unlike the B-spline loft, consecutive wires are connected by bilinear
+/// ruled surface patches.  This is exact for linear helicoid (twisted-side)
+/// surfaces and introduces only O(h²) error on the inner/outer hyperboloidal
+/// surfaces (~52 nm with 64 sections), comfortably within 1 µm tolerance.
+TopoDS_Shape MakeRuledLoftSolid(const std::vector<TopoDS_Wire>& wires) {
+  BRepOffsetAPI_ThruSections loft(/*isSolid=*/true, /*isRuled=*/true);
+  loft.CheckCompatibility(false);
+  for (const auto& wire : wires) {
+    loft.AddWire(wire);
+  }
+  loft.Build();
+  if (!loft.IsDone()) {
+    throw std::runtime_error("Failed to build ruled loft solid");
+  }
+  return loft.Shape();
+}
+
+/// Build one annular-sector cross-section wire for a G4TwistedTubs slice.
+///
+/// G4TwistedTubs uses hyperboloidal inner/outer surfaces (G4TwistTubsHypeSide).
+/// The radius at height @p z satisfies:
+///   r(z) = r_end * sqrt(cos²(φ_twist/2) + sin²(φ_twist/2) * (z/half_z)²)
+///
+/// @param z              Axial position of this slice.
+/// @param angle_offset_deg  Twist angle at this z: φ_twist * z / (2 * half_z).
+/// @param end_inner_rad  Inner radius at z = ±half_z (constructor parameter).
+/// @param end_outer_rad  Outer radius at z = ±half_z (constructor parameter).
+/// @param half_z         Half-length along z axis.
+/// @param phi_twist_deg  Full twist angle (constructor parameter).
+/// @param total_phi_deg  Opening angle of the sector (dphi).
 TopoDS_Wire MakeTwistedTubsWire(const double z, const double angle_offset_deg,
-                                const double inner_radius, const double outer_radius,
+                                const double end_inner_rad, const double end_outer_rad,
+                                const double half_z, const double phi_twist_deg,
                                 const double total_phi_deg) {
-  const double phi1 = (-0.5 * total_phi_deg + angle_offset_deg) * kPi / 180.0;
-  const double phi2 = (0.5 * total_phi_deg + angle_offset_deg) * kPi / 180.0;
+  // Hyperbolic scale factor: r(z) = r_end * hype_scale
+  const double phi_half_rad = 0.5 * phi_twist_deg * kPi / 180.0;
+  const double cos_ph       = std::cos(phi_half_rad);
+  const double sin_ph       = std::sin(phi_half_rad);
+  const double t_z          = z / half_z;
+  const double hype_scale   = std::sqrt(cos_ph * cos_ph + sin_ph * sin_ph * t_z * t_z);
+  const double inner_radius = end_inner_rad * hype_scale;
+  const double outer_radius = end_outer_rad * hype_scale;
+
+  const double phi1        = (-0.5 * total_phi_deg + angle_offset_deg) * kPi / 180.0;
+  const double phi2        = (0.5 * total_phi_deg + angle_offset_deg) * kPi / 180.0;
+  const double phi_mid_rad = angle_offset_deg * kPi / 180.0;
 
   gp_Ax2 axis(gp_Pnt(0.0, 0.0, z), gp_Dir(0.0, 0.0, 1.0));
   gp_Circ outer_circle(axis, outer_radius);
@@ -85,11 +128,12 @@ TopoDS_Wire MakeTwistedTubsWire(const double z, const double angle_offset_deg,
   const gp_Pnt outer_end(outer_radius * std::cos(phi2), outer_radius * std::sin(phi2), z);
   const gp_Pnt inner_start(inner_radius * std::cos(phi1), inner_radius * std::sin(phi1), z);
   const gp_Pnt inner_end(inner_radius * std::cos(phi2), inner_radius * std::sin(phi2), z);
+  // Midpoints at the centre of each arc (φ = angle_offset) for unambiguous arc orientation.
+  const gp_Pnt outer_mid(outer_radius * std::cos(phi_mid_rad), outer_radius * std::sin(phi_mid_rad), z);
+  const gp_Pnt inner_mid(inner_radius * std::cos(phi_mid_rad), inner_radius * std::sin(phi_mid_rad), z);
 
-  const Handle(Geom_TrimmedCurve) outer_arc =
-      GC_MakeArcOfCircle(outer_start, gp_Pnt(outer_radius, 0.0, z), outer_end);
-  const Handle(Geom_TrimmedCurve) inner_arc =
-      GC_MakeArcOfCircle(inner_end, gp_Pnt(inner_radius, 0.0, z), inner_start);
+  const Handle(Geom_TrimmedCurve) outer_arc = GC_MakeArcOfCircle(outer_start, outer_mid, outer_end);
+  const Handle(Geom_TrimmedCurve) inner_arc = GC_MakeArcOfCircle(inner_end, inner_mid, inner_start);
 
   BRepBuilderAPI_MakeWire wire;
   wire.Add(BRepBuilderAPI_MakeEdge(outer_arc));
@@ -184,7 +228,7 @@ TopoDS_Shape MakeGenericTwistedFaceted() {
 TopoDS_Shape MakeTwistedTubs() {
   const double dz   = 20.0;
   const double phi  = 30.0;
-  const double dphi = 210.0;
+  const double dphi = 120.0;
   const double rmin = 6.0;
   const double rmax = 12.0;
   std::vector<TopoDS_Wire> wires;
@@ -193,9 +237,9 @@ TopoDS_Shape MakeTwistedTubs() {
     const double t              = static_cast<double>(i) / (kLoftSectionCount - 1);
     const double z_i            = -dz + t * 2.0 * dz;
     const double angle_offset_i = phi * z_i / (2.0 * dz);
-    wires.push_back(MakeTwistedTubsWire(z_i, angle_offset_i, rmin, rmax, dphi));
+    wires.push_back(MakeTwistedTubsWire(z_i, angle_offset_i, rmin, rmax, dz, phi, dphi));
   }
-  return MakeBSplineLoftSolid(wires);
+  return MakeRuledLoftSolid(wires);
 }
 
 TopoDS_Shape MakeFixture(const std::string& fixture_name) {
