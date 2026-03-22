@@ -66,7 +66,7 @@ documentation pages for details.
 | Dependency | Minimum version |
 |---|---|
 | CMake | 3.16 |
-| C++ | 17 |
+| C++ | 20 |
 | [Geant4](https://github.com/geant4/geant4) | 11.3 |
 | [OpenCASCADE (OCCT)](https://github.com/Open-Cascade-SAS/OCCT) | 7.8 |
 
