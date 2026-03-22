@@ -420,7 +420,7 @@ jobs:
         with:
           name: bench-report
           path: reports/bench-results.md
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 1
 
   sanitizer:
@@ -729,7 +729,6 @@ jobs:
         with:
           name: bench-report
           path: docs/reports/
-        continue-on-error: true
 
       - name: Download coverage HTML report
         uses: actions/download-artifact@v8
