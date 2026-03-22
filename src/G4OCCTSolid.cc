@@ -20,7 +20,6 @@
 #include <BVH_Distance.hxx>
 #include <BVH_Tools.hxx>
 #include <Bnd_Box.hxx>
-#include <Extrema_ExtPS.hxx>
 #include <GeomAbs_SurfaceType.hxx>
 #include <GProp_GProps.hxx>
 #include <GeomAPI_ProjectPointOnSurf.hxx>
@@ -426,23 +425,17 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
       continue;
     }
 
-    // Use Extrema_ExtPS for a lighter-weight point-to-surface distance that
-    // avoids the NCollection_Sequence allocations of BRepExtrema_DistShapeShape.
-    const Standard_Real tol = Precision::Confusion();
-    Extrema_ExtPS ext(queryPoint, fb.adaptor, tol, tol);
-    G4double candidateDistance = kInfinity;
-    if (ext.IsDone() && ext.NbExt() > 0) {
-      for (Standard_Integer k = 1; k <= ext.NbExt(); ++k) {
-        candidateDistance = std::min(candidateDistance, std::sqrt(ext.SquareDistance(k)));
-      }
-    } else {
-      // Fallback: Extrema_ExtPS found no solutions (e.g. degenerate surface).
-      BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
-      if (!distance.IsDone() || distance.NbSolution() == 0) {
-        continue;
-      }
-      candidateDistance = distance.Value();
+    // Use BRepExtrema_DistShapeShape for a robust point-to-face distance.
+    // Extrema_ExtPS only finds interior critical points of the distance function
+    // on the (unbounded) surface; for bilinear (degree-1) B-spline faces the
+    // global minimum is often on the face boundary (an edge or vertex), which
+    // Extrema_ExtPS misses.  BRepExtrema_DistShapeShape considers the bounded
+    // face including all its edges and vertices, guaranteeing the true minimum.
+    BRepExtrema_DistShapeShape distance(queryVertex, fb.face);
+    if (!distance.IsDone() || distance.NbSolution() == 0) {
+      continue;
     }
+    const G4double candidateDistance = distance.Value();
 
     if (bestMatch.has_value() && candidateDistance >= bestMatch->distance) {
       continue;
