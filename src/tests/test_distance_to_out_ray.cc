@@ -112,7 +112,7 @@ TEST(DistanceToOutRay, SphereNormal) {
                                 G4ThreeVector(1.0, 0.0, 0.0), kTolerance);
 
   // Ray along diagonal exits at the diagonal pole; normal equals the exit direction.
-  constexpr G4double kInvSqrt3 = 1.0 / std::sqrt(3.0);
+  const G4double kInvSqrt3 = 1.0 / std::sqrt(3.0);
   const G4ThreeVector diagonalDir(kInvSqrt3, kInvSqrt3, kInvSqrt3);
   ExpectDistanceToOutWithNormal("sphere diagonal normal", sphere.solid, sphere.Center(), diagonalDir,
                                 sphere.radius, diagonalDir, kTolerance);
