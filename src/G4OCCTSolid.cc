@@ -142,11 +142,12 @@ EInside ToG4Inside(const TopAbs_State state) {
 /// Return the canonical fall-back surface normal (positive Z axis).
 G4ThreeVector FallbackNormal() { return G4ThreeVector(0.0, 0.0, 1.0); }
 
-/// Evaluate the outward surface normal on @p face at parameters (@p u, @p v).
+/// Evaluate the outward surface normal using a pre-built @p surface adaptor on
+/// @p face at parameters (@p u, @p v).
 /// Returns the normal vector on success, or std::nullopt if the normal is undefined.
-std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
+std::optional<G4ThreeVector> TryGetOutwardNormal(const BRepAdaptor_Surface& surface,
+                                                 const TopoDS_Face& face, const Standard_Real u,
                                                  const Standard_Real v) {
-  BRepAdaptor_Surface surface(face);
   Standard_Real adjustedU       = u;
   Standard_Real adjustedV       = v;
   const Standard_Real tolerance = IntersectionTolerance();
@@ -219,6 +220,14 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
   }
 
   return G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
+}
+
+/// Convenience overload: construct the surface adaptor on the fly.
+/// Used by rare call sites (e.g. SurfaceNormal, ~84 calls) where no cached
+/// adaptor is available; prefer the overload above for hot paths.
+std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
+                                                 const Standard_Real v) {
+  return TryGetOutwardNormal(BRepAdaptor_Surface(face), face, u, v);
 }
 
 } // namespace
@@ -593,9 +602,20 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
 
   if (calcNorm && validNorm != nullptr && n != nullptr &&
       intersector.State(minIndex) == TopAbs_IN) {
-    if (auto outNorm =
-            TryGetOutwardNormal(intersector.Face(minIndex), intersector.UParameter(minIndex),
-                                intersector.VParameter(minIndex))) {
+    const TopoDS_Face& hitFace = intersector.Face(minIndex);
+    // Prefer the cached BRepAdaptor_Surface from fFaceBoundsCache (built once
+    // in ComputeBounds) to avoid reconstructing it on every normal query.
+    const auto it = std::find_if(fFaceBoundsCache.begin(), fFaceBoundsCache.end(),
+                                 [&hitFace](const FaceBounds& fb) { return fb.face.IsSame(hitFace); });
+    std::optional<G4ThreeVector> outNorm;
+    if (it != fFaceBoundsCache.end()) {
+      outNorm = TryGetOutwardNormal(it->adaptor, hitFace, intersector.UParameter(minIndex),
+                                   intersector.VParameter(minIndex));
+    } else {
+      outNorm = TryGetOutwardNormal(hitFace, intersector.UParameter(minIndex),
+                                   intersector.VParameter(minIndex));
+    }
+    if (outNorm) {
       *n         = *outNorm;
       *validNorm = true;
     }
