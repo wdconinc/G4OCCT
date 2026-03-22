@@ -54,8 +54,9 @@ TEST(InsideClassification, InscribedSphereFastPath) {
   //   Zone A — inside the inscribed sphere (fast kInside path)
   //   Zone B — between inscribed sphere and the surface (classifier path)
   //   Zone C — outside the solid (kOutside)
-  const G4double kRadius          = 100.0 * mm;
-  const G4double kInscribedRadius = 0.99 * kRadius; // radius scale factor applied in ComputeInscribedSphere()
+  const G4double kRadius = 100.0 * mm;
+  const G4double kInscribedRadius =
+      0.99 * kRadius; // radius scale factor applied in ComputeInscribedSphere()
   const SphereFixture sphere("InscribedSphereFastPath", kRadius);
 
   // Zone A: well inside the inscribed sphere (|p| << kInscribedRadius).
