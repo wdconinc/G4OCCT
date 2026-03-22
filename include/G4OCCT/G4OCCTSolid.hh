@@ -542,10 +542,15 @@ private:
   G4double BVHLowerBoundDistance(const G4ThreeVector& p) const;
 
   /// Returns the minimum perpendicular distance from @p p to any planar face's
-  /// infinite supporting plane.  This is a guaranteed lower bound on the true
-  /// safety distance: for interior points of convex solids it is exact; for
-  /// non-convex or mixed-topology solids it underestimates but remains valid
-  /// (Geant4 permits conservative safety distances).
+  /// infinite supporting plane.
+  ///
+  /// When the solid boundary is composed entirely of planar faces, the returned
+  /// value is a conservative safety distance satisfying
+  /// @c 0 ≤ s ≤ true_distance; for interior points of convex all-planar solids
+  /// it is exact. For solids that include any curved faces (mixed-topology
+  /// solids), this quantity is only a heuristic accelerator and is not
+  /// guaranteed to be a strict lower bound on the true distance to the surface.
+  ///
   /// Returns @c kInfinity if no planar faces exist.
   G4double PlanarFaceLowerBoundDistance(const G4ThreeVector& p) const;
 
