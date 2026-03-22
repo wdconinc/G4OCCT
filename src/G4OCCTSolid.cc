@@ -81,8 +81,8 @@ constexpr Standard_Real kRelativeDeflection = 0.01;
 /// distance queries.  Follows the pattern of `BRepExtrema_ProximityDistTool`
 /// from OCCT's `TKTopAlgo` library.
 ///
-/// Stored distances are actual distances (not squared) so that the branch
-/// rejection metric is directly comparable to `myDistance`.
+/// Stored distances are squared distances to avoid per-node `std::sqrt`
+/// calls; the single square root is taken by the caller after traversal.
 class PointToMeshDistance
     : public BVH_Distance<Standard_Real, 3, BVH_Vec3d, BRepExtrema_TriangleSet> {
 public:
@@ -90,8 +90,8 @@ public:
   /// than the current best distance.
   Standard_Boolean RejectNode(const BVH_Vec3d& theCornerMin, const BVH_Vec3d& theCornerMax,
                               Standard_Real& theMetric) const override {
-    theMetric = std::sqrt(
-        BVH_Tools<Standard_Real, 3>::PointBoxSquareDistance(myObject, theCornerMin, theCornerMax));
+    theMetric =
+        BVH_Tools<Standard_Real, 3>::PointBoxSquareDistance(myObject, theCornerMin, theCornerMax);
     return RejectMetric(theMetric);
   }
 
@@ -101,9 +101,8 @@ public:
     myBVHSet->GetVertices(theIndex, v0, v1, v2);
     const Standard_Real sq =
         BVH_Tools<Standard_Real, 3>::PointTriangleSquareDistance(myObject, v0, v1, v2);
-    const Standard_Real d = std::sqrt(sq);
-    if (d < myDistance) {
-      myDistance = d;
+    if (sq < myDistance) {
+      myDistance = sq;
       return Standard_True;
     }
     return Standard_False;
@@ -530,13 +529,14 @@ G4double G4OCCTSolid::BVHLowerBoundDistance(const G4ThreeVector& p) const {
   PointToMeshDistance solver;
   solver.SetObject(BVH_Vec3d(p.x(), p.y(), p.z()));
   solver.SetBVHSet(fTriangleSet.get());
-  const Standard_Real meshDist = solver.ComputeDistance();
+  const Standard_Real meshDistSq = solver.ComputeDistance();
   if (!solver.IsDone()) {
     return kInfinity;
   }
-  // Subtract the deflection bound to guarantee a strict lower bound:
-  //   s = max(0, mesh_dist - δ)   where δ ≤ kRelativeDeflection * max_face_diagonal.
-  return std::max(0.0, static_cast<G4double>(meshDist) - fBVHDeflection);
+  // The solver returns a squared distance; take the single sqrt here
+  // before subtracting the deflection bound (which is in actual-distance space).
+  const G4double meshDist = std::sqrt(static_cast<G4double>(meshDistSq));
+  return std::max(0.0, meshDist - fBVHDeflection);
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
