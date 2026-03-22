@@ -20,6 +20,7 @@
 #include <IntCurvesFace_ShapeIntersector.hxx>
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
+#include <TopoDS_TShape.hxx>
 
 #include <atomic>
 #include <condition_variable>
@@ -30,6 +31,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 /**
@@ -316,6 +318,22 @@ private:
   /// current best candidate.  Written once at construction / `SetOCCTShape()`;
   /// read-only during navigation, so no additional synchronisation is required.
   std::vector<FaceBounds> fFaceBoundsCache;
+
+  /// Index from a face's underlying `TShape` pointer to the list of
+  /// `fFaceBoundsCache` entry indices that share that `TShape`.  Populated
+  /// alongside `fFaceBoundsCache` in `ComputeBounds()` and used by
+  /// `DistanceToOut(p,v,...)` to avoid an O(N) linear scan when looking up
+  /// the cached `BRepAdaptor_Surface` for the hit face returned by the
+  /// intersector.
+  ///
+  /// Hash lookup narrows candidates to the (almost always singleton) set of
+  /// faces sharing the same `TShape`; `IsPartner()` (TShape + Location) is
+  /// then used within that set to select the correct located entry, handling
+  /// instanced sub-shapes where the same `TShape` appears at several locations.
+  ///
+  /// Written once at construction / `SetOCCTShape()`; read-only during
+  /// navigation.
+  std::unordered_map<const TopoDS_TShape*, std::vector<std::size_t>> fFaceAdaptorIndex;
 
   /// BVH-accelerated triangle set over the tessellated surface of @c fShape.
   ///

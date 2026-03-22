@@ -299,12 +299,15 @@ void G4OCCTSolid::ComputeBounds() {
 
   // Build per-face bounding-box cache for the SurfaceNormal prefilter.
   fFaceBoundsCache.clear();
+  fFaceAdaptorIndex.clear();
   G4double maxFaceDiag = 0.0;
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     Bnd_Box faceBox;
     BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
+    const std::size_t idx          = fFaceBoundsCache.size();
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
+    fFaceAdaptorIndex[currentFace.TShape().get()].push_back(idx);
     // Track the largest face bounding-box diagonal to bound the tessellation error.
     if (!faceBox.IsVoid()) {
       Standard_Real fx0 = 0.0;
@@ -579,16 +582,24 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
   if (calcNorm && validNorm != nullptr && n != nullptr &&
       intersector.State(minIndex) == TopAbs_IN) {
     const TopoDS_Face& hitFace = intersector.Face(minIndex);
-    // Prefer the cached BRepAdaptor_Surface from fFaceBoundsCache (built once
-    // in ComputeBounds) to avoid reconstructing it on every normal query.
-    const auto it =
-        std::find_if(fFaceBoundsCache.begin(), fFaceBoundsCache.end(),
-                     [&hitFace](const FaceBounds& fb) { return fb.face.IsSame(hitFace); });
+    // Hash-lookup narrows to the (almost always singleton) bucket of faces
+    // that share the same TShape; IsPartner() then selects the correct located
+    // entry within the bucket, handling instanced sub-shapes where the same
+    // TShape appears at several distinct locations.
     std::optional<G4ThreeVector> outNorm;
-    if (it != fFaceBoundsCache.end()) {
-      outNorm = TryGetOutwardNormal(it->adaptor, hitFace, intersector.UParameter(minIndex),
-                                    intersector.VParameter(minIndex));
-    } else {
+    const auto                   bucketIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
+    if (bucketIt != fFaceAdaptorIndex.end()) {
+      const auto& indices = bucketIt->second;
+      const auto  faceIt  = std::find_if(indices.begin(), indices.end(), [&](std::size_t i) {
+        return fFaceBoundsCache[i].face.IsPartner(hitFace);
+      });
+      if (faceIt != indices.end()) {
+        outNorm =
+            TryGetOutwardNormal(fFaceBoundsCache[*faceIt].adaptor, hitFace,
+                                intersector.UParameter(minIndex), intersector.VParameter(minIndex));
+      }
+    }
+    if (!outNorm) {
       outNorm = TryGetOutwardNormal(hitFace, intersector.UParameter(minIndex),
                                     intersector.VParameter(minIndex));
     }
