@@ -414,6 +414,15 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Upload regenerated bench report artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-report
+          path: reports/bench-results.md
+          if-no-files-found: error
+          retention-days: 1
+
   sanitizer:
     name: Build and test with sanitizers (eic_xl)
     runs-on: ubuntu-latest
@@ -685,7 +694,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: [build-test-benchmark, doxygen, coverage]
+    needs: [build-test-benchmark, doxygen, coverage, report]
     runs-on: ubuntu-latest
     concurrency:
       group: "pages"
@@ -713,6 +722,12 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: ci-reports
+          path: docs/reports/
+
+      - name: Download regenerated bench report
+        uses: actions/download-artifact@v8
+        with:
+          name: bench-report
           path: docs/reports/
 
       - name: Download coverage HTML report
