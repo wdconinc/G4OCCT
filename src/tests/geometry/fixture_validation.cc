@@ -93,8 +93,8 @@ ValidationReport ReclassifyExpectedFailures(const ValidationReport& report,
     if (message.severity == ValidationSeverity::kError) {
       const bool in_non_safety = kNonSafetyNonEquivalenceCodes.contains(message.code) ||
                                  kSafetyNonEquivalenceCodes.contains(message.code);
-      const bool code_allowed = failure.allowed_codes.empty() ||
-                                failure.allowed_codes.contains(message.code);
+      const bool code_allowed =
+          failure.allowed_codes.empty() || failure.allowed_codes.contains(message.code);
       if (failure.enabled && in_non_safety && code_allowed) {
         rewritten.AddWarning("xfail." + message.code,
                              message.text + " (xfail: " + failure.reason + ")", message.path);
