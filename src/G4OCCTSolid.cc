@@ -138,11 +138,12 @@ EInside ToG4Inside(const TopAbs_State state) {
 /// Return the canonical fall-back surface normal (positive Z axis).
 G4ThreeVector FallbackNormal() { return G4ThreeVector(0.0, 0.0, 1.0); }
 
-/// Evaluate the outward surface normal on @p face at parameters (@p u, @p v).
+/// Evaluate the outward surface normal using a pre-built @p surface adaptor on
+/// @p face at parameters (@p u, @p v).
 /// Returns the normal vector on success, or std::nullopt if the normal is undefined.
-std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
+std::optional<G4ThreeVector> TryGetOutwardNormal(const BRepAdaptor_Surface& surface,
+                                                 const TopoDS_Face& face, const Standard_Real u,
                                                  const Standard_Real v) {
-  BRepAdaptor_Surface surface(face);
   Standard_Real adjustedU       = u;
   Standard_Real adjustedV       = v;
   const Standard_Real tolerance = IntersectionTolerance();
@@ -215,6 +216,14 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const 
   }
 
   return G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
+}
+
+/// Convenience overload: construct the surface adaptor on the fly.
+/// Used by rare call sites (e.g. SurfaceNormal, ~84 calls) where no cached
+/// adaptor is available; prefer the overload above for hot paths.
+std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
+                                                 const Standard_Real v) {
+  return TryGetOutwardNormal(BRepAdaptor_Surface(face), face, u, v);
 }
 
 } // namespace
@@ -290,12 +299,15 @@ void G4OCCTSolid::ComputeBounds() {
 
   // Build per-face bounding-box cache for the SurfaceNormal prefilter.
   fFaceBoundsCache.clear();
+  fFaceAdaptorIndex.clear();
   G4double maxFaceDiag = 0.0;
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     Bnd_Box faceBox;
     BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
+    const std::size_t idx          = fFaceBoundsCache.size();
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
+    fFaceAdaptorIndex[currentFace.TShape().get()].push_back(idx);
     // Track the largest face bounding-box diagonal to bound the tessellation error.
     if (!faceBox.IsVoid()) {
       Standard_Real fx0 = 0.0;
@@ -569,9 +581,29 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
 
   if (calcNorm && validNorm != nullptr && n != nullptr &&
       intersector.State(minIndex) == TopAbs_IN) {
-    if (auto outNorm =
-            TryGetOutwardNormal(intersector.Face(minIndex), intersector.UParameter(minIndex),
-                                intersector.VParameter(minIndex))) {
+    const TopoDS_Face& hitFace = intersector.Face(minIndex);
+    // Hash-lookup narrows to the (almost always singleton) bucket of faces
+    // that share the same TShape; IsPartner() then selects the correct located
+    // entry within the bucket, handling instanced sub-shapes where the same
+    // TShape appears at several distinct locations.
+    std::optional<G4ThreeVector> outNorm;
+    const auto bucketIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
+    if (bucketIt != fFaceAdaptorIndex.end()) {
+      const auto& indices = bucketIt->second;
+      const auto faceIt   = std::find_if(indices.begin(), indices.end(), [&](std::size_t i) {
+        return fFaceBoundsCache[i].face.IsPartner(hitFace);
+      });
+      if (faceIt != indices.end()) {
+        outNorm =
+            TryGetOutwardNormal(fFaceBoundsCache[*faceIt].adaptor, hitFace,
+                                intersector.UParameter(minIndex), intersector.VParameter(minIndex));
+      }
+    }
+    if (!outNorm) {
+      outNorm = TryGetOutwardNormal(hitFace, intersector.UParameter(minIndex),
+                                    intersector.VParameter(minIndex));
+    }
+    if (outNorm) {
       *n         = *outNorm;
       *validNorm = true;
     }
