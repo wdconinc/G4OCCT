@@ -365,7 +365,7 @@ jobs:
               --collect-atstart=no \
               --callgrind-out-file=callgrind.b4c.out \
               ./build/src/examples/B4c/exampleB4c \
-                src/examples/B4c/run_profile.mac
+                -m src/examples/B4c/run_profile.mac
 
             # ── Annotate ───────────────────────────────────────────────────
             mkdir -p reports
