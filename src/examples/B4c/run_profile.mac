@@ -3,7 +3,7 @@
 # Runs 100 events of e- 300 MeV through the G4OCCT calorimeter.
 # Designed for use with the callgrind-b4c CI job:
 #   valgrind --tool=callgrind --instr-atstart=no --collect-atstart=no \
-#     ./exampleB4c run_profile.mac
+#     ./exampleB4c -m run_profile.mac
 # RunAction wraps BeginOfRunAction/EndOfRunAction with CALLGRIND macros so
 # geometry construction and physics initialization are excluded from the profile.
 #
