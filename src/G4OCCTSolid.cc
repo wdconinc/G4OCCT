@@ -314,7 +314,7 @@ void G4OCCTSolid::ComputeBounds() {
     Bnd_Box faceBox;
     BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
-    const std::size_t  idx         = fFaceBoundsCache.size();
+    const std::size_t idx          = fFaceBoundsCache.size();
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
     fFaceAdaptorIndex.emplace(currentFace.TShape().get(), idx);
     // Track the largest face bounding-box diagonal to bound the tessellation error.
@@ -611,9 +611,9 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
     const auto mapIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
     std::optional<G4ThreeVector> outNorm;
     if (mapIt != fFaceAdaptorIndex.end()) {
-      outNorm = TryGetOutwardNormal(fFaceBoundsCache[mapIt->second].adaptor, hitFace,
-                                    intersector.UParameter(minIndex),
-                                    intersector.VParameter(minIndex));
+      outNorm =
+          TryGetOutwardNormal(fFaceBoundsCache[mapIt->second].adaptor, hitFace,
+                              intersector.UParameter(minIndex), intersector.VParameter(minIndex));
     } else {
       outNorm = TryGetOutwardNormal(hitFace, intersector.UParameter(minIndex),
                                     intersector.VParameter(minIndex));
