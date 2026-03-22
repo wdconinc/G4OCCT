@@ -684,7 +684,7 @@ G4double G4OCCTSolid::BVHLowerBoundDistance(const G4ThreeVector& p) const {
 }
 
 G4double G4OCCTSolid::PlanarFaceLowerBoundDistance(const G4ThreeVector& p) const {
-  const gp_Pnt pt = ToPoint(p);
+  const gp_Pnt pt  = ToPoint(p);
   G4double minDist = kInfinity;
   for (const FaceBounds& fb : fFaceBoundsCache) {
     if (!fb.plane.has_value()) {
@@ -793,7 +793,7 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
     // curved faces and is not a valid bound on the true distance.  Fall back to
     // the BVH lower bound which covers all triangulated faces.
     const G4double bvhDist = BVHLowerBoundDistance(p);
-    d = (bvhDist < kInfinity) ? bvhDist : ExactDistanceToOut(p);
+    d                      = (bvhDist < kInfinity) ? bvhDist : ExactDistanceToOut(p);
   }
   // Feed the inscribed-sphere cache: every positive return value proves B(p,d)
   // is inside the solid and can accelerate future Inside(p) calls.
