@@ -63,11 +63,6 @@
 
 namespace {
 
-/// Fall-back minimum extent coordinate used when the bounding box is void.
-constexpr G4double kFallbackExtentMin = -1.0;
-/// Fall-back maximum extent coordinate used when the bounding box is void.
-constexpr G4double kFallbackExtentMax = 1.0;
-
 /// Relative linear deflection used when tessellating the OCCT shape for
 /// visualisation (`CreatePolyhedron`) and surface-point sampling
 /// (`GetPointOnSurface`).  A value of 0.01 requests a chord height of at
@@ -278,11 +273,7 @@ void G4OCCTSolid::ComputeBounds() {
   Bnd_Box boundingBox;
   BRepBndLib::AddOptimal(fShape, boundingBox, /*useTriangulation=*/Standard_False);
   if (boundingBox.IsVoid()) {
-    fCachedBounds = std::nullopt;
-    fFaceBoundsCache.clear();
-    fTriangleSet.Nullify();
-    fBVHDeflection = 0.0;
-    return;
+    throw std::invalid_argument("G4OCCTSolid: shape has no computable bounding box (no geometry)");
   }
 
   Standard_Real xMin = 0.0;
@@ -418,13 +409,10 @@ IntCurvesFace_ShapeIntersector& G4OCCTSolid::GetOrCreateIntersector() const {
 
 EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
   const G4double tolerance = IntersectionTolerance();
-  if (fCachedBounds.has_value()) {
-    const AxisAlignedBounds& bounds = *fCachedBounds;
-    if (p.x() < bounds.min.x() - tolerance || p.x() > bounds.max.x() + tolerance ||
-        p.y() < bounds.min.y() - tolerance || p.y() > bounds.max.y() + tolerance ||
-        p.z() < bounds.min.z() - tolerance || p.z() > bounds.max.z() + tolerance) {
-      return kOutside;
-    }
+  if (p.x() < fCachedBounds.min.x() - tolerance || p.x() > fCachedBounds.max.x() + tolerance ||
+      p.y() < fCachedBounds.min.y() - tolerance || p.y() > fCachedBounds.max.y() + tolerance ||
+      p.z() < fCachedBounds.min.z() - tolerance || p.z() > fCachedBounds.max.z() + tolerance) {
+    return kOutside;
   }
 
   BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
@@ -512,11 +500,8 @@ G4double G4OCCTSolid::ExactDistanceToIn(const G4ThreeVector& p) const {
 }
 
 G4double G4OCCTSolid::AABBLowerBound(const G4ThreeVector& p) const {
-  if (!fCachedBounds.has_value()) {
-    return kInfinity;
-  }
-  const G4ThreeVector& mn = fCachedBounds->min;
-  const G4ThreeVector& mx = fCachedBounds->max;
+  const G4ThreeVector& mn = fCachedBounds.min;
+  const G4ThreeVector& mx = fCachedBounds.max;
   const G4double dx       = std::max({0.0, mn.x() - p.x(), p.x() - mx.x()});
   const G4double dy       = std::max({0.0, mn.y() - p.y(), p.y() - mx.y()});
   const G4double dz       = std::max({0.0, mn.z() - p.z(), p.z() - mx.z()});
@@ -543,11 +528,8 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
   // Tier-0: AABB lower bound (O(1)).  If the point is clearly outside the shape's
   // axis-aligned bounding box, the AABB distance is a guaranteed conservative lower
   // bound on the true surface distance and avoids any further OCCT computation.
-  // Guard against the "AABB unavailable" case where AABBLowerBound() returns
-  // kInfinity (fCachedBounds == std::nullopt): returning kInfinity here would be
-  // incorrect, so fall through to the exact solver instead.
   const G4double aabbDist = AABBLowerBound(p);
-  if (std::isfinite(aabbDist) && aabbDist > IntersectionTolerance()) {
+  if (aabbDist > IntersectionTolerance()) {
     return aabbDist;
   }
 
@@ -771,33 +753,19 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
 G4GeometryType G4OCCTSolid::GetEntityType() const { return "G4OCCTSolid"; }
 
 G4VisExtent G4OCCTSolid::GetExtent() const {
-  if (!fCachedBounds) {
-    return {kFallbackExtentMin, kFallbackExtentMax, kFallbackExtentMin,
-            kFallbackExtentMax, kFallbackExtentMin, kFallbackExtentMax};
-  }
-
-  return {fCachedBounds->min.x(), fCachedBounds->max.x(), fCachedBounds->min.y(),
-          fCachedBounds->max.y(), fCachedBounds->min.z(), fCachedBounds->max.z()};
+  return {fCachedBounds.min.x(), fCachedBounds.max.x(), fCachedBounds.min.y(),
+          fCachedBounds.max.y(), fCachedBounds.min.z(), fCachedBounds.max.z()};
 }
 
 void G4OCCTSolid::BoundingLimits(G4ThreeVector& pMin, G4ThreeVector& pMax) const {
-  if (!fCachedBounds) {
-    pMin = G4ThreeVector(kFallbackExtentMin, kFallbackExtentMin, kFallbackExtentMin);
-    pMax = G4ThreeVector(kFallbackExtentMax, kFallbackExtentMax, kFallbackExtentMax);
-    return;
-  }
-  pMin = fCachedBounds->min;
-  pMax = fCachedBounds->max;
+  pMin = fCachedBounds.min;
+  pMax = fCachedBounds.max;
 }
 
 G4bool G4OCCTSolid::CalculateExtent(const EAxis pAxis, const G4VoxelLimits& pVoxelLimit,
                                     const G4AffineTransform& pTransform, G4double& pMin,
                                     G4double& pMax) const {
-  if (!fCachedBounds) {
-    return false;
-  }
-
-  const G4BoundingEnvelope envelope(fCachedBounds->min, fCachedBounds->max);
+  const G4BoundingEnvelope envelope(fCachedBounds.min, fCachedBounds.max);
   return envelope.CalculateExtent(pAxis, pVoxelLimit, G4Transform3D(pTransform), pMin, pMax);
 }
 
