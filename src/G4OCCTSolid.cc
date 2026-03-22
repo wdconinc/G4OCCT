@@ -575,11 +575,11 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
 
   IntersectorCache& cache = GetOrCreateIntersector();
 
-  G4double minDistance                       = kInfinity;
-  std::size_t minFaceIdx                     = std::numeric_limits<std::size_t>::max();
-  G4double minU                              = 0.0;
-  G4double minV                              = 0.0;
-  bool minIsIn                               = false;
+  G4double minDistance   = kInfinity;
+  std::size_t minFaceIdx = std::numeric_limits<std::size_t>::max();
+  G4double minU          = 0.0;
+  G4double minV          = 0.0;
+  bool minIsIn           = false;
 
   for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
     if (cache.expandedBoxes[i].IsOut(ray)) {
