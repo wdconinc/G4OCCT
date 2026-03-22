@@ -605,15 +605,16 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
     const TopoDS_Face& hitFace = intersector.Face(minIndex);
     // Prefer the cached BRepAdaptor_Surface from fFaceBoundsCache (built once
     // in ComputeBounds) to avoid reconstructing it on every normal query.
-    const auto it = std::find_if(fFaceBoundsCache.begin(), fFaceBoundsCache.end(),
-                                 [&hitFace](const FaceBounds& fb) { return fb.face.IsSame(hitFace); });
+    const auto it =
+        std::find_if(fFaceBoundsCache.begin(), fFaceBoundsCache.end(),
+                     [&hitFace](const FaceBounds& fb) { return fb.face.IsSame(hitFace); });
     std::optional<G4ThreeVector> outNorm;
     if (it != fFaceBoundsCache.end()) {
       outNorm = TryGetOutwardNormal(it->adaptor, hitFace, intersector.UParameter(minIndex),
-                                   intersector.VParameter(minIndex));
+                                    intersector.VParameter(minIndex));
     } else {
       outNorm = TryGetOutwardNormal(hitFace, intersector.UParameter(minIndex),
-                                   intersector.VParameter(minIndex));
+                                    intersector.VParameter(minIndex));
     }
     if (outNorm) {
       *n         = *outNorm;
