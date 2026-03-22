@@ -129,8 +129,10 @@ TopoDS_Wire MakeTwistedTubsWire(const double z, const double angle_offset_deg,
   const gp_Pnt inner_start(inner_radius * std::cos(phi1), inner_radius * std::sin(phi1), z);
   const gp_Pnt inner_end(inner_radius * std::cos(phi2), inner_radius * std::sin(phi2), z);
   // Midpoints at the centre of each arc (φ = angle_offset) for unambiguous arc orientation.
-  const gp_Pnt outer_mid(outer_radius * std::cos(phi_mid_rad), outer_radius * std::sin(phi_mid_rad), z);
-  const gp_Pnt inner_mid(inner_radius * std::cos(phi_mid_rad), inner_radius * std::sin(phi_mid_rad), z);
+  const gp_Pnt outer_mid(outer_radius * std::cos(phi_mid_rad), outer_radius * std::sin(phi_mid_rad),
+                         z);
+  const gp_Pnt inner_mid(inner_radius * std::cos(phi_mid_rad), inner_radius * std::sin(phi_mid_rad),
+                         z);
 
   const Handle(Geom_TrimmedCurve) outer_arc = GC_MakeArcOfCircle(outer_start, outer_mid, outer_end);
   const Handle(Geom_TrimmedCurve) inner_arc = GC_MakeArcOfCircle(inner_end, inner_mid, inner_start);
