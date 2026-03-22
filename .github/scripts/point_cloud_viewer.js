@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2026 G4OCCT Contributors
 
-// Fixture data is supplied by the HTML page as an inline JSON script element so
+// Fixture metadata is supplied by the HTML page as an inline JSON script element so
 // that this file remains a static asset with no runtime replacements.
+// Point cloud data is supplied as base64-encoded gzip blobs (one per fixture) and is
+// decoded lazily only when the user selects a fixture, keeping initial load fast.
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 
-const ALL_FIXTURES = JSON.parse(document.getElementById('fixture-data').textContent);
+const ALL_FIXTURES  = JSON.parse(document.getElementById('fixture-data').textContent);
+const FIXTURE_BLOBS = JSON.parse(document.getElementById('fixture-blobs').textContent);
 
 // ── UI elements ──────────────────────────────────────────────────────────────
 const selectEl          = document.getElementById('fixture-select');
@@ -422,6 +425,60 @@ function loadFixture(fixture) {
   countEl.textContent = `native: ${nh} pts  |  imported: ${ih} pts`;
 }
 
+// ── Lazy loading ──────────────────────────────────────────────────────────────
+// Decode the base64-encoded gzip blob for a fixture and return the full data
+// (including point arrays) as a parsed object.  The browser's DecompressionStream
+// API (gzip) is used so no third-party library is required.
+// Results are cached so repeated selections of the same fixture do not
+// re-decompress or re-parse the data.
+const fixtureCache = new Map();
+
+async function decodeFixtureBlob(fixtureId) {
+  if (fixtureCache.has(fixtureId)) {
+    return fixtureCache.get(fixtureId);
+  }
+  if (!(fixtureId in FIXTURE_BLOBS)) {
+    return null;
+  }
+  const bytes  = Uint8Array.from(atob(FIXTURE_BLOBS[fixtureId]), c => c.charCodeAt(0));
+  const stream = new DecompressionStream('gzip');
+  const writer = stream.writable.getWriter();
+  await writer.write(bytes);
+  await writer.close();
+  writer.releaseLock();
+  const text = await new Response(stream.readable).text();
+  const data = JSON.parse(text);
+  fixtureCache.set(fixtureId, data);
+  return data;
+}
+
+// Monotonically-increasing load token used to discard stale async results when
+// the user changes the selection before a previous decode has completed.
+let currentLoadToken = 0;
+
+// Select a fixture by id: decode its blob lazily (with caching), then render.
+// If a newer selection arrives before this one completes the result is discarded.
+// Decode failures are surfaced in the stats panel so the user gets feedback.
+async function selectFixtureById(fixtureId) {
+  const token = ++currentLoadToken;
+  try {
+    const data = await decodeFixtureBlob(fixtureId);
+    if (token !== currentLoadToken) {
+      return; // a newer selection superseded this one
+    }
+    loadFixture(data);
+  } catch (err) {
+    if (token !== currentLoadToken) {
+      return; // stale — discard silently
+    }
+    clearClouds();
+    statsEl.innerHTML = `<tr><td colspan="2" style="color:#e87040">Error loading fixture: ${
+        escHtml(String(err))}</td></tr>`;
+    countEl.textContent = '';
+    console.error('Failed to load fixture:', err);
+  }
+}
+
 // ── Populate dropdown ─────────────────────────────────────────────────────────
 function populateSelect() {
   if (ALL_FIXTURES.length === 0) {
@@ -452,18 +509,21 @@ function populateSelect() {
 populateSelect();
 if (ALL_FIXTURES.length > 0) {
   const requestedFixture = fixtureIdFromUrl();
-  const initialFixture =
-      ALL_FIXTURES.find(x => x.fixture_id === requestedFixture) || ALL_FIXTURES[0];
-  selectEl.value = initialFixture.fixture_id;
-  loadFixture(initialFixture);
-  setHashForFixture(initialFixture.fixture_id);
+  const initialMeta = ALL_FIXTURES.find(x => x.fixture_id === requestedFixture) || ALL_FIXTURES[0];
+  selectEl.value    = initialMeta.fixture_id;
+  setHashForFixture(initialMeta.fixture_id);
+  selectFixtureById(initialMeta.fixture_id)
+      .catch(err => console.error('Failed to load fixture:', err));
 }
 
 selectEl.addEventListener('change', () => {
-  const f = ALL_FIXTURES.find(x => x.fixture_id === selectEl.value);
-  loadFixture(f || null);
-  if (f) {
-    setHashForFixture(f.fixture_id);
+  const fixtureId = selectEl.value;
+  const meta      = ALL_FIXTURES.find(x => x.fixture_id === fixtureId);
+  if (meta) {
+    setHashForFixture(meta.fixture_id);
+    selectFixtureById(meta.fixture_id).catch(err => console.error('Failed to load fixture:', err));
+  } else {
+    loadFixture(null);
   }
 });
 
@@ -472,12 +532,12 @@ window.addEventListener('hashchange', () => {
   if (!fixtureId || fixtureId === selectEl.value) {
     return;
   }
-  const fixture = ALL_FIXTURES.find(x => x.fixture_id === fixtureId);
-  if (!fixture) {
+  const meta = ALL_FIXTURES.find(x => x.fixture_id === fixtureId);
+  if (!meta) {
     return;
   }
-  selectEl.value = fixture.fixture_id;
-  loadFixture(fixture);
+  selectEl.value = meta.fixture_id;
+  selectFixtureById(meta.fixture_id).catch(err => console.error('Failed to load fixture:', err));
 });
 
 // ── Toggle buttons ────────────────────────────────────────────────────────────
