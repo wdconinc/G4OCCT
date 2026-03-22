@@ -204,8 +204,9 @@ Do not lower these version floors without an explicit project decision.
   - For push: runs `iwyu_tool.py` on all files and uploads the patch as an
     artifact (informational, does not block merge on `main`).
   - Uses `.github/iwyu.imp` for G4OCCT-specific IWYU mappings (STL, etc.).
-  - The changed-file list is computed **outside** the container (before
-    `eic/run-cvmfs-osg-eic-shell@v1`) to avoid shallow-checkout `git diff` failures.
+  - The changed-file list is computed **outside** the container (on the GitHub
+    runner, not inside `eic/run-cvmfs-osg-eic-shell@v1`) to avoid shallow-checkout
+    `git diff` failures.
 
 ---
 

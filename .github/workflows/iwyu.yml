@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -72,7 +71,7 @@ jobs:
 
             # Run IWYU iteratively until the diff is stable (up to 5 iterations)
             i=5
-            while [[ $i > 0 && ${sha:-} != $(git diff | sha256sum) ]] ; do
+            while [[ $i -gt 0 && ${sha:-} != $(git diff | sha256sum) ]] ; do
               ((i--))
               sha=$(git diff | sha256sum)
               echo "IWYU iteration $((5 - i)), sha: $sha"
@@ -83,7 +82,7 @@ jobs:
                 -Xiwyu --mapping_file="${PWD}/.github/iwyu.imp" \
                 -Xiwyu --regex=ecmascript | tee iwyu_fixes.log
               fix_includes.py --blank_lines --nosafe_headers --reorder \
-                --separate_project_includes="<tld>" \
+                --separate_project_includes="G4OCCT" \
                 --keep_iwyu_namespace_format < iwyu_fixes.log
               git diff | tee iwyu_fixes.patch
             done
@@ -108,7 +107,7 @@ jobs:
               -Xiwyu --mapping_file="${PWD}/.github/iwyu.imp" \
               -Xiwyu --regex=ecmascript | tee iwyu_fixes.log
             fix_includes.py --blank_lines --nosafe_headers --reorder \
-              --separate_project_includes="<tld>" \
+              --separate_project_includes="G4OCCT" \
               --keep_iwyu_namespace_format < iwyu_fixes.log
             git diff | tee iwyu_fixes.patch
 
