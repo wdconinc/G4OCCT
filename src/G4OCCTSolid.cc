@@ -357,17 +357,22 @@ void G4OCCTSolid::ComputeInscribedSphere() {
   }
 
   // Candidate interior point: the centre of the axis-aligned bounding box.
-  // For convex shapes this coincides with the centroid; for mildly concave
-  // shapes it may still lie inside.  We verify this explicitly below.
+  // For many convex or mildly concave shapes this point typically lies well
+  // inside the solid, but we verify this explicitly below.
   const G4ThreeVector candidate = 0.5 * (fCachedBounds.min + fCachedBounds.max);
 
-  // Verify that the candidate point is strictly inside the solid.
-  // GetOrCreateClassifier() initialises the per-thread cache on first call; at
-  // construction time this is always the master thread, which pays the O(N_faces)
-  // Load() cost once here rather than on the first navigation query.
-  BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
-  classifier.Perform(ToPoint(candidate), IntersectionTolerance());
-  if (classifier.State() != TopAbs_IN) {
+  // Verify that the candidate point is strictly inside the solid using a
+  // freshly-loaded local classifier built directly from fShape.  We must not
+  // rely on GetOrCreateClassifier() here because SetOCCTShape() updates fShape
+  // and calls ComputeBounds() (hence ComputeInscribedSphere()) *before*
+  // incrementing fShapeGeneration.  The per-thread cache may therefore still
+  // hold a classifier that was loaded for the previous shape (its generation
+  // stamp matches the not-yet-incremented counter), which would silently
+  // evaluate the candidate against stale geometry.
+  BRepClass3d_SolidClassifier localClassifier;
+  localClassifier.Load(fShape);
+  localClassifier.Perform(ToPoint(candidate), IntersectionTolerance());
+  if (localClassifier.State() != TopAbs_IN) {
     return; // AABB centre is outside or on the surface; skip the optimisation.
   }
 

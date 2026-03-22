@@ -46,8 +46,9 @@ TEST(InsideClassification, Cylinder) {
 // Tests for the inscribed-sphere fast path in Inside():
 //   For a sphere of radius R, the inscribed sphere has radius ≈ 0.99*R.
 //   Points within that sphere take the O(1) kInside short-circuit; points
-//   outside fall through to BRepClass3d_SolidClassifier.  Both paths must
-//   return the same answer as the native Geant4 solid.
+//   outside fall through to BRepClass3d_SolidClassifier.  Both code paths
+//   must return consistent classifications that match the analytic expectation
+//   for the shapes under test.
 TEST(InsideClassification, InscribedSphereFastPath) {
   // Use a large sphere so the inscribed sphere is clearly distinct from the
   // surface and we can place test points in the three distinct zones:
@@ -89,11 +90,14 @@ TEST(InsideClassification, InscribedSphereFastPath) {
   const G4double kHalfY              = 20.0 * mm;
   const G4double kHalfZ              = 30.0 * mm;
   const G4double kBoxInscribedRadius = 0.99 * kHalfX;
+  // Zone B midpoint: halfway between the inscribed sphere boundary and the x-face
+  // (must be inside the box: kBoxInscribedRadius < kNearXFaceRadius < kHalfX).
+  const G4double kNearXFaceRadius    = 0.5 * (kBoxInscribedRadius + kHalfX);
   const BoxFixture box("InscribedSphereBox", kHalfX, kHalfY, kHalfZ);
   ExpectInside("box deep interior (fast path) is inside", box.solid, G4ThreeVector(0.0, 0.0, 0.0),
                kInside);
   ExpectInside("box near x-face interior (classifier path) is inside", box.solid,
-               G4ThreeVector(kBoxInscribedRadius + 0.5 * mm, 0.0, 0.0), kInside);
+               G4ThreeVector(kNearXFaceRadius, 0.0, 0.0), kInside);
   ExpectInside("box near y-face interior (classifier path) is inside", box.solid,
                G4ThreeVector(0.0, kHalfY - 0.5 * mm, 0.0), kInside);
   ExpectInside("box near z-face interior (classifier path) is inside", box.solid,
