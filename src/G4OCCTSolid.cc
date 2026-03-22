@@ -289,6 +289,7 @@ void G4OCCTSolid::ComputeBounds() {
   if (boundingBox.IsVoid()) {
     fCachedBounds = std::nullopt;
     fFaceBoundsCache.clear();
+    fFaceAdaptorIndex.clear();
     fTriangleSet.Nullify();
     fBVHDeflection = 0.0;
     return;
@@ -307,12 +308,15 @@ void G4OCCTSolid::ComputeBounds() {
 
   // Build per-face bounding-box cache for the SurfaceNormal prefilter.
   fFaceBoundsCache.clear();
+  fFaceAdaptorIndex.clear();
   G4double maxFaceDiag = 0.0;
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     Bnd_Box faceBox;
     BRepBndLib::AddOptimal(ex.Current(), faceBox, /*useTriangulation=*/Standard_False);
     const TopoDS_Face& currentFace = TopoDS::Face(ex.Current());
+    const std::size_t  idx         = fFaceBoundsCache.size();
     fFaceBoundsCache.push_back({currentFace, faceBox, BRepAdaptor_Surface(currentFace)});
+    fFaceAdaptorIndex.emplace(currentFace.TShape().get(), idx);
     // Track the largest face bounding-box diagonal to bound the tessellation error.
     if (!faceBox.IsVoid()) {
       Standard_Real fx0 = 0.0;
@@ -603,14 +607,12 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
   if (calcNorm && validNorm != nullptr && n != nullptr &&
       intersector.State(minIndex) == TopAbs_IN) {
     const TopoDS_Face& hitFace = intersector.Face(minIndex);
-    // Prefer the cached BRepAdaptor_Surface from fFaceBoundsCache (built once
-    // in ComputeBounds) to avoid reconstructing it on every normal query.
-    const auto it =
-        std::find_if(fFaceBoundsCache.begin(), fFaceBoundsCache.end(),
-                     [&hitFace](const FaceBounds& fb) { return fb.face.IsSame(hitFace); });
+    // O(1) look-up via the TShape-pointer index built in ComputeBounds().
+    const auto mapIt = fFaceAdaptorIndex.find(hitFace.TShape().get());
     std::optional<G4ThreeVector> outNorm;
-    if (it != fFaceBoundsCache.end()) {
-      outNorm = TryGetOutwardNormal(it->adaptor, hitFace, intersector.UParameter(minIndex),
+    if (mapIt != fFaceAdaptorIndex.end()) {
+      outNorm = TryGetOutwardNormal(fFaceBoundsCache[mapIt->second].adaptor, hitFace,
+                                    intersector.UParameter(minIndex),
                                     intersector.VParameter(minIndex));
     } else {
       outNorm = TryGetOutwardNormal(hitFace, intersector.UParameter(minIndex),
