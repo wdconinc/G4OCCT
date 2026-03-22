@@ -18,7 +18,6 @@
 #include <BRepExtrema_TriangleSet.hxx>
 #include <Bnd_Box.hxx>
 #include <IntCurvesFace_Intersector.hxx>
-#include <IntCurvesFace_ShapeIntersector.hxx>
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_TShape.hxx>
@@ -51,7 +50,7 @@
  *
  * `G4OCCTSolid` is shared read-only across all Geant4 worker threads once
  * the geometry is constructed.  OCCT algorithm objects such as
- * `BRepClass3d_SolidClassifier` and `IntCurvesFace_ShapeIntersector` hold
+ * `BRepClass3d_SolidClassifier` and `IntCurvesFace_Intersector` hold
  * mutable internal state and must not be shared between threads.  Per-thread
  * caches of both algorithm objects are maintained via `G4Cache` so that the
  * one-time O(N_faces) initialisation cost is paid only once per thread rather
@@ -276,8 +275,8 @@ private:
   /// (via `std::unique_ptr`) to avoid requiring movability of
   /// `IntCurvesFace_Intersector` during vector reallocation.  The per-face
   /// intersectors are used by `DistanceToIn(p,v)` and `DistanceToOut(p,v,...)`
-  /// in a bbox-prefiltered loop that avoids the `NCollection_Sequence` heap
-  /// overhead of `IntCurvesFace_ShapeIntersector::Perform`.
+  /// in a bbox-prefiltered loop that avoids `NCollection_Sequence` heap
+  /// allocation.
   ///
   /// `expandedBoxes` holds a copy of each entry's `FaceBounds::box`, enlarged
   /// by `IntersectionTolerance()`.  Planar faces have zero-thickness bounding
@@ -382,7 +381,7 @@ private:
   /// each thread.  Stale entries (generation mismatch) are rebuilt automatically.
   mutable G4Cache<ClassifierCache> fClassifierCache;
 
-  /// Per-thread cache of the IntCurvesFace_ShapeIntersector for this solid.
+  /// Per-thread cache of per-face `IntCurvesFace_Intersector` objects for this solid.
   ///
   /// Initialised lazily on the first `DistanceToIn(p, v)` or `DistanceToOut(p, v)`
   /// call on each thread.  Stale entries (generation mismatch) are rebuilt automatically.
