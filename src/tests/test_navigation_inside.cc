@@ -92,7 +92,7 @@ TEST(InsideClassification, InscribedSphereFastPath) {
   const G4double kBoxInscribedRadius = 0.99 * kHalfX;
   // Zone B midpoint: halfway between the inscribed sphere boundary and the x-face
   // (must be inside the box: kBoxInscribedRadius < kNearXFaceRadius < kHalfX).
-  const G4double kNearXFaceRadius    = 0.5 * (kBoxInscribedRadius + kHalfX);
+  const G4double kNearXFaceRadius = 0.5 * (kBoxInscribedRadius + kHalfX);
   const BoxFixture box("InscribedSphereBox", kHalfX, kHalfY, kHalfZ);
   ExpectInside("box deep interior (fast path) is inside", box.solid, G4ThreeVector(0.0, 0.0, 0.0),
                kInside);
