@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+
+schema_version: geometry-fixture-provenance/v1
+fixture_id: g4twistedtubs-tubs-r6-r12-z20-dphi120-phi30-v1
+generator:
+  tool: generate_twisted_fixtures
+  source: ../../tools/generate_twisted_fixtures.cc
+shape:
+  geant4_class: G4TwistedTubs
+  constructor:
+    end_inner_rad_mm: 6.0
+    end_outer_rad_mm: 12.0
+    half_z_mm: 20.0
+    dphi_deg: 120.0
+    phi_twist_deg: 30.0
+validation:
+  expected_volume_mm3: 4321.864
+  # The twisted lateral faces are approximated with a 64-section ruled loft.
+  # Each pair of consecutive cross-section wires is connected by a bilinear
+  # ruled surface patch.  For the linear helicoid phi-boundary surfaces this
+  # is exact; the piecewise-linear approximation to the inner/outer hyperboloidal
+  # surfaces introduces a maximum deviation of ~52 nm with 64 sections.
+  #
+  # The inner/outer surfaces use the correct hyperboloidal formula:
+  #   r(z) = r_end * sqrt(cos²(φ_twist/2) + sin²(φ_twist/2) * (z/half_z)²)
+  #
+  # dphi=120° is chosen so that dphi/2 = 60° > φ_twist = 30°, avoiding the
+  # phi-range folding that occurs when dphi > 180°.
+  #
+  # distance_tolerance_mm is set to 0.30 mm to accommodate a known numerical
+  # inaccuracy in G4TwistedTubs::DistanceToIn for rays that are nearly tangent
+  # to the twisted phi-boundary (G4TwistTubsSide) surfaces.  For these rays the
+  # Newton-Raphson solver converges to a spurious early root, returning a
+  # distance up to ~0.25 mm shorter than the true geometric intersection.
+  # The OCCT STEP solid correctly identifies the true intersection; the larger
+  # tolerance covers G4's solver inaccuracy rather than any STEP approximation
+  # error.  Non-tangent rays pass with sub-micron agreement.
+  distance_tolerance_mm: 0.30

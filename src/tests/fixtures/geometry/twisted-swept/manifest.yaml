@@ -55,14 +55,14 @@ fixtures:
         value: 12381.2
         absolute_tolerance: 0.001
         unit: mm3
-  - id: g4twistedtubs-tubs-r6-r12-z20-dphi210-phi30-v1
+  - id: g4twistedtubs-tubs-r6-r12-z20-dphi120-phi30-v1
     geant4_class: G4TwistedTubs
-    fixture_slug: tubs-r6-r12-z20-dphi210-phi30
-    relative_directory: G4TwistedTubs/tubs-r6-r12-z20-dphi210-phi30-v1
+    fixture_slug: tubs-r6-r12-z20-dphi120-phi30
+    relative_directory: G4TwistedTubs/tubs-r6-r12-z20-dphi120-phi30-v1
     validation_state: validated
     expectations:
       - quantity: volume
-        value: 7563.26
+        value: 4321.864
         absolute_tolerance: 0.001
         unit: mm3
   - id: g4vtwistedfaceted-faceted-dz20-theta8-phi20-v1
