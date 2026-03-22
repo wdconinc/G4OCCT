@@ -232,16 +232,6 @@ public:
   }
 
 private:
-  /// A sphere that is guaranteed to lie entirely within the solid.
-  ///
-  /// Built once in `ComputeInscribedSphere()` after `fFaceBoundsCache` is ready.
-  /// A point whose squared distance from @c center is less than @c radiusSq is
-  /// definitively @c kInside without any OCCT classifier call.
-  struct InscribedSphere {
-    G4ThreeVector center;
-    G4double radiusSq{0.0};
-  };
-
   /// Per-face bounding box entry used to prefilter the closest-face search in
   /// `SurfaceNormal`.
   struct FaceBounds {
@@ -299,6 +289,32 @@ private:
     std::vector<std::unique_ptr<IntCurvesFace_Intersector>> faceIntersectors;
     std::vector<Bnd_Box> expandedBoxes; ///< per-face boxes enlarged by `IntersectionTolerance()`
   };
+
+  /// A proven inscribed sphere: every point within @c radius of @c centre is
+  /// inside the solid.  The guarantee comes from @c DistanceToOut(centre) ≥ radius.
+  struct InscribedSphere {
+    G4ThreeVector centre;
+    G4double radius;
+  };
+
+  /// Per-thread inscribed-sphere cache.
+  ///
+  /// Populated from `fInitialSpheres` on first access per thread and grown by
+  /// `TryInsertSphere()` on each `DistanceToOut(p)` call.  Kept sorted in
+  /// descending order of radius so `Inside()` checks the largest (most useful)
+  /// spheres first and benefits from early exit.
+  ///
+  /// The `generation` field mirrors the classifier-cache pattern: a mismatch
+  /// with `fShapeGeneration` causes the cache to be re-seeded from
+  /// `fInitialSpheres`, discarding any runtime-accumulated spheres for the old
+  /// shape.
+  struct SphereCacheData {
+    std::vector<InscribedSphere> spheres;
+    std::uint64_t generation{std::numeric_limits<std::uint64_t>::max()};
+  };
+
+  /// Maximum number of inscribed spheres kept in the per-thread cache.
+  static constexpr std::size_t kMaxInscribedSpheres = 64;
 
   /// Single mesh triangle used by the surface-sampling cache.
   ///
@@ -361,6 +377,17 @@ private:
   /// navigation.
   std::unordered_map<const TopoDS_TShape*, std::vector<std::size_t>> fFaceAdaptorIndex;
 
+  /// Inscribed spheres seeded at construction time by `ComputeInitialSpheres()`.
+  ///
+  /// Evaluated once per shape at up to 15 interior candidate points (AABB centre,
+  /// 6 axis-offset interior points each placed at half the distance from the AABB
+  /// centre to the nearest face along that axis, and 8 octant centres) using
+  /// `BVHLowerBoundDistance`.
+  /// Written only in `ComputeBounds()` → `ComputeInitialSpheres()`; thereafter
+  /// read-only, so no additional synchronisation is needed.
+  /// Copied into each thread's `SphereCacheData` on first cache access.
+  std::vector<InscribedSphere> fInitialSpheres;
+
   /// BVH-accelerated triangle set over the tessellated surface of @c fShape.
   ///
   /// Built once in `ComputeBounds()` after `BRepMesh_IncrementalMesh` tessellates
@@ -370,14 +397,6 @@ private:
   /// navigation — no additional synchronisation is required beyond the construction
   /// ordering already guaranteed by the geometry-build phase.
   Handle(BRepExtrema_TriangleSet) fTriangleSet;
-
-  /// Inscribed sphere: any point within this sphere is guaranteed to be inside
-  /// the solid.  Built by `ComputeInscribedSphere()` (called from `ComputeBounds()`)
-  /// and used in `Inside()` as a fast O(1) kInside short-circuit before the
-  /// more expensive `BRepClass3d_SolidClassifier` call.
-  /// `std::nullopt` when no valid inscribed sphere could be determined (e.g. the
-  /// AABB center lies outside or on the surface of the solid).
-  std::optional<InscribedSphere> fInscribedSphere;
 
   /// Conservative upper bound on the Hausdorff distance between the analytical
   /// surface of @c fShape and its tessellation stored in @c fTriangleSet.
@@ -404,6 +423,13 @@ private:
   /// Initialised lazily on the first `DistanceToIn(p, v)` or `DistanceToOut(p, v)`
   /// call on each thread.  Stale entries (generation mismatch) are rebuilt automatically.
   mutable G4Cache<IntersectorCache> fIntersectorCache;
+
+  /// Per-thread inscribed-sphere cache, grown online from `DistanceToOut(p)` calls.
+  ///
+  /// Seeded from `fInitialSpheres` on first access per thread; grown by
+  /// `TryInsertSphere()`.  Stale entries (generation mismatch) are re-seeded from
+  /// `fInitialSpheres`, discarding runtime-accumulated spheres for the old shape.
+  mutable G4Cache<SphereCacheData> fSphereCache;
 
   /// Cached polyhedron built by the first `CreatePolyhedron()` call after each
   /// shape update.  Subsequent calls return a copy of this object, avoiding a
@@ -471,6 +497,16 @@ private:
   /// face in `fFaceBoundsCache`, in the same order.
   IntersectorCache& GetOrCreateIntersector() const;
 
+  /// Return a reference to the per-thread inscribed-sphere cache, seeding it from
+  /// @c fInitialSpheres if the cached generation does not match @c fShapeGeneration.
+  SphereCacheData& GetOrInitSphereCache() const;
+
+  /// Attempt to insert an inscribed sphere with centre @p centre and radius @p d into
+  /// the per-thread sphere cache.  The sphere is accepted only if it is not already
+  /// dominated by an existing cache entry and passes the minimum-radius filter.
+  /// Maintains the cache sorted descending by radius and bounded to @c kMaxInscribedSpheres.
+  void TryInsertSphere(const G4ThreeVector& centre, G4double d) const;
+
   /// Compute the axis-aligned bounding box of @c fShape and store it in
   /// @c fCachedBounds, and populate @c fFaceBoundsCache with per-face bounding
   /// boxes.  Throws `std::invalid_argument` when the shape has no computable
@@ -478,14 +514,13 @@ private:
   /// @c SetOCCTShape().
   void ComputeBounds();
 
-  /// Compute and store the inscribed sphere (@c fInscribedSphere) centred at
-  /// the AABB centre.  The radius is the distance from the AABB centre to the
-  /// nearest analytical face surface (via @c TryFindClosestFace), reduced by a
-  /// small safety margin.  If the AABB centre is not inside the solid or the
-  /// distance cannot be determined, @c fInscribedSphere is left as
-  /// @c std::nullopt.  Called from @c ComputeBounds() after @c fFaceBoundsCache
-  /// and the per-thread classifier have been initialised.
-  void ComputeInscribedSphere();
+  /// Seed @c fInitialSpheres with inscribed spheres at up to 15 interior candidate
+  /// points (AABB centre, 6 face midpoints, 8 octant centres).  Called at the end
+  /// of @c ComputeBounds() after the BVH mesh is available.  Each candidate that
+  /// classifies as @c TopAbs_IN and has a positive BVH lower-bound distance is
+  /// stored as a seed sphere.  Thread-safe: written only during geometry construction,
+  /// read-only during navigation.
+  void ComputeInitialSpheres();
 
   /// Compute the distance from @p p to the cached axis-aligned bounding box.
   /// Returns 0 when @p p is on or inside the AABB.
