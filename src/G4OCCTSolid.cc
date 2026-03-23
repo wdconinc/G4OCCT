@@ -206,22 +206,24 @@ bool PointOnPolygonBoundary2d(Standard_Real u, Standard_Real v, const std::vecto
 ///
 /// Computes the ray parameter @c t at which @p ray hits the infinite plane
 /// @p plane, then maps the 3D hit point to (u,v) coordinates on the plane and
-/// checks whether (u,v) falls inside @p uvPoly using @c PointInPolygon2d.
+/// checks whether (u,v) falls inside (or on the boundary of) @p uvPoly.
 ///
 /// Returns the ray parameter on success (within [@p tMin, @p tMax]), or
 /// @c std::nullopt if the ray is parallel, the parameter is out of range, or
-/// the hit point lies outside the face boundary.
+/// the hit point lies strictly outside the face boundary (farther than
+/// @p tolerance from every edge).  Hit points on the polygon boundary (within
+/// @p tolerance of any edge) are included so that callers can detect the
+/// @c TopAbs_ON-equivalent case via @c PointOnPolygonBoundary2d.
 ///
 /// When @p u_out and @p v_out are non-null, the UV coordinates of the hit point
 /// on the plane are written to them (only when a valid hit is returned).
 ///
 /// This replaces @c IntCurvesFace_Intersector::Perform for faces whose UV
 /// polygon has been precomputed (all straight-edge planar faces).
-std::optional<Standard_Real> RayPlaneFaceHit(const gp_Lin& ray, const gp_Pln& plane,
-                                             const std::vector<gp_Pnt2d>& uvPoly,
-                                             Standard_Real tMin, Standard_Real tMax,
-                                             Standard_Real* u_out = nullptr,
-                                             Standard_Real* v_out = nullptr) {
+std::optional<Standard_Real>
+RayPlaneFaceHit(const gp_Lin& ray, const gp_Pln& plane, const std::vector<gp_Pnt2d>& uvPoly,
+                Standard_Real tMin, Standard_Real tMax, Standard_Real tolerance,
+                Standard_Real* u_out = nullptr, Standard_Real* v_out = nullptr) {
   const gp_Dir& lineDir   = ray.Direction();
   const gp_Dir& plnNormal = plane.Axis().Direction();
   const Standard_Real denom =
@@ -245,7 +247,10 @@ std::optional<Standard_Real> RayPlaneFaceHit(const gp_Lin& ray, const gp_Pln& pl
   Standard_Real u = 0.0;
   Standard_Real v = 0.0;
   ElSLib::PlaneParameters(plane.Position(), hitPt, u, v);
-  if (!PointInPolygon2d(u, v, uvPoly)) {
+  // Accept the hit when the UV point is strictly inside the polygon, or when it
+  // lies within tolerance of any polygon edge (the TopAbs_ON-equivalent case).
+  // Pure boundary-miss points that are strictly outside are rejected.
+  if (!PointInPolygon2d(u, v, uvPoly) && !PointOnPolygonBoundary2d(u, v, uvPoly, tolerance)) {
     return std::nullopt;
   }
   if (u_out != nullptr) {
@@ -454,15 +459,27 @@ void G4OCCTSolid::ComputeBounds() {
           poly.emplace_back(u, v);
         }
         if (allLinear && poly.size() >= 3) {
-          uvPolygon = std::move(poly);
-          // Precompute the constant outward face normal.  For planar faces the
-          // normal is uniform; gp_Pln::Axis() points along the plane normal, but
-          // the outward direction depends on the face orientation in the solid.
-          gp_Dir faceNormal = maybePlane->Axis().Direction();
-          if (currentFace.Orientation() == TopAbs_REVERSED) {
-            faceNormal.Reverse();
+          // Verify the face has no inner wires (holes).  The outer-wire-only polygon
+          // cannot represent cutouts: a ray hitting inside the outer boundary but
+          // inside a hole would be incorrectly counted as a face crossing.
+          int wireCount = 0;
+          for (TopExp_Explorer wc(currentFace, TopAbs_WIRE); wc.More(); wc.Next()) {
+            ++wireCount;
+            if (wireCount > 1) {
+              break;
+            }
           }
-          outwardNormal = G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
+          if (wireCount == 1) {
+            uvPolygon = std::move(poly);
+            // Precompute the constant outward face normal.  For planar faces the
+            // normal is uniform; gp_Pln::Axis() points along the plane normal, but
+            // the outward direction depends on the face orientation in the solid.
+            gp_Dir faceNormal = maybePlane->Axis().Direction();
+            if (currentFace.Orientation() == TopAbs_REVERSED) {
+              faceNormal.Reverse();
+            }
+            outwardNormal = G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
+          }
         }
       }
     }
@@ -744,7 +761,7 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
       Standard_Real u_hit = 0.0;
       Standard_Real v_hit = 0.0;
       const auto t        = RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, -tolerance,
-                                            Precision::Infinite(), &u_hit, &v_hit);
+                                            Precision::Infinite(), tolerance, &u_hit, &v_hit);
       if (t) {
         const G4double w = static_cast<G4double>(*t);
         if (std::abs(w) <= tolerance) {
@@ -849,8 +866,8 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& 
     const FaceBounds& fb = fFaceBoundsCache[i];
     if (!fb.uvPolygon.empty()) {
       // Fast path: bypass IntCurvesFace_Intersector for straight-edge planar faces.
-      const auto t =
-          RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite());
+      const auto t = RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite(),
+                                     tolerance);
       if (t && *t < minDistance) {
         minDistance = static_cast<G4double>(*t);
       }
@@ -967,12 +984,12 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
     const FaceBounds& fb = fFaceBoundsCache[i];
     if (!fb.uvPolygon.empty()) {
       // Fast path: direct ray–plane intersection for straight-edge planar faces.
-      const auto t =
-          RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite());
+      const auto t = RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite(),
+                                     tolerance);
       if (t && *t < minDistance) {
         minDistance   = static_cast<G4double>(*t);
         minFaceIdx    = i;
-        minIsIn       = true; // polygon interior hit is equivalent to TopAbs_IN
+        minIsIn       = true; // mirrors OCCT path: TopAbs_IN and TopAbs_ON both trigger normal
         minIsFastPath = true;
       }
     } else {
