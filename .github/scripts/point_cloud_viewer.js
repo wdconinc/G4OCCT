@@ -370,9 +370,9 @@ function showFixtureMeta(meta) {
     <tr><td>Native hits</td><td id="stat-native-hits">…</td></tr>
     <tr><td>Imported hits</td><td id="stat-imported-hits">…</td></tr>
     <tr><td>Native origin</td><td>${
-      meta.native_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
+      escHtml(meta.native_pre_step_origin.map(v => v.toFixed(2)).join(', '))}</td></tr>
     <tr><td>Imported origin</td><td>${
-      meta.imported_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
+      escHtml(meta.imported_pre_step_origin.map(v => v.toFixed(2)).join(', '))}</td></tr>
   `;
   countEl.textContent = '';
 }
@@ -447,9 +447,9 @@ function loadFixture(fixture) {
       <tr><td>Native hits</td><td>${nh}</td></tr>
       <tr><td>Imported hits</td><td>${ih}</td></tr>
       <tr><td>Native origin</td><td>${
-        fixture.native_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
+        escHtml(fixture.native_pre_step_origin.map(v => v.toFixed(2)).join(', '))}</td></tr>
       <tr><td>Imported origin</td><td>${
-        fixture.imported_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
+        escHtml(fixture.imported_pre_step_origin.map(v => v.toFixed(2)).join(', '))}</td></tr>
     `;
   }
   countEl.textContent = `native: ${nh} pts  |  imported: ${ih} pts`;
@@ -503,13 +503,13 @@ async function selectFixtureById(fixtureId) {
       return; // a newer selection superseded this one
     }
     if (!data) {
-      // Blob not found: show "—" for hit counts and leave the point clouds empty.
+      // Blob not found: clear any stale point clouds, show "—" for hit counts.
+      clearClouds();
       const nativeHitsEl   = document.getElementById('stat-native-hits');
       const importedHitsEl = document.getElementById('stat-imported-hits');
-      if (nativeHitsEl)
-        nativeHitsEl.textContent = '—';
-      if (importedHitsEl)
-        importedHitsEl.textContent = '—';
+      if (nativeHitsEl)   nativeHitsEl.textContent   = '—';
+      if (importedHitsEl) importedHitsEl.textContent = '—';
+      countEl.textContent = '';
       return;
     }
     loadFixture(data);
