@@ -22,6 +22,7 @@
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_TShape.hxx>
 #include <gp_Pln.hxx>
+#include <gp_Pnt2d.hxx>
 
 #include <atomic>
 #include <condition_variable>
@@ -240,6 +241,15 @@ private:
     Bnd_Box box;
     BRepAdaptor_Surface adaptor;
     std::optional<gp_Pln> plane; ///< precomputed plane equation for planar faces
+    /// Outer wire boundary vertices in the plane's (u,v) parameter space.
+    /// Non-empty only when the face is planar and every edge of the outer wire
+    /// is a straight line segment, which allows exact point-in-polygon testing
+    /// without invoking the full OCCT topology machinery at navigation time.
+    std::vector<gp_Pnt2d> uvPolygon;
+    /// Precomputed constant outward normal for planar faces.  Non-empty whenever
+    /// @c uvPolygon is non-empty.  Used by DistanceToOut(p,v) to skip the
+    /// BRepLProp_SLProps evaluation on the hot normal-computation path.
+    std::optional<G4ThreeVector> outwardNormal;
   };
 
   /// Result of the closest-face search.
