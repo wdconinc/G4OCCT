@@ -48,8 +48,11 @@ shell has a half-width of `kCarTolerance/2` (≈ 1 nm default).
 Classification proceeds through up to four stages, returning as soon as a
 definitive answer is available:
 
-1. **AABB early reject** — if `p` lies outside `fCachedBounds` (inflated by
-   `kCarTolerance/2`), return `kOutside` immediately.
+1. **AABB early reject** — if `p` lies sufficiently outside `fCachedBounds`,
+   return `kOutside` immediately.  `fCachedBounds` stores the raw OCCT
+   bounding box from `BRepBndLib::AddOptimal`; the `Inside(p)` implementation
+   applies an `IntersectionTolerance()` margin (≈ `kCarTolerance/2`) in its
+   component-wise comparisons against this box.
 2. **Inscribed-sphere fast path** — per-thread `G4Cache<SphereCacheData>`
    holds up to 64 inscribed spheres.  If `p` is strictly inside any cached
    sphere, return `kInside` without touching OCCT.
@@ -57,50 +60,61 @@ definitive answer is available:
    using a per-thread `G4Cache<IntersectorCache>`.  Each entry holds a
    pre-constructed `IntCurvesFace_Intersector` for one face; a
    `Bnd_Box::IsOut` prefilter skips faces whose bounding box the ray cannot
-   reach.  Odd crossing count → `kInside`; even → `kOutside`.  If the ray
-   is degenerate (lands exactly on an edge or vertex), fall through to
-   stage 4.
+   reach.  Only `TopAbs_IN` state forward hits count; `TopAbs_ON` hits (ray
+   lands on a shared edge or vertex) set the `degenerateRay` flag.  If `p`
+   itself is on a face, `onSurface` is set.  Fall through to stage 4 when the
+   parity count is ambiguous (zero `TopAbs_IN` crossings, or at least one
+   edge/vertex hit).
 4. **`BRepClass3d_SolidClassifier` fallback** — used only when the ray is
-   degenerate.
+   ambiguous (degenerate hit or no interior crossings found).
 
 ```cpp
 EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
-  // Stage 1: AABB early reject
-  if (fCachedBounds.IsOut(gp_Pnt(p.x(), p.y(), p.z())))
+  const G4double tolerance = IntersectionTolerance();
+  // Stage 1: AABB early reject (raw bounding box + tolerance margin)
+  if (p.x() < fCachedBounds.min.x() - tolerance || p.x() > fCachedBounds.max.x() + tolerance ||
+      p.y() < fCachedBounds.min.y() - tolerance || p.y() > fCachedBounds.max.y() + tolerance ||
+      p.z() < fCachedBounds.min.z() - tolerance || p.z() > fCachedBounds.max.z() + tolerance)
     return kOutside;
 
   // Stage 2: inscribed-sphere fast path (per-thread cache)
-  SphereCacheData& spheres = fSphereCache.Get();
-  for (const auto& s : spheres.spheres) {
-    if ((p - s.center).mag2() < s.r2)
+  const SphereCacheData& sphereCache = GetOrInitSphereCache();
+  for (const InscribedSphere& s : sphereCache.spheres) {
+    const G4double interiorRadius = s.radius - tolerance;
+    if (interiorRadius > 0.0 && (p - s.centre).mag2() < interiorRadius * interiorRadius)
       return kInside;
   }
 
   // Stage 3: ray-parity test
-  gp_Lin ray(gp_Pnt(p.x(), p.y(), p.z()), gp_Dir(0, 0, 1));
-  IntersectorCache& cache = fIntersectorCache.Get();
-  int crossings = 0;
-  bool degenerate = false;
+  const gp_Lin ray(ToPoint(p), gp_Dir(0.0, 0.0, 1.0));
+  IntersectorCache& cache = GetOrCreateIntersector();
+  int crossings      = 0;
+  bool onSurface     = false;
+  bool degenerateRay = false;
   for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
     if (cache.expandedBoxes[i].IsOut(ray)) continue;  // O(1) AABB reject
     IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
-    fi.Perform(ray, -Precision::Infinite(), Precision::Infinite());
+    fi.Perform(ray, -tolerance, Precision::Infinite());
+    if (!fi.IsDone()) continue;
     for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
-      if (fi.IsParallel()) { degenerate = true; break; }
-      crossings++;
+      const G4double w         = fi.WParameter(j);
+      const TopAbs_State state = fi.State(j);
+      if (std::abs(w) <= tolerance && (state == TopAbs_IN || state == TopAbs_ON))
+        onSurface = true;  // p lies on the face
+      else if (w > tolerance && state == TopAbs_IN)
+        ++crossings;
+      else if (w > tolerance && state == TopAbs_ON)
+        degenerateRay = true;  // ray hits a shared edge/vertex
     }
   }
-  if (!degenerate)
-    return (crossings % 2 == 1) ? kInside : kOutside;
-
-  // Stage 4: BRepClass3d fallback (degenerate ray only)
-  BRepClass3d_SolidClassifier cls(fShape);
-  cls.Perform(gp_Pnt(p.x(), p.y(), p.z()), kCarTolerance / 2.0);
-  switch (cls.State()) {
-    case TopAbs_IN:  return kInside;
-    case TopAbs_ON:  return kSurface;
-    default:         return kOutside;
+  if (onSurface) return kSurface;
+  if (crossings == 0 || degenerateRay) {
+    // Stage 4: BRepClass3d fallback (degenerate or ambiguous ray only)
+    BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+    classifier.Perform(ToPoint(p), tolerance);
+    return ToG4Inside(classifier.State());
   }
+  return (crossings % 2 == 1) ? kInside : kOutside;
 }
 ```
 
@@ -108,9 +122,10 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
 * The per-thread caches (`fSphereCache`, `fIntersectorCache`) are
   `G4Cache<T>` objects so that each worker thread owns independent mutable
   state — the shape itself (`fShape`) is read-only and shared safely.
-* `BRepClass3d_SolidClassifier` is only reached for degenerate rays (point
-  on an edge or vertex), keeping the common-case cost to pure C++ arithmetic
-  plus per-face line/box tests.
+* `BRepClass3d_SolidClassifier` is only reached when the parity count is
+  ambiguous (no `TopAbs_IN` crossings found, or at least one edge/vertex hit),
+  keeping the common-case cost to pure C++ arithmetic plus per-face line/box
+  tests.
 
 ---
 
@@ -218,47 +233,34 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p,
 ### 2.4 `G4double DistanceToIn(const G4ThreeVector& p) const`
 
 **Geant4 semantics:**
-Returns the *shortest* (perpendicular) distance from external point `p` to
-the solid surface.
+Returns the shortest distance from external point `p` to the solid surface,
+which may be zero if `p` is already inside or on the surface.
 
-**Algorithm — BVH mesh distance (PR #209):**
-A BVH-accelerated triangle set (`fTriangleSet`) built from the tessellated
-surface provides a fast lower bound.  For all-planar solids (`fAllFacesPlanar`),
-an analytic plane-distance formula is used instead.
+**Algorithm — AABB lower bound + exact fallback (PR #209):**
+A two-tier approach is used:
+
+1. **AABB lower bound (O(1))** — compute the distance from `p` to the
+   axis-aligned bounding box `fCachedBounds`.  If this distance exceeds
+   `IntersectionTolerance()`, it is a guaranteed conservative lower bound on
+   the true surface distance and is returned immediately.
+2. **Exact fallback** — for points near or inside the AABB (where the AABB
+   bound is no longer useful), `ExactDistanceToIn(p)` is called, which uses
+   `BRepClass3d_SolidClassifier` to check interiority and
+   `TryFindClosestFace` (backed by `BRepExtrema_DistShapeShape` per face) to
+   obtain the true closest-point distance.
 
 ```cpp
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
-  // Fast lower bound via BVH triangle set
-  PointToMeshDistance solver;
-  solver.SetObject(BVH_Vec3d(p.x(), p.y(), p.z()));
-  solver.SetBVHSet(fTriangleSet.get());
-  const G4double meshDist =
-      std::sqrt(static_cast<G4double>(solver.ComputeDistance()));
-  // Subtract tessellation deflection to get a conservative lower bound
-  return std::max(0.0, meshDist - fBVHDeflection);
-}
-```
-
-For all-planar solids the plane distance is exact and the BVH traversal is
-skipped:
-
-```cpp
-// Planar-face shortcut (fAllFacesPlanar == true)
-G4double G4OCCTSolid::PlanarFaceLowerBoundDistance(
-    const G4ThreeVector& p) const {
-  G4double minDist = kInfinity;
-  for (const auto& fb : fFaceBoundsCache) {
-    if (fb.plane) {
-      const G4double d = std::abs(fb.plane->Distance(gp_Pnt(p.x(), p.y(), p.z())));
-      if (d < minDist) minDist = d;
-    }
+  // Tier-0: AABB lower bound (O(1)).
+  const G4double aabbDist = AABBLowerBound(p);
+  if (aabbDist > IntersectionTolerance()) {
+    return aabbDist;
   }
-  return minDist;
+
+  // Fallback: exact distance (handles points near or inside the AABB).
+  return ExactDistanceToIn(p);
 }
 ```
-
-An exact `BRepExtrema_DistShapeShape` fallback is used only for edge cases
-where the BVH estimate is insufficient.
 
 ---
 
@@ -280,35 +282,48 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p,
                                      const G4bool calcNorm,
                                      G4bool* validNorm,
                                      G4ThreeVector* n) const {
-  if (validNorm) *validNorm = false;
+  if (validNorm != nullptr) *validNorm = false;
 
-  gp_Lin ray(gp_Pnt(p.x(), p.y(), p.z()),
-             gp_Dir(v.x(), v.y(), v.z()));
+  const G4double tolerance = IntersectionTolerance();
+  const gp_Lin ray(ToPoint(p), gp_Dir(v.x(), v.y(), v.z()));
 
-  IntersectorCache& cache = fIntersectorCache.Get();  // per-thread
-  G4double minDistance = kInfinity;
-  Standard_Integer minFace = -1;
+  IntersectorCache& cache = GetOrCreateIntersector();  // per-thread
+  G4double minDistance   = kInfinity;
+  std::size_t minFaceIdx = std::numeric_limits<std::size_t>::max();
+  G4double minU = 0.0, minV = 0.0;
+  bool minIsIn = false;
+
   for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
     if (cache.expandedBoxes[i].IsOut(ray)) continue;  // O(1) AABB reject
     IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
-    fi.Perform(ray, kCarTolerance, Precision::Infinite());
+    fi.Perform(ray, tolerance, Precision::Infinite());
+    if (!fi.IsDone()) continue;
     for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
       const G4double w = fi.WParameter(j);
-      if (w > kCarTolerance && w < minDistance) {
+      if (w > tolerance && w < minDistance) {
         minDistance = w;
-        minFace = static_cast<Standard_Integer>(i);
+        minFaceIdx  = i;
+        minU        = fi.UParameter(j);
+        minV        = fi.VParameter(j);
+        minIsIn     = (fi.State(j) == TopAbs_IN || fi.State(j) == TopAbs_ON);
       }
     }
   }
 
-  if (calcNorm && validNorm && n && minFace >= 0) {
-    gp_Pnt hitPnt = ray.Location().Translated(
-        minDistance * gp_Vec(ray.Direction()));
-    *n         = SurfaceNormal(G4ThreeVector(hitPnt.X(), hitPnt.Y(), hitPnt.Z()));
-    *validNorm = true;
+  if (minFaceIdx == std::numeric_limits<std::size_t>::max() || minDistance == kInfinity)
+    return 0.0;
+
+  // Normal: read pre-stored (u,v) parameters to avoid re-intersecting.
+  if (calcNorm && validNorm != nullptr && n != nullptr && minIsIn) {
+    const FaceBounds& fb = fFaceBoundsCache[minFaceIdx];
+    const auto outNorm   = TryGetOutwardNormal(fb.adaptor, fb.face, minU, minV);
+    if (outNorm) {
+      *n         = *outNorm;
+      *validNorm = true;
+    }
   }
 
-  return (minDistance < kInfinity) ? minDistance : 0.0;
+  return minDistance;
 }
 ```
 
@@ -317,30 +332,49 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p,
 ### 2.6 `G4double DistanceToOut(const G4ThreeVector& p) const`
 
 **Geant4 semantics:**
-Shortest distance from *internal* point `p` to the surface.
+Shortest distance from *internal* point `p` to the surface.  The returned
+value is a *conservative lower bound* on the true distance (never larger),
+which is what the navigator's safety calculation requires.
 
-**Algorithm — BVH mesh distance (PR #210):**
-Uses the same `PointToMeshDistance` BVH traversal as `DistanceToIn(p)`.
-Because `p` is interior, the signed sense is reversed but the distance
-magnitude is identical.  For all-planar solids, `PlanarFaceLowerBoundDistance`
-is used instead (exact, no BVH overhead).
+**Algorithm — planar shortcut or BVH lower bound + exact fallback (PR #210):**
+
+1. **All-planar solids** (`fAllFacesPlanar == true`) — the minimum perpendicular
+   distance to each face's infinite supporting plane is computed.  This is a
+   conservative lower bound: for a convex solid it is exact; for a non-convex
+   solid the closest point may lie on an edge or vertex and the true distance
+   could be smaller than the plane distance, but never larger.  If
+   `PlanarFaceLowerBoundDistance` returns `kInfinity` (degenerate case), the
+   exact fallback is used.
+2. **Mixed geometry** (at least one curved face) — a BVH-accelerated triangle
+   set (`fTriangleSet`) provides a fast conservative lower bound
+   (`BVHLowerBoundDistance`).  If the BVH bound is unavailable (returns
+   `kInfinity`), `ExactDistanceToOut` is called.
+3. **Exact fallback** (`ExactDistanceToOut`) — uses `TryFindClosestFace`
+   (backed by `BRepExtrema_DistShapeShape` per face) for a precise result.
+
+As a side effect, the returned distance `d` seeds the inscribed-sphere cache
+(`TryInsertSphere`): every positive return value proves that the ball `B(p, d)`
+is fully inside the solid and can accelerate future `Inside(p)` calls.
 
 ```cpp
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
-  if (fAllFacesPlanar)
-    return PlanarFaceLowerBoundDistance(p);
-
-  PointToMeshDistance solver;
-  solver.SetObject(BVH_Vec3d(p.x(), p.y(), p.z()));
-  solver.SetBVHSet(fTriangleSet.get());
-  const G4double meshDist =
-      std::sqrt(static_cast<G4double>(solver.ComputeDistance()));
-  return std::max(0.0, meshDist - fBVHDeflection);
+  G4double d;
+  if (fAllFacesPlanar) {
+    // All faces planar: plane distance is a conservative lower bound.
+    d = PlanarFaceLowerBoundDistance(p);
+    if (d == kInfinity) {
+      d = ExactDistanceToOut(p);
+    }
+  } else {
+    // Mixed geometry: use BVH lower bound; exact fallback if unavailable.
+    const G4double bvhDist = BVHLowerBoundDistance(p);
+    d = (bvhDist < kInfinity) ? bvhDist : ExactDistanceToOut(p);
+  }
+  // Seed the inscribed-sphere cache with the returned distance.
+  TryInsertSphere(p, d);
+  return d;
 }
 ```
-
-A `BRepExtrema_DistShapeShape` per-face fallback (`TryFindClosestFace`) is
-invoked only for edge cases where the BVH bound is insufficient.
 
 ---
 
@@ -471,15 +505,15 @@ result.
 
 | G4VSolid function | Primary algorithm | Difficulty |
 |---|---|---|
-| `Inside` | AABB → inscribed-sphere cache → ray-parity (per-face `IntCurvesFace_Intersector`) → `BRepClass3d_SolidClassifier` fallback | 🔲 High |
+| `Inside` | AABB → inscribed-sphere cache → ray-parity (per-face `IntCurvesFace_Intersector`) → `BRepClass3d_SolidClassifier` fallback | ⬜ High |
 | `SurfaceNormal` | `BRepExtrema_DistShapeShape` + `BRepAdaptor_Surface::D1` | ⬜ Medium |
 | `DistanceToIn(p, v)` | Per-face `IntCurvesFace_Intersector` loop with `Bnd_Box` prefilter | ⬜ Medium |
-| `DistanceToIn(p)` | BVH `PointToMeshDistance` on `fTriangleSet`; planar shortcut | ⬜ Medium |
-| `DistanceToOut(p, v)` | Per-face `IntCurvesFace_Intersector` loop with `Bnd_Box` prefilter | ⬜ Medium |
-| `DistanceToOut(p)` | BVH `PointToMeshDistance` on `fTriangleSet`; planar shortcut | ⬜ Medium |
+| `DistanceToIn(p)` | AABB lower bound (`AABBLowerBound`); exact fallback (`BRepExtrema_DistShapeShape` per face) | ⬜ Medium |
+| `DistanceToOut(p, v)` | Per-face `IntCurvesFace_Intersector` loop with `Bnd_Box` prefilter; `TryGetOutwardNormal` for exit normal | ⬜ Medium |
+| `DistanceToOut(p)` | Planar shortcut (`PlanarFaceLowerBoundDistance`) or BVH lower bound (`BVHLowerBoundDistance`); exact fallback | ⬜ Medium |
 | `GetExtent` / `BoundingLimits` | `fCachedBounds` (computed once at construction) | ⬛ Easy |
-| `CreatePolyhedron` | `BRepMesh_IncrementalMesh` + `G4TessellatedSolid` | 🔲 Hard |
-| `CalculateExtent` | `BRepBuilderAPI_Transform` + bounding box | 🔲 Hard |
+| `CreatePolyhedron` | `BRepMesh_IncrementalMesh` + `G4TessellatedSolid` | ⬜ Hard |
+| `CalculateExtent` | `BRepBuilderAPI_Transform` + bounding box | ⬜ Hard |
 | `StreamInfo` | `TopoDS_Shape::ShapeType()` | ⬛ Easy |
 | `GetEntityType` | (constant string) | ⬛ Easy |
 
