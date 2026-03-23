@@ -125,6 +125,8 @@ G4OCCT/
     ├── material_bridging.md
     ├── step_assembly_import.md
     ├── geometry_test_status.md
+    ├── example_b1.md
+    ├── example_b4c.md
     └── slides.html
 ```
 
