@@ -20,4 +20,12 @@ validation:
   analytic_volume_mm3: 6283.185307179586
 notes:
   - The checked STEP round-trip imports at 6280.437377688254 mm3 with OCCT 7.9.1, so the manifest validates against the imported reference volume.
-  - "Geant4 bug (present at least through 11.4.1): G4ScaledSolid::DistanceToOut calls fScale->TransformNormal() (global→local) instead of fScale->InverseTransformNormal() (local→global) when computing exit normals, yielding incorrect outward normals for non-axis-aligned rays. G4ScaledSolid::SurfaceNormal() is correct (uses InverseTransformNormal). The fixture builder works around this by wrapping G4ScaledSolid in G4ScaledSolidFixed, which recomputes exit normals via SurfaceNormal() at the exit point."
+  - >-
+      Geant4 bug (present at least through 11.4.1): G4ScaledSolid::DistanceToOut
+      calls fScale->TransformNormal() (global→local) instead of
+      fScale->InverseTransformNormal() (local→global) when computing exit
+      normals, yielding incorrect outward normals for non-axis-aligned rays.
+      G4ScaledSolid::SurfaceNormal() is correct (uses InverseTransformNormal).
+      The fixture builder works around this by wrapping G4ScaledSolid in
+      G4ScaledSolidFixed, which recomputes exit normals via SurfaceNormal() at
+      the exit point.
