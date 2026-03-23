@@ -61,8 +61,8 @@ for (const auto& sphere : sc.spheres) {
 
 // Stage 3 — ray-parity test (+Z ray, per-face IntCurvesFace_Intersector
 //           with Bnd_Box::IsOut pre-filter and RayPlaneFaceHit fast path)
-std::size_t crossings = CountRayCrossings(p);
-if (!degenerate)
+auto [crossings, degenerateRay] = CountRayCrossings(p);  // returns {count, degeneracy flag}
+if (!degenerateRay)
   return (crossings % 2 == 1) ? kInside : kOutside;
 
 // Stage 4 — BRepClass3d_SolidClassifier fallback (degenerate ray only)
@@ -120,10 +120,11 @@ heap-allocated per ray.
 ```cpp
 // Primary path — BVH traversal over fTriangleSet built once at construction
 G4double meshDist = PointToMeshDistance(ToPoint(p), fTriangleSet, fBVHDeflection);
-// meshDist is a conservative lower bound: exact mesh distance minus fBVHDeflection
-if (meshDist > kInfinity) return kInfinity;   // point is inside
+// meshDist is a conservative lower bound: actual distance ≥ meshDist
+if (meshDist < kInfinity)
+  return meshDist;  // valid BVH result — return conservative lower bound
 
-// Exact fallback — used only in special cases
+// Exact fallback — used only when BVH returns no valid result (degenerate case)
 return TryFindClosestFace(p);  // per-face BRepExtrema_DistShapeShape
 ```
 
@@ -142,14 +143,16 @@ in O(log T).
 
 For solids where all faces are planar (`fAllFacesPlanar == true`), the exact
 plane-distance `gp_Pln::Distance(pt)` over all faces gives a correct lower
-bound in O(N_faces) with no BRep heap allocation at all:
+bound in O(N_faces) with no BRep heap allocation at all.  When `fAllFacesPlanar`
+is true, every `FaceBounds::plane` optional is guaranteed to be engaged (set
+at construction time), so `value()` access is safe:
 
 ```cpp
 // Plane-distance path — all-planar solids only (PR #222)
 if (fAllFacesPlanar) {
   G4double minDist = kInfinity;
   for (const auto& fb : fFaceBounds) {
-    minDist = std::min(minDist, fb.plane->Distance(ToPoint(p)));
+    minDist = std::min(minDist, fb.plane.value().Distance(ToPoint(p)));
   }
   return minDist;
 }
@@ -326,7 +329,7 @@ repeated `BRepBndLib::Add` calls from `BoundingLimits`, `GetExtent`, and
 // Current implementation — cached at construction
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
     : G4VSolid(name), fShape(shape),
-      fBounds(ComputeAxisAlignedBounds(shape)) {}
+      fCachedBounds(ComputeAxisAlignedBounds(shape)) {}
 ```
 
 `CalculateExtent` is called by the voxel smart navigator during geometry
