@@ -72,9 +72,8 @@ class G4ScaledSolidFixed final : public G4ScaledSolid {
 public:
   using G4ScaledSolid::G4ScaledSolid;
 
-  G4double DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v,
-                         const G4bool calcNorm, G4bool* validNorm,
-                         G4ThreeVector* n) const override {
+  G4double DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v, const G4bool calcNorm,
+                         G4bool* validNorm, G4ThreeVector* n) const override {
     const G4double dist = G4ScaledSolid::DistanceToOut(p, v, calcNorm, validNorm, n);
     if (calcNorm && n != nullptr) {
       // G4ScaledSolid::DistanceToOut uses fScale->TransformNormal() (global→local)
@@ -564,7 +563,7 @@ std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance) 
     }
     auto* base_sphere = new G4Orb(name + "_base", radius);
     return std::make_unique<G4ScaledSolidFixed>(name, base_sphere,
-                                               G4Scale3D(factors[0], factors[1], factors[2]));
+                                                G4Scale3D(factors[0], factors[1], factors[2]));
   }
   if (geant4_class == "G4UnionSolid" || geant4_class == "G4IntersectionSolid" ||
       geant4_class == "G4SubtractionSolid") {
