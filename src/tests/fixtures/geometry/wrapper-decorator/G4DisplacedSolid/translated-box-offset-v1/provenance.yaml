@@ -11,7 +11,7 @@ shape:
   geant4_class: G4DisplacedSolid
   draw_commands:
     - box displaced_box 20 30 40
-    - ttranslate displaced_box 12 -7 25
+    - ttranslate displaced_box 2 -22 5
   translation_mm: [12.0, -7.0, 25.0]
   base_box_mm: [20.0, 30.0, 40.0]
 validation:
