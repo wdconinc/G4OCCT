@@ -196,82 +196,6 @@ TopoDS_Shape MakeTwistedTrap() {
   return MakeBSplineLoftSolid(wires);
 }
 
-/// Build a G4VTwistedFaceted STEP solid.
-///
-/// G4VTwistedFaceted has trapezoidal cross-sections that vary along z and are
-/// rotated (twisted) about the z-axis.  The axis of the solid is tilted by
-/// polar angle θ (8°) toward azimuth φ_tilt (20°).  An alpha shear (12°) skews
-/// the cross-sections so that the centre of the bottom edge (y = −dy) is
-/// shifted by −dy·tan α and the centre of the top edge (y = +dy) by +dy·tan α,
-/// giving a 2·dy·tan α relative displacement between the edge centres.
-///
-/// Three corrections relative to the original generator:
-///
-///  1. Alpha shear applied at every z-slice.  The local vertex x-coordinates
-///     follow G4VTwistedFaceted::GetSurfaceArea() convention:
-///       at y = −dy:  x ± dx_minus − dy·tan α
-///       at y = +dy:  x ± dx_plus  + dy·tan α
-///     The old code used plain ±dx1/±dx2 for the bottom face, giving 1.7 mm
-///     vertex errors that grew linearly from z = +dz (zero error) to z = −dz.
-///
-///  2. Tilt offset centred on z = 0.  G4 places the cross-section centre at
-///     global (fdeltaX·z/(2·dz), fdeltaY·z/(2·dz)), ranging from
-///     (−shift/2) at z = −dz to (+shift/2) at z = +dz.
-///     The old code used t·shift (0 → shift), displacing the STEP solid by
-///     shift/2 = (2.64, 0.96) mm from the G4 solid.
-///
-///  3. Ruled loft instead of B-spline loft.  G4VTwistedFaceted lateral faces
-///     (G4TwistTrapAlphaSide, G4TwistTrapParallelSide) are exact ruled
-///     surfaces.  A ruled (bilinear) loft with 64 sections matches them;
-///     a B-spline loft "overshoots" and produces curved faces.
-TopoDS_Shape MakeGenericTwistedFaceted() {
-  const double dz      = 20.0;
-  const double phi     = 30.0; // twist angle [deg]
-  const double theta   = 8.0 * kPi / 180.0;
-  const double azimuth = 20.0 * kPi / 180.0;
-  const double shift_r = 2.0 * dz * std::tan(theta);
-  const double shift_x = shift_r * std::cos(azimuth);
-  const double shift_y = shift_r * std::sin(azimuth);
-  const double talpha  = std::tan(12.0 * kPi / 180.0); // tan(alpha)
-
-  // G4VTwistedFaceted constructor parameters (half-widths in mm):
-  //   G4VTwistedFaceted(phi_twist, dz, theta, azimuth,
-  //                     dy1, dx1, dx2, dy2, dx3, dx4, alpha)
-  const double dx1 = 9.0, dx2 = 12.0; // half-x at z = -dz, y = ∓dy1
-  const double dx3 = 7.0, dx4 = 13.0; // half-x at z = +dz, y = ∓dy2
-  const double dy1 = 8.0, dy2 = 10.0; // half-y at z = ∓dz
-
-  std::vector<TopoDS_Wire> wires;
-  wires.reserve(kLoftSectionCount);
-  for (int i = 0; i < kLoftSectionCount; ++i) {
-    const double t       = static_cast<double>(i) / (kLoftSectionCount - 1);
-    const double z_i     = -dz + t * 2.0 * dz;
-    const double theta_i = phi * z_i / (2.0 * dz);
-
-    // Linearly interpolated half-widths at this z (matches G4 linear interp).
-    const double dy_i  = dy1 + t * (dy2 - dy1);
-    const double dxm_i = dx1 + t * (dx3 - dx1); // half-x at y = −dy_i
-    const double dxp_i = dx2 + t * (dx4 - dx2); // half-x at y = +dy_i
-    const double shear = dy_i * talpha;         // alpha shift at this dy
-
-    // Vertices in local (pre-twist) frame, following G4VTwistedFaceted
-    // GetSurfaceArea() vertex ordering: at y = −dy the shear subtracts,
-    // at y = +dy it adds.
-    const std::vector<SectionPoint> section{
-        {-dxm_i - shear, -dy_i},
-        {dxm_i - shear, -dy_i},
-        {dxp_i + shear, dy_i},
-        {-dxp_i + shear, dy_i},
-    };
-
-    // Tilt: G4 centres the cross-section at global (shift_x·z/(2·dz), …),
-    // i.e. (t − 0.5)·shift_x, so z = 0 maps to the global origin.
-    wires.push_back(
-        MakePolygonWire(section, z_i, theta_i, (t - 0.5) * shift_x, (t - 0.5) * shift_y));
-  }
-  return MakeRuledLoftSolid(wires);
-}
-
 TopoDS_Shape MakeTwistedTubs() {
   const double dz   = 20.0;
   const double phi  = 30.0;
@@ -298,8 +222,6 @@ TopoDS_Shape MakeFixture(const std::string& fixture_name) {
     return MakeTwistedTrap();
   if (fixture_name == "twisted-tubs")
     return MakeTwistedTubs();
-  if (fixture_name == "vtwisted-faceted")
-    return MakeGenericTwistedFaceted();
   throw std::runtime_error("Unknown twisted fixture name: " + fixture_name);
 }
 
