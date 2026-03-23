@@ -220,12 +220,10 @@ bool PointOnPolygonBoundary2d(Standard_Real u, Standard_Real v, const std::vecto
 ///
 /// This replaces @c IntCurvesFace_Intersector::Perform for faces whose UV
 /// polygon has been precomputed (all straight-edge planar faces).
-std::optional<Standard_Real> RayPlaneFaceHit(const gp_Lin& ray, const gp_Pln& plane,
-                                             const std::vector<gp_Pnt2d>& uvPoly,
-                                             Standard_Real tMin, Standard_Real tMax,
-                                             Standard_Real tolerance,
-                                             Standard_Real* u_out = nullptr,
-                                             Standard_Real* v_out = nullptr) {
+std::optional<Standard_Real>
+RayPlaneFaceHit(const gp_Lin& ray, const gp_Pln& plane, const std::vector<gp_Pnt2d>& uvPoly,
+                Standard_Real tMin, Standard_Real tMax, Standard_Real tolerance,
+                Standard_Real* u_out = nullptr, Standard_Real* v_out = nullptr) {
   const gp_Dir& lineDir   = ray.Direction();
   const gp_Dir& plnNormal = plane.Axis().Direction();
   const Standard_Real denom =
@@ -868,9 +866,8 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& 
     const FaceBounds& fb = fFaceBoundsCache[i];
     if (!fb.uvPolygon.empty()) {
       // Fast path: bypass IntCurvesFace_Intersector for straight-edge planar faces.
-      const auto t =
-          RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite(),
-                         tolerance);
+      const auto t = RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite(),
+                                     tolerance);
       if (t && *t < minDistance) {
         minDistance = static_cast<G4double>(*t);
       }
@@ -987,9 +984,8 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
     const FaceBounds& fb = fFaceBoundsCache[i];
     if (!fb.uvPolygon.empty()) {
       // Fast path: direct ray–plane intersection for straight-edge planar faces.
-      const auto t =
-          RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite(),
-                         tolerance);
+      const auto t = RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite(),
+                                     tolerance);
       if (t && *t < minDistance) {
         minDistance   = static_cast<G4double>(*t);
         minFaceIdx    = i;
