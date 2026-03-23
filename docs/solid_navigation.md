@@ -48,8 +48,9 @@ shell has a half-width of `kCarTolerance/2` (≈ 1 nm default).
 Classification proceeds through up to four stages, returning as soon as a
 definitive answer is available:
 
-1. **AABB early reject** — if `p` lies outside `fCachedBounds` (inflated by
-   `kCarTolerance/2`), return `kOutside` immediately.
+1. **AABB early reject** — if `p` lies outside `fCachedBounds`, return
+   `kOutside` immediately.  `fCachedBounds` is pre-expanded by
+   `kCarTolerance/2` when computed at construction.
 2. **Inscribed-sphere fast path** — per-thread `G4Cache<SphereCacheData>`
    holds up to 64 inscribed spheres.  If `p` is strictly inside any cached
    sphere, return `kInside` without touching OCCT.
@@ -84,9 +85,9 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
   for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
     if (cache.expandedBoxes[i].IsOut(ray)) continue;  // O(1) AABB reject
     IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
-    fi.Perform(ray, -Precision::Infinite(), Precision::Infinite());
+    fi.Perform(ray, 0.0, Precision::Infinite());  // count only forward intersections
+    if (fi.IsParallel()) { degenerate = true; break; }
     for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
-      if (fi.IsParallel()) { degenerate = true; break; }
       crossings++;
     }
   }
@@ -219,12 +220,15 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p,
 
 **Geant4 semantics:**
 Returns the *shortest* (perpendicular) distance from external point `p` to
-the solid surface.
+the solid surface.  The implementation returns a *conservative lower bound*
+(never larger than the true distance); the navigator uses this to advance
+safely without overshooting.
 
 **Algorithm — BVH mesh distance (PR #209):**
 A BVH-accelerated triangle set (`fTriangleSet`) built from the tessellated
-surface provides a fast lower bound.  For all-planar solids (`fAllFacesPlanar`),
-an analytic plane-distance formula is used instead.
+surface provides a fast conservative lower bound.  For all-planar solids
+(`fAllFacesPlanar`), an analytic per-face plane distance is used instead as
+the bounding estimate.
 
 ```cpp
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
@@ -239,8 +243,10 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
 }
 ```
 
-For all-planar solids the plane distance is exact and the BVH traversal is
-skipped:
+For all-planar solids the BVH traversal is skipped; the minimum perpendicular
+distance to each face's infinite supporting plane serves as a lower bound
+(the closest point on a bounded face may lie on an edge or vertex, so the
+plane distance is never larger than the true face distance):
 
 ```cpp
 // Planar-face shortcut (fAllFacesPlanar == true)
@@ -257,8 +263,9 @@ G4double G4OCCTSolid::PlanarFaceLowerBoundDistance(
 }
 ```
 
-An exact `BRepExtrema_DistShapeShape` fallback is used only for edge cases
-where the BVH estimate is insufficient.
+An exact `BRepExtrema_DistShapeShape` fallback is used for edge cases where
+the conservative lower bound is insufficient (e.g. the estimated distance
+is smaller than `kCarTolerance`).
 
 ---
 
@@ -303,7 +310,7 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p,
 
   if (calcNorm && validNorm && n && minFace >= 0) {
     gp_Pnt hitPnt = ray.Location().Translated(
-        minDistance * gp_Vec(ray.Direction()));
+        gp_Vec(ray.Direction()) * minDistance);
     *n         = SurfaceNormal(G4ThreeVector(hitPnt.X(), hitPnt.Y(), hitPnt.Z()));
     *validNorm = true;
   }
@@ -471,15 +478,15 @@ result.
 
 | G4VSolid function | Primary algorithm | Difficulty |
 |---|---|---|
-| `Inside` | AABB → inscribed-sphere cache → ray-parity (per-face `IntCurvesFace_Intersector`) → `BRepClass3d_SolidClassifier` fallback | 🔲 High |
+| `Inside` | AABB → inscribed-sphere cache → ray-parity (per-face `IntCurvesFace_Intersector`) → `BRepClass3d_SolidClassifier` fallback | ⬜ High |
 | `SurfaceNormal` | `BRepExtrema_DistShapeShape` + `BRepAdaptor_Surface::D1` | ⬜ Medium |
 | `DistanceToIn(p, v)` | Per-face `IntCurvesFace_Intersector` loop with `Bnd_Box` prefilter | ⬜ Medium |
 | `DistanceToIn(p)` | BVH `PointToMeshDistance` on `fTriangleSet`; planar shortcut | ⬜ Medium |
 | `DistanceToOut(p, v)` | Per-face `IntCurvesFace_Intersector` loop with `Bnd_Box` prefilter | ⬜ Medium |
 | `DistanceToOut(p)` | BVH `PointToMeshDistance` on `fTriangleSet`; planar shortcut | ⬜ Medium |
 | `GetExtent` / `BoundingLimits` | `fCachedBounds` (computed once at construction) | ⬛ Easy |
-| `CreatePolyhedron` | `BRepMesh_IncrementalMesh` + `G4TessellatedSolid` | 🔲 Hard |
-| `CalculateExtent` | `BRepBuilderAPI_Transform` + bounding box | 🔲 Hard |
+| `CreatePolyhedron` | `BRepMesh_IncrementalMesh` + `G4TessellatedSolid` | ⬜ Hard |
+| `CalculateExtent` | `BRepBuilderAPI_Transform` + bounding box | ⬜ Hard |
 | `StreamInfo` | `TopoDS_Shape::ShapeType()` | ⬛ Easy |
 | `GetEntityType` | (constant string) | ⬛ Easy |
 
