@@ -507,8 +507,10 @@ async function selectFixtureById(fixtureId) {
       clearClouds();
       const nativeHitsEl   = document.getElementById('stat-native-hits');
       const importedHitsEl = document.getElementById('stat-imported-hits');
-      if (nativeHitsEl)   nativeHitsEl.textContent   = '—';
-      if (importedHitsEl) importedHitsEl.textContent = '—';
+      if (nativeHitsEl)
+        nativeHitsEl.textContent = '—';
+      if (importedHitsEl)
+        importedHitsEl.textContent = '—';
       countEl.textContent = '';
       return;
     }
