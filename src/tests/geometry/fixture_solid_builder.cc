@@ -64,24 +64,43 @@ namespace {
 /// G4ScaledSolid::DistanceToOut incorrectly calls fScale->TransformNormal()
 /// (which maps normals from global to local frame) instead of
 /// fScale->InverseTransformNormal() (local to global) when computing the
-/// exit surface normal.  G4ScaledSolid::SurfaceNormal() is implemented
-/// correctly and uses InverseTransformNormal().  This wrapper recomputes
-/// the exit normal via SurfaceNormal() at the exit point, bypassing the
-/// Geant4 bug, which is present at least up through Geant4 11.4.1.
+/// exit surface normal.  G4ScaledSolid::SurfaceNormal() is correctly
+/// implemented and uses InverseTransformNormal().  This subclass reimplements
+/// DistanceToOut using the same algorithm as the Geant4 upstream code but
+/// with InverseTransformNormal(), bypassing the Geant4 bug present at least
+/// through Geant4 11.4.1.
 class G4ScaledSolidFixed final : public G4ScaledSolid {
 public:
   using G4ScaledSolid::G4ScaledSolid;
 
   G4double DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v, const G4bool calcNorm,
                          G4bool* validNorm, G4ThreeVector* n) const override {
-    const G4double dist = G4ScaledSolid::DistanceToOut(p, v, calcNorm, validNorm, n);
+    // Transform point and direction to unscaled shape frame
+    G4ThreeVector newPoint;
+    fScale->Transform(p, newPoint);
+
+    // Direction is un-normalized after scale transformation
+    G4ThreeVector newDirection;
+    fScale->Transform(v, newDirection);
+    newDirection = newDirection / newDirection.mag();
+
+    // Compute distance in unscaled system
+    G4ThreeVector solNorm;
+    const G4double dist =
+        fPtrSolid->DistanceToOut(newPoint, newDirection, calcNorm, validNorm, &solNorm);
+
     if (calcNorm && n != nullptr) {
       // G4ScaledSolid::DistanceToOut uses fScale->TransformNormal() (global→local)
       // instead of fScale->InverseTransformNormal() (local→global) — a Geant4 bug.
-      // Fix: recompute via SurfaceNormal(), which is correctly implemented.
-      *n = SurfaceNormal(p + dist * v);
+      // Fix: apply the inverse-transpose of the scale matrix to map solNorm
+      // from the unscaled local frame to the global frame.
+      G4ThreeVector normal;
+      fScale->InverseTransformNormal(solNorm, normal);
+      *n = normal.unit();
     }
-    return dist;
+
+    // Return distance converted to global frame
+    return fScale->InverseTransformDistance(dist, newDirection);
   }
 };
 

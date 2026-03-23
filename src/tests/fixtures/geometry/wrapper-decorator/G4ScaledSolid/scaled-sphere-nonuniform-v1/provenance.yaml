@@ -27,5 +27,5 @@ notes:
       normals, yielding incorrect outward normals for non-axis-aligned rays.
       G4ScaledSolid::SurfaceNormal() is correct (uses InverseTransformNormal).
       The fixture builder works around this by wrapping G4ScaledSolid in
-      G4ScaledSolidFixed, which recomputes exit normals via SurfaceNormal() at
-      the exit point.
+      G4ScaledSolidFixed, which reimplements DistanceToOut with the same
+      algorithm as upstream Geant4 but using InverseTransformNormal().
