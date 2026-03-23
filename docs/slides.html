@@ -248,11 +248,11 @@ class G4OCCTSolid : public G4VSolid {
 
 | Method | Native Geant4 | G4OCCTSolid (current) | Notes |
 |---|---|---|---|
-| `Inside` | O(1) analytic | O(1) sphere fast-path / O(N_faces) ray-parity | Classifier fallback for degenerate rays only ✅ |
-| `DistanceToIn(p, v)` | O(1) analytic | O(k) ray test (k = unrejected faces) | AABB prefilter reduces k ≪ N_faces ✅ |
+| `Inside` | O(1) analytic | O(1) sphere fast-path / O(`N_faces`) ray-parity | Classifier fallback for degenerate rays only ✅ |
+| `DistanceToIn(p, v)` | O(1) analytic | O(k) ray test (k = unrejected faces) | AABB prefilter reduces k ≪ `N_faces` ✅ |
 | `DistanceToOut(p, v)` | O(1) analytic | O(k) ray test (k = unrejected faces) | Precomputed normals for planar ✅ |
 | `DistanceToIn(p)` | O(1) analytic | O(log T) BVH lower bound | T = triangle count; exact only as fallback ✅ |
-| `DistanceToOut(p)` | O(1) analytic | O(N_faces) plane-distance or O(log T) BVH | All-planar: exact plane distance ✅ |
+| `DistanceToOut(p)` | O(1) analytic | O(`N_faces`) plane-distance or O(log T) BVH | All-planar: exact plane distance ✅ |
 | `BoundingLimits` | O(1) stored | O(1) cached at construction | — ✅ |
 
 > For shapes with **≤ ~20 faces**, performance is within a small constant factor
