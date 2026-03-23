@@ -356,6 +356,27 @@ function updateImportedOffset() {
   }
 }
 
+// Show fixture metadata immediately from the metadata-only object supplied by ALL_FIXTURES.
+// Hit-count cells are filled with a placeholder that is replaced by loadFixture() once the
+// full blob has been decoded.  This ensures the sidebar is never empty while loading.
+function showFixtureMeta(meta) {
+  if (!meta) {
+    return;
+  }
+  statsEl.innerHTML = `
+    <tr><td>Fixture</td><td>${escHtml(meta.fixture_id)}</td></tr>
+    <tr><td>Class</td><td>${escHtml(meta.geant4_class)}</td></tr>
+    <tr><td>Rays fired</td><td>${escHtml(String(meta.ray_count))}</td></tr>
+    <tr><td>Native hits</td><td id="stat-native-hits">…</td></tr>
+    <tr><td>Imported hits</td><td id="stat-imported-hits">…</td></tr>
+    <tr><td>Native origin</td><td>${
+      escHtml(meta.native_pre_step_origin.map(v => v.toFixed(2)).join(', '))}</td></tr>
+    <tr><td>Imported origin</td><td>${
+      escHtml(meta.imported_pre_step_origin.map(v => v.toFixed(2)).join(', '))}</td></tr>
+  `;
+  countEl.textContent = '';
+}
+
 function loadFixture(fixture) {
   clearClouds();
   // Reset axis-view state and restore default camera up vectors so that
@@ -411,17 +432,26 @@ function loadFixture(fixture) {
 
   const nh = fixture.native_post_step_hits.length;
   const ih = fixture.imported_post_step_hits.length;
-  statsEl.innerHTML = `
-    <tr><td>Fixture</td><td>${escHtml(fixture.fixture_id)}</td></tr>
-    <tr><td>Class</td><td>${escHtml(fixture.geant4_class)}</td></tr>
-    <tr><td>Rays fired</td><td>${fixture.ray_count}</td></tr>
-    <tr><td>Native hits</td><td>${nh}</td></tr>
-    <tr><td>Imported hits</td><td>${ih}</td></tr>
-    <tr><td>Native origin</td><td>${
-      fixture.native_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
-    <tr><td>Imported origin</td><td>${
-      fixture.imported_pre_step_origin.map(v => v.toFixed(2)).join(', ')}</td></tr>
-  `;
+  // Update hit-count cells in place when showFixtureMeta() pre-populated the table,
+  // or write the full table when called without a preceding showFixtureMeta().
+  const nativeHitsEl   = document.getElementById('stat-native-hits');
+  const importedHitsEl = document.getElementById('stat-imported-hits');
+  if (nativeHitsEl && importedHitsEl) {
+    nativeHitsEl.textContent   = nh;
+    importedHitsEl.textContent = ih;
+  } else {
+    statsEl.innerHTML = `
+      <tr><td>Fixture</td><td>${escHtml(fixture.fixture_id)}</td></tr>
+      <tr><td>Class</td><td>${escHtml(fixture.geant4_class)}</td></tr>
+      <tr><td>Rays fired</td><td>${escHtml(String(fixture.ray_count))}</td></tr>
+      <tr><td>Native hits</td><td>${nh}</td></tr>
+      <tr><td>Imported hits</td><td>${ih}</td></tr>
+      <tr><td>Native origin</td><td>${
+        escHtml(fixture.native_pre_step_origin.map(v => v.toFixed(2)).join(', '))}</td></tr>
+      <tr><td>Imported origin</td><td>${
+        escHtml(fixture.imported_pre_step_origin.map(v => v.toFixed(2)).join(', '))}</td></tr>
+    `;
+  }
   countEl.textContent = `native: ${nh} pts  |  imported: ${ih} pts`;
 }
 
@@ -461,10 +491,28 @@ let currentLoadToken = 0;
 // Decode failures are surfaced in the stats panel so the user gets feedback.
 async function selectFixtureById(fixtureId) {
   const token = ++currentLoadToken;
+  // Show metadata immediately from ALL_FIXTURES so the sidebar is never blank while
+  // the (potentially slow) blob decode is in progress.
+  const meta = ALL_FIXTURES.find(x => x.fixture_id === fixtureId);
+  if (meta) {
+    showFixtureMeta(meta);
+  }
   try {
     const data = await decodeFixtureBlob(fixtureId);
     if (token !== currentLoadToken) {
       return; // a newer selection superseded this one
+    }
+    if (!data) {
+      // Blob not found: clear any stale point clouds, show "—" for hit counts.
+      clearClouds();
+      const nativeHitsEl   = document.getElementById('stat-native-hits');
+      const importedHitsEl = document.getElementById('stat-imported-hits');
+      if (nativeHitsEl)
+        nativeHitsEl.textContent = '—';
+      if (importedHitsEl)
+        importedHitsEl.textContent = '—';
+      countEl.textContent = '';
+      return;
     }
     loadFixture(data);
   } catch (err) {
@@ -472,8 +520,16 @@ async function selectFixtureById(fixtureId) {
       return; // stale — discard silently
     }
     clearClouds();
-    statsEl.innerHTML = `<tr><td colspan="2" style="color:#e87040">Error loading fixture: ${
-        escHtml(String(err))}</td></tr>`;
+    const nativeHitsEl   = document.getElementById('stat-native-hits');
+    const importedHitsEl = document.getElementById('stat-imported-hits');
+    if (nativeHitsEl && importedHitsEl) {
+      // Pre-populated table is present: show error inline without clobbering the metadata rows.
+      nativeHitsEl.textContent   = 'Error';
+      importedHitsEl.textContent = 'Error';
+    } else {
+      statsEl.innerHTML = `<tr><td colspan="2" style="color:#e87040">Error loading fixture: ${
+          escHtml(String(err))}</td></tr>`;
+    }
     countEl.textContent = '';
     console.error('Failed to load fixture:', err);
   }
