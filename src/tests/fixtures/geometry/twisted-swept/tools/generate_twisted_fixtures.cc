@@ -90,8 +90,6 @@ TopoDS_Shape MakeRuledLoftSolid(const std::vector<TopoDS_Wire>& wires) {
   return loft.Shape();
 }
 
-
-
 ///
 /// G4TwistedTubs uses hyperboloidal inner/outer surfaces (G4TwistTubsHypeSide).
 /// The radius at height @p z satisfies:
