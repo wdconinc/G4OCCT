@@ -383,7 +383,7 @@ def _render_report(data: dict, viewer_path: str,
             meta_line += " · " + ", ".join(parts)
 
     lines = [
-        "# G4OCCT Benchmark Results",
+        "# G4OCCT Solid Benchmark Results",
         "",
         meta_line,
         "",
@@ -558,7 +558,7 @@ def _render_report(data: dict, viewer_path: str,
 def _render_error(message: str) -> str:
     """Render a minimal Markdown error report."""
     return (
-        "# G4OCCT Benchmark Results\n\n"
+        "# G4OCCT Solid Benchmark Results\n\n"
         f"Generated: {timestamp()}\n\n"
         f"❌ Could not generate report: {message}\n"
     )

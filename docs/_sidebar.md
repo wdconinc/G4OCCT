@@ -16,7 +16,7 @@
   - [B4c — Sampling Calorimeter](example_b4c.md)
 - **CI Reports**
   - [Test Results](reports/test-results.md)
-  - [Benchmark Results](reports/bench-results.md)
+  - [Solid Benchmark Results](reports/bench-results.md)
   - [Assembly Benchmark Results](reports/bench-assembly-results.md)
   - [Point Cloud Viewer](reports/point_cloud_viewer.html)
   - [Coverage Report](reports/coverage.md)
