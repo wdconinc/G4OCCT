@@ -26,12 +26,22 @@
 #include "geometry/fixture_solid_builder.hh"
 #include "geometry/fixture_validation.hh"
 
+// Vendored private Geant4 RayTracer headers (not installed by Geant4).
+// These allow direct instantiation of the single-threaded G4TheRayTracer base
+// class, bypassing G4TheMTRayTracer which crashes in MT Geant4 builds when
+// BeamOn is called from a visualisation context (G4AllocatorPool corruption in
+// worker threads).
+#include "G4RayTracerViewer.hh"
+#include "G4TheRayTracer.hh"
+
 #include "G4OCCT/G4OCCTSolid.hh"
 
 #include <G4Box.hh>
 #include <G4Colour.hh>
 #include <G4LogicalVolume.hh>
 #include <G4Material.hh>
+#include <G4ChargedGeantino.hh>
+#include <G4Geantino.hh>
 #include <G4ParticleDefinition.hh>
 #include <G4ParticleTable.hh>
 #include <G4NistManager.hh>
@@ -40,9 +50,6 @@
 #include <G4PrimaryVertex.hh>
 #include <G4RunManager.hh>
 #include <G4RunManagerFactory.hh>
-#ifdef G4MULTITHREADED
-#include <G4MTRunManager.hh>
-#endif
 #include <G4SystemOfUnits.hh>
 #include <G4ThreeVector.hh>
 #include <G4UImanager.hh>
@@ -50,6 +57,7 @@
 #include <G4VUserDetectorConstruction.hh>
 #include <G4VUserPhysicsList.hh>
 #include <G4VUserPrimaryGeneratorAction.hh>
+#include <G4Scene.hh>
 #include <G4VisAttributes.hh>
 #include <G4VisExecutive.hh>
 #include <G4VSolid.hh>
@@ -77,9 +85,8 @@ namespace {
   public:
     MinimalPhysicsList() : G4VUserPhysicsList() { SetVerboseLevel(0); }
     void ConstructParticle() override {
-      G4ParticleTable* particle_table = G4ParticleTable::GetParticleTable();
-      particle_table->FindParticle("geantino");
-      particle_table->FindParticle("chargedgeantino");
+      G4Geantino::GeantinoDefinition();
+      G4ChargedGeantino::ChargedGeantinoDefinition();
     }
     void ConstructProcess() override { AddTransportation(); }
   };
@@ -224,19 +231,26 @@ namespace {
    * RT viewer are opened.  On subsequent calls @c ReinitializeGeometry is
    * used to cleanly swap the geometry.
    *
-   * @p vis_manager and @p ui are set on the first call and remain valid for
-   * the lifetime of the loop.  @p visualization_ready is set only after the
-   * viewer has been validated as a RayTracer instance and the scene has been
-   * fully configured.
+   * @p vis_manager, @p ui, and @p st_tracer are set on the first call and
+   * remain valid for the lifetime of the loop.  @p visualization_ready is
+   * set only after the viewer has been validated as a RayTracer instance and
+   * the scene has been fully configured.
+   *
+   * Camera parameters are read from the MT tracer (set by the viewer's
+   * @c SetView()) and forwarded to the single-threaded @p st_tracer which
+   * performs the actual ray trace on the master thread without spawning
+   * worker threads.  This avoids a G4AllocatorPool corruption that occurs
+   * in G4TheMTRayTracer::CreateBitMap() when it calls BeamOn() from inside
+   * a visualisation context.
    *
    * G4RayTracer writes the JPEG at the exact path passed to
-   * @c /vis/rayTracer/trace (no extension is appended by the Geant4 code),
+   * @c G4TheRayTracer::Trace() (no extension is appended by the Geant4 code),
    * so @p output_path should already end in @c .jpeg.
    *
    * @return @c true when the JPEG was successfully written.
    */
   bool RenderFixture(G4RunManager* runManager, FixtureDetectorConstruction* detector,
-                     G4VisExecutive*& vis_manager, G4UImanager* ui,
+                     G4VisExecutive*& vis_manager, G4UImanager* ui, G4TheRayTracer*& st_tracer,
                      const FixtureDetectorConstruction::Request& req,
                      const std::filesystem::path& output_path, bool& initialized,
                      bool& visualization_ready) {
@@ -294,6 +308,11 @@ namespace {
                << "viewer type '" << gsName << "'. Skipping renders." << G4endl;
         return false;
       }
+      // Disable auto-refresh so that subsequent /vis/viewer/set commands do not
+      // trigger an implicit DrawView() → BeamOn() before we explicitly issue
+      // our trace.  An unsolicited BeamOn at this point would fire the ray-tracer
+      // with an incompletely configured scene and crash.
+      ui->ApplyCommand("/vis/viewer/set/autoRefresh false");
       // Add the fixture solid (not the world) to the scene so the scene extent
       // is computed from the solid's bounding box rather than the world box.
       // This keeps the camera inside the world volume: the camera distance
@@ -303,6 +322,18 @@ namespace {
       // (Using the world extent instead results in the camera being placed
       // ~3.7 × world_radius = ~36 × max_solid_dimension outside the world.)
       ui->ApplyCommand("/vis/scene/add/volume " + G4String(req.name) + "_pv");
+
+      // Create the single-threaded tracer once.  Its nColumn/nRow are copied
+      // from the MT tracer that was configured by the viewer's Initialise().
+      // G4TheRayTracer (the base class, not G4TheMTRayTracer) processes events
+      // on the master thread via G4EventManager::ProcessOneEvent(), avoiding
+      // the worker-thread G4AllocatorPool corruption that plagues G4TheMTRayTracer.
+      auto* rt_viewer  = static_cast<G4RayTracerViewer*>(vis_manager->GetCurrentViewer());
+      auto* mt_tracer  = rt_viewer->GetTracer();
+      st_tracer        = new G4TheRayTracer();
+      st_tracer->SetNColumn(mt_tracer->GetNColumn());
+      st_tracer->SetNRow(mt_tracer->GetNRow());
+
       visualization_ready = true;
     } else {
       // If the vis setup failed on the first call, skip subsequent renders too.
@@ -310,8 +341,27 @@ namespace {
           vis_manager->GetCurrentViewer() == nullptr) {
         return false;
       }
-      // destroyFirst=true → G4SolidStore::Clean() + Construct() rebuild.
-      runManager->ReinitializeGeometry(/*destroyFirst=*/true, /*prop=*/false);
+      // Swap geometry between fixtures without destroying the geometry stores.
+      // Using destroyFirst=false avoids a dangling-pointer crash in
+      // G4VisManager::GeometryHasChanged(): when destroyFirst=true,
+      // G4PhysicalVolumeStore::Clean() deletes the world PV, but the navigation
+      // manager still holds that pointer; GeometryHasChanged() then dereferences
+      // it via GetWorldVolume() and crashes.  With destroyFirst=false the old
+      // geometry objects accumulate in stores (bounded per fixture, acceptable
+      // for a test binary) and the world PV stays valid through the call.
+      // ReinitializeGeometry sets geometryInitialized=false so the subsequent
+      // Initialize() call re-runs Construct() with the new fixture request.
+      runManager->ReinitializeGeometry(/*destroyFirst=*/false, /*prop=*/false);
+      runManager->Initialize();
+
+      // Clear the scene's run-duration model list (which points to the previous
+      // fixture's PV) so the tracer only renders the new solid.  Then re-add
+      // the new fixture volume to recompute the scene extent and mark the viewer
+      // for a kernel re-visit.
+      if (auto* scene = vis_manager->GetCurrentScene()) {
+        scene->SetRunDurationModelList().clear();
+      }
+      ui->ApplyCommand("/vis/scene/add/volume " + G4String(req.name) + "_pv");
     }
 
     std::filesystem::create_directories(output_path.parent_path());
@@ -321,29 +371,43 @@ namespace {
       return false;
     }
 
-    // Render: G4RayTracer traces through G4Navigator which always reflects the
-    // current world geometry (set by Initialize/ReinitializeGeometry), so no
-    // per-render /vis/scene/create is needed — and creating a new scene per
-    // render would detach the viewer from G4RTMessenger's scanner.
-    //
-    // Do NOT call viewer->NeedKernelVisit() + viewer->ProcessView() before
-    // tracing.  G4RayTracerViewer::DrawView() (called by ProcessView) writes a
-    // JPEG to the current working directory under an auto-generated name and
-    // invalidates the viewer state for the subsequent /vis/rayTracer/trace
-    // command, causing G4RTMessenger to fall back to an unconfigured default
-    // tracer.
-    //
-    // Instead: set the viewpoint direction via the vis-command, then call
-    // viewer->SetView() to push the computed eye/target parameters onto the
-    // tracer, and finally issue /vis/rayTracer/trace which calls
-    // viewer_tracer->Trace(path) directly.  G4RayTracer writes the file at the
-    // exact path given (no extension is appended).
+    // SetView() reads the current G4ViewParameters (fVP) — which include the
+    // viewpoint direction configured by /vis/viewer/set/viewpointThetaPhi —
+    // and computes eyePosition, targetPosition, lightDirection, viewSpan, etc.,
+    // then pushes them onto the MT tracer.  We then copy those parameters to
+    // the single-threaded tracer and call Trace() directly.
     ui->ApplyCommand("/vis/viewer/set/viewpointThetaPhi 45 45");
     viewer->SetView();
 
-    // G4RayTracer uses the filename as-is (no extension appended).
-    const std::string output_name = output_path.string();
-    ui->ApplyCommand(G4String("/vis/rayTracer/trace ") + G4String(output_name));
+    // Populate the G4RayTracerSceneHandler's scene-vis-attrs map by processing
+    // the scene geometry.  G4RTSteppingAction looks up colours in this map during
+    // the event loop inside CreateBitMap(); without a prior ProcessView() the map
+    // is empty and every ray would produce only the background colour.
+    // ProcessView() calls G4VSceneHandler::ProcessScene() only when
+    // fNeedKernelVisit is true (which /vis/scene/add/volume ensures).
+    // Crucially, ProcessView() does NOT call DrawView() / Trace() — it is the
+    // scene-geometry traversal step only.
+    viewer->ProcessView();
+
+    // Copy camera parameters from the MT tracer (populated by SetView()) to the
+    // single-threaded tracer, then render.  Using G4TheRayTracer (base class)
+    // rather than G4TheMTRayTracer avoids G4AllocatorPool corruption: the MT
+    // override calls BeamOn() which spawns worker threads that corrupt the
+    // G4TouchableHistory allocator (free-list head overwritten with the vptr).
+    // The base-class Trace() processes events on the calling thread via
+    // G4EventManager::ProcessOneEvent(), with no worker threads involved.
+    auto* mt_tracer = static_cast<G4RayTracerViewer*>(viewer)->GetTracer();
+    st_tracer->SetEyePosition(mt_tracer->GetEyePosition());
+    st_tracer->SetTargetPosition(mt_tracer->GetTargetPosition());
+    st_tracer->SetLightDirection(mt_tracer->GetLightDirection());
+    st_tracer->SetViewSpan(mt_tracer->GetViewSpan());
+    st_tracer->SetHeadAngle(mt_tracer->GetHeadAngle());
+    st_tracer->SetUpVector(mt_tracer->GetUpVector());
+    st_tracer->SetBackgroundColour(mt_tracer->GetBackgroundColour());
+
+    // G4TheRayTracer::Trace() processes events on the master thread and writes
+    // the JPEG at the exact path given (no extension is appended).
+    st_tracer->Trace(output_path.string());
 
     return std::filesystem::exists(output_path);
   }
@@ -405,16 +469,13 @@ namespace {
                 const std::string& fixture_filter = {}) {
     std::filesystem::create_directories(output_dir);
 
-    // G4TheMTRayTracer (used by /vis/open RayTracer in MT-built Geant4) requires
-    // G4MTRunManager::GetMasterRunManager() != nullptr.  Use MTOnly with one
-    // worker so the requirement is satisfied while keeping the thread count (and
-    // therefore per-worker geometry-copy memory) as low as possible.
-    auto* runManager =
-#ifdef G4MULTITHREADED
-        G4RunManagerFactory::CreateRunManager(G4RunManagerType::MTOnly, 1);
-#else
-        G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
-#endif
+    // Use SerialOnly to avoid the G4AllocatorPool corruption in
+    // G4TouchableHistory that occurs when G4MTRunManager::Initialize() calls
+    // BeamOn(0) to spawn worker threads.  G4TheRayTracer (base class, single-
+    // threaded) processes events on the calling thread via
+    // G4EventManager::ProcessOneEvent(), so it does not need an MT run manager.
+    // Note: even in MT-built Geant4, G4RunManagerFactory accepts SerialOnly.
+    auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
     runManager->SetVerboseLevel(0);
 
     auto* detector = new FixtureDetectorConstruction();
@@ -424,6 +485,7 @@ namespace {
 
     G4UImanager* ui             = G4UImanager::GetUIpointer();
     G4VisExecutive* vis_manager = nullptr;
+    G4TheRayTracer* st_tracer   = nullptr;
     bool initialized            = false;
     bool visualization_ready    = false;
 
@@ -490,8 +552,8 @@ namespace {
           native_req.name            = G4String(fixture.id + "_native");
 
           const auto native_path = output_dir / (safe_id + "_native.jpeg");
-          if (!RenderFixture(runManager, detector, vis_manager, ui, native_req, native_path,
-                             initialized, visualization_ready)) {
+          if (!RenderFixture(runManager, detector, vis_manager, ui, st_tracer, native_req,
+                             native_path, initialized, visualization_ready)) {
             std::cerr << "WARNING: " << qualified_id << ": native render produced no output\n";
             ++skipped_count;
             done = !fixture_filter.empty();
@@ -507,8 +569,8 @@ namespace {
           imported_req.name            = G4String(fixture.id + "_imported");
 
           const auto imported_path = output_dir / (safe_id + "_imported.jpeg");
-          if (!RenderFixture(runManager, detector, vis_manager, ui, imported_req, imported_path,
-                             initialized, visualization_ready)) {
+          if (!RenderFixture(runManager, detector, vis_manager, ui, st_tracer, imported_req,
+                             imported_path, initialized, visualization_ready)) {
             std::cerr << "WARNING: " << qualified_id << ": imported render produced no output\n";
             ++skipped_count;
             done = !fixture_filter.empty();
@@ -530,6 +592,7 @@ namespace {
       }
     }
 
+    delete st_tracer;
     delete vis_manager;
     delete runManager;
 
