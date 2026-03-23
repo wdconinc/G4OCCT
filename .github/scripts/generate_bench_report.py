@@ -387,13 +387,13 @@ def _render_report(data: dict, viewer_path: str,
         "",
         meta_line,
         "",
-        "> **Interpretation note:** The per-method timings below reflect isolated,"
+        "**Interpretation note:** The per-method timings below reflect isolated,"
         " function-level measurements and are **not** representative of the call"
         " distribution in a typical Geant4 simulation, where particles are tracked"
         " along trajectories rather than random points being queried for their"
         " inside/outside status.",
         "",
-        "> The purpose of this comparison is to measure the cost of using a general"
+        "The purpose of this comparison is to measure the cost of using a general"
         " BRep solid (G4OCCTSolid) in place of a hand-tuned Geant4 primitive for the"
         " shapes where both representations exist.  The native Geant4 implementation"
         " is always faster because it is specialised for a single shape class and"
