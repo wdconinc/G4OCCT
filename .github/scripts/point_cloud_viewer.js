@@ -458,7 +458,11 @@ function loadFixture(fixture) {
 // ── Lazy loading ──────────────────────────────────────────────────────────────
 // Decode the base64-encoded gzip blob for a fixture and return the full data
 // (including point arrays) as a parsed object.  The browser's DecompressionStream
-// API (gzip) is used so no third-party library is required.
+// API (gzip) is used so no third-party library is required.  Blob.stream() is
+// piped through the DecompressionStream so the pipe mechanism drives backpressure
+// correctly — writing to the writable side and reading from the readable side happen
+// concurrently, which avoids the deadlock that would arise if all compressed bytes
+// were written before anyone started consuming the decompressed output.
 // Results are cached so repeated selections of the same fixture do not
 // re-decompress or re-parse the data.
 const fixtureCache = new Map();
@@ -470,13 +474,10 @@ async function decodeFixtureBlob(fixtureId) {
   if (!(fixtureId in FIXTURE_BLOBS)) {
     return null;
   }
-  const bytes  = Uint8Array.from(atob(FIXTURE_BLOBS[fixtureId]), c => c.charCodeAt(0));
-  const stream = new DecompressionStream('gzip');
-  const writer = stream.writable.getWriter();
-  await writer.write(bytes);
-  await writer.close();
-  writer.releaseLock();
-  const text = await new Response(stream.readable).text();
+  const bytes = Uint8Array.from(atob(FIXTURE_BLOBS[fixtureId]), c => c.charCodeAt(0));
+  const text =
+      await new Response(new Blob([ bytes ]).stream().pipeThrough(new DecompressionStream('gzip')))
+          .text();
   const data = JSON.parse(text);
   fixtureCache.set(fixtureId, data);
   return data;
@@ -526,6 +527,9 @@ async function selectFixtureById(fixtureId) {
       // Pre-populated table is present: show error inline without clobbering the metadata rows.
       nativeHitsEl.textContent   = 'Error';
       importedHitsEl.textContent = 'Error';
+      // Append a row with the full error reason so the user knows why loading failed.
+      const errRow     = statsEl.insertRow();
+      errRow.innerHTML = `<td colspan="2" style="color:#e87040">${escHtml(String(err))}</td>`;
     } else {
       statsEl.innerHTML = `<tr><td colspan="2" style="color:#e87040">Error loading fixture: ${
           escHtml(String(err))}</td></tr>`;
