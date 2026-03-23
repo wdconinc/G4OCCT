@@ -31,6 +31,7 @@
 #include <G4Polyhedra.hh>
 #include <G4RotationMatrix.hh>
 #include <G4ScaledSolid.hh>
+#include <G4ScaleTransform.hh>
 #include <G4Sphere.hh>
 #include <G4SubtractionSolid.hh>
 #include <G4SystemOfUnits.hh>
@@ -75,19 +76,23 @@ public:
 
   G4double DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v, const G4bool calcNorm,
                          G4bool* validNorm, G4ThreeVector* n) const override {
+    // Construct scale transform from the public accessor (fScale is private)
+    const G4ScaleTransform scale(GetScaleTransform());
+    G4VSolid* const unscaled = GetUnscaledSolid();
+
     // Transform point and direction to unscaled shape frame
     G4ThreeVector newPoint;
-    fScale->Transform(p, newPoint);
+    scale.Transform(p, newPoint);
 
     // Direction is un-normalized after scale transformation
     G4ThreeVector newDirection;
-    fScale->Transform(v, newDirection);
+    scale.Transform(v, newDirection);
     newDirection = newDirection / newDirection.mag();
 
     // Compute distance in unscaled system
     G4ThreeVector solNorm;
     const G4double dist =
-        fPtrSolid->DistanceToOut(newPoint, newDirection, calcNorm, validNorm, &solNorm);
+        unscaled->DistanceToOut(newPoint, newDirection, calcNorm, validNorm, &solNorm);
 
     if (calcNorm && n != nullptr) {
       // G4ScaledSolid::DistanceToOut uses fScale->TransformNormal() (global→local)
@@ -95,12 +100,12 @@ public:
       // Fix: apply the inverse-transpose of the scale matrix to map solNorm
       // from the unscaled local frame to the global frame.
       G4ThreeVector normal;
-      fScale->InverseTransformNormal(solNorm, normal);
+      scale.InverseTransformNormal(solNorm, normal);
       *n = normal.unit();
     }
 
     // Return distance converted to global frame
-    return fScale->InverseTransformDistance(dist, newDirection);
+    return scale.InverseTransformDistance(dist, newDirection);
   }
 };
 
