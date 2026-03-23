@@ -43,31 +43,89 @@ Geant4's unit system.
 Returns `kInside`, `kSurface`, or `kOutside` for point `p`.  The surface
 shell has a half-width of `kCarTolerance/2` (≈ 1 nm default).
 
-**OCCT algorithm:**
-`BRepClass3d_SolidClassifier` classifies a 3D point with respect to a solid.
+**Algorithm — multi-stage pipeline (PRs #197, #214, #221):**
+
+Classification proceeds through up to four stages, returning as soon as a
+definitive answer is available:
+
+1. **AABB early reject** — if `p` lies sufficiently outside `fCachedBounds`,
+   return `kOutside` immediately.  `fCachedBounds` stores the raw OCCT
+   bounding box from `BRepBndLib::AddOptimal`; the `Inside(p)` implementation
+   applies an `IntersectionTolerance()` margin (≈ `kCarTolerance/2`) in its
+   component-wise comparisons against this box.
+2. **Inscribed-sphere fast path** — per-thread `G4Cache<SphereCacheData>`
+   holds up to 64 inscribed spheres.  If `p` is strictly inside any cached
+   sphere, return `kInside` without touching OCCT.
+3. **Ray-parity test** — cast a +Z ray from `p` and count face crossings
+   using a per-thread `G4Cache<IntersectorCache>`.  Each entry holds a
+   pre-constructed `IntCurvesFace_Intersector` for one face; a
+   `Bnd_Box::IsOut` prefilter skips faces whose bounding box the ray cannot
+   reach.  Only `TopAbs_IN` state forward hits count; `TopAbs_ON` hits (ray
+   lands on a shared edge or vertex) set the `degenerateRay` flag.  If `p`
+   itself is on a face, `onSurface` is set.  Fall through to stage 4 when the
+   parity count is ambiguous (zero `TopAbs_IN` crossings, or at least one
+   edge/vertex hit).
+4. **`BRepClass3d_SolidClassifier` fallback** — used only when the ray is
+   ambiguous (degenerate hit or no interior crossings found).
 
 ```cpp
-#include <BRepClass3d_SolidClassifier.hxx>
-#include <gp_Pnt.hxx>
-
 EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
-  gp_Pnt pnt(p.x(), p.y(), p.z());
-  BRepClass3d_SolidClassifier cls(fShape);
-  cls.Perform(pnt, kCarTolerance / 2.0);
-  switch (cls.State()) {
-    case TopAbs_IN:      return kInside;
-    case TopAbs_ON:      return kSurface;
-    case TopAbs_OUT:     return kOutside;
-    default:             return kOutside;
+  const G4double tolerance = IntersectionTolerance();
+  // Stage 1: AABB early reject (raw bounding box + tolerance margin)
+  if (p.x() < fCachedBounds.min.x() - tolerance || p.x() > fCachedBounds.max.x() + tolerance ||
+      p.y() < fCachedBounds.min.y() - tolerance || p.y() > fCachedBounds.max.y() + tolerance ||
+      p.z() < fCachedBounds.min.z() - tolerance || p.z() > fCachedBounds.max.z() + tolerance)
+    return kOutside;
+
+  // Stage 2: inscribed-sphere fast path (per-thread cache)
+  const SphereCacheData& sphereCache = GetOrInitSphereCache();
+  for (const InscribedSphere& s : sphereCache.spheres) {
+    const G4double interiorRadius = s.radius - tolerance;
+    if (interiorRadius > 0.0 && (p - s.centre).mag2() < interiorRadius * interiorRadius)
+      return kInside;
   }
+
+  // Stage 3: ray-parity test
+  const gp_Lin ray(ToPoint(p), gp_Dir(0.0, 0.0, 1.0));
+  IntersectorCache& cache = GetOrCreateIntersector();
+  int crossings      = 0;
+  bool onSurface     = false;
+  bool degenerateRay = false;
+  for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
+    if (cache.expandedBoxes[i].IsOut(ray)) continue;  // O(1) AABB reject
+    IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
+    fi.Perform(ray, -tolerance, Precision::Infinite());
+    if (!fi.IsDone()) continue;
+    for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
+      const G4double w         = fi.WParameter(j);
+      const TopAbs_State state = fi.State(j);
+      if (std::abs(w) <= tolerance && (state == TopAbs_IN || state == TopAbs_ON))
+        onSurface = true;  // p lies on the face
+      else if (w > tolerance && state == TopAbs_IN)
+        ++crossings;
+      else if (w > tolerance && state == TopAbs_ON)
+        degenerateRay = true;  // ray hits a shared edge/vertex
+    }
+  }
+  if (onSurface) return kSurface;
+  if (crossings == 0 || degenerateRay) {
+    // Stage 4: BRepClass3d fallback (degenerate or ambiguous ray only)
+    BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+    classifier.Perform(ToPoint(p), tolerance);
+    return ToG4Inside(classifier.State());
+  }
+  return (crossings % 2 == 1) ? kInside : kOutside;
 }
 ```
 
 **Notes:**
-* `BRepClass3d_SolidClassifier` requires that `fShape` be a `TopoDS_Solid`
-  or a `TopoDS_Shell` that is closed.  Open shells or `TopoDS_Compound`
-  shapes will give undefined results; a pre-check should be added.
-* The tolerance passed to `Perform` should match Geant4's `kCarTolerance`.
+* The per-thread caches (`fSphereCache`, `fIntersectorCache`) are
+  `G4Cache<T>` objects so that each worker thread owns independent mutable
+  state — the shape itself (`fShape`) is read-only and shared safely.
+* `BRepClass3d_SolidClassifier` is only reached when the parity count is
+  ambiguous (no `TopAbs_IN` crossings found, or at least one edge/vertex hit),
+  keeping the common-case cost to pure C++ arithmetic plus per-face line/box
+  tests.
 
 ---
 
@@ -133,66 +191,74 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
 Returns the distance along ray `(p, v)` from external point `p` to the first
 surface intersection.  Returns `kInfinity` if the ray misses.
 
-**OCCT algorithm:**
-`IntCurvesFace_ShapeIntersector` computes intersections between a line (or
-ray) and the faces of a shape.
+**Algorithm — per-face intersector loop (PR #215):**
+A per-thread `IntersectorCache` holds one `IntCurvesFace_Intersector` per
+face together with an expanded bounding box for that face.  This avoids
+re-constructing intersector objects on every call and allows an O(1)
+per-face AABB prefilter to skip irrelevant faces.
 
 ```cpp
-#include <IntCurvesFace_ShapeIntersector.hxx>
-#include <gp_Lin.hxx>
-
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p,
                                     const G4ThreeVector& v) const {
   gp_Lin ray(gp_Pnt(p.x(), p.y(), p.z()),
              gp_Dir(v.x(), v.y(), v.z()));
 
-  IntCurvesFace_ShapeIntersector intersector;
-  intersector.Load(fShape, kCarTolerance);
-  // Parametric range: (0, +∞) excludes the current position
-  intersector.Perform(ray, kCarTolerance, Precision::Infinite());
-
-  if (!intersector.IsDone() || intersector.NbPnt() == 0)
-    return kInfinity;
-
-  // Find the smallest positive parameter (distance along ray)
-  G4double minDist = kInfinity;
-  for (int i = 1; i <= intersector.NbPnt(); ++i) {
-    G4double w = intersector.WParameter(i);
-    if (w > kCarTolerance && w < minDist)
-      minDist = w;
+  IntersectorCache& cache = fIntersectorCache.Get();  // per-thread
+  G4double minDistance = kInfinity;
+  for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
+    if (cache.expandedBoxes[i].IsOut(ray)) continue;  // O(1) AABB reject
+    IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
+    fi.Perform(ray, kCarTolerance, Precision::Infinite());
+    for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
+      const G4double w = fi.WParameter(j);
+      if (w > kCarTolerance && w < minDistance) minDistance = w;
+    }
   }
-  return minDist;
+  return minDistance;
 }
 ```
 
 **Notes:**
+* Each `IntCurvesFace_Intersector` in the cache is associated with a single
+  `TopoDS_Face`; this replaces the previous `IntCurvesFace_ShapeIntersector`
+  which operated on the whole shape and could not be prefiltered per-face.
 * The parametric lower bound `kCarTolerance` avoids self-intersection at the
   current surface point.
-* `Precision::Infinite()` from OCCT should be replaced with a finite but
-  large value consistent with the simulation world size.
+* `Precision::Infinite()` from OCCT acts as the upper parametric bound;
+  intersections beyond the simulation world are naturally excluded by the
+  navigator's step-length limit.
 
 ---
 
 ### 2.4 `G4double DistanceToIn(const G4ThreeVector& p) const`
 
 **Geant4 semantics:**
-Returns the *shortest* (perpendicular) distance from external point `p` to
-the solid surface.
+Returns the shortest distance from external point `p` to the solid surface,
+which may be zero if `p` is already inside or on the surface.
 
-**OCCT algorithm:**
-`BRepExtrema_DistShapeShape` between a vertex at `p` and the shape boundary.
+**Algorithm — AABB lower bound + exact fallback (PR #209):**
+A two-tier approach is used:
+
+1. **AABB lower bound (O(1))** — compute the distance from `p` to the
+   axis-aligned bounding box `fCachedBounds`.  If this distance exceeds
+   `IntersectionTolerance()`, it is a guaranteed conservative lower bound on
+   the true surface distance and is returned immediately.
+2. **Exact fallback** — for points near or inside the AABB (where the AABB
+   bound is no longer useful), `ExactDistanceToIn(p)` is called, which uses
+   `BRepClass3d_SolidClassifier` to check interiority and
+   `TryFindClosestFace` (backed by `BRepExtrema_DistShapeShape` per face) to
+   obtain the true closest-point distance.
 
 ```cpp
-#include <BRepExtrema_DistShapeShape.hxx>
-
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
-  BRep_Builder builder;
-  TopoDS_Vertex vertex;
-  builder.MakeVertex(vertex, gp_Pnt(p.x(), p.y(), p.z()), kCarTolerance);
+  // Tier-0: AABB lower bound (O(1)).
+  const G4double aabbDist = AABBLowerBound(p);
+  if (aabbDist > IntersectionTolerance()) {
+    return aabbDist;
+  }
 
-  BRepExtrema_DistShapeShape dist(vertex, fShape);
-  if (!dist.IsDone()) return kInfinity;
-  return dist.Value();
+  // Fallback: exact distance (handles points near or inside the AABB).
+  return ExactDistanceToIn(p);
 }
 ```
 
@@ -205,9 +271,10 @@ Distance from *internal* point `p` along direction `v` to the first surface
 intersection.  If `calcNorm` is true, also fills `*n` with the outward
 surface normal at the intersection and sets `*validNorm`.
 
-**OCCT algorithm:**
-Same as `DistanceToIn(p, v)` using `IntCurvesFace_ShapeIntersector`, but
-interpreting the result for an interior point.
+**Algorithm — per-face intersector loop (PR #215):**
+Identical loop structure to `DistanceToIn(p, v)`, reusing the same per-thread
+`IntersectorCache`.  The semantic difference is that `p` is interior, so the
+smallest positive crossing distance is the exit distance.
 
 ```cpp
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p,
@@ -215,36 +282,48 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p,
                                      const G4bool calcNorm,
                                      G4bool* validNorm,
                                      G4ThreeVector* n) const {
-  if (validNorm) *validNorm = false;
+  if (validNorm != nullptr) *validNorm = false;
 
-  gp_Lin ray(gp_Pnt(p.x(), p.y(), p.z()),
-             gp_Dir(v.x(), v.y(), v.z()));
+  const G4double tolerance = IntersectionTolerance();
+  const gp_Lin ray(ToPoint(p), gp_Dir(v.x(), v.y(), v.z()));
 
-  IntCurvesFace_ShapeIntersector intersector;
-  intersector.Load(fShape, kCarTolerance);
-  intersector.Perform(ray, kCarTolerance, Precision::Infinite());
+  IntersectorCache& cache = GetOrCreateIntersector();  // per-thread
+  G4double minDistance   = kInfinity;
+  std::size_t minFaceIdx = std::numeric_limits<std::size_t>::max();
+  G4double minU = 0.0, minV = 0.0;
+  bool minIsIn = false;
 
-  if (!intersector.IsDone() || intersector.NbPnt() == 0)
-    return 0.0;  // defensive: interior point should always hit the boundary
-
-  G4double minDist = kInfinity;
-  int minIdx = -1;
-  for (int i = 1; i <= intersector.NbPnt(); ++i) {
-    G4double w = intersector.WParameter(i);
-    if (w > kCarTolerance && w < minDist) {
-      minDist = w;
-      minIdx  = i;
+  for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
+    if (cache.expandedBoxes[i].IsOut(ray)) continue;  // O(1) AABB reject
+    IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
+    fi.Perform(ray, tolerance, Precision::Infinite());
+    if (!fi.IsDone()) continue;
+    for (Standard_Integer j = 1; j <= fi.NbPnt(); ++j) {
+      const G4double w = fi.WParameter(j);
+      if (w > tolerance && w < minDistance) {
+        minDistance = w;
+        minFaceIdx  = i;
+        minU        = fi.UParameter(j);
+        minV        = fi.VParameter(j);
+        minIsIn     = (fi.State(j) == TopAbs_IN || fi.State(j) == TopAbs_ON);
+      }
     }
   }
 
-  if (calcNorm && validNorm && n && minIdx > 0) {
-    gp_Pnt hitPnt = intersector.Pnt(minIdx);
-    G4ThreeVector hp(hitPnt.X(), hitPnt.Y(), hitPnt.Z());
-    *n        = SurfaceNormal(hp);
-    *validNorm = true;
+  if (minFaceIdx == std::numeric_limits<std::size_t>::max() || minDistance == kInfinity)
+    return 0.0;
+
+  // Normal: read pre-stored (u,v) parameters to avoid re-intersecting.
+  if (calcNorm && validNorm != nullptr && n != nullptr && minIsIn) {
+    const FaceBounds& fb = fFaceBoundsCache[minFaceIdx];
+    const auto outNorm   = TryGetOutwardNormal(fb.adaptor, fb.face, minU, minV);
+    if (outNorm) {
+      *n         = *outNorm;
+      *validNorm = true;
+    }
   }
 
-  return (minDist < kInfinity) ? minDist : 0.0;
+  return minDistance;
 }
 ```
 
@@ -253,20 +332,47 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p,
 ### 2.6 `G4double DistanceToOut(const G4ThreeVector& p) const`
 
 **Geant4 semantics:**
-Shortest distance from *internal* point `p` to the surface.
+Shortest distance from *internal* point `p` to the surface.  The returned
+value is a *conservative lower bound* on the true distance (never larger),
+which is what the navigator's safety calculation requires.
 
-**OCCT algorithm:**
-Same as `DistanceToIn(p)` — `BRepExtrema_DistShapeShape` between a vertex
-at `p` and the shape.  Since `p` is inside, this gives the inward distance.
+**Algorithm — planar shortcut or BVH lower bound + exact fallback (PR #210):**
+
+1. **All-planar solids** (`fAllFacesPlanar == true`) — the minimum perpendicular
+   distance to each face's infinite supporting plane is computed.  This is a
+   conservative lower bound: for a convex solid it is exact; for a non-convex
+   solid the closest point may lie on an edge or vertex and the true distance
+   could be smaller than the plane distance, but never larger.  If
+   `PlanarFaceLowerBoundDistance` returns `kInfinity` (degenerate case), the
+   exact fallback is used.
+2. **Mixed geometry** (at least one curved face) — a BVH-accelerated triangle
+   set (`fTriangleSet`) provides a fast conservative lower bound
+   (`BVHLowerBoundDistance`).  If the BVH bound is unavailable (returns
+   `kInfinity`), `ExactDistanceToOut` is called.
+3. **Exact fallback** (`ExactDistanceToOut`) — uses `TryFindClosestFace`
+   (backed by `BRepExtrema_DistShapeShape` per face) for a precise result.
+
+As a side effect, the returned distance `d` seeds the inscribed-sphere cache
+(`TryInsertSphere`): every positive return value proves that the ball `B(p, d)`
+is fully inside the solid and can accelerate future `Inside(p)` calls.
 
 ```cpp
 G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
-  BRep_Builder builder;
-  TopoDS_Vertex vertex;
-  builder.MakeVertex(vertex, gp_Pnt(p.x(), p.y(), p.z()), kCarTolerance);
-  BRepExtrema_DistShapeShape dist(vertex, fShape);
-  if (!dist.IsDone()) return 0.0;
-  return dist.Value();
+  G4double d;
+  if (fAllFacesPlanar) {
+    // All faces planar: plane distance is a conservative lower bound.
+    d = PlanarFaceLowerBoundDistance(p);
+    if (d == kInfinity) {
+      d = ExactDistanceToOut(p);
+    }
+  } else {
+    // Mixed geometry: use BVH lower bound; exact fallback if unavailable.
+    const G4double bvhDist = BVHLowerBoundDistance(p);
+    d = (bvhDist < kInfinity) ? bvhDist : ExactDistanceToOut(p);
+  }
+  // Seed the inscribed-sphere cache with the returned distance.
+  TryInsertSphere(p, d);
+  return d;
 }
 ```
 
@@ -283,20 +389,15 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p) const {
 **Geant4 semantics:**
 Returns an axis-aligned bounding box sufficient for visualisation.
 
-**OCCT algorithm:**
-`BRepBndLib::Add` fills a `Bnd_Box` with the tight axis-aligned bounding box.
+**Algorithm — cached at construction:**
+`fCachedBounds` is a `Bnd_Box` computed once in the `G4OCCTSolid` constructor
+via `BRepBndLib::Add` and stored as a member.  `GetExtent` simply unpacks it.
 
 ```cpp
-#include <BRepBndLib.hxx>
-#include <Bnd_Box.hxx>
-
 G4VisExtent G4OCCTSolid::GetExtent() const {
-  Bnd_Box bbox;
-  BRepBndLib::Add(fShape, bbox);
-  if (bbox.IsVoid()) return G4VisExtent(-1, 1, -1, 1, -1, 1);
-
+  if (fCachedBounds.IsVoid()) return G4VisExtent(-1, 1, -1, 1, -1, 1);
   Standard_Real xmin, ymin, zmin, xmax, ymax, zmax;
-  bbox.Get(xmin, ymin, zmin, xmax, ymax, zmax);
+  fCachedBounds.Get(xmin, ymin, zmin, xmax, ymax, zmax);
   return G4VisExtent(xmin, xmax, ymin, ymax, zmin, zmax);
 }
 ```
@@ -349,15 +450,14 @@ and the OCCT shape type (obtained from `fShape.ShapeType()`).
 Optional virtual that returns tight axis-aligned bounds.  The default
 implementation delegates to `GetExtent()`.
 
-**OCCT algorithm:** Same as `GetExtent()` — use `BRepBndLib::Add`.
+**Algorithm — cached at construction:**
+Same `fCachedBounds` member as `GetExtent()`.  No OCCT call at query time.
 
 ```cpp
 void G4OCCTSolid::BoundingLimits(G4ThreeVector& pMin,
                                   G4ThreeVector& pMax) const {
-  Bnd_Box bbox;
-  BRepBndLib::Add(fShape, bbox);
   Standard_Real xmin, ymin, zmin, xmax, ymax, zmax;
-  bbox.Get(xmin, ymin, zmin, xmax, ymax, zmax);
+  fCachedBounds.Get(xmin, ymin, zmin, xmax, ymax, zmax);
   pMin = G4ThreeVector(xmin, ymin, zmin);
   pMax = G4ThreeVector(xmax, ymax, zmax);
 }
@@ -403,17 +503,17 @@ result.
 
 ## 3. Summary Table
 
-| G4VSolid function | OCCT algorithm | Difficulty |
+| G4VSolid function | Primary algorithm | Difficulty |
 |---|---|---|
-| `Inside` | `BRepClass3d_SolidClassifier` | ⬜ Medium |
+| `Inside` | AABB → inscribed-sphere cache → ray-parity (per-face `IntCurvesFace_Intersector`) → `BRepClass3d_SolidClassifier` fallback | ⬜ High |
 | `SurfaceNormal` | `BRepExtrema_DistShapeShape` + `BRepAdaptor_Surface::D1` | ⬜ Medium |
-| `DistanceToIn(p, v)` | `IntCurvesFace_ShapeIntersector` | ⬜ Medium |
-| `DistanceToIn(p)` | `BRepExtrema_DistShapeShape` | ⬛ Easy |
-| `DistanceToOut(p, v)` | `IntCurvesFace_ShapeIntersector` | ⬜ Medium |
-| `DistanceToOut(p)` | `BRepExtrema_DistShapeShape` | ⬛ Easy |
-| `GetExtent` / `BoundingLimits` | `BRepBndLib::Add` → `Bnd_Box` | ⬛ Easy |
-| `CreatePolyhedron` | `BRepMesh_IncrementalMesh` + `G4TessellatedSolid` | 🔲 Hard |
-| `CalculateExtent` | `BRepBuilderAPI_Transform` + bounding box | 🔲 Hard |
+| `DistanceToIn(p, v)` | Per-face `IntCurvesFace_Intersector` loop with `Bnd_Box` prefilter | ⬜ Medium |
+| `DistanceToIn(p)` | AABB lower bound (`AABBLowerBound`); exact fallback (`BRepExtrema_DistShapeShape` per face) | ⬜ Medium |
+| `DistanceToOut(p, v)` | Per-face `IntCurvesFace_Intersector` loop with `Bnd_Box` prefilter; `TryGetOutwardNormal` for exit normal | ⬜ Medium |
+| `DistanceToOut(p)` | Planar shortcut (`PlanarFaceLowerBoundDistance`) or BVH lower bound (`BVHLowerBoundDistance`); exact fallback | ⬜ Medium |
+| `GetExtent` / `BoundingLimits` | `fCachedBounds` (computed once at construction) | ⬛ Easy |
+| `CreatePolyhedron` | `BRepMesh_IncrementalMesh` + `G4TessellatedSolid` | ⬜ Hard |
+| `CalculateExtent` | `BRepBuilderAPI_Transform` + bounding box | ⬜ Hard |
 | `StreamInfo` | `TopoDS_Shape::ShapeType()` | ⬛ Easy |
 | `GetEntityType` | (constant string) | ⬛ Easy |
 
@@ -444,19 +544,40 @@ recenter STEP-imported shapes before constructing `G4OCCTSolid`.
 
 ### 4.3 Thread Safety
 
-`IntCurvesFace_ShapeIntersector` and `BRepClass3d_SolidClassifier` are
-**not thread-safe** — they maintain mutable internal state.  Each thread
-(Geant4 worker thread) must maintain its own instances.  Use
-`G4Cache<IntCurvesFace_ShapeIntersector>` or `thread_local` storage.
+`BRepClass3d_SolidClassifier` and `IntCurvesFace_Intersector` (from OCCT)
+are **not thread-safe** — they maintain mutable internal state.  Each Geant4
+worker thread must own its own instances.  G4OCCT uses `G4Cache<T>` wrappers
+(`fSphereCache`, `fIntersectorCache`) to provide per-thread storage without
+locks.
+
+In the common `Inside` path, `BRepClass3d_SolidClassifier` is only reached
+as a fallback for degenerate rays (point exactly on an edge or vertex).  The
+primary path — inscribed-sphere check followed by the per-face ray-parity
+loop — requires only the cached `IntersectorCache`, so the expensive
+classifier is rarely constructed.
 
 ### 4.4 Performance
 
-The OCCT BRep algorithms are general-purpose and may be significantly slower
-than Geant4's analytic solid implementations for simple shapes (boxes,
-spheres, tubes).  Profiling with the navigator benchmark (`bench_navigator`)
-is essential before release.  Caching the `BRepClass3d_SolidClassifier` and
-`IntCurvesFace_ShapeIntersector` objects (not re-constructing them per call)
-is the primary optimisation opportunity.
+The navigation hot path has been progressively optimised across multiple PRs:
+
+* **`Inside`** (PRs #197, #214, #221): A four-stage funnel — AABB reject,
+  inscribed-sphere cache, ray-parity with per-face `Bnd_Box` prefilter,
+  and a `BRepClass3d_SolidClassifier` fallback only for degenerate rays —
+  reduces the common case to pure arithmetic and avoids heavy OCCT calls
+  in the vast majority of queries.
+* **`DistanceToIn/Out(p, v)`** (PR #215): Replaced
+  `IntCurvesFace_ShapeIntersector` (whole-shape, no prefilter) with a
+  per-face `IntCurvesFace_Intersector` loop using cached, pre-expanded
+  `Bnd_Box` objects for O(1) per-face rejection.
+* **`DistanceToIn/Out(p)`** (PRs #209, #210): Replaced
+  `BRepExtrema_DistShapeShape` (BRep topology search per call) with a
+  BVH-accelerated `PointToMeshDistance` on a pre-built triangle mesh
+  (`fTriangleSet`), with a planar-face shortcut for all-planar solids.
+* **Bounding boxes** are computed once at construction and cached in
+  `fCachedBounds`, eliminating per-call `BRepBndLib::Add` overhead.
+
+Profiling with the navigator benchmark (`bench_navigator`) and Callgrind
+reports (see `callgrind-reports-*/`) continues to guide further work.
 
 ### 4.5 Shape Validity
 
