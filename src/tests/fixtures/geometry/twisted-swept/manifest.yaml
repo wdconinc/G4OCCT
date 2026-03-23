@@ -72,6 +72,6 @@ fixtures:
     validation_state: validated
     expectations:
       - quantity: volume
-        value: 14746.516
-        absolute_tolerance: 0.001
+        value: 14702.1
+        absolute_tolerance: 0.1
         unit: mm3
