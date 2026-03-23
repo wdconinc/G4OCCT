@@ -57,6 +57,37 @@
 #include <string>
 #include <vector>
 
+namespace {
+
+/// G4ScaledSolid with corrected DistanceToOut exit normals.
+///
+/// G4ScaledSolid::DistanceToOut incorrectly calls fScale->TransformNormal()
+/// (which maps normals from global to local frame) instead of
+/// fScale->InverseTransformNormal() (local to global) when computing the
+/// exit surface normal.  G4ScaledSolid::SurfaceNormal() is implemented
+/// correctly and uses InverseTransformNormal().  This wrapper recomputes
+/// the exit normal via SurfaceNormal() at the exit point, bypassing the
+/// Geant4 bug, which is present at least up through Geant4 11.4.1.
+class G4ScaledSolidFixed final : public G4ScaledSolid {
+public:
+  using G4ScaledSolid::G4ScaledSolid;
+
+  G4double DistanceToOut(const G4ThreeVector& p, const G4ThreeVector& v,
+                         const G4bool calcNorm, G4bool* validNorm,
+                         G4ThreeVector* n) const override {
+    const G4double dist = G4ScaledSolid::DistanceToOut(p, v, calcNorm, validNorm, n);
+    if (calcNorm && n != nullptr) {
+      // G4ScaledSolid::DistanceToOut uses fScale->TransformNormal() (global→local)
+      // instead of fScale->InverseTransformNormal() (local→global) — a Geant4 bug.
+      // Fix: recompute via SurfaceNormal(), which is correctly implemented.
+      *n = SurfaceNormal(p + dist * v);
+    }
+    return dist;
+  }
+};
+
+} // namespace
+
 namespace g4occt::tests::geometry {
 namespace {
 
@@ -532,8 +563,8 @@ std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance) 
       throw std::runtime_error(context + ": scale_factors must have 3 values");
     }
     auto* base_sphere = new G4Orb(name + "_base", radius);
-    return std::make_unique<G4ScaledSolid>(name, base_sphere,
-                                           G4Scale3D(factors[0], factors[1], factors[2]));
+    return std::make_unique<G4ScaledSolidFixed>(name, base_sphere,
+                                               G4Scale3D(factors[0], factors[1], factors[2]));
   }
   if (geant4_class == "G4UnionSolid" || geant4_class == "G4IntersectionSolid" ||
       geant4_class == "G4SubtractionSolid") {
