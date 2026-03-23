@@ -87,28 +87,11 @@ Expected impact:
 ### 3.2 Cached-bounds early reject — ✅ Implemented
 
 `Inside(p)` now rejects points outside `fCachedBounds` before any OCCT call.
-The same prefilter applies to `DistanceToIn(p,v)` and `DistanceToOut(p,v)` via
+The same prefilter applies to the directional `DistanceToIn(p, v)` and
+`DistanceToOut(p, v)` overloads (the same queries later referred to as
+`DistanceToIn(p)` / `DistanceToOut(p)` when the direction is implicit) via
 `Bnd_Box::IsOut(ray)` on tolerance-expanded AABBs, pruning faces that cannot
 possibly intersect the query ray.
-
-~~Problem:~~
-~~A point that is clearly outside the cached axis-aligned bounds still reaches~~
-~~the OCCT classifier today.~~
-
-~~Opportunity:~~
-~~For `Inside(p)`, reject points outside `fCachedBounds` by more than the current~~
-~~tolerance before calling `BRepClass3d_SolidClassifier`.~~
-
-~~Scope:~~
-
-- ~~`Inside()`~~
-- ~~potentially `DistanceToIn(p)` as a very cheap first-stage decision input~~
-
-~~Expected impact:~~
-
-- ~~large win for benchmark/query sets sampled from a bounding box,~~
-- ~~especially useful for sparse or elongated solids where most sampled points~~
-  ~~are outside.~~
 
 ### 3.3 Direct ray-plane fast path for planar faces — 🔄 In-flight (PR #233)
 
@@ -224,7 +207,7 @@ so faces that cannot intersect the ray are skipped without any OCCT arithmetic.
 `PointToMeshDistance` BVH traversal over `fTriangleSet` (`BRepExtrema_TriangleSet`)
 is built at construction time and used for every safety query.  The result is
 corrected by the linear deflection bound `fBVHDeflection` and clamped:
-`max(0, mesh_distance − fBVHDeflection)`.  An AABB lower bound is computed as a
+`max(0, mesh_distance - fBVHDeflection)`.  An AABB lower bound is computed as a
 cheap first-stage check before entering BVH traversal.
 
 For all-planar solids, `PlanarFaceLowerBoundDistance()` provides an exact
@@ -545,7 +528,7 @@ Every optimization PR should confirm:
 
 ## 7. Suggested Roadmap
 
-1. Keep setup cost out of benchmark timing.
+1. ✅ Keep setup cost out of benchmark timing.
 2. ✅ Add and validate cheap exact rejects (`Inside()` AABB reject).
 3. ✅ Evaluate prepared-query contexts for small repeated savings.
 4. ✅ Replace per-face `BRepExtrema_DistShapeShape` loops in `DistanceToOut(p)` and
