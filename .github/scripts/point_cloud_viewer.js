@@ -476,8 +476,7 @@ async function decodeFixtureBlob(fixtureId) {
   }
   const bytes = Uint8Array.from(atob(FIXTURE_BLOBS[fixtureId]), c => c.charCodeAt(0));
   const text =
-      await new Response(
-                 new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')))
+      await new Response(new Blob([ bytes ]).stream().pipeThrough(new DecompressionStream('gzip')))
           .text();
   const data = JSON.parse(text);
   fixtureCache.set(fixtureId, data);
@@ -529,9 +528,8 @@ async function selectFixtureById(fixtureId) {
       nativeHitsEl.textContent   = 'Error';
       importedHitsEl.textContent = 'Error';
       // Append a row with the full error reason so the user knows why loading failed.
-      const errRow = statsEl.insertRow();
-      errRow.innerHTML =
-          `<td colspan="2" style="color:#e87040">${escHtml(String(err))}</td>`;
+      const errRow     = statsEl.insertRow();
+      errRow.innerHTML = `<td colspan="2" style="color:#e87040">${escHtml(String(err))}</td>`;
     } else {
       statsEl.innerHTML = `<tr><td colspan="2" style="color:#e87040">Error loading fixture: ${
           escHtml(String(err))}</td></tr>`;
