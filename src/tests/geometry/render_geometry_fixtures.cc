@@ -328,9 +328,9 @@ namespace {
       // G4TheRayTracer (the base class, not G4TheMTRayTracer) processes events
       // on the master thread via G4EventManager::ProcessOneEvent(), avoiding
       // the worker-thread G4AllocatorPool corruption that plagues G4TheMTRayTracer.
-      auto* rt_viewer  = static_cast<G4RayTracerViewer*>(vis_manager->GetCurrentViewer());
-      auto* mt_tracer  = rt_viewer->GetTracer();
-      st_tracer        = new G4TheRayTracer();
+      auto* rt_viewer = static_cast<G4RayTracerViewer*>(vis_manager->GetCurrentViewer());
+      auto* mt_tracer = rt_viewer->GetTracer();
+      st_tracer       = new G4TheRayTracer();
       st_tracer->SetNColumn(mt_tracer->GetNColumn());
       st_tracer->SetNRow(mt_tracer->GetNRow());
 

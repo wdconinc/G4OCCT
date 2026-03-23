@@ -158,8 +158,9 @@ if(G4_VIS_EXECUTIVE_HH)
             # Geant4's private RayTracer headers are not installed by the Geant4
             # build system.  Vendored copies under geant4_private/ allow direct
             # use of G4TheRayTracer (single-threaded base class) to bypass
-            # G4TheMTRayTracer, which crashes in MT builds due to pool corruption
-            # in worker threads when BeamOn is called from a visualization context.
+            # G4TheMTRayTracer, which crashes in MT builds due to pool
+            # corruption in worker threads when BeamOn is called from a
+            # visualization context.
             ${CMAKE_CURRENT_SOURCE_DIR}/geometry/geant4_private)
   target_link_libraries(render_geometry_fixtures PRIVATE G4OCCTFixtureSupport)
 
