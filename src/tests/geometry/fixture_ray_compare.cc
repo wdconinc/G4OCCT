@@ -70,12 +70,15 @@ namespace {
       sample.distance =
           solid.DistanceToOut(origin, direction, true, &sample.validNorm, &sample.normal);
     }
-    sample.intersects = !std::isinf(sample.distance);
+    // Geant4's kInfinity is 9.9999e+99, a large finite double, not IEEE
+    // infinity. std::isinf would return false for it, causing rays that miss
+    // the solid (DistanceToIn = kInfinity) to be treated as valid hits.
+    sample.intersects = !std::isinf(sample.distance) && sample.distance < kInfinity;
     return sample;
   }
 
   std::string DistanceString(const G4double value) {
-    if (std::isinf(value)) {
+    if (std::isinf(value) || value >= kInfinity) {
       return "kInfinity";
     }
     std::ostringstream buffer;
