@@ -151,18 +151,16 @@ G4ThreeVector FallbackNormal() { return G4ThreeVector(0.0, 0.0, 1.0); }
 /// @p poly.  Adjacent vertices on the boundary may be classified as inside or
 /// outside depending on floating-point rounding; callers that need exact
 /// on-boundary handling should fall back to the OCCT intersector.
-bool PointInPolygon2d(Standard_Real u, Standard_Real v,
-                      const std::vector<gp_Pnt2d>& poly) {
+bool PointInPolygon2d(Standard_Real u, Standard_Real v, const std::vector<gp_Pnt2d>& poly) {
   const std::size_t n = poly.size();
   int crossings       = 0;
   for (std::size_t i = 0; i < n; ++i) {
-    const gp_Pnt2d& a = poly[i];
-    const gp_Pnt2d& b = poly[(i + 1) % n];
+    const gp_Pnt2d& a      = poly[i];
+    const gp_Pnt2d& b      = poly[(i + 1) % n];
     const Standard_Real av = a.Y();
     const Standard_Real bv = b.Y();
     if ((av <= v && bv > v) || (bv <= v && av > v)) {
-      const Standard_Real uCross =
-          a.X() + (v - av) * (b.X() - a.X()) / (bv - av);
+      const Standard_Real uCross = a.X() + (v - av) * (b.X() - a.X()) / (bv - av);
       if (u < uCross) {
         ++crossings;
       }
@@ -175,18 +173,18 @@ bool PointInPolygon2d(Standard_Real u, Standard_Real v,
 /// Used to detect ray hits on the polygon boundary (shared edges/vertices) that
 /// would correspond to @c TopAbs_ON in the full OCCT intersector, and therefore
 /// require a degenerate-ray fallback.
-bool PointOnPolygonBoundary2d(Standard_Real u, Standard_Real v,
-                               const std::vector<gp_Pnt2d>& poly, Standard_Real tol) {
+bool PointOnPolygonBoundary2d(Standard_Real u, Standard_Real v, const std::vector<gp_Pnt2d>& poly,
+                              Standard_Real tol) {
   const Standard_Real tol2 = tol * tol;
   const std::size_t n      = poly.size();
   for (std::size_t i = 0; i < n; ++i) {
-    const gp_Pnt2d& a  = poly[i];
-    const gp_Pnt2d& b  = poly[(i + 1) % n];
-    const Standard_Real dx = b.X() - a.X();
-    const Standard_Real dy = b.Y() - a.Y();
+    const gp_Pnt2d& a        = poly[i];
+    const gp_Pnt2d& b        = poly[(i + 1) % n];
+    const Standard_Real dx   = b.X() - a.X();
+    const Standard_Real dy   = b.Y() - a.Y();
     const Standard_Real len2 = dx * dx + dy * dy;
-    Standard_Real px = 0.0;
-    Standard_Real py = 0.0;
+    Standard_Real px         = 0.0;
+    Standard_Real py         = 0.0;
     if (len2 < 1.0e-20) {
       px = a.X();
       py = a.Y();
@@ -220,31 +218,29 @@ bool PointOnPolygonBoundary2d(Standard_Real u, Standard_Real v,
 /// This replaces @c IntCurvesFace_Intersector::Perform for faces whose UV
 /// polygon has been precomputed (all straight-edge planar faces).
 std::optional<Standard_Real> RayPlaneFaceHit(const gp_Lin& ray, const gp_Pln& plane,
-                                              const std::vector<gp_Pnt2d>& uvPoly,
-                                              Standard_Real tMin, Standard_Real tMax,
-                                              Standard_Real* u_out = nullptr,
-                                              Standard_Real* v_out = nullptr) {
+                                             const std::vector<gp_Pnt2d>& uvPoly,
+                                             Standard_Real tMin, Standard_Real tMax,
+                                             Standard_Real* u_out = nullptr,
+                                             Standard_Real* v_out = nullptr) {
   const gp_Dir& lineDir   = ray.Direction();
   const gp_Dir& plnNormal = plane.Axis().Direction();
-  const Standard_Real denom = plnNormal.X() * lineDir.X() +
-                              plnNormal.Y() * lineDir.Y() +
-                              plnNormal.Z() * lineDir.Z();
+  const Standard_Real denom =
+      plnNormal.X() * lineDir.X() + plnNormal.Y() * lineDir.Y() + plnNormal.Z() * lineDir.Z();
   // Ray parallel to the plane: no intersection (or entire ray lies on plane,
   // which we treat as no intersection for navigation purposes).
   if (std::abs(denom) < 1.0e-10) {
     return std::nullopt;
   }
-  const gp_Pnt& orig    = ray.Location();
-  const gp_Pnt& planePt = plane.Location();
+  const gp_Pnt& orig        = ray.Location();
+  const gp_Pnt& planePt     = plane.Location();
   const Standard_Real numer = plnNormal.X() * (planePt.X() - orig.X()) +
                               plnNormal.Y() * (planePt.Y() - orig.Y()) +
                               plnNormal.Z() * (planePt.Z() - orig.Z());
-  const Standard_Real t = numer / denom;
+  const Standard_Real t     = numer / denom;
   if (t < tMin || t > tMax) {
     return std::nullopt;
   }
-  const gp_Pnt hitPt(orig.X() + t * lineDir.X(),
-                     orig.Y() + t * lineDir.Y(),
+  const gp_Pnt hitPt(orig.X() + t * lineDir.X(), orig.Y() + t * lineDir.Y(),
                      orig.Z() + t * lineDir.Z());
   Standard_Real u = 0.0;
   Standard_Real v = 0.0;
@@ -252,8 +248,12 @@ std::optional<Standard_Real> RayPlaneFaceHit(const gp_Lin& ray, const gp_Pln& pl
   if (!PointInPolygon2d(u, v, uvPoly)) {
     return std::nullopt;
   }
-  if (u_out != nullptr) { *u_out = u; }
-  if (v_out != nullptr) { *v_out = v; }
+  if (u_out != nullptr) {
+    *u_out = u;
+  }
+  if (v_out != nullptr) {
+    *v_out = v;
+  }
   return t;
 }
 
@@ -743,9 +743,8 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
       // classifier just like the degenerate-ray path does for non-planar faces.
       Standard_Real u_hit = 0.0;
       Standard_Real v_hit = 0.0;
-      const auto t = RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon,
-                                     -tolerance, Precision::Infinite(),
-                                     &u_hit, &v_hit);
+      const auto t        = RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, -tolerance,
+                                            Precision::Infinite(), &u_hit, &v_hit);
       if (t) {
         const G4double w = static_cast<G4double>(*t);
         if (std::abs(w) <= tolerance) {
@@ -971,10 +970,10 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
       const auto t =
           RayPlaneFaceHit(ray, *fb.plane, fb.uvPolygon, tolerance, Precision::Infinite());
       if (t && *t < minDistance) {
-        minDistance    = static_cast<G4double>(*t);
-        minFaceIdx     = i;
-        minIsIn        = true; // polygon interior hit is equivalent to TopAbs_IN
-        minIsFastPath  = true;
+        minDistance   = static_cast<G4double>(*t);
+        minFaceIdx    = i;
+        minIsIn       = true; // polygon interior hit is equivalent to TopAbs_IN
+        minIsFastPath = true;
       }
     } else {
       IntCurvesFace_Intersector& fi = *cache.faceIntersectors[i];
