@@ -63,6 +63,8 @@ Any low-level optimization should follow these rules:
 
 ### 3.1 Warm one-time OCCT setup outside timed loops
 
+> **Addressed in benchmark infrastructure.**
+
 Problem:
 The first `Inside()` or ray query on a thread pays for lazy OCCT cache setup.
 That is a valid runtime cost, but it obscures steady-state benchmark numbers.
@@ -82,28 +84,50 @@ Expected impact:
 - easier comparison between native and imported steady-state behavior,
 - no behavioral change in production navigation.
 
-### 3.2 Cached-bounds early reject
+### 3.2 Cached-bounds early reject — ✅ Implemented
 
-Problem:
-A point that is clearly outside the cached axis-aligned bounds still reaches
-the OCCT classifier today.
+`Inside(p)` now rejects points outside `fCachedBounds` before any OCCT call.
+The same prefilter applies to `DistanceToIn(p,v)` and `DistanceToOut(p,v)` via
+`Bnd_Box::IsOut(ray)` on tolerance-expanded AABBs, pruning faces that cannot
+possibly intersect the query ray.
 
-Opportunity:
-For `Inside(p)`, reject points outside `fCachedBounds` by more than the current
-tolerance before calling `BRepClass3d_SolidClassifier`.
+~~Problem:~~
+~~A point that is clearly outside the cached axis-aligned bounds still reaches~~
+~~the OCCT classifier today.~~
 
-Scope:
+~~Opportunity:~~
+~~For `Inside(p)`, reject points outside `fCachedBounds` by more than the current~~
+~~tolerance before calling `BRepClass3d_SolidClassifier`.~~
 
-- `Inside()`
-- potentially `DistanceToIn(p)` as a very cheap first-stage decision input
+~~Scope:~~
 
-Expected impact:
+- ~~`Inside()`~~
+- ~~potentially `DistanceToIn(p)` as a very cheap first-stage decision input~~
 
-- large win for benchmark/query sets sampled from a bounding box,
-- especially useful for sparse or elongated solids where most sampled points
-  are outside.
+~~Expected impact:~~
 
-### 3.3 Prepared-query contexts
+- ~~large win for benchmark/query sets sampled from a bounding box,~~
+- ~~especially useful for sparse or elongated solids where most sampled points~~
+  ~~are outside.~~
+
+### 3.3 Direct ray-plane fast path for planar faces — 🔄 In-flight (PR #233)
+
+For planar faces whose boundary consists entirely of straight-line edges, a
+`uvPolygon` (outer wire vertices projected into UV space) is precomputed at
+construction time.  The hot-path helper `RayPlaneFaceHit()` then performs an
+explicit ray-plane intersection followed by a 2D point-in-polygon test,
+bypassing `IntCurvesFace_Intersector::Perform` entirely.
+
+Benefits:
+
+- eliminates `TopExp_Explorer`, `BRepTopAdaptor_FClass2d`, and
+  `NCollection_Sequence` overhead on every call,
+- expected to remove ~50 % of remaining navigation instructions for
+  all-box geometries (B4c benchmark),
+- falls back to the generic `IntCurvesFace_Intersector` path for non-planar or
+  curved-edge faces.
+
+### 3.4 Prepared-query contexts
 
 Problem:
 Thread-local cache entries currently hold the OCCT algorithm object only.
@@ -124,22 +148,33 @@ Expected impact:
 
 ## 4. Medium-Term Opportunities
 
-### 4.1 Multi-stage `Inside()` classification
+### 4.1 Multi-stage `Inside()` classification — ✅ Implemented (PRs #197, #214, #221)
 
-Instead of a single exact OCCT classifier call for every surviving point:
+`Inside()` now uses a four-stage pipeline:
 
-1. coarse AABB reject,
-2. optional tighter coarse volume reject/accept,
-3. exact OCCT classification only for unresolved points.
+1. **AABB coarse reject** — points outside `fCachedBounds` immediately return `kOutside`.
+2. **Inscribed-sphere fast path** — adaptive per-thread `G4Cache<SphereCacheData>` holding
+   up to 64 inscribed spheres grown from `DistanceToOut(p)` results; accepts interior
+   points or rejects clearly exterior points without any OCCT call.
+3. **Ray-parity test** — per-face `IntCurvesFace_Intersector` in the +Z direction with
+   per-face bbox prefilter; handles the vast majority of surviving points.
+4. **`BRepClass3d_SolidClassifier` fallback** — used only for degenerate rays that
+   produce ambiguous parity results.
 
-Possible middle stages:
+~~Instead of a single exact OCCT classifier call for every surviving point:~~
 
-- oriented bounding box or principal-axis box,
-- convex half-space checks for imported convex polyhedra,
-- per-fixture or per-shape signed-distance approximations with exact fallback.
+~~1. coarse AABB reject,~~
+~~2. optional tighter coarse volume reject/accept,~~
+~~3. exact OCCT classification only for unresolved points.~~
 
-Risk:
-Any non-exact accept path must be proven safe near boundaries.
+~~Possible middle stages:~~
+
+~~- oriented bounding box or principal-axis box,~~
+~~- convex half-space checks for imported convex polyhedra,~~
+~~- per-fixture or per-shape signed-distance approximations with exact fallback.~~
+
+~~Risk:~~
+~~Any non-exact accept path must be proven safe near boundaries.~~
 
 ### 4.2 Bulk-query APIs
 
@@ -162,20 +197,39 @@ Potential benefits:
 This does **not** require changing the public Geant4 virtual interface; the
 batch API can remain an internal helper used by tests/benchmarks.
 
-### 4.3 Better ray front-ends for `DistanceToIn/Out`
+### 4.3 Better ray front-ends for `DistanceToIn/Out` — ✅ Implemented (PR #215)
 
-The intersector is currently the main exact engine.  For complex solids, a
-generic spatial acceleration front-end could reduce face visits before the
-exact OCCT call:
+Per-face `IntCurvesFace_Intersector` instances replace the monolithic
+`IntCurvesFace_ShapeIntersector`, eliminating `NCollection_Sequence` heap
+allocation per call.  Each intersector is stored in a per-thread
+`G4Cache<IntersectorCache>::faceIntersectors` and filtered by its per-face
+tolerance-expanded AABB (`Bnd_Box::IsOut(ray)`) before `Perform` is called,
+so faces that cannot intersect the ray are skipped without any OCCT arithmetic.
 
-- OCCT BVH if a stable/public entry point is available,
-- a project-owned AABB tree over faces,
-- cached ray-entry candidate lists for repeated origins.
+~~The intersector is currently the main exact engine.  For complex solids, a~~
+~~generic spatial acceleration front-end could reduce face visits before the~~
+~~exact OCCT call:~~
 
-This is likely the highest-payoff area for large imported assemblies and
-complex fixtures.
+~~- OCCT BVH if a stable/public entry point is available,~~
+~~- a project-owned AABB tree over faces,~~
+~~- cached ray-entry candidate lists for repeated origins.~~
 
-### 4.4 BVH-accelerated safety distance bounds
+~~This is likely the highest-payoff area for large imported assemblies and~~
+~~complex fixtures.~~
+
+### 4.4 BVH-accelerated safety distance bounds — ✅ Implemented (PRs #209, #210, #222)
+
+#### Implementation summary
+
+`PointToMeshDistance` BVH traversal over `fTriangleSet` (`BRepExtrema_TriangleSet`)
+is built at construction time and used for every safety query.  The result is
+corrected by the linear deflection bound `fBVHDeflection` and clamped:
+`max(0, mesh_distance − fBVHDeflection)`.  An AABB lower bound is computed as a
+cheap first-stage check before entering BVH traversal.
+
+For all-planar solids, `PlanarFaceLowerBoundDistance()` provides an exact
+plane-distance lower bound (PR #222), eliminating the deflection correction on
+that class of geometry.
 
 #### Background: what Geant4 requires
 
@@ -492,9 +546,9 @@ Every optimization PR should confirm:
 ## 7. Suggested Roadmap
 
 1. Keep setup cost out of benchmark timing.
-2. Add and validate cheap exact rejects (`Inside()` AABB reject).
-3. Evaluate prepared-query contexts for small repeated savings.
-4. Replace per-face `BRepExtrema_DistShapeShape` loops in `DistanceToOut(p)` and
+2. ✅ Add and validate cheap exact rejects (`Inside()` AABB reject).
+3. ✅ Evaluate prepared-query contexts for small repeated savings.
+4. ✅ Replace per-face `BRepExtrema_DistShapeShape` loops in `DistanceToOut(p)` and
    `DistanceToIn(p)` with mesh-BVH lower bounds (see §4.4).
 5. Explore batch helpers for benchmark/validation internals.
 6. Prototype a shared spatial acceleration front-end for ray queries.
