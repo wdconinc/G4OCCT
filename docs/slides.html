@@ -154,13 +154,13 @@ Each `G4VSolid` virtual method maps to an OCCT algorithm:
 
 | `G4VSolid` method | OCCT algorithm | Notes |
 |---|---|---|
-| `Inside(p)` | `BRepClass3d_SolidClassifier` | Per-thread cached via `G4Cache` |
-| `DistanceToIn(p, v)` | `IntCurvesFace_ShapeIntersector` | Per-thread cached |
-| `DistanceToOut(p, v)` | `IntCurvesFace_ShapeIntersector` | Per-thread cached |
-| `DistanceToIn(p)` | `BRepExtrema_DistShapeShape` | Point-to-shape distance |
-| `DistanceToOut(p)` | `BRepExtrema_DistShapeShape` (per face) | Planned: single object |
+| `Inside(p)` | Multi-stage: inscribed sphere → ray-parity → `BRepClass3d_SolidClassifier` fallback | Per-thread `G4Cache`; classifier only for degenerate rays |
+| `DistanceToIn(p, v)` | Per-face `IntCurvesFace_Intersector` loop + AABB prefilter | Per-thread cached; no NCollection heap alloc |
+| `DistanceToOut(p, v)` | Per-face `IntCurvesFace_Intersector` loop + AABB prefilter | Precomputed outward normals for planar faces |
+| `DistanceToIn(p)` | BVH triangle-set lower bound (`PointToMeshDistance`) | Exact `BRepExtrema` only as fallback |
+| `DistanceToOut(p)` | BVH triangle-set / plane-distance lower bound | Plane-distance for all-planar solids |
 | `SurfaceNormal(p)` | `GeomAPI_ProjectPointOnSurf` | UV projection + retry on seam |
-| `BoundingLimits` | `BRepBndLib::AddOptimal` | Cached at construction |
+| `BoundingLimits` | `fCachedBounds` | Cached at construction; O(1) per call |
 
 ---
 
@@ -230,13 +230,15 @@ OCCT algorithm objects maintain **mutable internal state** — they can't be sha
 
 ```cpp
 class G4OCCTSolid : public G4VSolid {
-  mutable G4Cache<ClassifierCache>  fClassifierCache;   // one per thread
-  mutable G4Cache<IntersectorCache> fIntersectorCache;  // one per thread
+  mutable G4Cache<ClassifierCache>  fClassifierCache;   // one per thread (fallback only)
+  mutable G4Cache<IntersectorCache> fIntersectorCache;  // one per thread (per-face intersectors)
+  mutable G4Cache<SphereCacheData>  fSphereCache;       // one per thread (inscribed spheres)
   std::atomic<std::uint64_t>        fShapeGeneration{0};
 };
 ```
 
 - O(N_faces) initialisation paid **once per thread**, not per call
+- `ClassifierCache` is only invoked as a fallback for degenerate rays
 - `SetOCCTShape()` atomically increments generation → lazy per-thread rebuild
 - `TopoDS_Shape` is a reference-counted handle → safe to copy across threads
 
@@ -244,14 +246,14 @@ class G4OCCTSolid : public G4VSolid {
 
 # Performance Profile
 
-| Method | Native Geant4 | G4OCCTSolid (current) | Remaining overhead |
+| Method | Native Geant4 | G4OCCTSolid (current) | Notes |
 |---|---|---|---|
-| `Inside` | O(1) analytic | O(1) classify *(load amortised)* | — ✅ |
-| `DistanceToIn(p, v)` | O(1) analytic | O(N_faces) ray test *(load amortised)* | O(N_faces) |
-| `DistanceToOut(p, v)` | O(1) analytic | O(N_faces) ray test *(load amortised)* | O(N_faces) |
-| `DistanceToIn(p)` | O(1) analytic | O(1) classify + O(N_faces) distance | O(N_faces) |
-| `DistanceToOut(p)` | O(1) analytic | O(N_faces) per-face objects | planned: 1 object |
-| `BoundingLimits` | O(1) stored | O(1) *(cached at construction)* | — ✅ |
+| `Inside` | O(1) analytic | O(1) sphere fast-path / O(`N_faces`) ray-parity | Classifier fallback for degenerate rays only ✅ |
+| `DistanceToIn(p, v)` | O(1) analytic | O(k) ray test (k = unrejected faces) | AABB prefilter reduces k ≪ `N_faces` ✅ |
+| `DistanceToOut(p, v)` | O(1) analytic | O(k) ray test (k = unrejected faces) | Precomputed normals for planar ✅ |
+| `DistanceToIn(p)` | O(1) analytic | O(log T) BVH lower bound | T = triangle count; exact only as fallback ✅ |
+| `DistanceToOut(p)` | O(1) analytic | O(`N_faces`) plane-distance or O(log T) BVH | All-planar: exact plane distance ✅ |
+| `BoundingLimits` | O(1) stored | O(1) cached at construction | — ✅ |
 
 > For shapes with **≤ ~20 faces**, performance is within a small constant factor
 > of native solids.  Complex STEP parts (100s–1000s of faces) will be slower —
@@ -294,15 +296,15 @@ CI runs benchmarks in every PR — results published in [Benchmark Results](repo
 
 | # | Optimisation | Status |
 |---|---|---|
-| 1 | Cache `BRepClass3d_SolidClassifier` per thread (PR #45) | <span class="tag tag-done">✅ Done</span> |
-| 2 | Cache `IntCurvesFace_ShapeIntersector` per thread (PR #47) | <span class="tag tag-done">✅ Done</span> |
+| 1 | Cache `BRepClass3d_SolidClassifier` per thread | <span class="tag tag-done">✅ Done</span> |
+| 2 | Per-face `IntCurvesFace_Intersector` loop + AABB prefilter (replaces ShapeIntersector) | <span class="tag tag-done">✅ Done</span> |
 | 3 | Cache bounding box at construction | <span class="tag tag-done">✅ Done</span> |
-| 4 | Single `BRepExtrema_DistShapeShape` for `DistanceToOut(p)` | <span class="tag tag-plan">🔲 Planned</span> |
-| 5 | Cache `G4Polyhedron` in `CreatePolyhedron` | <span class="tag tag-plan">🔲 Planned</span> |
-| 6 | BVH / AABB-tree front-end for ray–shape intersection | <span class="tag tag-plan">🔲 Planned</span> |
-
-Items 1–3 together eliminate the dominant per-call overhead for the most frequent
-navigation methods (`Inside`, `DistanceToIn/Out(p, v)`, `BoundingLimits`).
+| 4 | Adaptive inscribed-sphere fast path for `Inside(p)` | <span class="tag tag-done">✅ Done</span> |
+| 5 | Ray-parity `Inside(p)` (replaces BRepClass3d as primary path) | <span class="tag tag-done">✅ Done</span> |
+| 6 | BVH triangle-set lower bound for `DistanceToIn/Out(p)` | <span class="tag tag-done">✅ Done</span> |
+| 7 | Plane-distance safety for all-planar solids | <span class="tag tag-done">✅ Done</span> |
+| 8 | Direct ray-plane fast path for planar faces in `DistanceToIn/Out(p,v)` | <span class="tag tag-wip">🔨 In flight (PR #233)</span> |
+| 9 | Cache `G4Polyhedron` in `CreatePolyhedron` | <span class="tag tag-plan">🔲 Planned</span> |
 
 ---
 class: slide-section
@@ -439,7 +441,7 @@ class: slide-section
 .col2[
 .box[
 ### Near Term
-- **BVH acceleration** — reduce O(N_faces) ray tests to O(log N) for complex STEP solids
+- **Direct ray-plane for planar faces** — eliminate IntCurvesFace_Intersector overhead for all-planar geometries (in-flight PR #233)
 - **Full primitive coverage** — pass all NIST CTC fixtures
 - **Assembly builder** — higher-level API for constructing STEP-driven detector geometries
 ]
