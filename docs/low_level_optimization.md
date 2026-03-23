@@ -88,10 +88,11 @@ Expected impact:
 
 `Inside(p)` now rejects points outside `fCachedBounds` before any OCCT call.
 The same prefilter applies to the directional `DistanceToIn(p, v)` and
-`DistanceToOut(p, v)` overloads (the same queries later referred to as
-`DistanceToIn(p)` / `DistanceToOut(p)` when the direction is implicit) via
-`Bnd_Box::IsOut(ray)` on tolerance-expanded AABBs, pruning faces that cannot
-possibly intersect the query ray.
+`DistanceToOut(p, v)` ray-distance overloads via `Bnd_Box::IsOut(ray)` on
+tolerance-expanded AABBs, pruning faces that cannot possibly intersect the
+query ray. The no-direction `DistanceToIn(p)` / `DistanceToOut(p)` methods
+are the isotropic safety-distance queries discussed later in §4.4 and have
+different semantics from the directional `(p, v)` ray queries.
 
 ### 3.3 Direct ray-plane fast path for planar faces — 🔄 In-flight (PR #233)
 
