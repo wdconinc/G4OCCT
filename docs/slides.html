@@ -154,13 +154,13 @@ Each `G4VSolid` virtual method maps to an OCCT algorithm:
 
 | `G4VSolid` method | OCCT algorithm | Notes |
 |---|---|---|
-| `Inside(p)` | Multi-stage: inscribed sphere → ray-parity → `BRepClass3d` fallback | Per-thread `G4Cache`; classifier only for degenerate rays |
+| `Inside(p)` | Multi-stage: inscribed sphere → ray-parity → `BRepClass3d_SolidClassifier` fallback | Per-thread `G4Cache`; classifier only for degenerate rays |
 | `DistanceToIn(p, v)` | Per-face `IntCurvesFace_Intersector` loop + AABB prefilter | Per-thread cached; no NCollection heap alloc |
 | `DistanceToOut(p, v)` | Per-face `IntCurvesFace_Intersector` loop + AABB prefilter | Precomputed outward normals for planar faces |
 | `DistanceToIn(p)` | BVH triangle-set lower bound (`PointToMeshDistance`) | Exact `BRepExtrema` only as fallback |
 | `DistanceToOut(p)` | BVH triangle-set / plane-distance lower bound | Plane-distance for all-planar solids |
 | `SurfaceNormal(p)` | `GeomAPI_ProjectPointOnSurf` | UV projection + retry on seam |
-| `BoundingLimits` | `fCachedBounds` (cached at construction) | O(1) per call |
+| `BoundingLimits` | `fCachedBounds` | Cached at construction; O(1) per call |
 
 ---
 
@@ -248,11 +248,11 @@ class G4OCCTSolid : public G4VSolid {
 
 | Method | Native Geant4 | G4OCCTSolid (current) | Notes |
 |---|---|---|---|
-| `Inside` | O(1) analytic | O(1) sphere fast-path / O(N) ray-parity | Classifier fallback for degenerate rays only ✅ |
-| `DistanceToIn(p, v)` | O(1) analytic | O(k) ray test (k = unrejected faces) | AABB prefilter reduces k ≪ N ✅ |
+| `Inside` | O(1) analytic | O(1) sphere fast-path / O(`N_faces`) ray-parity | Classifier fallback for degenerate rays only ✅ |
+| `DistanceToIn(p, v)` | O(1) analytic | O(k) ray test (k = unrejected faces) | AABB prefilter reduces k ≪ `N_faces` ✅ |
 | `DistanceToOut(p, v)` | O(1) analytic | O(k) ray test (k = unrejected faces) | Precomputed normals for planar ✅ |
 | `DistanceToIn(p)` | O(1) analytic | O(log T) BVH lower bound | T = triangle count; exact only as fallback ✅ |
-| `DistanceToOut(p)` | O(1) analytic | O(N) plane-distance or O(log T) BVH | All-planar: exact plane distance ✅ |
+| `DistanceToOut(p)` | O(1) analytic | O(`N_faces`) plane-distance or O(log T) BVH | All-planar: exact plane distance ✅ |
 | `BoundingLimits` | O(1) stored | O(1) cached at construction | — ✅ |
 
 > For shapes with **≤ ~20 faces**, performance is within a small constant factor
