@@ -61,11 +61,11 @@ for (const auto& sphere : sc.spheres) {
 
 // Stage 3 — ray-parity test (+Z ray, per-face IntCurvesFace_Intersector
 //           with Bnd_Box::IsOut pre-filter and RayPlaneFaceHit fast path)
-std::size_t crossings = CountRayCrossings(p);
-if (!degenerate)
+auto [crossings, degenerateRay] = CountRayCrossings(p);  // returns {count, degeneracy flag}
+if (crossings > 0 && !degenerateRay)
   return (crossings % 2 == 1) ? kInside : kOutside;
 
-// Stage 4 — BRepClass3d_SolidClassifier fallback (degenerate ray only)
+// Stage 4 — BRepClass3d_SolidClassifier fallback (zero crossings or degenerate ray)
 BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();  // per-thread cache
 classifier.Perform(ToPoint(p), IntersectionTolerance());
 ```
@@ -76,10 +76,12 @@ bounds check.  **Stage 2** checks up to 64 per-thread inscribed spheres
 returns `kInside` without any OCCT call.  **Stage 3** fires a +Z ray,
 prefiltering each face with `Bnd_Box::IsOut` on tolerance-expanded per-face
 AABBs and using `RayPlaneFaceHit` for planar faces; crossing parity gives
-the result.  **Stage 4** (`BRepClass3d_SolidClassifier`) is only reached
-when the ray hits an edge or vertex (detected by
-`PointOnPolygonBoundary2d`).  The per-thread `ClassifierCache` is therefore
-a fallback rather than the primary path.
+the result.  **Stage 4** (`BRepClass3d_SolidClassifier`) is reached when the parity count
+is unreliable: either when no interior (`TopAbs_IN`) crossings are found — the
+ray may have passed entirely through shared edges or vertices — or when a
+`TopAbs_ON` hit is encountered, skipping that crossing would alter the effective
+parity and could misclassify the point.  The per-thread `ClassifierCache` is
+therefore a fallback rather than the primary path.
 
 ### 2.2 `DistanceToIn(p, v)` and `DistanceToOut(p, v)` — per-face intersector loop (PR #215)
 
@@ -101,7 +103,7 @@ The per-ray loop is:
 
 ```cpp
 IntersectorCache& ic = GetOrCreateIntersectorCache();  // per-thread cache
-for (std::size_t i = 0; i < fFaceBounds.size(); ++i) {
+for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
   if (ic.expandedBoxes[i].IsOut(ray))
     continue;                          // AABB prefilter — no OCCT call
   auto& fi = *ic.faceIntersectors[i];
@@ -115,46 +117,50 @@ setup amortised across all calls).  `Bnd_Box::IsOut` eliminates faces that
 cannot be hit before any intersector call, and no `NCollection_Sequence` is
 heap-allocated per ray.
 
-### 2.3 `DistanceToIn(p)` — BVH triangle-set safety distance (PRs #209, #210)
+### 2.3 `DistanceToIn(p)` — AABB lower bound with exact fallback (PRs #209, #210)
 
 ```cpp
-// Primary path — BVH traversal over fTriangleSet built once at construction
-G4double meshDist = PointToMeshDistance(ToPoint(p), fTriangleSet, fBVHDeflection);
-// meshDist is a conservative lower bound: exact mesh distance minus fBVHDeflection
-if (meshDist > kInfinity) return kInfinity;   // point is inside
+// Tier-0: AABB lower bound — O(1), no OCCT call
+const G4double aabbDist = AABBLowerBound(p);
+if (aabbDist > IntersectionTolerance())
+  return aabbDist;  // conservative lower bound: point is clearly outside
 
-// Exact fallback — used only in special cases
-return TryFindClosestFace(p);  // per-face BRepExtrema_DistShapeShape
+// Fallback: exact distance (points near or inside the AABB)
+return ExactDistanceToIn(p);  // classifier check + TryFindClosestFace per thread
 ```
 
-`PointToMeshDistance` traverses `fTriangleSet` (`Handle(BRepExtrema_TriangleSet)`)
-built once at construction time, returning the mesh distance minus
-`fBVHDeflection` as a conservative lower bound.  The BVH traversal is
-O(log T) in the number of triangles T.  `TryFindClosestFace` (exact, per-face
-`BRepExtrema_DistShapeShape`) is only invoked as a fallback in special cases
-such as a degenerate BVH result.
+`AABBLowerBound(p)` computes the Euclidean distance from `p` to the cached
+axis-aligned bounding box in O(1) arithmetic with no OCCT call.  If the point
+is clearly outside the AABB (distance greater than the intersection tolerance)
+this bound is returned directly.  For points near or inside the AABB,
+`ExactDistanceToIn(p)` uses the per-thread `BRepClass3d_SolidClassifier` to
+detect inside/surface points (returning 0.0) and then `TryFindClosestFace` to
+find the exact surface distance via per-face `BRepExtrema_DistShapeShape`.
 
 ### 2.4 `DistanceToOut(p)` — BVH and plane-distance lower bounds (PRs #209, #210, #222)
 
-For general solids the same `PointToMeshDistance` BVH traversal used for
-`DistanceToIn(p)` provides a conservative lower bound on `DistanceToOut(p)`
-in O(log T).
-
+For general solids (with curved faces) the BVH triangle-set traversal
+`BVHLowerBoundDistance(p)` provides a conservative lower bound on
+`DistanceToOut(p)` in O(log T), clamped non-negative by `std::max(0.0, meshDist - fBVHDeflection)`.
 For solids where all faces are planar (`fAllFacesPlanar == true`), the exact
 plane-distance `gp_Pln::Distance(pt)` over all faces gives a correct lower
-bound in O(N_faces) with no BRep heap allocation at all:
+bound in O(N_faces) with no BRep heap allocation at all.  When `fAllFacesPlanar`
+is true, every `FaceBounds::plane` optional is guaranteed to be engaged (set
+at construction time), so `value()` access is safe.  Both branches fall back
+to `ExactDistanceToOut(p)` when the lower bound cannot be computed:
 
 ```cpp
-// Plane-distance path — all-planar solids only (PR #222)
 if (fAllFacesPlanar) {
+  // Plane-distance path — all-planar solids only (PR #222)
   G4double minDist = kInfinity;
-  for (const auto& fb : fFaceBounds) {
-    minDist = std::min(minDist, fb.plane->Distance(ToPoint(p)));
+  for (const auto& fb : fFaceBoundsCache) {
+    minDist = std::min(minDist, fb.plane.value().Distance(ToPoint(p)));
   }
-  return minDist;
+  return (minDist < kInfinity) ? minDist : ExactDistanceToOut(p);
 }
-// General path — BVH triangle-set lower bound
-return PointToMeshDistance(ToPoint(p), fTriangleSet, fBVHDeflection);
+// General path — BVH triangle-set lower bound (non-negative, clamped)
+const G4double bvhDist = BVHLowerBoundDistance(p);
+return (bvhDist < kInfinity) ? bvhDist : ExactDistanceToOut(p);
 ```
 
 `PlanarFaceLowerBoundDistance()` encapsulates the all-planar branch.  Each
@@ -323,10 +329,11 @@ repeated `BRepBndLib::Add` calls from `BoundingLimits`, `GetExtent`, and
 `CalculateExtent`:
 
 ```cpp
-// Current implementation — cached at construction
+// Current implementation — fCachedBounds is set inside ComputeBounds()
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
-    : G4VSolid(name), fShape(shape),
-      fBounds(ComputeAxisAlignedBounds(shape)) {}
+    : G4VSolid(name), fShape(shape) {
+  ComputeBounds();  // calls BRepBndLib::AddOptimal → fCachedBounds, fFaceBoundsCache, ...
+}
 ```
 
 `CalculateExtent` is called by the voxel smart navigator during geometry
@@ -351,7 +358,7 @@ the qualitative difference:
 | `Inside` | O(1) analytic | O(1) sphere hit / O(N_faces) ray-parity / O(N_faces) classifier fallback | Sphere and AABB fast paths avoid OCCT calls for most queries |
 | `DistanceToIn(p, v)` | O(1) analytic | O(N_faces) per-face ray test with AABB prefilter (amortised per thread) | AABB prefilter prunes most faces; no per-call heap allocation |
 | `DistanceToOut(p, v)` | O(1) analytic | O(N_faces) per-face ray test with AABB prefilter (amortised per thread) | Same per-face intersector loop as DTI |
-| `DistanceToIn(p)` | O(1) analytic | O(log T) BVH triangle-set traversal; exact O(N_faces) fallback | T = number of triangles in mesh; BVH built once at construction |
+| `DistanceToIn(p)` | O(1) analytic | O(1) AABB lower bound; O(N_faces) exact fallback | AABB check avoids OCCT for points clearly outside; exact path uses per-thread classifier + closest-face search |
 | `DistanceToOut(p)` | O(1) analytic | O(N_faces) plane-distance (all-planar) or O(log T) BVH lower bound | Plane path: no BRep allocation; BVH path: conservative lower bound |
 | `BoundingLimits` | O(1) stored | O(1) cached AABB | `fCachedBounds` computed once at construction |
 
@@ -427,9 +434,9 @@ item references the relevant section of this document.
 | **2** | Cache `IntCurvesFace_ShapeIntersector` per thread via `G4Cache` | ✅ Done (PR #47) | Eliminates `Load` cost in `DistanceToIn(p,v)` and `DistanceToOut(p,v)`; superseded by per-face intersector loop (PR #215) | §3.3 |
 | **3** | Cache axis-aligned bounding box at construction | ✅ Done | Eliminates `BRepBndLib::Add` in every `BoundingLimits`/`GetExtent` call; `fCachedBounds` used as AABB early-reject in `Inside` | §4 |
 | **4** | Adaptive inscribed-sphere fast path for `Inside` | ✅ Done (PRs #197, #214) | Per-thread cache of up to 64 inscribed spheres; sphere hit returns `kInside` with no OCCT call | §2.1 |
-| **5** | Ray-parity test for `Inside` with per-face AABB prefilter | ✅ Done (PR #221) | Replaces `BRepClass3d_SolidClassifier` as primary path; classifier now fallback only for degenerate rays | §2.1 |
+| **5** | Ray-parity test for `Inside` with per-face AABB prefilter | ✅ Done (PR #221) | Replaces `BRepClass3d_SolidClassifier` as primary path; classifier fallback only for zero crossings or degenerate rays | §2.1 |
 | **6** | Per-face `IntCurvesFace_Intersector` loop with AABB prefilter for DTI/DTO(p,v) | ✅ Done (PR #215) | Eliminates `NCollection_Sequence` heap allocation; AABB prefilter prunes non-hit faces before intersector call | §2.2 |
-| **7** | BVH triangle-set safety distance for `DistanceToIn/Out(p)` | ✅ Done (PRs #209, #210) | O(log T) BVH traversal replaces O(N_faces) `BRepExtrema_DistShapeShape`; conservative lower bound via `fBVHDeflection` | §2.3, §2.4 |
+| **7** | BVH triangle-set lower bound for `DistanceToOut(p)` (mixed-face solids) | ✅ Done (PRs #209, #210) | O(log T) BVH traversal replaces O(N_faces) `BRepExtrema_DistShapeShape` for non-all-planar solids; `DistanceToIn(p)` uses O(1) AABB lower bound instead | §2.3, §2.4 |
 | **8** | Plane-distance lower bound for all-planar solids (`DistanceToOut(p)`) | ✅ Done (PR #222) | Exact O(N_faces) plane-distance with no BRep heap allocation for `fAllFacesPlanar` solids | §2.4 |
 | **9** | Cache `G4Polyhedron` in `CreatePolyhedron` | Planned | Avoids repeated full tessellation on visualisation refreshes | §2.7 |
 | **10** | Direct ray-plane fast path for planar faces in DTI/DTO(p,v) | 🚧 In-flight (PR #233) | Replaces `IntCurvesFace_Intersector::Perform` for all-straight-edge planar faces; algebraic ray–plane intersection with no OCCT call | §2.2 |
