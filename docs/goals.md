@@ -100,19 +100,34 @@ G4OCCT/
 ├── cmake/
 │   └── G4OCCTConfig.cmake.in
 ├── include/G4OCCT/
-│   ├── G4OCCTSolid.hh      # G4VSolid wrapping TopoDS_Shape
+│   ├── G4OCCTSolid.hh           # G4VSolid wrapping TopoDS_Shape
 │   ├── G4OCCTLogicalVolume.hh
-│   └── G4OCCTPlacement.hh  # G4PVPlacement + TopLoc_Location
+│   ├── G4OCCTPlacement.hh       # G4PVPlacement + TopLoc_Location
+│   ├── G4OCCTAssemblyVolume.hh  # multi-shape STEP assembly
+│   └── G4OCCTMaterialMapReader.hh # STEP material name → G4Material*
 ├── src/
 │   ├── G4OCCTSolid.cc
 │   ├── G4OCCTLogicalVolume.cc
 │   ├── G4OCCTPlacement.cc
-│   ├── tests/              # CTest-integrated unit tests
-│   └── benchmarks/         # Geantino navigator benchmarks
+│   ├── G4OCCTAssemblyVolume.cc
+│   ├── G4OCCTMaterialMapReader.cc
+│   ├── examples/
+│   │   ├── B1/                  # water phantom example
+│   │   └── B4c/                 # sampling calorimeter example
+│   ├── tests/                   # CTest-integrated unit tests
+│   └── benchmarks/              # navigator benchmarks (bench_navigator, bench_assembly_navigator)
 └── docs/
-    ├── goals.md            # This document
-    ├── geometry_mapping.md # Geant4 ↔ OCCT class correspondence
-    └── material_bridging.md
+    ├── goals.md
+    ├── geometry_mapping.md
+    ├── solid_navigation.md
+    ├── performance.md
+    ├── low_level_optimization.md
+    ├── material_bridging.md
+    ├── step_assembly_import.md
+    ├── geometry_test_status.md
+    ├── example_b1.md
+    ├── example_b4c.md
+    └── slides.html
 ```
 
 ---
@@ -122,8 +137,8 @@ G4OCCT/
 | Milestone | Status | Description | Tracking |
 |---|---|---|---|
 | v0.1 | ✅ Complete | CMake skeleton, stub classes, CI, docs | — |
-| v0.2 | 🔨 In progress | `Inside` via `BRepClass3d_SolidClassifier` | [Solid Navigation Design](solid_navigation.md) §2.1 |
-| v0.3 | 🔨 In progress | `DistanceToIn/Out` via `IntCurvesFace_ShapeIntersector` | [Solid Navigation Design](solid_navigation.md) §2.3–2.6, [Performance Considerations](performance.md) |
+| v0.2 | ✅ Complete | `Inside` via multi-stage pipeline (inscribed sphere + ray-parity + classifier fallback) | [Solid Navigation Design](solid_navigation.md) §2.1 |
+| v0.3 | ✅ Complete | `DistanceToIn/Out` via per-face `IntCurvesFace_Intersector` loop with AABB prefilter | [Solid Navigation Design](solid_navigation.md) §2.3–2.6, [Performance Considerations](performance.md) |
 | v0.4 | ✅ Complete | STEP import end-to-end example | [Example B1 — Water Phantom](example_b1.md) |
 | v0.5 | 🔨 In progress | Full test suite passing for all G4 primitives | [Geometry Test Status](geometry_test_status.md) |
 | v0.6 | 🔲 Planned | Multi-shape STEP assembly import (`G4OCCTAssemblyBuilder`) | [Multi-Shape STEP Assembly Import](step_assembly_import.md) |
