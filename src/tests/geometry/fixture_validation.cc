@@ -125,8 +125,14 @@ FixtureExpectedFailure ExpectedFailureForFixture(const FixtureValidationRequest&
   const std::string& geant4_class = request.fixture.geant4_class;
 
   if (geant4_class == "G4ScaledSolid") {
-    return {true,
-            "strict native-to-STEP ray-frame alignment for this fixture is not implemented yet"};
+    // G4ScaledSolid::DistanceToOut has a bug (present at least through
+    // Geant4 11.4.1): it calls fScale->TransformNormal() (global→local)
+    // instead of fScale->InverseTransformNormal() (local→global) for exit
+    // normals, yielding incorrect results for non-axis-aligned rays.  The
+    // fixture builder works around this by wrapping G4ScaledSolid in
+    // G4ScaledSolidFixed, which recomputes exit normals via SurfaceNormal()
+    // (correctly implemented in G4ScaledSolid).  No xfail needed.
+    return {};
   }
 
   return {};
