@@ -548,14 +548,14 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download ci-reports artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ci-reports
           path: ci-reports/
         continue-on-error: ${{ needs.build-test-benchmark.result != 'success' }}
 
       - name: Download callgrind links artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: callgrind-links-*
           path: callgrind-links/
