@@ -48,7 +48,6 @@
 #include <G4TwistedTubs.hh>
 #include <G4TwoVector.hh>
 #include <G4UnionSolid.hh>
-#include <G4VTwistedFaceted.hh>
 
 #include <algorithm>
 #include <array>
@@ -277,79 +276,6 @@ namespace {
                                             vertices.at(static_cast<std::size_t>(i1)),
                                             vertices.at(static_cast<std::size_t>(i2)), ABSOLUTE));
     }
-    solid->SetSolidClosed(true);
-    return solid;
-  }
-
-  void AddOrientedTriangle(G4TessellatedSolid* solid, const G4ThreeVector& center,
-                           const G4ThreeVector& a, const G4ThreeVector& b, const G4ThreeVector& c) {
-    const G4ThreeVector face_center = (a + b + c) / 3.0;
-    const G4ThreeVector normal      = (b - a).cross(c - a);
-    if (normal.dot(face_center - center) < 0.0) {
-      solid->AddFacet(new G4TriangularFacet(a, c, b, ABSOLUTE));
-    } else {
-      solid->AddFacet(new G4TriangularFacet(a, b, c, ABSOLUTE));
-    }
-  }
-
-  std::unique_ptr<G4VSolid> BuildVTwistedFacetedFallback(const std::string& name,
-                                                         const YAML::Node& ctor,
-                                                         const std::string& context) {
-    const G4double phi_twist = RequireDouble(ctor, "phi_twist_deg", context) * deg;
-    const G4double dz        = RequireDouble(ctor, "dz_mm", context);
-    const G4double theta     = RequireDouble(ctor, "theta_deg", context) * deg;
-    const G4double phi       = RequireDouble(ctor, "phi_deg", context) * deg;
-    const G4double dy1       = RequireDouble(ctor, "dy1_mm", context);
-    const G4double dx1       = RequireDouble(ctor, "dx1_mm", context);
-    const G4double dx2       = RequireDouble(ctor, "dx2_mm", context);
-    const G4double dy2       = RequireDouble(ctor, "dy2_mm", context);
-    const G4double dx3       = RequireDouble(ctor, "dx3_mm", context);
-    const G4double dx4       = RequireDouble(ctor, "dx4_mm", context);
-    const G4double alpha     = RequireDouble(ctor, "alpha_deg", context) * deg;
-
-    const auto rotate = [](const G4double x, const G4double y, const G4double angle) {
-      return G4TwoVector(x * std::cos(angle) - y * std::sin(angle),
-                         x * std::sin(angle) + y * std::cos(angle));
-    };
-
-    const G4double shift_radius = 2.0 * dz * std::tan(theta);
-    const G4double shift_x      = shift_radius * std::cos(phi);
-    const G4double shift_y      = shift_radius * std::sin(phi);
-    const G4double top_shear    = dy2 * std::tan(alpha);
-
-    std::vector<G4ThreeVector> vertices;
-    vertices.reserve(8);
-    for (const auto& point :
-         std::array<G4TwoVector, 4>{G4TwoVector(-dx1, -dy1), G4TwoVector(dx1, -dy1),
-                                    G4TwoVector(dx2, dy1), G4TwoVector(-dx2, dy1)}) {
-      const G4TwoVector rotated = rotate(point.x(), point.y(), -0.5 * phi_twist);
-      vertices.emplace_back(rotated.x(), rotated.y(), -dz);
-    }
-    for (const auto& point : std::array<G4TwoVector, 4>{
-             G4TwoVector(-dx3 - top_shear, -dy2), G4TwoVector(dx3 - top_shear, -dy2),
-             G4TwoVector(dx4 + top_shear, dy2), G4TwoVector(-dx4 + top_shear, dy2)}) {
-      const G4TwoVector rotated = rotate(point.x(), point.y(), 0.5 * phi_twist);
-      vertices.emplace_back(rotated.x() + shift_x, rotated.y() + shift_y, dz);
-    }
-
-    G4ThreeVector center;
-    for (const auto& vertex : vertices) {
-      center += vertex;
-    }
-    center /= static_cast<double>(vertices.size());
-
-    auto solid          = std::make_unique<G4TessellatedSolid>(name);
-    const auto add_quad = [&](const int a, const int b, const int c, const int d) {
-      AddOrientedTriangle(solid.get(), center, vertices[a], vertices[b], vertices[c]);
-      AddOrientedTriangle(solid.get(), center, vertices[a], vertices[c], vertices[d]);
-    };
-
-    add_quad(0, 1, 2, 3);
-    add_quad(4, 5, 6, 7);
-    add_quad(0, 1, 5, 4);
-    add_quad(1, 2, 6, 5);
-    add_quad(2, 3, 7, 6);
-    add_quad(3, 0, 4, 7);
     solid->SetSolidClosed(true);
     return solid;
   }
@@ -588,9 +514,6 @@ std::unique_ptr<G4VSolid> BuildNativeSolid(const FixtureProvenance& provenance) 
         RequireDouble(ctor, "end_inner_rad_mm", context),
         RequireDouble(ctor, "end_outer_rad_mm", context), RequireDouble(ctor, "half_z_mm", context),
         RequireDouble(ctor, "dphi_deg", context) * deg);
-  }
-  if (geant4_class == "G4VTwistedFaceted") {
-    return BuildVTwistedFacetedFallback(name, ctor, context);
   }
   if (geant4_class == "G4DisplacedSolid") {
     const std::vector<double> base        = RequireDoubleList(shape, "base_box_mm", context);

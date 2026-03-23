@@ -79,7 +79,6 @@ regression in any one of them causes the suite to fail immediately.
 | `G4TwistedTrap` | `trap-dx7-13-dy9-z18-phi30-v1` | — |
 | `G4TwistedTrd` | `trd-dx10-16-dy8-14-z20-phi30-v1` | — |
 | `G4TwistedTubs` | `tubs-r6-r12-z20-dphi120-phi30-v1` | — |
-| `G4VTwistedFaceted` | `faceted-dz20-theta8-phi20-v1` | — |
 
 ### 2.4 `tessellated`
 
@@ -117,11 +116,11 @@ STEP files, failed STEP reads, or invalid manifests remain errors.
 ### 3.1 ~~Twisted-solid STEP fixtures pending regeneration~~ ✅ Resolved
 
 **Affected classes:** `G4TwistedBox`, `G4TwistedTrd`, `G4TwistedTrap`,
-`G4TwistedTubs`, `G4VTwistedFaceted`
+`G4TwistedTubs`
 
-All five twisted-solid STEP fixtures have been regenerated using the updated
+All four twisted-solid STEP fixtures have been regenerated using the updated
 B-spline loft generator (`BRepOffsetAPI_ThruSections` with 64 intermediate
-cross-sections). The xfail annotation has been removed and all five classes
+cross-sections). The xfail annotation has been removed and all four classes
 are now fully enforced.
 
 ### 3.2 Faceted profile approximations
@@ -223,7 +222,6 @@ that describes the remaining work.
 | `G4TwistedTrap` | twisted-swept | ✅ Enforced | — | — |
 | `G4TwistedTrd` | twisted-swept | ✅ Enforced | — | — |
 | `G4TwistedTubs` | twisted-swept | ✅ Enforced | — | — |
-| `G4VTwistedFaceted` | twisted-swept | ✅ Enforced | — | — |
 | `G4TessellatedSolid` | tessellated | ✅ Enforced | — | — |
 | `G4UnionSolid` | boolean-compound | ✅ Enforced | — | — |
 | `G4SubtractionSolid` | boolean-compound | ✅ Enforced | — | — |

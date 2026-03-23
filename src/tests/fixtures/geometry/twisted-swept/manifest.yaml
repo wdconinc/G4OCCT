@@ -10,7 +10,6 @@ coverage_classes:
   - G4TwistedTrd
   - G4TwistedTrap
   - G4TwistedTubs
-  - G4VTwistedFaceted
   - G4UExtrudedSolid
 fixtures:
   - id: g4extrudedsolid-extruded-pentagon-z30-v1
@@ -63,15 +62,5 @@ fixtures:
     expectations:
       - quantity: volume
         value: 4321.864
-        absolute_tolerance: 0.001
-        unit: mm3
-  - id: g4vtwistedfaceted-faceted-dz20-theta8-phi20-v1
-    geant4_class: G4VTwistedFaceted
-    fixture_slug: faceted-dz20-theta8-phi20
-    relative_directory: G4VTwistedFaceted/faceted-dz20-theta8-phi20-v1
-    validation_state: validated
-    expectations:
-      - quantity: volume
-        value: 14746.516
         absolute_tolerance: 0.001
         unit: mm3

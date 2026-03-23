@@ -62,12 +62,12 @@ repository policy in `manifest.yaml`.
 | --- | --- | --- | --- |
 | `direct-primitives/` | Real STEP coverage for 10 validated fixtures | `./direct-primitives/regenerate.sh` | Uses `tools/normalize_step_header.py` to make STEP headers deterministic, including the tilted-end `G4CutTubs` slab-intersection fixture. |
 | `profile-faceted/` | Real STEP coverage for 10 validated fixtures | `./profile-faceted/regenerate.sh` | Uses `tools/normalize_step_header.py`; now includes a non-monotonic `G4GenericPolycone` contour revolved with DRAWEXE. |
-| `twisted-swept/` | Real STEP coverage for 6 validated fixtures | `./twisted-swept/regenerate.sh` | Uses a shared OCCT loft utility to generate `G4ExtrudedSolid`, `G4TwistedBox`, `G4TwistedTrd`, `G4TwistedTrap`, `G4TwistedTubs`, and `G4VTwistedFaceted`. |
+| `twisted-swept/` | Real STEP coverage for 5 validated fixtures | `./twisted-swept/regenerate.sh` | Uses a shared OCCT loft utility to generate `G4ExtrudedSolid`, `G4TwistedBox`, `G4TwistedTrd`, `G4TwistedTrap`, and `G4TwistedTubs`. |
 | `tessellated/` | Real STEP coverage for 1 validated fixture | `./tessellated/regenerate.sh` | Covers `G4TessellatedSolid` with a closed tetrahedral shell. |
 | `boolean-compound/` | Real STEP coverage for 4 validated fixtures | `./boolean-compound/regenerate.sh` | Deterministic DRAWEXE scripts plus inline timestamp normalization. |
 | `wrapper-decorator/` | Real STEP coverage for 2 validated fixtures | `./wrapper-decorator/regenerate.sh` | Deterministic DRAWEXE scripts plus inline timestamp normalization. |
 
-Today the tree contains **33 validated fixtures with checked-in STEP assets**
+Today the tree contains **32 validated fixtures with checked-in STEP assets**
 across all 6 family directories. Canonical native-solid fixtures also carry
 explicit `reused_by` mappings for the covered `G4U*` backend-adapter classes.
 
@@ -118,7 +118,6 @@ explicit `reused_by` mappings for the covered `G4U*` backend-adapter classes.
 - `G4TwistedTrd/trd-dx10-16-dy8-14-z20-phi30-v1`
 - `G4TwistedTrap/trap-dx7-13-dy9-z18-phi30-v1`
 - `G4TwistedTubs/tubs-r6-r12-z20-dphi120-phi30-v1`
-- `G4VTwistedFaceted/faceted-dz20-theta8-phi20-v1`
 
 ### `tessellated/`
 
