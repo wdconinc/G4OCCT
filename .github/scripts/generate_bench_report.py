@@ -3,7 +3,9 @@
 
 """Convert bench_navigator JSON output to a Markdown report."""
 
+import base64
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -359,9 +361,196 @@ def _fixture_viewer_link(fixture_id: str, viewer_path: str) -> str:
     return f"{viewer_path}?fixture={quote(fixture_id, safe='')}"
 
 
+# Methods shown in the timing chart.
+# Tuple: (short_label, method_key, native_colour, imported_colour)
+# "Exit normals" is omitted (no timing); OCCT/Exact rows are omitted (different semantics).
+_CHART_METHODS: list[tuple[str, str, str, str]] = [
+    ("DTI/DTO(p,v)",    "DistanceToIn/Out(p,v)", "#4c9fde", "#1e6faa"),
+    ("Inside(p)",       "Inside(p)",              "#7ecf4c", "#3a8f1a"),
+    ("DTI(p) G4↔OCCT", "DistanceToIn(p)",        "#f0a030", "#b06010"),
+    ("DTO(p) G4↔OCCT", "DistanceToOut(p)",       "#e05050", "#a02020"),
+    ("SN(p)",           "SurfaceNormal(p)",       "#b050e0", "#7010b0"),
+    ("Polyhedron",      "CreatePolyhedron()",     "#40d0c0", "#108080"),
+]
+
+# Chart layout constants (pixels).
+_C_LABEL_W    = 250   # width reserved for fixture-ID labels (left side)
+_C_BAR_AREA_W = 760   # width of the bar-drawing area
+_C_RIGHT_PAD  = 20    # padding to the right of bars
+_C_LEGEND_H   = 52    # height of the legend block at the top
+_C_X_AXIS_H   = 26    # height of the x-axis + tick-label row above bars
+_C_BOTTOM_PAD = 20    # padding below the bottom axis
+_C_BAR_H      = 5     # height of one bar (native or imported)
+_C_BAR_GAP    = 1     # vertical gap between native and imported bar within a pair
+_C_METH_GAP   = 3     # vertical gap between successive method pairs
+_C_FIX_GAP    = 10    # vertical gap between fixture groups
+
+_C_BG         = "#1a1a2e"
+_C_AXIS_CLR   = "#555"
+_C_GRID_CLR   = "#2a2a4a"
+_C_LABEL_CLR  = "#e0e0e0"
+_C_MUTED_CLR  = "#888"
+_C_FONT       = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+
+
+def _render_chart_svg(fixtures: list[dict]) -> str:
+    """Render a horizontal grouped bar chart of per-fixture timings as an SVG string.
+
+    Each fixture is a row group.  Within each group there is one pair of bars
+    (native on top, imported below) for every method in ``_CHART_METHODS``.
+    The x-axis uses a log₁₀ scale so that fixtures with very different absolute
+    timings are still distinguishable.
+
+    Returns an empty string when *fixtures* is empty or contains no timing data.
+    """
+    if not fixtures:
+        return ""
+
+    # ── derived dimensions ────────────────────────────────────────────────────
+    n_m      = len(_CHART_METHODS)
+    pair_h   = _C_BAR_H + _C_BAR_GAP + _C_BAR_H
+    group_h  = pair_h * n_m + _C_METH_GAP * (n_m - 1)
+    n_f      = len(fixtures)
+    chart_h  = group_h * n_f + _C_FIX_GAP * max(n_f - 1, 0)
+    top_off  = _C_LEGEND_H + _C_X_AXIS_H   # y-coordinate where bars start
+    total_h  = top_off + chart_h + _C_BOTTOM_PAD
+    total_w  = _C_LABEL_W + _C_BAR_AREA_W + _C_RIGHT_PAD
+
+    # ── log₁₀ x-axis scale ───────────────────────────────────────────────────
+    all_vals: list[float] = []
+    for fix in fixtures:
+        for _, mk, _, _ in _CHART_METHODS:
+            d = fix["methods"].get(mk)
+            if d:
+                for key in ("native_ms", "imported_ms"):
+                    v = d.get(key) or 0.0
+                    if v > 0:
+                        all_vals.append(v)
+
+    if not all_vals:
+        return ""
+
+    max_ms    = max(all_vals)
+    min_ms    = min(all_vals)
+    # Extend the range slightly so bars don't touch the axis edges.
+    x_min_log = max(math.floor(math.log10(min_ms)) - 0.3, -2.0)
+    x_max_log = math.log10(max_ms) + 0.3
+
+    def _log_x(ms: float) -> float:
+        """Map an ms value → pixel offset from the left edge of the bar area."""
+        if ms <= 0:
+            return 0.0
+        clamped = max(ms, 10 ** x_min_log)
+        return (math.log10(clamped) - x_min_log) / (x_max_log - x_min_log) * _C_BAR_AREA_W
+
+    # Tick positions: every integer power-of-10 that falls within the visible range.
+    tick_logs = [
+        i for i in range(int(math.floor(x_min_log)), int(math.ceil(x_max_log)) + 1)
+        if x_min_log <= i <= x_max_log
+    ]
+
+    def _tick_label(log_val: int) -> str:
+        v = 10 ** log_val
+        if v >= 1000:
+            return f"{v // 1000:g} s"
+        if v >= 1:
+            return f"{v:g} ms"
+        return f"{v * 1000:g} µs"
+
+    # ── SVG assembly ──────────────────────────────────────────────────────────
+    E: list[str] = []
+
+    def e(s: str) -> None:
+        E.append(s)
+
+    e(f'<svg xmlns="http://www.w3.org/2000/svg" '
+      f'width="{total_w}" height="{total_h}" '
+      f'font-family="{_C_FONT}" font-size="11">')
+    e(f'  <rect width="{total_w}" height="{total_h}" fill="{_C_BG}"/>')
+
+    # ── legend ────────────────────────────────────────────────────────────────
+    leg_y     = 10
+    col_w     = _C_BAR_AREA_W // 3
+    for idx, (lbl, _, nc, ic) in enumerate(_CHART_METHODS):
+        col = idx % 3
+        row = idx // 3
+        lx  = _C_LABEL_W + col * col_w
+        ly  = leg_y + row * 18
+        e(f'  <rect x="{lx}" y="{ly}" width="14" height="{_C_BAR_H}" fill="{nc}" rx="1"/>')
+        e(f'  <rect x="{lx}" y="{ly + _C_BAR_H + 1}" width="14" height="{_C_BAR_H}" '
+          f'fill="{ic}" rx="1"/>')
+        e(f'  <text x="{lx + 18}" y="{ly + _C_BAR_H + 2}" '
+          f'fill="{_C_LABEL_CLR}" font-size="10">{lbl}</text>')
+    e(f'  <text x="{_C_LABEL_W}" y="{leg_y + 44}" fill="{_C_MUTED_CLR}" font-size="9">'
+      f'Top bar = native (G4) · Bottom bar = imported (G4OCCTSolid) · '
+      f'Logarithmic x-axis</text>')
+
+    # ── x-axis line and ticks ─────────────────────────────────────────────────
+    axis_y = top_off - 4
+    e(f'  <line x1="{_C_LABEL_W}" y1="{axis_y}" '
+      f'x2="{_C_LABEL_W + _C_BAR_AREA_W}" y2="{axis_y}" '
+      f'stroke="{_C_AXIS_CLR}" stroke-width="1"/>')
+    for tl in tick_logs:
+        tx = _C_LABEL_W + _log_x(10 ** tl)
+        e(f'  <line x1="{tx:.1f}" y1="{axis_y}" x2="{tx:.1f}" y2="{axis_y + 4}" '
+          f'stroke="{_C_MUTED_CLR}" stroke-width="1"/>')
+        e(f'  <text x="{tx:.1f}" y="{axis_y - 3}" fill="{_C_MUTED_CLR}" '
+          f'font-size="9" text-anchor="middle">{_tick_label(tl)}</text>')
+        # vertical grid line spanning the full chart
+        e(f'  <line x1="{tx:.1f}" y1="{top_off}" '
+          f'x2="{tx:.1f}" y2="{top_off + chart_h}" '
+          f'stroke="{_C_GRID_CLR}" stroke-width="1" stroke-dasharray="3,2"/>')
+
+    # ── fixture rows ──────────────────────────────────────────────────────────
+    for fi, fix in enumerate(fixtures):
+        gy = top_off + fi * (group_h + _C_FIX_GAP)
+
+        # Alternating subtle row background.
+        if fi % 2 == 0:
+            e(f'  <rect x="{_C_LABEL_W}" y="{gy - 1}" '
+              f'width="{_C_BAR_AREA_W}" height="{group_h + 2}" '
+              f'fill="#ffffff" fill-opacity="0.025"/>')
+
+        # Fixture label (right-aligned, vertically centred in the group).
+        fid     = fix["id"]
+        short   = fid if len(fid) <= 35 else "\u2026" + fid[-32:]
+        ef      = " \u26a0" if fix["has_expected_failure"] else ""
+        label_y = gy + group_h / 2 + 4
+        e(f'  <text x="{_C_LABEL_W - 6}" y="{label_y:.0f}" fill="{_C_LABEL_CLR}" '
+          f'font-size="10" text-anchor="end">{short}{ef}</text>')
+
+        # One native+imported bar pair per method.
+        for mi, (_, mk, nc, ic) in enumerate(_CHART_METHODS):
+            by   = gy + mi * (pair_h + _C_METH_GAP)
+            d    = fix["methods"].get(mk)
+            n_ms = (d.get("native_ms") or 0.0) if d else 0.0
+            i_ms = (d.get("imported_ms") or 0.0) if d else 0.0
+            nw   = _log_x(n_ms) if n_ms > 0 else 0.0
+            iw   = _log_x(i_ms) if i_ms > 0 else 0.0
+
+            if nw > 0:
+                e(f'  <rect x="{_C_LABEL_W}" y="{by}" width="{nw:.1f}" '
+                  f'height="{_C_BAR_H}" fill="{nc}" rx="1">'
+                  f'<title>{mk} native: {n_ms:.2f} ms</title></rect>')
+            if iw > 0:
+                e(f'  <rect x="{_C_LABEL_W}" y="{by + _C_BAR_H + _C_BAR_GAP}" '
+                  f'width="{iw:.1f}" height="{_C_BAR_H}" fill="{ic}" rx="1">'
+                  f'<title>{mk} imported: {i_ms:.2f} ms</title></rect>')
+
+    # Bottom axis line.
+    bot_y = top_off + chart_h
+    e(f'  <line x1="{_C_LABEL_W}" y1="{bot_y}" '
+      f'x2="{_C_LABEL_W + _C_BAR_AREA_W}" y2="{bot_y}" '
+      f'stroke="{_C_AXIS_CLR}" stroke-width="1"/>')
+
+    e('</svg>')
+    return '\n'.join(E)
+
+
 def _render_report(data: dict, viewer_path: str,
                    onshape_links: dict[str, str] | None = None,
-                   callgrind_links: dict[str, str] | None = None) -> str:
+                   callgrind_links: dict[str, str] | None = None,
+                   chart_svg: str | None = None) -> str:
     """Render the Markdown string for benchmark data."""
     ts           = timestamp()
     aggregate    = data.get("aggregate", [])
@@ -458,6 +647,20 @@ def _render_report(data: dict, viewer_path: str,
             "> ⚠️ No fixture results found in output.",
         ]
     else:
+        if chart_svg:
+            svg_b64 = base64.b64encode(chart_svg.encode()).decode()
+            lines += [
+                "",
+                "## Timing Chart",
+                "",
+                "<details open><summary>Show chart</summary>",
+                "",
+                f'<img src="data:image/svg+xml;base64,{svg_b64}"'
+                f' alt="Benchmark timing chart — horizontal grouped bar chart per fixture"/>',
+                "",
+                "</details>",
+            ]
+
         # Ordered list of (column_header, method_key, has_timing, is_polyhedron, is_safety_occt_exact)
         method_columns = [
             ("DTI/DTO(p,v)",       "DistanceToIn/Out(p,v)",       True,  False, False),
@@ -625,9 +828,14 @@ def main() -> None:
         write_report(Path(md_path), _render_error(str(exc)), label="Benchmark report")
         return
 
-    data = _parse_bench_json(raw)
-    md   = _render_report(data, viewer_path, onshape_links, callgrind_links)
+    data      = _parse_bench_json(raw)
+    chart_svg = _render_chart_svg(data.get("fixtures", []))
+    md        = _render_report(data, viewer_path, onshape_links, callgrind_links,
+                               chart_svg=chart_svg)
     write_report(Path(md_path), md, label="Benchmark report")
+    if chart_svg:
+        chart_path = Path(md_path).parent / "bench-chart.svg"
+        write_report(chart_path, chart_svg, label="Benchmark chart")
 
 
 if __name__ == "__main__":
