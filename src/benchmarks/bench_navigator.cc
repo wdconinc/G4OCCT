@@ -619,20 +619,53 @@ int RunBenchmark(const std::filesystem::path& repository_manifest_path, const st
 
   PrintNavigationReport(report_out, state, ray_count, inside_opts, safety_opts);
 
-  // Fail explicitly if any SurfaceNormal mismatches were detected across fixtures.
-  // The per-fixture surface_normal_mismatch_count tracks the total number of
-  // incorrect normals (all 2048 rays), while the aggregate ValidationReport only
-  // carries up to max_reported_mismatches (8) errors per fixture.  Checking the
-  // raw count here ensures CI fails on any SN regression regardless of how the
-  // ValidationReport errors propagate.
-  std::size_t total_sn_mismatches = 0;
+  // Fail explicitly when any correctness mismatch is detected across non-expected-failure
+  // fixtures.  Each of these raw counts can exceed the ValidationReport error cap
+  // (max_reported_mismatches per fixture) without the aggregate HasErrors() check
+  // catching the full extent of failures:
+  //
+  //  - ray_mismatches / exit_mismatches share a combined mismatch_count cap, so
+  //    exit-normal errors may be silently dropped if intersection/distance errors
+  //    exhaust the cap first.
+  //  - surface_normal_mismatch_count is tracked separately from the ray report
+  //    error count; the benchmark JSON counter carries the total while the report
+  //    only carries ≤ max_reported_mismatches error messages per fixture.
+  //  - inside_mismatches: same cap issue; belt-and-suspenders guard.
+  //
+  // Expected-failure fixtures (has_expected_failure == true) are excluded because
+  // their errors are reclassified to warnings by ReclassifyExpectedFailures.
+
+  std::size_t total_ray_mismatches    = 0;
+  std::size_t total_exit_mismatches   = 0;
+  std::size_t total_sn_mismatches     = 0;
+  std::size_t total_inside_mismatches = 0;
   for (const auto& [id, s] : state.summaries) {
+    if (s.has_expected_failure) {
+      continue;
+    }
+    const std::size_t ray_only = s.ray.mismatch_count >= s.ray.normal_mismatch_count
+                                     ? s.ray.mismatch_count - s.ray.normal_mismatch_count
+                                     : 0U;
+    total_ray_mismatches += ray_only;
+    total_exit_mismatches += s.ray.normal_mismatch_count;
     total_sn_mismatches += s.ray.surface_normal_mismatch_count;
+    total_inside_mismatches += s.inside.mismatch_count;
   }
-  if (total_sn_mismatches > 0) {
-    report_out << "ERROR: " << total_sn_mismatches
-               << " SurfaceNormal mismatch(es) detected across all fixtures; "
-               << "see per-fixture breakdown above.\n";
+
+  bool has_mismatch_failures = false;
+  const auto report_if_nonzero = [&](std::size_t count, std::string_view label) {
+    if (count > 0) {
+      report_out << "ERROR: " << count << " " << label
+                 << " mismatch(es) detected across all non-xfail fixtures.\n";
+      has_mismatch_failures = true;
+    }
+  };
+  report_if_nonzero(total_ray_mismatches, "DistanceToIn/Out(p,v)");
+  report_if_nonzero(total_exit_mismatches, "exit-normal");
+  report_if_nonzero(total_sn_mismatches, "SurfaceNormal(p)");
+  report_if_nonzero(total_inside_mismatches, "Inside(p)");
+
+  if (has_mismatch_failures) {
     g_state = nullptr;
     return EXIT_FAILURE;
   }
