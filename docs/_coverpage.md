@@ -7,4 +7,4 @@
 
 [📊 Slide Deck](slides.html)
 [📚 Documentation](#/goals)
-[🔗 GitHub](https://github.com/wdconinc/G4OCCT)
+[🔗 GitHub](https://github.com/eic/G4OCCT)

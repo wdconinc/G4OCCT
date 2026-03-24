@@ -22,4 +22,4 @@
   - [Coverage Report](reports/coverage.md)
   - [Example Logs](reports/example-logs.md)
   - [Geometry Fixture Images](reports/geometry-images.html)
-- [API Reference](https://wdconinc.github.io/G4OCCT/api/index.html)
+- [API Reference](https://eic.github.io/G4OCCT/api/index.html)
