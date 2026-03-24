@@ -256,6 +256,10 @@ private:
   struct ClosestFaceMatch {
     TopoDS_Face face;
     G4double distance{kInfinity};
+    /// Index into the face-bounds cache vector (e.g. the @c faceBoundsCache
+    /// argument passed to the search) used to retrieve the cached
+    /// @c FaceBounds::adaptor without reconstructing it on the fly.
+    std::size_t faceIndex{0};
   };
 
   /// Axis-aligned bounding box: minimum and maximum corners.
@@ -410,16 +414,6 @@ private:
   /// ordering already guaranteed by the geometry-build phase.
   Handle(BRepExtrema_TriangleSet) fTriangleSet;
 
-  /// Flat map from global triangle index (as numbered in @c fTriangleSet) to
-  /// the corresponding index into @c fFaceBoundsCache.
-  ///
-  /// Built in `ComputeBounds()` immediately after @c fTriangleSet, by iterating
-  /// the shape faces in the same `TopExp_Explorer(TopAbs_FACE)` order and
-  /// recording the face-cache index for each triangle in the face's triangulation.
-  /// Used by `BVHFindNearestFaceBounds()` to convert the BVH winning triangle
-  /// index into the corresponding `FaceBounds` entry without a second search.
-  std::vector<std::size_t> fTriangleFaceIdx;
-
   /// Conservative upper bound on the Hausdorff distance between the analytical
   /// surface of @c fShape and its tessellation stored in @c fTriangleSet.
   ///
@@ -561,15 +555,6 @@ private:
   /// available (null or empty).
   G4double BVHLowerBoundDistance(const G4ThreeVector& p) const;
 
-  /// Identify the closest @c FaceBounds entry to @p p using the BVH-accelerated
-  /// triangle set in O(log N_triangles).
-  ///
-  /// Returns a pointer into @c fFaceBoundsCache (valid for the lifetime of this
-  /// solid), or @c nullptr when @c fTriangleSet is unavailable or the mapping
-  /// @c fTriangleFaceIdx is incomplete.  Callers should fall back to
-  /// `TryFindClosestFace()` when @c nullptr is returned.
-  const FaceBounds* BVHFindNearestFaceBounds(const G4ThreeVector& p) const;
-
   /// Returns the minimum perpendicular distance from @p p to any planar face's
   /// infinite supporting plane.
   ///
@@ -585,10 +570,14 @@ private:
 
   /// Find the closest trimmed face to @p point using pre-computed per-face bounding
   /// boxes as a lower-bound prefilter.  A face whose AABB distance from @p point
-  /// exceeds the current best candidate distance is skipped before the more expensive
-  /// BRepExtrema_DistShapeShape call is made.
+  /// exceeds @p maxDistance (default: @c kInfinity) or the current best candidate
+  /// distance is skipped before the more expensive BRepExtrema_DistShapeShape call
+  /// is made.  Passing a BVH-derived upper bound as @p maxDistance lets callers
+  /// skip faces that are provably farther than the nearest tessellated surface point
+  /// plus twice the BVH deflection, reducing the number of BRepExtrema calls.
   static std::optional<ClosestFaceMatch>
-  TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache, const G4ThreeVector& point);
+  TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache, const G4ThreeVector& point,
+                     G4double maxDistance = kInfinity);
 
   /// Build and cache (or return the already-cached) surface-sampling data for
   /// the current shape generation.  The OCCT shape is tessellated first
