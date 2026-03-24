@@ -83,8 +83,16 @@ vocabulary) to `.codespell-ignore` rather than altering the source.
 
 ## Step 6 — Commit via a worktree branch and file a PR
 
-Use the git worktree workflow (documented in `AGENTS.md` and the repository's
-custom Copilot instructions).  **Never `git checkout` in the main worktree.**
+Create a dedicated branch using a git worktree so the main worktree is never
+disturbed.  **Never `git checkout` in the main worktree.**
+
+```bash
+git fetch origin
+git worktree add -b docs/agents-lessons-pr<start>-<end> \
+  .worktrees/agents-lessons-pr<start>-<end> origin/main
+cd .worktrees/agents-lessons-pr<start>-<end>
+# Copy the edited AGENTS.md here, then commit.
+```
 
 Branch name: `docs/agents-lessons-pr<start>-<end>`
 
@@ -108,13 +116,11 @@ gh pr create --title "docs: add lessons from PRs #<start>–#<end> to AGENTS.md"
 gh pr merge <number> --auto --squash
 ```
 
-After the PR is filed, remove the worktree:
+After the PR is filed, clean up the worktree:
 
 ```bash
-cd /path/to/repo
-git worktree list
-# Identify the path for the docs/agents-lessons-pr<start>-<end> worktree, then:
-git worktree remove <worktree-path>
+cd /path/to/main/repo
+git worktree remove .worktrees/agents-lessons-pr<start>-<end>
 ```
 
 ## Rules and Pitfalls
