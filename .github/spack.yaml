@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+
+spack:
+  view: /opt/view
+
+  specs:
+  - "geant4@11.3: ~opengl ~qt ~x11"
+  - "opencascade@7.8:"
+
+  config:
+    install_tree:
+      root: /opt/spack
+      padded_length: 128
+
+  packages:
+    all:
+      require: 'target=x86_64_v2'
+
+  mirrors:
+    eic-buildcache:
+      url: oci://ghcr.io/eic/spack-v2025.11.0
+      binary: true
+      signed: false
+      access_pair:
+        id_variable: GITHUB_USER
+        secret_variable: GITHUB_TOKEN
