@@ -306,6 +306,17 @@ Do not lower these version floors without an explicit project decision.
   Do **not** skip Tier-1 in any new DTI/DTO implementation.  Omitting it causes
   O(N_faces × Newton_iterations) behaviour for every point inside the AABB, which
   is catastrophic for curved surfaces (e.g. 2237× slowdown for ellipsoids).
+- **BVH face-identification pattern for `SurfaceNormal(p)`**: `SurfaceNormal` must
+  identify the nearest face and evaluate the outward normal at the closest (u,v).
+  Use `BVHFindNearestFaceBounds(p)` — O(log N_triangles) — to identify the closest
+  face via the BVH triangle set (`fTriangleSet`) and the precomputed triangle→face
+  index map (`fTriangleFaceIdx`), then call `GeomAPI_ProjectPointOnSurf` on **only
+  that one face** and use `TryGetOutwardNormal(fb.adaptor, ...)` with the cached
+  adaptor.  For all-planar solids use the Phase 1 fast path: find the face with
+  minimum `fb.plane->Distance(p)` and return `fb.outwardNormal` directly.  Do
+  **not** call `TryFindClosestFace` (BRepExtrema on every face) for curved solids —
+  this causes O(N_faces × Newton) overhead per query, causing e.g. a 26 000×
+  slowdown for twistedtubs.
 - `GetPointOnSurface()` must sample from OCCT tessellation.  Returning the
   origin (the `G4VSolid` base-class default) triggers Geant4 warnings.
 - Internal helper types (e.g. `FaceBounds`, `ClosestFaceMatch`) must be

@@ -410,6 +410,16 @@ private:
   /// ordering already guaranteed by the geometry-build phase.
   Handle(BRepExtrema_TriangleSet) fTriangleSet;
 
+  /// Flat map from global triangle index (as numbered in @c fTriangleSet) to
+  /// the corresponding index into @c fFaceBoundsCache.
+  ///
+  /// Built in `ComputeBounds()` immediately after @c fTriangleSet, by iterating
+  /// the shape faces in the same `TopExp_Explorer(TopAbs_FACE)` order and
+  /// recording the face-cache index for each triangle in the face's triangulation.
+  /// Used by `BVHFindNearestFaceBounds()` to convert the BVH winning triangle
+  /// index into the corresponding `FaceBounds` entry without a second search.
+  std::vector<std::size_t> fTriangleFaceIdx;
+
   /// Conservative upper bound on the Hausdorff distance between the analytical
   /// surface of @c fShape and its tessellation stored in @c fTriangleSet.
   ///
@@ -550,6 +560,15 @@ private:
   /// Geant4 safety distance.  Returns @c kInfinity if @c fTriangleSet is not
   /// available (null or empty).
   G4double BVHLowerBoundDistance(const G4ThreeVector& p) const;
+
+  /// Identify the closest @c FaceBounds entry to @p p using the BVH-accelerated
+  /// triangle set in O(log N_triangles).
+  ///
+  /// Returns a pointer into @c fFaceBoundsCache (valid for the lifetime of this
+  /// solid), or @c nullptr when @c fTriangleSet is unavailable or the mapping
+  /// @c fTriangleFaceIdx is incomplete.  Callers should fall back to
+  /// `TryFindClosestFace()` when @c nullptr is returned.
+  const FaceBounds* BVHFindNearestFaceBounds(const G4ThreeVector& p) const;
 
   /// Returns the minimum perpendicular distance from @p p to any planar face's
   /// infinite supporting plane.
