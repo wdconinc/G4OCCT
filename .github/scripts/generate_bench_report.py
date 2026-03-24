@@ -8,6 +8,7 @@ import json
 import math
 import re
 import sys
+import xml.sax.saxutils
 from pathlib import Path
 from urllib.parse import quote
 
@@ -433,8 +434,12 @@ def _render_chart_svg(fixtures: list[dict]) -> str:
     max_ms    = max(all_vals)
     min_ms    = min(all_vals)
     # Extend the range slightly so bars don't touch the axis edges.
-    x_min_log = max(math.floor(math.log10(min_ms)) - 0.3, -2.0)
+    x_min_log = math.floor(math.log10(min_ms)) - 0.3
     x_max_log = math.log10(max_ms) + 0.3
+    # Ensure a minimum visible span so the denominator in _log_x is never zero
+    # or negative (which would invert the scale or produce invalid SVG).
+    if x_max_log <= x_min_log:
+        x_max_log = x_min_log + 1.0
 
     def _log_x(ms: float) -> float:
         """Map an ms value → pixel offset from the left edge of the bar area."""
@@ -517,7 +522,7 @@ def _render_chart_svg(fixtures: list[dict]) -> str:
         ef      = " \u26a0" if fix["has_expected_failure"] else ""
         label_y = gy + group_h / 2 + 4
         e(f'  <text x="{_C_LABEL_W - 6}" y="{label_y:.0f}" fill="{_C_LABEL_CLR}" '
-          f'font-size="10" text-anchor="end">{short}{ef}</text>')
+          f'font-size="10" text-anchor="end">{xml.sax.saxutils.escape(short)}{ef}</text>')
 
         # One native+imported bar pair per method.
         for mi, (_, mk, nc, ic) in enumerate(_CHART_METHODS):
