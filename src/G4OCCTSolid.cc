@@ -953,7 +953,16 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
     return aabbDist;
   }
 
-  // Fallback: exact distance (handles points near or inside the AABB, including
+  // Tier-1: BVH triangle-mesh lower bound — O(log N_triangles).
+  // For outside points this is a valid conservative lower bound (as required for
+  // safety distances).  Avoids the expensive per-face BRepExtrema_DistShapeShape
+  // calls that dominate ExactDistanceToIn for curved surfaces (e.g. ellipsoids).
+  const G4double bvhDist = BVHLowerBoundDistance(p);
+  if (bvhDist > IntersectionTolerance()) {
+    return bvhDist;
+  }
+
+  // Fallback: exact distance (handles points near or inside the surface, including
   // interior/surface classification).
   return ExactDistanceToIn(p);
 }
