@@ -351,14 +351,6 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const BRepAdaptor_Surface& surf
   return G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
 }
 
-/// Convenience overload: construct the surface adaptor on the fly.
-/// Used by rare call sites (e.g. SurfaceNormal, ~84 calls) where no cached
-/// adaptor is available; prefer the overload above for hot paths.
-std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
-                                                 const Standard_Real v) {
-  return TryGetOutwardNormal(BRepAdaptor_Surface(face), face, u, v);
-}
-
 } // namespace
 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
