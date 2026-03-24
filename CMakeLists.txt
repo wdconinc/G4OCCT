@@ -113,6 +113,7 @@ if(BUILD_TESTING OR BUILD_BENCHMARKS)
   add_library(
     G4OCCTFixtureSupport
     src/tests/geometry/fixture_manifest.cc
+    src/tests/geometry/fixture_solid_builder.cc
     src/tests/geometry/fixture_validation.cc
     src/tests/geometry/fixture_solid_builder.cc
     src/tests/geometry/fixture_ray_compare.cc

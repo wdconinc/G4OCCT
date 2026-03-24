@@ -141,6 +141,103 @@ set_tests_properties(
   "test_geometry_validation/nist-ctc-02-v1"
   "test_geometry_validation/nist-ctc-07-v1" PROPERTIES DISABLED TRUE)
 
+# ─── render_geometry_fixtures ────────────────────────────────────────────────
+# Renders each fixture solid to a JPEG image using Geant4's built-in RayTracer
+# visualisation driver (/vis/open RT), which traces rays through Geant4's own
+# geometry navigation infrastructure.  Only built when G4VisExecutive is
+# available (i.e. Geant4 was compiled with visualisation support).
+find_file(
+  G4_VIS_EXECUTIVE_HH G4VisExecutive.hh
+  HINTS ${Geant4_INCLUDE_DIRS}
+  NO_DEFAULT_PATH)
+if(G4_VIS_EXECUTIVE_HH)
+  add_executable(render_geometry_fixtures geometry/render_geometry_fixtures.cc)
+  target_include_directories(
+    render_geometry_fixtures
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+            # Geant4's private RayTracer headers are not installed by the Geant4
+            # build system.  Vendored copies under geant4_private/ allow direct
+            # use of G4TheRayTracer (single-threaded base class) to bypass
+            # G4TheMTRayTracer, which crashes in MT builds due to pool
+            # corruption in worker threads when BeamOn is called from a
+            # visualization context.
+            ${CMAKE_CURRENT_SOURCE_DIR}/geometry/geant4_private)
+  target_link_libraries(render_geometry_fixtures PRIVATE G4OCCTFixtureSupport)
+
+  # ── Aggregate test (disabled in default ctest runs) ──────────────────────
+  add_test(
+    NAME render_geometry_fixtures
+    COMMAND
+      render_geometry_fixtures --output-dir
+      ${CMAKE_BINARY_DIR}/geometry_renders --manifest
+      ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml)
+  # Keep the aggregate binary available for manual runs; per-fixture tests are
+  # registered below for CI-friendly individual reporting.
+  set_tests_properties(render_geometry_fixtures PROPERTIES DISABLED TRUE)
+
+  # ── Per-fixture tests ─────────────────────────────────────────────────────
+  # Families with large assemblies that exceed the CI memory/time budget are
+  # excluded; they are covered by dedicated correctness tests instead.
+  set(_render_skip_families "nist-ctc")
+  file(
+    GLOB _render_family_manifests CONFIGURE_DEPENDS
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/*/manifest.yaml)
+  list(SORT _render_family_manifests)
+  set(_render_qualified_ids)
+  foreach(_manifest IN LISTS _render_family_manifests)
+    # Skip the top-level repository manifest.
+    if(_manifest STREQUAL "fixtures/geometry/manifest.yaml")
+      continue()
+    endif()
+    set_property(
+      DIRECTORY
+      APPEND
+      PROPERTY CMAKE_CONFIGURE_DEPENDS
+               "${CMAKE_CURRENT_SOURCE_DIR}/${_manifest}")
+    # Extract the family name from the manifest's "family:" field.
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${_manifest}" _family_line
+         REGEX "^family: ")
+    string(REGEX REPLACE "^family: " "" _family "${_family_line}")
+    if(_family IN_LIST _render_skip_families)
+      continue()
+    endif()
+    # Collect fixture IDs from "  - id: <id>" lines.
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${_manifest}" _id_lines
+         REGEX "^  - id: ")
+    foreach(_id_line IN LISTS _id_lines)
+      string(REGEX REPLACE "^  - id: " "" _fixture_id "${_id_line}")
+      list(APPEND _render_qualified_ids "${_family}/${_fixture_id}")
+    endforeach()
+  endforeach()
+  list(SORT _render_qualified_ids)
+  foreach(_qualified_id IN LISTS _render_qualified_ids)
+    add_test(
+      NAME "render_geometry_fixtures/${_qualified_id}"
+      COMMAND
+        render_geometry_fixtures --output-dir
+        ${CMAKE_BINARY_DIR}/geometry_renders --manifest
+        ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml --fixture
+        ${_qualified_id})
+    set_tests_properties("render_geometry_fixtures/${_qualified_id}"
+                         PROPERTIES RUN_SERIAL TRUE LABELS "visualization")
+  endforeach()
+  unset(_render_skip_families)
+  unset(_render_family_manifests)
+  unset(_manifest)
+  unset(_family_line)
+  unset(_family)
+  unset(_id_lines)
+  unset(_id_line)
+  unset(_fixture_id)
+  unset(_render_qualified_ids)
+  unset(_qualified_id)
+else()
+  message(
+    STATUS
+      "G4VisExecutive.hh not found; render_geometry_fixtures will not be built")
+endif()
+
 # ─── test_nist_ctc_inside_volume ──────────────────────────────────────────────
 # Validates G4OCCTSolid::Inside() volume estimates for NIST AP203 Simplified
 # Test Case (CTC) geometry-only STEP files.  One CTest sub-test is registered

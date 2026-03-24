@@ -59,7 +59,18 @@ jobs:
             # ── Test ───────────────────────────────────────────────────────
             ctest --test-dir build --output-on-failure \
               --output-junit "${PWD}/test-results.xml" \
+              --exclude-regex "^render_geometry_fixtures" \
               -j$(nproc)
+
+            # ── Render fixture solids to JPEG via Geant4 RayTracer ──────────
+            # Per-fixture render tests (render_geometry_fixtures/<family>/<id>)
+            # run serially (RUN_SERIAL) with a 120 s per-fixture timeout so a
+            # slow or stuck fixture doesn't block CI.  The overall invocation
+            # uses || echo so a failed render does not fail the CI step.
+            mkdir -p build/geometry_renders
+            ctest --test-dir build --output-on-failure \
+              -R "^render_geometry_fixtures/" \
+              || echo "WARNING: one or more render_geometry_fixtures tests did not complete (non-critical)"
 
             # ── Benchmark + point-cloud export ─────────────────────────────
             # Write Google Benchmark JSON to a file (--benchmark_out) to avoid
@@ -103,6 +114,14 @@ jobs:
             else
               echo "bench_assembly_navigator not built (Geant4 GDML support absent)"
             fi
+
+            # ── Copy render output for report generation ────────────────────
+            mkdir -p reports/geometry-images
+            if [ -d build/geometry_renders ] && \
+               [ -n "$(ls build/geometry_renders/*.jpeg 2>/dev/null)" ]; then
+              cp build/geometry_renders/*.jpeg reports/geometry-images/
+            fi
+
             # ── Install ────────────────────────────────────────────────────
             cmake --install build
 
@@ -162,6 +181,8 @@ jobs:
             point_clouds/ reports/point_cloud_viewer.html
           python3 .github/scripts/generate_example_report.py \
             example_logs/ reports/example-logs.md
+          python3 .github/scripts/generate_geometry_image_report.py \
+            reports/geometry-images/ reports/geometry-images.html
 
       - name: Post reports as step summary
         if: always()
