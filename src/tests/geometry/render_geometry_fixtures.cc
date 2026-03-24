@@ -127,7 +127,7 @@ namespace {
   /// RayTracer launches one Geant4 event per pixel, and even an 8x8 run proved
   /// too memory-hungry in practice. 4x4 keeps this harness as a minimal
   /// smoke test intended to stay within an 8 GB CI memory budget.
-  constexpr int kRenderResolution = 4;
+  constexpr int kRenderResolution = 64;
 
   bool IsRayTracerNickname(const G4String& nickname) {
     return nickname == "RayTracer" || nickname == "RT";
