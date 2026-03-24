@@ -306,17 +306,20 @@ Do not lower these version floors without an explicit project decision.
   Do **not** skip Tier-1 in any new DTI/DTO implementation.  Omitting it causes
   O(N_faces × Newton_iterations) behaviour for every point inside the AABB, which
   is catastrophic for curved surfaces (e.g. 2237× slowdown for ellipsoids).
-- **BVH face-identification pattern for `SurfaceNormal(p)`**: `SurfaceNormal` must
+- **BVH-seeded face identification for `SurfaceNormal(p)`**: `SurfaceNormal` must
   identify the nearest face and evaluate the outward normal at the closest (u,v).
-  Use `BVHFindNearestFaceBounds(p)` — O(log N_triangles) — to identify the closest
-  face via the BVH triangle set (`fTriangleSet`) and the precomputed triangle→face
-  index map (`fTriangleFaceIdx`), then call `GeomAPI_ProjectPointOnSurf` on **only
-  that one face** and use `TryGetOutwardNormal(fb.adaptor, ...)` with the cached
-  adaptor.  For all-planar solids use the Phase 1 fast path: find the face with
-  minimum `fb.plane->Distance(p)` and return `fb.outwardNormal` directly.  Do
-  **not** call `TryFindClosestFace` (BRepExtrema on every face) for curved solids —
-  this causes O(N_faces × Newton) overhead per query, causing e.g. a 26 000×
-  slowdown for twistedtubs.
+  Phase 1 (all-planar solids): find the face with minimum `fb.plane->Distance(p)` and
+  return `fb.outwardNormal` directly.  Phase 2 (curved or mixed solids): call
+  `BVHLowerBoundDistance(p)` to get a mesh lower bound `bvhLB`, compute
+  `seedDist = bvhLB + 2×fBVHDeflection` as a valid upper bound on the true
+  distance to the surface, then call `TryFindClosestFace(fFaceBoundsCache, p, seedDist)`.
+  The seed prunes distant faces before BRepExtrema, reducing calls for multi-face solids
+  while guaranteeing correctness (exact BRepExtrema used on all candidates, unlike pure
+  BVH triangle lookup which can return the wrong face near face boundaries due to
+  tessellation approximation errors).  Do **not** use a pure BVH triangle→face mapping
+  approach (previously `BVHFindNearestFaceBounds`) — tessellation error `fBVHDeflection`
+  can cause the nearest tessellated triangle to belong to a different analytical face than
+  the true nearest face, producing wrong normals for all non-planar solids.
 - `GetPointOnSurface()` must sample from OCCT tessellation.  Returning the
   origin (the `G4VSolid` base-class default) triggers Geant4 warnings.
 - Internal helper types (e.g. `FaceBounds`, `ClosestFaceMatch`) must be

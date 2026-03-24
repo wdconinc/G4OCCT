@@ -536,23 +536,6 @@ void G4OCCTSolid::ComputeBounds() {
     fTriangleSet = new BRepExtrema_TriangleSet(faces);
   }
 
-  // Build the triangle-to-face-cache index map for BVHFindNearestFaceBounds().
-  // Triangles in fTriangleSet are ordered by face in TopExp_Explorer iteration
-  // order, which matches fFaceBoundsCache.  For each face cache entry i, record
-  // index i for every triangle belonging to that face.
-  fTriangleFaceIdx.clear();
-  if (!fTriangleSet.IsNull()) {
-    fTriangleFaceIdx.reserve(static_cast<std::size_t>(fTriangleSet->Size()));
-    std::size_t faceIdx = 0;
-    TopLoc_Location loc;
-    for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next(), ++faceIdx) {
-      const Handle(Poly_Triangulation) tri =
-          BRep_Tool::Triangulation(TopoDS::Face(ex.Current()), loc);
-      const int nTri = tri.IsNull() ? 0 : tri->NbTriangles();
-      fTriangleFaceIdx.insert(fTriangleFaceIdx.end(), static_cast<std::size_t>(nTri), faceIdx);
-    }
-  }
-
   ComputeInitialSpheres();
 }
 
@@ -613,7 +596,7 @@ void G4OCCTSolid::ComputeInitialSpheres() {
 
 std::optional<G4OCCTSolid::ClosestFaceMatch>
 G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
-                                const G4ThreeVector& point) {
+                                const G4ThreeVector& point, G4double maxDistance) {
   if (faceBoundsCache.empty()) {
     return std::nullopt;
   }
@@ -628,8 +611,10 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
   std::optional<ClosestFaceMatch> bestMatch;
   for (const FaceBounds& fb : faceBoundsCache) {
     // Lower bound: distance from query point to the face's axis-aligned bounding box.
-    // If this is already >= current best, the face cannot be the closest — skip it.
-    if (bestMatch.has_value() && fb.box.Distance(queryBox) >= bestMatch->distance) {
+    // Use maxDistance as the initial pruning threshold (before a bestMatch is found),
+    // tightening to bestMatch->distance once a candidate has been accepted.
+    const G4double threshold = bestMatch.has_value() ? bestMatch->distance : maxDistance;
+    if (threshold < kInfinity && fb.box.Distance(queryBox) >= threshold) {
       continue;
     }
 
@@ -838,33 +823,6 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
   return (crossings % 2 == 1) ? kInside : kOutside;
 }
 
-/// Use the BVH triangle set to identify the nearest face to @p p in O(log N_triangles).
-///
-/// Returns a pointer to the corresponding @c FaceBounds entry in @c fFaceBoundsCache, or
-/// @c nullptr when the BVH is unavailable (null or empty) or the triangle map is incomplete.
-const G4OCCTSolid::FaceBounds*
-G4OCCTSolid::BVHFindNearestFaceBounds(const G4ThreeVector& p) const {
-  if (fTriangleSet.IsNull() || fTriangleSet->Size() == 0 || fTriangleFaceIdx.empty()) {
-    return nullptr;
-  }
-  PointToMeshDistance solver;
-  solver.SetObject(BVH_Vec3d(p.x(), p.y(), p.z()));
-  solver.SetBVHSet(fTriangleSet.get());
-  solver.ComputeDistance();
-  if (!solver.IsDone()) {
-    return nullptr;
-  }
-  const Standard_Integer triIdx = solver.BestIndex();
-  if (triIdx < 0 || static_cast<std::size_t>(triIdx) >= fTriangleFaceIdx.size()) {
-    return nullptr;
-  }
-  const std::size_t faceIdx = fTriangleFaceIdx[static_cast<std::size_t>(triIdx)];
-  if (faceIdx >= fFaceBoundsCache.size()) {
-    return nullptr;
-  }
-  return &fFaceBoundsCache[faceIdx];
-}
-
 G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // Phase 1: all-planar fast path — O(N_faces) dot products, zero OCCT solver calls.
   // For planar solids every face's outward normal is constant and precomputed in
@@ -888,7 +846,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
     }
   }
 
-  // Phase 2: BVH-accelerated face identification for curved (or mixed) solids.
+  // Phase 2: BVH-seeded face identification for curved (or mixed) solids.
   //
   // Use face-local extrema + projection instead of a single solid-wide
   // BRepExtrema_DistShapeShape(vertex, solid) query. On imported periodic
@@ -901,16 +859,17 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // periodic seams before asking OCCT for derivatives. Revisit this once the
   // upstream periodic-classifier fix is available everywhere we build.
   //
-  // The BVH nearest-triangle traversal identifies the closest face in
-  // O(log N_triangles), replacing TryFindClosestFace (O(N_faces × BRepExtrema)).
-  // GeomAPI_ProjectPointOnSurf is then called once on that single face to obtain
-  // the (u,v) parameters needed for normal evaluation.
+  // BVHLowerBoundDistance gives a lower bound on the true distance to the surface.
+  // Adding 2×fBVHDeflection (Hausdorff bound between tessellation and analytical
+  // surface) yields a valid upper bound on the distance to the nearest surface point.
+  // This seed is passed to TryFindClosestFace to prune faces that are provably
+  // farther away, reducing the number of BRepExtrema calls for multi-face solids.
+  // TryFindClosestFace then uses exact BRepExtrema on every candidate, guaranteeing
+  // the correct nearest face is returned regardless of tessellation approximation
+  // errors (which could fool a pure-BVH face-identification approach).
 
-  // Shared helper: project @p onto @face, obtain (u,v), and evaluate the outward
-  // normal.  When @adaptor is non-null (BVH path) the pre-built cached adaptor is
-  // used (fast overload of TryGetOutwardNormal); otherwise it is constructed on the fly.
-  const auto projectAndGetNormal = [&](const TopoDS_Face& face,
-                                       const BRepAdaptor_Surface* adaptor) -> G4ThreeVector {
+  // Shared helper: project @p onto @face, obtain (u,v), and evaluate the outward normal.
+  const auto projectAndGetNormal = [&](const TopoDS_Face& face) -> G4ThreeVector {
     TopLoc_Location loc;
     const Handle(Geom_Surface) surface = BRep_Tool::Surface(face, loc);
     if (surface.IsNull()) {
@@ -927,24 +886,17 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
     Standard_Real u = 0.0;
     Standard_Real v = 0.0;
     projection.LowerDistanceParameters(u, v);
-    const std::optional<G4ThreeVector> normal =
-        adaptor ? TryGetOutwardNormal(*adaptor, face, u, v) : TryGetOutwardNormal(face, u, v);
-    return normal.value_or(FallbackNormal());
+    return TryGetOutwardNormal(face, u, v).value_or(FallbackNormal());
   };
 
-  const FaceBounds* fb = BVHFindNearestFaceBounds(p);
-
-  // Fallback: BVH unavailable — use the per-face BRepExtrema loop.
-  if (fb == nullptr) {
-    const auto closestFaceMatch = TryFindClosestFace(fFaceBoundsCache, p);
-    if (!closestFaceMatch.has_value()) {
-      return FallbackNormal();
-    }
-    return projectAndGetNormal(closestFaceMatch->face, nullptr);
+  const G4double bvhLB = BVHLowerBoundDistance(p);
+  const G4double seedDist =
+      (fBVHDeflection > 0.0 && bvhLB < kInfinity) ? bvhLB + 2.0 * fBVHDeflection : kInfinity;
+  const auto closestFaceMatch = TryFindClosestFace(fFaceBoundsCache, p, seedDist);
+  if (!closestFaceMatch.has_value()) {
+    return FallbackNormal();
   }
-
-  // Use the pre-built face adaptor from fFaceBoundsCache (fast overload).
-  return projectAndGetNormal(fb->face, &fb->adaptor);
+  return projectAndGetNormal(closestFaceMatch->face);
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {

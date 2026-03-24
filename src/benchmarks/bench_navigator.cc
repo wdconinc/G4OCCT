@@ -619,6 +619,24 @@ int RunBenchmark(const std::filesystem::path& repository_manifest_path, const st
 
   PrintNavigationReport(report_out, state, ray_count, inside_opts, safety_opts);
 
+  // Fail explicitly if any SurfaceNormal mismatches were detected across fixtures.
+  // The per-fixture surface_normal_mismatch_count tracks the total number of
+  // incorrect normals (all 2048 rays), while the aggregate ValidationReport only
+  // carries up to max_reported_mismatches (8) errors per fixture.  Checking the
+  // raw count here ensures CI fails on any SN regression regardless of how the
+  // ValidationReport errors propagate.
+  std::size_t total_sn_mismatches = 0;
+  for (const auto& [id, s] : state.summaries) {
+    total_sn_mismatches += s.ray.surface_normal_mismatch_count;
+  }
+  if (total_sn_mismatches > 0) {
+    report_out << "ERROR: " << total_sn_mismatches
+               << " SurfaceNormal mismatch(es) detected across all fixtures; "
+               << "see per-fixture breakdown above.\n";
+    g_state = nullptr;
+    return EXIT_FAILURE;
+  }
+
   g_state = nullptr;
   return EXIT_SUCCESS;
 }
