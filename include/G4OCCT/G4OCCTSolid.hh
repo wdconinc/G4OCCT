@@ -256,6 +256,10 @@ private:
   struct ClosestFaceMatch {
     TopoDS_Face face;
     G4double distance{kInfinity};
+    /// Index into the face-bounds cache vector (e.g. the @c faceBoundsCache
+    /// argument passed to the search) used to retrieve the cached
+    /// @c FaceBounds::adaptor without reconstructing it on the fly.
+    std::size_t faceIndex{0};
   };
 
   /// Axis-aligned bounding box: minimum and maximum corners.

@@ -351,14 +351,6 @@ std::optional<G4ThreeVector> TryGetOutwardNormal(const BRepAdaptor_Surface& surf
   return G4ThreeVector(faceNormal.X(), faceNormal.Y(), faceNormal.Z());
 }
 
-/// Convenience overload: construct the surface adaptor on the fly.
-/// Used by rare call sites (e.g. SurfaceNormal, ~84 calls) where no cached
-/// adaptor is available; prefer the overload above for hot paths.
-std::optional<G4ThreeVector> TryGetOutwardNormal(const TopoDS_Face& face, const Standard_Real u,
-                                                 const Standard_Real v) {
-  return TryGetOutwardNormal(BRepAdaptor_Surface(face), face, u, v);
-}
-
 } // namespace
 
 G4OCCTSolid::G4OCCTSolid(const G4String& name, const TopoDS_Shape& shape)
@@ -609,12 +601,13 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
   queryBox.Add(queryPoint);
 
   std::optional<ClosestFaceMatch> bestMatch;
-  for (const FaceBounds& fb : faceBoundsCache) {
+  for (std::size_t i = 0; i < faceBoundsCache.size(); ++i) {
+    const FaceBounds& fb = faceBoundsCache[i];
     // Lower bound: distance from query point to the face's axis-aligned bounding box.
     // Use maxDistance as the initial pruning threshold (before a bestMatch is found),
     // tightening to bestMatch->distance once a candidate has been accepted.
     const G4double threshold = bestMatch.has_value() ? bestMatch->distance : maxDistance;
-    if (threshold < kInfinity && fb.box.Distance(queryBox) >= threshold) {
+    if (threshold < kInfinity && fb.box.Distance(queryBox) > threshold) {
       continue;
     }
 
@@ -633,7 +626,7 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
     if (bestMatch.has_value() && candidateDistance >= bestMatch->distance) {
       continue;
     }
-    bestMatch = ClosestFaceMatch{.face = fb.face, .distance = candidateDistance};
+    bestMatch = ClosestFaceMatch{.face = fb.face, .distance = candidateDistance, .faceIndex = i};
   }
 
   return bestMatch;
@@ -868,10 +861,12 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // the correct nearest face is returned regardless of tessellation approximation
   // errors (which could fool a pure-BVH face-identification approach).
 
-  // Shared helper: project @p onto @face, obtain (u,v), and evaluate the outward normal.
-  const auto projectAndGetNormal = [&](const TopoDS_Face& face) -> G4ThreeVector {
+  // Shared helper: project @p onto @face using a pre-built surface adaptor,
+  // obtain (u,v), and evaluate the outward normal.  Accepting the cached
+  // BRepAdaptor_Surface avoids reconstructing it on the fly on this hot path.
+  const auto projectAndGetNormal = [&](const FaceBounds& fb) -> G4ThreeVector {
     TopLoc_Location loc;
-    const Handle(Geom_Surface) surface = BRep_Tool::Surface(face, loc);
+    const Handle(Geom_Surface) surface = BRep_Tool::Surface(fb.face, loc);
     if (surface.IsNull()) {
       return FallbackNormal();
     }
@@ -886,7 +881,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
     Standard_Real u = 0.0;
     Standard_Real v = 0.0;
     projection.LowerDistanceParameters(u, v);
-    return TryGetOutwardNormal(face, u, v).value_or(FallbackNormal());
+    return TryGetOutwardNormal(fb.adaptor, fb.face, u, v).value_or(FallbackNormal());
   };
 
   const G4double bvhLB = BVHLowerBoundDistance(p);
@@ -896,7 +891,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   if (!closestFaceMatch.has_value()) {
     return FallbackNormal();
   }
-  return projectAndGetNormal(closestFaceMatch->face);
+  return projectAndGetNormal(fFaceBoundsCache[closestFaceMatch->faceIndex]);
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {
