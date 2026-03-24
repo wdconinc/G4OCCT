@@ -634,6 +634,16 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Upload bench chart SVG artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-chart
+          path: reports/bench-chart.svg
+          if-no-files-found: warn
+          archive: false
+          retention-days: 1
+
       - name: Upload assembly bench report artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -955,6 +965,13 @@ jobs:
         with:
           name: bench-report
           path: docs/reports/
+
+      - name: Download bench chart SVG
+        uses: actions/download-artifact@v8
+        with:
+          name: bench-chart
+          path: docs/reports/
+        continue-on-error: true
 
       - name: Download assembly bench report
         uses: actions/download-artifact@v8

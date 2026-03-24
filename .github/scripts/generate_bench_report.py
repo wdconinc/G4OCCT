@@ -3,7 +3,6 @@
 
 """Convert bench_navigator JSON output to a Markdown report."""
 
-import base64
 import json
 import math
 import re
@@ -653,15 +652,14 @@ def _render_report(data: dict, viewer_path: str,
         ]
     else:
         if chart_svg:
-            svg_b64 = base64.b64encode(chart_svg.encode()).decode()
             lines += [
                 "",
                 "## Timing Chart",
                 "",
                 "<details open><summary>Show chart</summary>",
                 "",
-                f'<img src="data:image/svg+xml;base64,{svg_b64}"'
-                f' alt="Benchmark timing chart — horizontal grouped bar chart per fixture"/>',
+                '<img src="bench-chart.svg"'
+                ' alt="Benchmark timing chart — horizontal grouped bar chart per fixture"/>',
                 "",
                 "</details>",
             ]
