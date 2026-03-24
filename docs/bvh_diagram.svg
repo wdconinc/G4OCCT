@@ -1,0 +1,161 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 260"
+     font-family="'Helvetica Neue',Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="arr-red" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0,0 7,3 0,6" fill="#c0392b"/>
+    </marker>
+    <marker id="arr-dark" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0,0 7,3 0,6" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!--  LEFT PANEL — geometry view                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <rect x="0" y="0" width="388" height="260" fill="#f9f9f9" rx="6"/>
+  <text x="194" y="16" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#222">BVH over triangulated mesh</text>
+
+  <!-- ── 8 triangles (2 cols × 2 rows), solid spans x=25..280, y=24..215 ── -->
+  <!-- grid lines: x-mid=152, y-mid=119                                        -->
+
+  <!-- Quadrant TL (col 1, row 1) -->
+  <polygon points="25,24  152,24  25,119"  fill="#cce4f7" stroke="#9dbfe0" stroke-width="0.8"/>
+  <polygon points="152,24 152,119 25,119"  fill="#b8d9f4" stroke="#9dbfe0" stroke-width="0.8"/>
+
+  <!-- Quadrant TR (col 2, row 1) — highlighted because P is closest -->
+  <polygon points="152,24  280,24  152,119" fill="#d4edb8" stroke="#88b060" stroke-width="0.8"/>
+  <polygon points="280,24  280,119 152,119" fill="#c6e6a4" stroke="#88b060" stroke-width="0.8"/>
+
+  <!-- Quadrant BL (col 1, row 2) -->
+  <polygon points="25,119  152,119 25,215"  fill="#cce4f7" stroke="#9dbfe0" stroke-width="0.8"/>
+  <polygon points="152,119 152,215 25,215"  fill="#b8d9f4" stroke="#9dbfe0" stroke-width="0.8"/>
+
+  <!-- Quadrant BR (col 2, row 2) -->
+  <polygon points="152,119 280,119 152,215" fill="#cce4f7" stroke="#9dbfe0" stroke-width="0.8"/>
+  <polygon points="280,119 280,215 152,215" fill="#b8d9f4" stroke="#9dbfe0" stroke-width="0.8"/>
+
+  <!-- ── L2 bounding boxes (orange dashed) ── -->
+  <rect x="18"  y="18"  width="140" height="108" fill="none"
+        stroke="#e67e00" stroke-width="1.5" stroke-dasharray="4,2" rx="2"/>
+  <rect x="18"  y="113" width="140" height="108" fill="none"
+        stroke="#e67e00" stroke-width="1.5" stroke-dasharray="4,2" rx="2"/>
+  <rect x="145" y="113" width="143" height="108" fill="none"
+        stroke="#e67e00" stroke-width="1.5" stroke-dasharray="4,2" rx="2"/>
+  <!-- TR box highlighted with light fill (nearest quadrant to P) -->
+  <rect x="145" y="18"  width="143" height="108" fill="#fffbea" fill-opacity="0.7"
+        stroke="#e67e00" stroke-width="2.5" stroke-dasharray="4,2" rx="2"/>
+
+  <!-- ── L1 bounding boxes (green dashed) ── -->
+  <!-- Left half -->
+  <rect x="13" y="13" width="150" height="210" fill="none"
+        stroke="#27ae60" stroke-width="2" stroke-dasharray="6,3" rx="3"/>
+  <!-- Right half — on path to P -->
+  <rect x="140" y="13" width="150" height="210" fill="none"
+        stroke="#27ae60" stroke-width="2.5" stroke-dasharray="6,3" rx="3"/>
+
+  <!-- ── L0 root bounding box (blue dashed) ── -->
+  <rect x="8" y="8" width="288" height="215" fill="none"
+        stroke="#2980b9" stroke-width="2.5" stroke-dasharray="9,4" rx="4"/>
+
+  <!-- ── Labels for the nested boxes ── -->
+  <text x="10"  y="9"  font-size="9" fill="#2980b9" font-weight="bold">L0</text>
+  <text x="13"  y="12" font-size="9" fill="#27ae60"  font-weight="bold" dy="12">L1</text>
+  <text x="19"  y="30" font-size="9" fill="#e67e00"  font-weight="bold" dy="14">L2</text>
+
+  <!-- Legend -->
+  <line x1="20"  y1="238" x2="42"  y2="238" stroke="#2980b9" stroke-width="2"
+        stroke-dasharray="7,3"/>
+  <text x="46"  y="242" font-size="9" fill="#2980b9">Root (L0)</text>
+  <line x1="100" y1="238" x2="122" y2="238" stroke="#27ae60" stroke-width="2"
+        stroke-dasharray="5,3"/>
+  <text x="126" y="242" font-size="9" fill="#27ae60">L1</text>
+  <line x1="148" y1="238" x2="168" y2="238" stroke="#e67e00" stroke-width="1.5"
+        stroke-dasharray="4,2"/>
+  <text x="172" y="242" font-size="9" fill="#e67e00">L2</text>
+  <rect x="215" y="232" width="10" height="8" fill="#d4edb8" stroke="#88b060"
+        stroke-width="0.8"/>
+  <text x="229" y="242" font-size="9" fill="#555">nearest region</text>
+
+  <!-- ── Level labels on right side of left panel ── -->
+  <text x="308" y="30"  font-size="9" fill="#2980b9" font-style="italic">← L0</text>
+  <text x="308" y="70"  font-size="9" fill="#27ae60"  font-style="italic">← L1</text>
+  <text x="308" y="100" font-size="9" fill="#e67e00"  font-style="italic">← L2 (TR)</text>
+
+  <!-- ── Query point P ── -->
+  <circle cx="350" cy="57" r="5" fill="#c0392b"/>
+  <text x="360" y="54" font-size="11" fill="#c0392b" font-weight="bold">P</text>
+  <text x="347" y="68" font-size="8.5" fill="#c0392b">query point</text>
+  <!-- Arrow from P toward the solid (to nearest L2 box) -->
+  <line x1="345" y1="57" x2="291" y2="57" stroke="#c0392b" stroke-width="1.5"
+        stroke-dasharray="3,2" marker-end="url(#arr-red)"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!--  RIGHT PANEL — BVH traversal tree                             -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <rect x="394" y="0" width="306" height="260" fill="#f4f4f4" rx="6"/>
+  <text x="547" y="16" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#222">BVH traversal for P</text>
+
+  <!-- Root node L0 -->
+  <rect x="497" y="24" width="100" height="26" fill="#d6eaf8" stroke="#2980b9"
+        stroke-width="2" rx="4"/>
+  <text x="547" y="41" text-anchor="middle" font-size="10" fill="#1a5276">L0 (8 triangles)</text>
+
+  <!-- L0 → L1:left edge (grey, pruned branch) -->
+  <line x1="547" y1="50" x2="470" y2="80" stroke="#bbb" stroke-width="1.2"/>
+  <!-- L0 → L1:right edge (red, active path) -->
+  <line x1="547" y1="50" x2="625" y2="80" stroke="#c0392b" stroke-width="2.2"/>
+
+  <!-- L1:left (pruned) -->
+  <rect x="420" y="80" width="100" height="26" fill="#eeeeee" stroke="#bbb"
+        stroke-width="1.2" rx="4"/>
+  <text x="470" y="97" text-anchor="middle" font-size="10" fill="#999">L1: left ✗</text>
+  <text x="470" y="116" text-anchor="middle" font-size="8.5" fill="#bbb"
+        font-style="italic">pruned (farther)</text>
+
+  <!-- L1:right (on path) -->
+  <rect x="575" y="80" width="100" height="26" fill="#fdebd0" stroke="#e67e00"
+        stroke-width="2" rx="4"/>
+  <text x="625" y="93" text-anchor="middle" font-size="10" fill="#a04000"
+        font-weight="bold">L1: right ✓</text>
+  <text x="625" y="104" text-anchor="middle" font-size="8.5" fill="#a04000">4 triangles</text>
+
+  <!-- L1:right → L2:TR edge (red, active) -->
+  <line x1="625" y1="106" x2="595" y2="136" stroke="#c0392b" stroke-width="2.2"/>
+  <!-- L1:right → L2:BR edge (grey, pruned) -->
+  <line x1="625" y1="106" x2="668" y2="136" stroke="#bbb" stroke-width="1.2"/>
+
+  <!-- L2:TR (on path — nearest to P) -->
+  <rect x="548" y="136" width="94" height="26" fill="#fde8d8" stroke="#c0392b"
+        stroke-width="2" rx="4"/>
+  <text x="595" y="149" text-anchor="middle" font-size="10" fill="#c0392b"
+        font-weight="bold">L2: TR ✓</text>
+  <text x="595" y="160" text-anchor="middle" font-size="8.5" fill="#c0392b">
+    2 triangles</text>
+
+  <!-- L2:BR (pruned) -->
+  <rect x="643" y="136" width="50" height="26" fill="#eeeeee" stroke="#bbb"
+        stroke-width="1.2" rx="4"/>
+  <text x="668" y="149" text-anchor="middle" font-size="9.5" fill="#999">
+    L2: BR ✗</text>
+  <text x="668" y="167" text-anchor="middle" font-size="8.5" fill="#bbb"
+        font-style="italic">pruned</text>
+
+  <!-- L2:TR → 2 leaf triangles -->
+  <line x1="595" y1="162" x2="578" y2="192" stroke="#c0392b" stroke-width="1.8"/>
+  <line x1="595" y1="162" x2="612" y2="192" stroke="#c0392b" stroke-width="1.8"/>
+  <polygon points="565,192 578,216 552,216" fill="#e74c3c" opacity="0.85"
+           stroke="#c0392b" stroke-width="0.8"/>
+  <polygon points="600,192 613,216 587,216" fill="#c0392b" opacity="0.85"
+           stroke="#922b21" stroke-width="0.8"/>
+  <text x="582" y="228" text-anchor="middle" font-size="9" fill="#c0392b">
+    exact check: 2 tri</text>
+
+  <!-- ── O(log N) summary bar ── -->
+  <rect x="402" y="240" width="290" height="16" fill="#eaf4ff" rx="3"
+        stroke="#2980b9" stroke-width="0.8"/>
+  <text x="547" y="252" text-anchor="middle" font-size="9.5" fill="#1a5276">Visited: 5 nodes + 2 triangles — not all 8 · O(log T) per query</text>
+</svg>
