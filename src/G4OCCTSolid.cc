@@ -958,7 +958,7 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
   // safety distances).  Avoids the expensive per-face BRepExtrema_DistShapeShape
   // calls that dominate ExactDistanceToIn for curved surfaces (e.g. ellipsoids).
   const G4double bvhDist = BVHLowerBoundDistance(p);
-  if (bvhDist > IntersectionTolerance()) {
+  if (bvhDist < kInfinity && bvhDist > IntersectionTolerance()) {
     return bvhDist;
   }
 
