@@ -244,6 +244,35 @@ class G4OCCTSolid : public G4VSolid {
 
 ---
 
+# Bounding Volume Hierarchy (BVH)
+
+**BVH** — a spatial tree where each node's bounding box contains all geometry in its subtree.
+Built at construction time over the **triangulated faces** of the solid.
+
+.col2[
+.box[
+### The Problem
+
+`DistanceToIn(p)` and `DistanceToOut(p)` need the **nearest surface point** to a query point.
+Naïve approach: test every face — O(N_faces) OCCT calls per query.
+]
+.box[
+### BVH Solution
+
+Descend the tree; at each node compare the point against the **bounding box**.
+Subtrees whose box is farther than the current best are **pruned** — O(log T) work.
+Built via OCCT's `BRepExtrema_TriangleSet`; corrected by mesh deflection δ.
+]
+]
+
+<div style="text-align:center;margin-top:0.4em">
+  <img src="bvh_diagram.svg"
+       alt="Left: nested bounding boxes (L0/L1/L2) over a triangulated solid with query point P. Right: BVH traversal tree showing pruned branches."
+       style="height:185px">
+</div>
+
+---
+
 # Performance Profile
 
 | Method | Native Geant4 | G4OCCTSolid (current) | Notes |
