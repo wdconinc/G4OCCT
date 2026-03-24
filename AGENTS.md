@@ -293,6 +293,19 @@ Do not lower these version floors without an explicit project decision.
   distance to the surface, not the exact distance.  Document and implement them
   accordingly.  Use the `ExactDistanceToIn/Out` variants when an exact value is
   required.
+- **Tiered acceleration pattern for `DistanceToIn/Out(p)`**: both methods use the
+  same three-tier structure to avoid expensive `BRepExtrema_DistShapeShape` per-face
+  calls for the common (outside, well-separated) case:
+  1. **Tier-0** `AABBLowerBound(p)` — O(1), catches points outside the bounding box.
+  2. **Tier-1** `BVHLowerBoundDistance(p)` — O(log N_triangles), BVH over the
+     triangulated surface; returns `max(0, meshDist − fBVHDeflection)` which is a
+     provably conservative lower bound for outside points.  For all-planar solids,
+     `DistanceToOut(p)` uses `PlanarFaceLowerBoundDistance` instead.
+  3. **Tier-2** exact fallback — `ExactDistanceToIn/Out(p)`, only reached for
+     near-surface points where the BVH lower bound is ≤ `IntersectionTolerance()`.
+  Do **not** skip Tier-1 in any new DTI/DTO implementation.  Omitting it causes
+  O(N_faces × Newton_iterations) behaviour for every point inside the AABB, which
+  is catastrophic for curved surfaces (e.g. 2237× slowdown for ellipsoids).
 - `GetPointOnSurface()` must sample from OCCT tessellation.  Returning the
   origin (the `G4VSolid` base-class default) triggers Geant4 warnings.
 - Internal helper types (e.g. `FaceBounds`, `ClosestFaceMatch`) must be
