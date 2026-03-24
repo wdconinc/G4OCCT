@@ -93,12 +93,19 @@ AI agents) must follow these instructions.
   `<algorithm>`, `<cmath>`, `<cstdlib>`, `<cstddef>`, `<stdexcept>`, etc.
   when using their symbols, and remove unused includes to silence
   compiler/clang-tidy warnings about unused includes.
+- The **IWYU workflow** (`.github/workflows/iwyu.yml`) enforces
+  include-what-you-use on every PR using `iwyu_tool.py` + `fix_includes.py`.
+  The mapping file `.github/iwyu.imp` handles OCCT header aliases.  PRs that
+  introduce unnecessary or missing includes will fail this check.
 
 ---
 
 ## 3. Build Requirements
 
-- **C++ standard:** C++20 (`CMAKE_CXX_STANDARD 20`).
+- **C++ standard:** C++20 (`CMAKE_CXX_STANDARD 20`).  All C++20 features
+  (`std::numbers::pi`, designated initialisers, `<ranges>`, etc.) are
+  available and preferred.  Prefer `std::numbers::pi` over `M_PI` or
+  `acos(-1.0)`.
 - **Minimum Geant4 version:** 11.3 — specified as `find_package(Geant4 11.3 REQUIRED)`.
 - **Minimum OpenCASCADE version:** 7.8 — specified as
   `find_package(OpenCASCADE 7.8 REQUIRED COMPONENTS ...)`.
@@ -159,6 +166,12 @@ Do not lower these version floors without an explicit project decision.
   and `fixture_validation.cc`; examples include `fixture.volume_mismatch`,
   `fixture.ray_distance_mismatch`, and `fixture.safety_mismatch`.  Consult
   those files to find the current complete list.
+- **Assembly fixture generation** must use **TCL/DRAWEXE scripts** (the same
+  approach used for single-solid fixtures), not custom C++ code.  Custom C++
+  generators do not scale to many assemblies and were rejected (PR #155).
+- **GDML files** (`.gdml`) are XML and can carry SPDX headers in an XML
+  comment.  Do **not** add `.gdml` files to the `ignore-paths` list in
+  `.github/workflows/spdx.yml`.
 
 ---
 
@@ -178,6 +191,17 @@ Do not lower these version floors without an explicit project decision.
   (e.g. `git diff base..head` for clang-tidy annotation) fail inside the
   Apptainer container when using shallow checkouts.  Generate diffs and any
   git-dependent data **outside the container** before entering eic-shell.
+- **Python packages in the container:** The eic-shell container has a
+  read-only system Python.  Do **not** use bare `pip install <pkg>`.  Instead
+  create a local virtual environment:
+  ```bash
+  python3 -m venv /tmp/venv && /tmp/venv/bin/pip install <pkg>
+  ```
+- **FetchContent in the container:** HTTP downloads via FetchContent may fail
+  inside the eic-shell container due to network restrictions.  Always attempt
+  `find_package` first; use FetchContent as a fallback with a cache key so CI
+  doesn't re-download on every run.  Use `actions/cache` to cache the
+  FetchContent download directory between runs.
 - **CI job (`ci.yml`):** Two jobs:
   1. `build-test-benchmark` — builds with `-DCMAKE_BUILD_TYPE=Release
      -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`, runs tests, and installs.
@@ -276,6 +300,14 @@ Do not lower these version floors without an explicit project decision.
   leak implementation details into the public API surface.
 - `G4Polyhedra` STEP fixtures use the **circumradius**, not the apothem.
   Confusing the two produces incorrect vertex positions (PR #130).
+- **`kInfinity` is not IEEE infinity.**  Geant4's `kInfinity ≈ 1e100` is a
+  large finite value; `std::isinf(kInfinity)` is `false`.  Test for it with
+  `distance >= kInfinity`, not with `std::isinf()`.
+- **Use public accessors for Geant4 class members.**  Never access private
+  data members (e.g. `fScale`, `fSolidPtr`) of Geant4 classes directly.  Use
+  the provided accessor methods (`GetScaleTransform()`, `GetUnscaledSolid()`,
+  etc.).  Private member names are implementation details that change between
+  Geant4 versions.
 
 ---
 
@@ -287,6 +319,11 @@ Do not lower these version floors without an explicit project decision.
 - Section dividers use `// ── Section name ──...──` (em-dash style) as seen
   in existing source files.
 - No trailing whitespace; use 2-space indentation for C++; 100-character column limit.
+- Use **`using`** declarations to alias long OCCT or Geant4 type names at
+  local scope rather than repeating the full name at each call site.  Example:
+  ```cpp
+  using Handle_Geom_Plane = opencascade::handle<Geom_Plane>;
+  ```
 
 ---
 
