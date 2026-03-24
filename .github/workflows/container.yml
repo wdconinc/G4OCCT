@@ -11,8 +11,15 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-base:
+    uses: ./.github/workflows/base-container.yml
+    permissions:
+      packages: write
+    secrets: inherit
+
   build-container:
     name: Build and push G4OCCT container
+    needs: build-base
     runs-on: ubuntu-latest
     permissions:
       packages: write

@@ -9,6 +9,7 @@ on:
     tags: ['v*']
     paths:
       - '.github/spack.yaml'
+  workflow_call:
   workflow_dispatch:
 
 jobs:
