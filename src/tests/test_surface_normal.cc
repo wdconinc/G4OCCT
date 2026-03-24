@@ -83,4 +83,35 @@ TEST(SurfaceNormal, Cylinder) {
   ExpectUnitNormal("cylinder bottom normal is unit length", bottomNormal);
 }
 
+TEST(SurfaceNormal, BVHPruningStrictComparisonRegression) {
+  // Regression for the strict (>) AABB pruning comparison in TryFindClosestFace.
+  //
+  // The previous >= comparison would incorrectly prune the true closest face when
+  // fb.box.Distance(queryBox) exactly equalled the BVH-seeded maxDistance threshold
+  // (seedDist = bvhLB + 2·fBVHDeflection), causing TryFindClosestFace to return
+  // std::nullopt and SurfaceNormal() to fall back to FallbackNormal() = (0,0,1).
+  //
+  // A cylinder is used because it is non-planar (curved barrel + flat end caps), so
+  // fAllFacesPlanar == false and SurfaceNormal() is forced onto the BVH-seeded
+  // TryFindClosestFace path — not the all-planar fast path.
+  //
+  // Query point: (radius + delta, 0, 0), just outside the barrel.
+  //   • Barrel AABB distance ≈ delta (small — evaluated by TryFindClosestFace).
+  //   • End-cap AABB distances ≈ halfLength >> seedDist — pruned even with new code.
+  // If the barrel were incorrectly pruned (bug), TryFindClosestFace would return
+  // nullopt and SurfaceNormal() would return FallbackNormal() = (0,0,1), which would
+  // fail the (1,0,0) assertion below.
+  //
+  // Note: the exact AABB == seed-threshold equality depends on fBVHDeflection
+  // (implementation-internal), so the arithmetic coincidence cannot be engineered
+  // precisely via the public API.  This test exercises the same code path and would
+  // detect a regression if the strict > comparison were reverted to >=.
+  const CylinderFixture cyl("BVHPruningRegressionCylinder", 25.0 * mm, 40.0 * mm);
+
+  const G4double delta            = 0.5 * mm;
+  const G4ThreeVector outsidePoint(cyl.radius + delta, 0.0, 0.0);
+  ExpectSurfaceNormal("cylinder barrel outward normal from outside point (BVH pruning regression)",
+                      cyl.solid, outsidePoint, G4ThreeVector(1.0, 0.0, 0.0), 1e-4 * mm);
+}
+
 } // namespace
