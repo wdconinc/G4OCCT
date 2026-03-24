@@ -112,7 +112,9 @@ After the PR is filed, remove the worktree:
 
 ```bash
 cd /path/to/repo
-git worktree remove .worktree/<branch-name>
+git worktree list
+# Identify the path for the docs/agents-lessons-pr<start>-<end> worktree, then:
+git worktree remove <worktree-path>
 ```
 
 ## Rules and Pitfalls
