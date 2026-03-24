@@ -221,7 +221,7 @@ if(G4_VIS_EXECUTIVE_HH)
         ${_qualified_id})
     set_tests_properties(
       "render_geometry_fixtures/${_qualified_id}"
-      PROPERTIES RUN_SERIAL TRUE TIMEOUT 120 LABELS "visualization")
+      PROPERTIES RUN_SERIAL TRUE LABELS "visualization")
   endforeach()
   unset(_render_skip_families)
   unset(_render_family_manifests)
