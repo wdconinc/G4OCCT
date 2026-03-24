@@ -542,6 +542,7 @@ void G4OCCTSolid::ComputeBounds() {
   // index i for every triangle belonging to that face.
   fTriangleFaceIdx.clear();
   if (!fTriangleSet.IsNull()) {
+    fTriangleFaceIdx.reserve(static_cast<std::size_t>(fTriangleSet->Size()));
     std::size_t faceIdx = 0;
     TopLoc_Location loc;
     for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next(), ++faceIdx) {
@@ -904,16 +905,14 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // O(log N_triangles), replacing TryFindClosestFace (O(N_faces × BRepExtrema)).
   // GeomAPI_ProjectPointOnSurf is then called once on that single face to obtain
   // the (u,v) parameters needed for normal evaluation.
-  const FaceBounds* fb = BVHFindNearestFaceBounds(p);
 
-  // Fallback: BVH unavailable — use the per-face BRepExtrema loop.
-  if (fb == nullptr) {
-    const auto closestFaceMatch = TryFindClosestFace(fFaceBoundsCache, p);
-    if (!closestFaceMatch.has_value()) {
-      return FallbackNormal();
-    }
+  // Shared helper: project @p onto @face, obtain (u,v), and evaluate the outward
+  // normal.  When @adaptor is non-null (BVH path) the pre-built cached adaptor is
+  // used (fast overload of TryGetOutwardNormal); otherwise it is constructed on the fly.
+  const auto projectAndGetNormal = [&](const TopoDS_Face& face,
+                                       const BRepAdaptor_Surface* adaptor) -> G4ThreeVector {
     TopLoc_Location loc;
-    const Handle(Geom_Surface) surface = BRep_Tool::Surface(closestFaceMatch->face, loc);
+    const Handle(Geom_Surface) surface = BRep_Tool::Surface(face, loc);
     if (surface.IsNull()) {
       return FallbackNormal();
     }
@@ -928,33 +927,24 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
     Standard_Real u = 0.0;
     Standard_Real v = 0.0;
     projection.LowerDistanceParameters(u, v);
-    const auto normal = TryGetOutwardNormal(closestFaceMatch->face, u, v);
+    const std::optional<G4ThreeVector> normal =
+        adaptor ? TryGetOutwardNormal(*adaptor, face, u, v) : TryGetOutwardNormal(face, u, v);
     return normal.value_or(FallbackNormal());
-  }
+  };
 
-  TopLoc_Location loc;
-  const Handle(Geom_Surface) surface = BRep_Tool::Surface(fb->face, loc);
-  if (surface.IsNull()) {
-    return FallbackNormal();
-  }
+  const FaceBounds* fb = BVHFindNearestFaceBounds(p);
 
-  gp_Pnt pLocal = ToPoint(p);
-  if (!loc.IsIdentity()) {
-    pLocal.Transform(loc.Transformation().Inverted());
+  // Fallback: BVH unavailable — use the per-face BRepExtrema loop.
+  if (fb == nullptr) {
+    const auto closestFaceMatch = TryFindClosestFace(fFaceBoundsCache, p);
+    if (!closestFaceMatch.has_value()) {
+      return FallbackNormal();
+    }
+    return projectAndGetNormal(closestFaceMatch->face, nullptr);
   }
-
-  GeomAPI_ProjectPointOnSurf projection(pLocal, surface);
-  if (projection.NbPoints() == 0) {
-    return FallbackNormal();
-  }
-
-  Standard_Real u = 0.0;
-  Standard_Real v = 0.0;
-  projection.LowerDistanceParameters(u, v);
 
   // Use the pre-built face adaptor from fFaceBoundsCache (fast overload).
-  const auto normal = TryGetOutwardNormal(fb->adaptor, fb->face, u, v);
-  return normal.value_or(FallbackNormal());
+  return projectAndGetNormal(fb->face, &fb->adaptor);
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {
