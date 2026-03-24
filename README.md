@@ -3,8 +3,8 @@
 
 # G4OCCT
 
-[![CI](https://github.com/wdconinc/G4OCCT/actions/workflows/ci.yml/badge.svg)](https://github.com/wdconinc/G4OCCT/actions/workflows/ci.yml)
-[![Documentation](https://github.com/wdconinc/G4OCCT/actions/workflows/docs.yml/badge.svg)](https://wdconinc.github.io/G4OCCT/)
+[![CI](https://github.com/eic/G4OCCT/actions/workflows/ci.yml/badge.svg)](https://github.com/eic/G4OCCT/actions/workflows/ci.yml)
+[![Documentation](https://github.com/eic/G4OCCT/actions/workflows/docs.yml/badge.svg)](https://eic.github.io/G4OCCT/)
 [![License: LGPL v2.1](https://img.shields.io/badge/License-LGPL_v2.1-blue.svg)](LICENSE)
 
 Geant4 interface to Open CASCADE Technology (OCCT) geometry definitions.
@@ -36,7 +36,7 @@ such as STEP.  G4OCCT bridges this gap by:
   can capture design intent (fillets, chamfers, swept surfaces) that CSG
   primitives cannot.
 
-For more detail see the [Project Goals](https://wdconinc.github.io/G4OCCT/#/goals)
+For more detail see the [Project Goals](https://eic.github.io/G4OCCT/#/goals)
 documentation page.
 
 ---
@@ -55,8 +55,8 @@ infrastructure remain unchanged.
 
 Navigation queries (`Inside`, `DistanceToIn/Out`, `SurfaceNormal`, …) are
 delegated to OCCT BRep algorithms.  See the
-[Geometry Mapping](https://wdconinc.github.io/G4OCCT/#/geometry_mapping) and
-[Solid Navigation Design](https://wdconinc.github.io/G4OCCT/#/solid_navigation)
+[Geometry Mapping](https://eic.github.io/G4OCCT/#/geometry_mapping) and
+[Solid Navigation Design](https://eic.github.io/G4OCCT/#/solid_navigation)
 documentation pages for details.
 
 ---
@@ -134,20 +134,20 @@ G4OCCT/
 
 ## Documentation
 
-Full documentation is available at **<https://wdconinc.github.io/G4OCCT/>**,
+Full documentation is available at **<https://eic.github.io/G4OCCT/>**,
 including:
 
-- [**Project Overview Slides**](https://wdconinc.github.io/G4OCCT/slides.html) —
+- [**Project Overview Slides**](https://eic.github.io/G4OCCT/slides.html) —
   20-slide deck covering motivation, architecture, performance, and roadmap.
-- [Project Goals](https://wdconinc.github.io/G4OCCT/#/goals) — Vision,
+- [Project Goals](https://eic.github.io/G4OCCT/#/goals) — Vision,
   motivation, design philosophy, and roadmap.
-- [Geometry Mapping](https://wdconinc.github.io/G4OCCT/#/geometry_mapping) —
+- [Geometry Mapping](https://eic.github.io/G4OCCT/#/geometry_mapping) —
   Correspondence between Geant4 and OCCT class hierarchies.
-- [Solid Navigation Design](https://wdconinc.github.io/G4OCCT/#/solid_navigation) —
+- [Solid Navigation Design](https://eic.github.io/G4OCCT/#/solid_navigation) —
   Per-function mapping of `G4VSolid` queries to OCCT algorithms.
-- [Material Bridging](https://wdconinc.github.io/G4OCCT/#/material_bridging) —
+- [Material Bridging](https://eic.github.io/G4OCCT/#/material_bridging) —
   Strategies for mapping STEP/OCCT material names to `G4Material`.
-- [API Reference](https://wdconinc.github.io/G4OCCT/api/) — Doxygen-generated
+- [API Reference](https://eic.github.io/G4OCCT/api/) — Doxygen-generated
   API documentation.
 
 ---
