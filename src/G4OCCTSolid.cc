@@ -798,7 +798,7 @@ G4OCCTSolid::IntersectorCache& G4OCCTSolid::GetOrCreateIntersector() const {
     cache.faceIntersectors.reserve(fFaceBoundsCache.size());
     cache.expandedBoxes.clear();
     cache.expandedBoxes.reserve(fFaceBoundsCache.size());
-    cache.passFilter.assign(fFaceBoundsCache.size(), 0);
+    cache.passFilter.assign(fFaceBoundsSOA.PaddedSize(), 0);
     for (const auto& fb : fFaceBoundsCache) {
       cache.faceIntersectors.push_back(
           std::make_unique<IntCurvesFace_Intersector>(fb.face, tol)); // O(1) per face

@@ -487,9 +487,16 @@ src/FaceBoundsSOA.cc            — scalar + AVX2 implementation (one TU)
   `__m256`/`__m128` directly.  All intrinsic code lives behind `#ifdef GOCCT_HAVE_AVX2`
   guards in `FaceBoundsSOA.cc`.
 
-- **`SimdSupport.hh`**: The only header that includes `<immintrin.h>`.  Include
-  this header (not `<immintrin.h>`) whenever ISA detection macros or
-  `AlignedAllocator` are needed.
+- **`SimdSupport.hh`**: Header providing ISA detection macros
+  (`GOCCT_HAVE_AVX2`, `GOCCT_HAVE_SSE4`, `GOCCT_HAVE_FMA`), the
+  `AlignedAllocator` helper, and the `GOCCT_IVDEP` cross-compiler
+  auto-vectorisation hint.  Include this header at call sites that need ISA
+  feature macros or aligned containers.  Do **not** include `<immintrin.h>`
+  from headers.
+
+- **SIMD intrinsics headers**: Include `<immintrin.h>` only from `.cc` files
+  that implement SIMD kernels (for example, `FaceBoundsSOA.cc`), and always
+  under the appropriate `#if defined(GOCCT_HAVE_AVX2)` (or similar) guard.
 
 - **`AlignedAllocator<T, Alignment>`**: Wrap SoA `std::vector` declarations
   with this allocator to guarantee 32-byte alignment for aligned AVX2 loads:

@@ -310,7 +310,9 @@ private:
   ///
   /// `passFilter` is a pre-allocated workspace used by the SIMD batch AABB
   /// prefilter.  It is written and read within the same method call; its size
-  /// equals `fFaceBoundsCache.size()`.
+  /// equals `fFaceBoundsSOA.PaddedSize()` (the face count rounded up to the
+  /// SIMD lane width) so that SIMD kernels may write past the last real face
+  /// without an out-of-bounds access.
   struct IntersectorCache {
     std::uint64_t generation{std::numeric_limits<std::uint64_t>::max()};
     std::vector<std::unique_ptr<IntCurvesFace_Intersector>> faceIntersectors;

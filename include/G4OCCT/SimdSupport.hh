@@ -33,6 +33,24 @@
 #  define GOCCT_HAVE_FMA 1
 #endif
 
+// ── Auto-vectorisation hint ───────────────────────────────────────────────────
+
+/// Cross-compiler hint to suppress dependency analysis and enable
+/// auto-vectorisation of the immediately following loop.
+///
+/// Usage:
+/// ```cpp
+/// GOCCT_IVDEP
+/// for (std::size_t i = 0; i < n; ++i) { ... }
+/// ```
+#if defined(__clang__)
+#  define GOCCT_IVDEP _Pragma("clang loop vectorize(enable)")
+#elif defined(__GNUC__)
+#  define GOCCT_IVDEP _Pragma("GCC ivdep")
+#else
+#  define GOCCT_IVDEP
+#endif
+
 // ── Aligned allocator ─────────────────────────────────────────────────────────
 
 namespace G4OCCT {

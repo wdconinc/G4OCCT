@@ -69,7 +69,7 @@ public:
   /// `[ymin, ymax]`.  Setting `out[i] = 1` means face `i` should be tested.
   ///
   /// @param px, py  XY coordinates of the query point.
-  /// @param out     Caller-allocated array of at least `Size()` bytes.
+  /// @param out     Caller-allocated array of at least `PaddedSize()` bytes.
   void RayZPassFilter(double px, double py, std::uint8_t* out) const;
 
   /// Prefilter for a general ray (used in `DistanceToIn/Out(p,v)`).
@@ -78,7 +78,7 @@ public:
   /// Setting `out[i] = 1` means face `i` should be tested.
   ///
   /// @param ray  OCCT line (origin + direction).
-  /// @param out  Caller-allocated array of at least `Size()` bytes.
+  /// @param out  Caller-allocated array of at least `PaddedSize()` bytes.
   void RayPassFilter(const gp_Lin& ray, std::uint8_t* out) const;
 
   /// Return the minimum plane distance and the index of the closest planar face.
@@ -91,6 +91,12 @@ public:
 
   /// Number of faces stored (before padding).
   std::size_t Size() const { return fActualSize; }
+
+  /// Size of the internal arrays (rounded up to `kLaneWidth`).
+  ///
+  /// Callers must allocate **at least** `PaddedSize()` bytes for the `out`
+  /// buffers passed to `RayZPassFilter` and `RayPassFilter`.
+  std::size_t PaddedSize() const { return fPaddedSize; }
 
 private:
   using AlignedVec = std::vector<double, AlignedAllocator<double, 32>>;
