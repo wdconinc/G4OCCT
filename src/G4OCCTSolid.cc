@@ -601,64 +601,19 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
   Bnd_Box queryBox;
   queryBox.Add(queryPoint);
 
-  // seedDist starts at maxDistance and is tightened by interior projections so
-  // subsequent faces can be pruned earlier (before BRepExtrema is called for them).
-  G4double seedDist = maxDistance;
-
-  // Attempt to project queryPt onto the (infinite) underlying surface of a face and
-  // return the distance if the projected UV lands within the surface's rectangular
-  // parameter bounds (interior solution).  Returns nullopt for periodic surfaces,
-  // on projection failure, or when UV is outside the rectangular bounds.
-  // Used only to tighten seedDist; BRepExtrema_DistShapeShape remains authoritative.
-  const auto tryInteriorDistance = [&](const FaceBounds& fb) -> std::optional<G4double> {
-    // Skip periodic surfaces: the rectangular UV bounds check is unreliable
-    // near seams (the parameterisation wraps around).
-    if (fb.adaptor.IsUPeriodic() || fb.adaptor.IsVPeriodic()) {
-      return std::nullopt;
-    }
-    TopLoc_Location loc;
-    const Handle(Geom_Surface) surf = BRep_Tool::Surface(fb.face, loc);
-    if (surf.IsNull()) {
-      return std::nullopt;
-    }
-    gp_Pnt pLocal = queryPoint;
-    if (!loc.IsIdentity()) {
-      pLocal.Transform(loc.Transformation().Inverted());
-    }
-    GeomAPI_ProjectPointOnSurf proj(pLocal, surf);
-    if (proj.NbPoints() == 0) {
-      return std::nullopt;
-    }
-    Standard_Real u = 0.0;
-    Standard_Real v = 0.0;
-    proj.LowerDistanceParameters(u, v);
-    // Rectangular UV bounds check (conservative: the actual trim may be smaller,
-    // but for non-periodic surfaces this filter rarely admits out-of-trim points).
-    if (u < fb.adaptor.FirstUParameter() || u > fb.adaptor.LastUParameter() ||
-        v < fb.adaptor.FirstVParameter() || v > fb.adaptor.LastVParameter()) {
-      return std::nullopt;
-    }
-    return static_cast<G4double>(proj.LowerDistance());
-  };
-
+  // Only confirmed BRepExtrema distances are used to prune subsequent faces.
+  // Do not rely on projection-based estimates: rectangular UV-bounds checks are not
+  // equivalent to the actual trimmed boundary (e.g., faces with inner wires / holes),
+  // so projection distances can underestimate the true face distance and cause
+  // incorrect pruning.  maxDistance provides a safe initial upper bound (e.g. from
+  // BVH tessellation) when no confirmed result is available yet.
   std::optional<ClosestFaceMatch> bestMatch;
   for (std::size_t i = 0; i < faceBoundsCache.size(); ++i) {
     const FaceBounds& fb = faceBoundsCache[i];
     // Lower bound: distance from query point to the face's axis-aligned bounding box.
-    // Use the tighter of bestMatch->distance and seedDist as the pruning threshold.
-    const G4double threshold =
-        bestMatch.has_value() ? std::min(bestMatch->distance, seedDist) : seedDist;
+    const G4double threshold = bestMatch.has_value() ? bestMatch->distance : maxDistance;
     if (threshold < kInfinity && fb.box.Distance(queryBox) > threshold) {
       continue;
-    }
-
-    // Attempt interior projection to tighten seedDist for subsequent faces.
-    // For convex curved faces viewed from outside, the closest point is typically
-    // in the face interior, so the projection distance equals the true face distance
-    // and accelerates pruning of farther candidates before BRepExtrema is called.
-    const auto interiorDist = tryInteriorDistance(fb);
-    if (interiorDist.has_value() && *interiorDist < seedDist) {
-      seedDist = *interiorDist;
     }
 
     // Use BRepExtrema_DistShapeShape for a robust point-to-face distance.

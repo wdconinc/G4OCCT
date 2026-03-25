@@ -7,7 +7,8 @@
 
 #include "G4OCCT/G4OCCTSolid.hh"
 
-// OCCT primitives
+// OCCT primitives and Boolean operations
+#include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <BRepPrimAPI_MakeSphere.hxx>
@@ -290,4 +291,77 @@ TEST(SolidInscribedSphereFastPath, ExteriorPointIsKOutside) {
 
   EXPECT_EQ(solid.Inside(G4ThreeVector(-1.0, 5.0, 5.0)), kOutside) << "outside -x face";
   EXPECT_EQ(solid.Inside(G4ThreeVector(5.0, 15.0, 5.0)), kOutside) << "outside +y face";
+}
+
+// ── Regression: face with inner wire (hole) ───────────────────────────────────
+// This test covers a solid whose planar cap faces each carry a rectangular inner
+// wire (hole) from a through-bore.  TryFindClosestFace must correctly evaluate
+// all candidate faces without incorrectly pruning them due to a projection-based
+// seedDist estimate.
+//
+// Background: the previous implementation introduced tryInteriorDistance(), which
+// projected a query point onto each face's underlying (infinite) surface and used
+// the perpendicular distance as a tighter upper bound for subsequent AABB pruning.
+// For a planar face with an inner wire the projection can land *inside the hole*,
+// making the perpendicular distance smaller than the true face distance (to the
+// hole boundary).  Using that under-estimate as a pruning threshold caused
+// adjacent faces to be skipped even when they were the true closest face.
+//
+// The geometry here is a cylinder (radius=10 mm, height=20 mm) with an 8×8 mm
+// rectangular through-bore centred on the Z axis.  This gives:
+//  • Two planar annular cap faces (z = 0 and z = 20), each with a rectangular
+//    inner wire.  fAllFacesPlanar == false (the outer cylinder barrel is curved),
+//    so SurfaceNormal() uses the BVH-seeded TryFindClosestFace path (Phase 2).
+//  • An outer cylindrical barrel face (curved, no inner wire).
+//  • Four inner planar channel-wall faces.
+//
+// Tests:
+//  1. SurfaceNormal at (10, 0, 10) — on the outer barrel.
+//     Expected: (1, 0, 0) (radially outward).
+//  2. ExactDistanceToIn at (0, 0, -6) — outside the solid, in the bore region
+//     below the bottom cap.
+//     The projection of this point onto the bottom cap plane lands at (0, 0, 0),
+//     which is *inside* the rectangular hole [-4, 4] × [-4, 4].  The nearest
+//     surface point is on the inner-wire edge of the bottom cap (or the
+//     shared bottom edge of the inner channel walls) at (4, 0, 0) or (0, 4, 0);
+//     the analytical distance is sqrt(kBoreHalf² + kQueryZ²) = sqrt(52) ≈ 7.211 mm.
+
+TEST(SolidFaceWithInnerWire, SurfaceNormalAndExactDistanceRegression) {
+  // Cylinder (r=10, h=20) minus an 8×8 mm box running the full height.
+  constexpr G4double kCylRadius  = 10.0;
+  constexpr G4double kCylHeight  = 20.0;
+  constexpr G4double kBoreHalf   = 4.0;  // half-width of the 8×8 mm bore
+  constexpr G4double kBoreExtend = 1.0;  // extension beyond each cap so the cut is clean
+
+  TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(kCylRadius, kCylHeight).Shape();
+  TopoDS_Shape bore     = BRepPrimAPI_MakeBox(gp_Pnt(-kBoreHalf, -kBoreHalf, -kBoreExtend),
+                                              gp_Pnt(kBoreHalf, kBoreHalf, kCylHeight + kBoreExtend))
+                              .Shape();
+  BRepAlgoAPI_Cut cut(cylinder, bore);
+  ASSERT_TRUE(cut.IsDone()) << "Boolean cut (cylinder − rectangular bore) must succeed";
+
+  G4OCCTSolid solid("CylinderRectBore", cut.Shape());
+
+  // ── Test 1: SurfaceNormal on the outer barrel ──────────────────────────────
+  // The outer cylinder barrel has no hole; its closest point to the query is
+  // (10, 0, 10).  The BVH-seeded TryFindClosestFace must not allow any
+  // projection-based estimate to prune the barrel face before it is evaluated.
+  const G4ThreeVector barrelPoint(kCylRadius, 0.0, kCylHeight / 2.0);
+  const G4ThreeVector barrelNormal = solid.SurfaceNormal(barrelPoint);
+
+  EXPECT_NEAR(barrelNormal.x(), 1.0, 1e-4) << "barrel SurfaceNormal x";
+  EXPECT_NEAR(barrelNormal.y(), 0.0, 1e-4) << "barrel SurfaceNormal y";
+  EXPECT_NEAR(barrelNormal.z(), 0.0, 1e-4) << "barrel SurfaceNormal z";
+
+  // ── Test 2: ExactDistanceToIn in the bore region below the solid ───────────
+  // Query point (0, 0, -6): below the bottom cap (z = 0), centred on the bore.
+  // Projection onto the bottom cap plane: (0, 0, 0) — inside the 8×8 hole.
+  // Correct distance: nearest surface point is on the inner-wire boundary at
+  // (kBoreHalf, 0, 0), giving sqrt(kBoreHalf² + queryZ²).
+  constexpr G4double kQueryZ    = 6.0;
+  const G4ThreeVector borePoint(0.0, 0.0, -kQueryZ);
+  const G4double actualDist   = solid.ExactDistanceToIn(borePoint);
+  const G4double expectedDist = std::sqrt(kBoreHalf * kBoreHalf + kQueryZ * kQueryZ);
+
+  EXPECT_NEAR(actualDist, expectedDist, 1e-3) << "ExactDistanceToIn below bore centre";
 }
