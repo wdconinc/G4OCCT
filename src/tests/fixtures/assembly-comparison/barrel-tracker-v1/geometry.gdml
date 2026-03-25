@@ -34,7 +34,9 @@
     <element name="O" formula="O" Z="8">
       <atom value="15.9994"/>
     </element>
-    <element name="Ar" formula="Ar" Z="18"><atom value="39.948"/></element>
+    <element name="Ar" formula="Ar" Z="18">
+      <atom value="39.948"/>
+    </element>
     <!-- Simplified silicon (same density as G4_Si) -->
     <material name="G4_Si" state="solid">
       <D unit="g/cm3" value="2.33"/>
