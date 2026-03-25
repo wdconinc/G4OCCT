@@ -654,16 +654,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 1
 
-      - name: Upload bench_raw.json for cross-run comparison
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: bench-raw-json
-          path: ci-reports/bench_raw.json
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Download target-branch bench_raw.json
+      - name: Download target-branch ci-reports artifact
         if: github.event_name == 'pull_request'
         id: download-target-bench
         uses: dawidd6/action-download-artifact@v6
@@ -671,8 +662,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: ci.yml
           branch: ${{ github.base_ref }}
-          name: bench-raw-json
-          path: target-bench-raw/
+          name: ci-reports
+          path: target-ci-reports/
           workflow_conclusion: success
           if_no_artifact_found: ignore
         continue-on-error: true
@@ -680,11 +671,11 @@ jobs:
       - name: Generate comparative OCCT benchmark report
         if: always()
         run: |
-          if [ -f ci-reports/bench_raw.json ] && [ -f target-bench-raw/bench_raw.json ]; then
+          if [ -f ci-reports/bench_raw.json ] && [ -f target-ci-reports/bench_raw.json ]; then
             mkdir -p reports
             python3 .github/scripts/generate_bench_compare_report.py \
               ci-reports/bench_raw.json \
-              target-bench-raw/bench_raw.json \
+              target-ci-reports/bench_raw.json \
               reports/bench-compare-results.md \
               reports/bench-compare-chart.svg \
               "${{ github.base_ref }}"
