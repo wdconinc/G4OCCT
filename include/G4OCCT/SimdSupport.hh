@@ -9,9 +9,9 @@
 /// - `G4OCCT_TARGET_AVX2` / `G4OCCT_TARGET_DEFAULT` — GCC/Clang function
 ///   target attributes that compile specific functions for a given ISA without
 ///   requiring global `-mavx2` flags.
-/// - `G4OCCT_CPU_HAS_AVX2` / `G4OCCT_CPU_HAS_SSE4` — runtime CPU capability
-///   checks via `__builtin_cpu_supports`; evaluate to `false` when
-///   `G4OCCT_USE_SIMD` is not defined or the compiler lacks the builtin.
+/// - `G4OCCT_CPU_HAS_AVX2` — runtime CPU capability check via
+///   `__builtin_cpu_supports`; evaluates to `false` when `G4OCCT_USE_SIMD`
+///   is not defined or the compiler lacks the builtin.
 /// - `G4OCCT::AlignedAllocator<T, Alignment>` for SIMD-aligned `std::vector`.
 ///
 /// No SIMD intrinsics appear here; they live in `FaceBoundsSOA.cc` which uses
@@ -41,13 +41,10 @@
     (defined(__x86_64__) || defined(__i386__))
 /// Mark a function to be compiled for the AVX2 + FMA instruction set.
 #  define G4OCCT_TARGET_AVX2    __attribute__((target("avx2,fma")))
-/// Mark a function to be compiled for the SSE 4.1 instruction set.
-#  define G4OCCT_TARGET_SSE4    __attribute__((target("sse4.1")))
 /// Explicit default-target marker (no ISA extension required).
 #  define G4OCCT_TARGET_DEFAULT __attribute__((target("default")))
 #else
 #  define G4OCCT_TARGET_AVX2
-#  define G4OCCT_TARGET_SSE4
 #  define G4OCCT_TARGET_DEFAULT
 #endif
 
@@ -63,11 +60,8 @@
     (defined(__x86_64__) || defined(__i386__))
 /// True at runtime when the executing CPU supports AVX2.
 #  define G4OCCT_CPU_HAS_AVX2  (__builtin_cpu_supports("avx2"))
-/// True at runtime when the executing CPU supports SSE 4.1.
-#  define G4OCCT_CPU_HAS_SSE4  (__builtin_cpu_supports("sse4.1"))
 #else
 #  define G4OCCT_CPU_HAS_AVX2  false
-#  define G4OCCT_CPU_HAS_SSE4  false
 #endif
 
 // ── Auto-vectorisation hint ───────────────────────────────────────────────────

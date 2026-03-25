@@ -33,6 +33,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -53,6 +54,9 @@ public:
 
   /// Sentinel distance used for non-planar faces in the plane-distance arrays.
   static constexpr double kNoPlaneDist = 1.0e300;
+
+  /// Sentinel index returned by `MinPlaneDistance` when no planar face exists.
+  static constexpr std::size_t kNoPlaneIndex = std::numeric_limits<std::size_t>::max();
 
   /// Populate SoA arrays from a per-face cache.
   ///
@@ -87,7 +91,7 @@ public:
   /// Return the minimum plane distance and the index of the closest planar face.
   ///
   /// Non-planar faces contribute `kNoPlaneDist` and are never the minimum.
-  /// Returns `{kNoPlaneDist, std::size_t(-1)}` when `Size() == 0` or when no
+  /// Returns `{kNoPlaneDist, kNoPlaneIndex}` when `Size() == 0` or when no
   /// planar face exists.
   ///
   /// @param px, py, pz  Query point coordinates.
