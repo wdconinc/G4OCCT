@@ -35,7 +35,14 @@ def _get_ctr(bm: dict, key: str, default: float = 0.0) -> float:
 
 
 def _parse_benchmark_name(name: str) -> tuple[str | None, str | None]:
-    """Parse ``BM_<method>/<fixture_id>`` → ``(method, fixture_id)``."""
+    """Parse ``BM_<method>/<family>/<fixture_id>`` → ``(method, fixture_id)``.
+
+    Google Benchmark appends suffixes such as ``/iterations:1`` and
+    ``/manual_time`` (or ``/real_time``) when ``Iterations()`` and
+    ``UseManualTime()`` (or ``UseRealTime()``) are configured.  These suffixes
+    are stripped so that the returned ``fixture_id`` matches the bare
+    ``<family>/<fixture_id>`` used by the point-cloud viewer.
+    """
     if not name.startswith("BM_"):
         return None, None
     rest  = name[3:]
@@ -321,7 +328,8 @@ def _render_compare_chart_svg(
         # Fixture label.
         short   = (fid if len(fid) <= _FIXTURE_LABEL_MAX_LEN
                    else "\u2026" + fid[-_FIXTURE_LABEL_SUFFIX_LEN:])
-        ef      = " \u26a0" if bf["has_expected_failure"] else ""
+        has_expected_failure = bf["has_expected_failure"] or cf["has_expected_failure"]
+        ef      = " \u26a0" if has_expected_failure else ""
         label_y = gy + group_h / 2 + 4
         e(f'  <text x="{_C_LABEL_W - 6}" y="{label_y:.0f}" fill="{_C_LABEL_CLR}" '
           f'font-size="10" text-anchor="end">{xml.sax.saxutils.escape(short)}{ef}</text>')
@@ -341,11 +349,11 @@ def _render_compare_chart_svg(
             if bw > 0:
                 e(f'  <rect x="{_C_LABEL_W}" y="{by}" width="{bw:.1f}" '
                   f'height="{_C_BAR_H}" fill="{_BASELINE_CLR}" rx="1">'
-                  f'<title>{mk} {xml.sax.saxutils.escape(baseline_label)}: {b_ms:.2f} ms</title></rect>')
+                  f'<title>{xml.sax.saxutils.escape(mk)} {xml.sax.saxutils.escape(baseline_label)}: {b_ms:.2f} ms</title></rect>')
             if cw > 0:
                 e(f'  <rect x="{_C_LABEL_W}" y="{by + _C_BAR_H + _C_BAR_GAP}" '
                   f'width="{cw:.1f}" height="{_C_BAR_H}" fill="{c_color}" rx="1">'
-                  f'<title>{mk} {xml.sax.saxutils.escape(current_label)}: {c_ms:.2f} ms '
+                  f'<title>{xml.sax.saxutils.escape(mk)} {xml.sax.saxutils.escape(current_label)}: {c_ms:.2f} ms '
                   f'({ratio_str})</title></rect>')
 
     # Bottom axis line.
@@ -408,8 +416,8 @@ def _render_compare_report(
         "",
         f"Baseline: **{md_escape(baseline_label)}** · Current: **{md_escape(current_label)}**",
         "",
-        "Compares OCCT (*imported*) timings only — native (Geant4) timings are excluded."
-        " \U0001f7e2 = current faster >5%, \U0001f534 = current slower >5%,"
+        "Compares OCCT (*imported*) timings only — native (Geant4) timings are excluded. "
+        "\U0001f7e2 = current faster >5%, \U0001f534 = current slower >5%,"
         " \u26aa = within \u00b15%.",
         "",
     ]
@@ -497,7 +505,7 @@ def _render_compare_report(
                 st    = _ratio_status(b_ms, c_ms)
                 cells.append(f"{b_str}\u2192{c_str} ({r_str}) {st}")
 
-        ef        = " \u26a0\ufe0f" if bf["has_expected_failure"] else ""
+        ef        = " \u26a0\ufe0f" if (bf["has_expected_failure"] or cf["has_expected_failure"]) else ""
         cells_str = " | ".join(cells)
         lines.append(
             f"| {md_escape(fid)}{ef} | {md_escape(bf['class'])} | {cells_str} |"
