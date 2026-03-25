@@ -11,6 +11,7 @@
 - [Performance Considerations](performance.md)
 - [Low-Level Optimization Design Notes](low_level_optimization.md)
 - [Geometry Test Status](geometry_test_status.md)
+- [NIST CTC Fixtures](nist_ctc.md)
 - **Examples**
   - [B1 — Water Phantom](example_b1.md)
   - [B4c — Sampling Calorimeter](example_b4c.md)
