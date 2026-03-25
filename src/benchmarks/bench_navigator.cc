@@ -24,9 +24,6 @@
 namespace g4occt::benchmarks {
 namespace {
 
-  // Reduced ray/point count for NIST CTC fixtures (large AP203 assemblies).
-  constexpr std::size_t kNistCtcRayCount = 64;
-
   using g4occt::tests::geometry::CompareFixtureInside;
   using g4occt::tests::geometry::CompareFixturePolyhedron;
   using g4occt::tests::geometry::CompareFixtureRays;
@@ -268,7 +265,7 @@ namespace {
         }
 
         // For imported-self-comparison fixtures (G4OCCTSolid / NIST CTC), register
-        // reduced-ray-count BM_rays and BM_inside benchmarks instead of skipping.
+        // BM_rays and BM_inside benchmarks instead of skipping.
         // Native == imported for these fixtures so mismatches are always 0.
         // BM_safety and BM_polyhedron are skipped (too expensive for large assemblies).
         if (IsImportedSelfComparisonFixture(fixture)) {
@@ -284,16 +281,13 @@ namespace {
             }
           }
 
-          FixtureRayComparisonOptions nist_ctc_ray_opts = ray_opts;
-          nist_ctc_ray_opts.ray_count                  = kNistCtcRayCount;
-
           benchmark::RegisterBenchmark(
               ("BM_rays/" + fixture_id).c_str(),
-              [fixture_id, request, nist_ctc_ray_opts, expected_failure](benchmark::State& state) {
+              [fixture_id, request, ray_opts, expected_failure](benchmark::State& state) {
                 for (auto _ : state) {
                   g4occt::tests::geometry::FixtureRayComparisonSummary ray;
                   try {
-                    ValidationReport report = CompareFixtureRays(request, nist_ctc_ray_opts, &ray);
+                    ValidationReport report = CompareFixtureRays(request, ray_opts, &ray);
                     report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
                                                                                  expected_failure);
                     std::lock_guard<std::mutex> lk(g_state->mu);
@@ -325,7 +319,6 @@ namespace {
               ->Unit(benchmark::kMillisecond);
 
           FixtureInsideComparisonOptions nist_ctc_inside_opts = inside_opts;
-          nist_ctc_inside_opts.point_count                   = kNistCtcRayCount;
           nist_ctc_inside_opts.include_near_surface_points   = false;
 
           benchmark::RegisterBenchmark(
