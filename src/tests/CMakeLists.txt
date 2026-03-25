@@ -118,8 +118,7 @@ foreach(fixture_id IN LISTS _geometry_fixture_ids)
   add_test(NAME "test_geometry_validation/${fixture_id}"
            COMMAND test_geometry_validation --fixture ${fixture_id})
   # nist-ctc fixtures are large AP203 compound-solid assemblies; give them an
-  # extended per-fixture timeout.  nist-ctc-02 and nist-ctc-07 remain disabled
-  # because they consistently time out even at 600 s (tracked separately).
+  # extended per-fixture timeout.
   if(fixture_id MATCHES "^nist-ctc-")
     set_tests_properties("test_geometry_validation/${fixture_id}"
                          PROPERTIES TIMEOUT 600)
@@ -129,12 +128,6 @@ unset(_family_fixture_lines)
 unset(_fixture_line)
 unset(_geometry_family_manifests)
 unset(_geometry_fixture_ids)
-# nist-ctc-02-v1 and nist-ctc-07-v1 consistently time out in CI even at 600 s
-# (see https://github.com/eic/G4OCCT/actions/runs/23174161275/job/67332574303).
-# Keep them disabled until the underlying performance issue is resolved.
-set_tests_properties(
-  "test_geometry_validation/nist-ctc-02-v1"
-  "test_geometry_validation/nist-ctc-07-v1" PROPERTIES DISABLED TRUE)
 
 # ─── render_geometry_fixtures ────────────────────────────────────────────────
 # Renders each fixture solid to a JPEG image using Geant4's built-in RayTracer
