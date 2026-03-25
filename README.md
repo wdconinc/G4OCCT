@@ -4,7 +4,7 @@
 # G4OCCT
 
 [![CI](https://github.com/eic/G4OCCT/actions/workflows/ci.yml/badge.svg)](https://github.com/eic/G4OCCT/actions/workflows/ci.yml)
-[![Documentation](https://github.com/eic/G4OCCT/actions/workflows/docs.yml/badge.svg)](https://eic.github.io/G4OCCT/)
+[![Documentation](https://github.com/eic/G4OCCT/actions/workflows/ci.yml/badge.svg)](https://eic.github.io/G4OCCT/)
 [![License: LGPL v2.1](https://img.shields.io/badge/License-LGPL_v2.1-blue.svg)](LICENSE)
 
 Geant4 interface to Open CASCADE Technology (OCCT) geometry definitions.
