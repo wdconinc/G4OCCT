@@ -124,6 +124,132 @@ private:
   Standard_Integer myBestIndex{-1};
 };
 
+/// BVH traversal class for the ray-parity Inside() test.
+///
+/// Casts a ray from @c myOrigin in direction @c myDir and counts how many
+/// triangles in the BVH-accelerated @c BRepExtrema_TriangleSet the ray crosses,
+/// using the Möller–Trumbore algorithm.  The parity of the crossing count gives
+/// the inside/outside classification.
+///
+/// Replaces the per-face @c IntCurvesFace_Intersector loop for curved faces in
+/// @c G4OCCTSolid::Inside(), providing an O(log N_triangles) BVH traversal
+/// instead of N_faces expensive OCCT solver calls.
+class TriangleRayCast
+    : public BVH_Traverse<Standard_Real, 3, BRepExtrema_TriangleSet, Standard_Real> {
+public:
+  /// Set the ray origin, normalised direction, and intersection tolerance.
+  /// Also resets all traversal output state so each cast starts clean.
+  void SetRay(const BVH_Vec3d& theOrigin, const BVH_Vec3d& theDir, Standard_Real theTolerance) {
+    myOrigin    = theOrigin;
+    myDir       = theDir;
+    myTolerance = theTolerance;
+
+    // Reset traversal output state so each cast starts from a clean state.
+    myCrossings  = 0;
+    myOnSurface  = Standard_False;
+    myDegenerate = Standard_False;
+  }
+
+  /// Reject a BVH node when the ray misses its AABB (slab method).
+  Standard_Boolean RejectNode(const BVH_Vec3d& theCornerMin, const BVH_Vec3d& theCornerMax,
+                              Standard_Real& theMetric) const override {
+    Standard_Real tmin = 0.0;
+    Standard_Real tmax = Precision::Infinite();
+    for (int k = 0; k < 3; ++k) {
+      const Standard_Real dk =
+          (k == 0) ? myDir.x() : (k == 1) ? myDir.y() : myDir.z();
+      const Standard_Real ok =
+          (k == 0) ? myOrigin.x() : (k == 1) ? myOrigin.y() : myOrigin.z();
+      const Standard_Real ck_min =
+          (k == 0) ? theCornerMin.x() : (k == 1) ? theCornerMin.y() : theCornerMin.z();
+      const Standard_Real ck_max =
+          (k == 0) ? theCornerMax.x() : (k == 1) ? theCornerMax.y() : theCornerMax.z();
+      if (std::abs(dk) < Precision::Confusion()) {
+        if (ok < ck_min - myTolerance || ok > ck_max + myTolerance) {
+          return Standard_True;
+        }
+      } else {
+        Standard_Real t1 = (ck_min - ok) / dk;
+        Standard_Real t2 = (ck_max - ok) / dk;
+        if (t1 > t2) {
+          std::swap(t1, t2);
+        }
+        if (t1 > tmin) {
+          tmin = t1;
+        }
+        if (t2 < tmax) {
+          tmax = t2;
+        }
+        if (tmin > tmax + myTolerance) {
+          return Standard_True;
+        }
+      }
+    }
+    theMetric = tmin;
+    return Standard_False;
+  }
+
+  /// Möller–Trumbore ray–triangle test; update crossing counters.
+  Standard_Boolean Accept(const Standard_Integer theIndex, const Standard_Real&) override {
+    BVH_Vec3d v0, v1, v2;
+    myBVHSet->GetVertices(theIndex, v0, v1, v2);
+    const BVH_Vec3d     edge1 = v1 - v0;
+    const BVH_Vec3d     edge2 = v2 - v0;
+    const BVH_Vec3d     h     = BVH_Vec3d::Cross(myDir, edge2);
+    const Standard_Real a     = edge1.Dot(h);
+    if (std::abs(a) < 1e-12) {
+      return Standard_False; // ray parallel to triangle plane
+    }
+    const Standard_Real f = 1.0 / a;
+    const BVH_Vec3d     s = myOrigin - v0;
+    const Standard_Real u = f * s.Dot(h);
+    if (u < 0.0 || u > 1.0) {
+      return Standard_False;
+    }
+    const BVH_Vec3d     q = BVH_Vec3d::Cross(s, edge1);
+    const Standard_Real v = f * myDir.Dot(q);
+    if (v < 0.0 || u + v > 1.0) {
+      return Standard_False;
+    }
+    const Standard_Real t = f * edge2.Dot(q);
+    if (std::abs(t) <= myTolerance) {
+      myOnSurface = Standard_True; // ray origin lies on this triangle
+      return Standard_True;
+    }
+    if (t < -myTolerance) {
+      return Standard_False; // triangle is behind the ray origin
+    }
+    // Forward crossing at t > myTolerance.
+    ++myCrossings;
+    // Proximity to an edge or vertex signals a potentially degenerate parity count.
+    constexpr Standard_Real kEdgeTol = 1e-6;
+    if (u < kEdgeTol || v < kEdgeTol || (1.0 - u - v) < kEdgeTol) {
+      myDegenerate = Standard_True;
+    }
+    return Standard_True;
+  }
+
+  /// Never prune by metric alone — every AABB-intersecting branch must be visited.
+  Standard_Boolean RejectMetric(const Standard_Real&) const override {
+    return Standard_False;
+  }
+
+  /// Never stop early — the full crossing count is required for parity.
+  Standard_Boolean Stop() const override { return Standard_False; }
+
+  int              Crossings() const { return myCrossings; }
+  Standard_Boolean OnSurface() const { return myOnSurface; }
+  Standard_Boolean Degenerate() const { return myDegenerate; }
+
+private:
+  BVH_Vec3d        myOrigin;
+  BVH_Vec3d        myDir;
+  Standard_Real    myTolerance{1e-7};
+  int              myCrossings{0};
+  Standard_Boolean myOnSurface{Standard_False};
+  Standard_Boolean myDegenerate{Standard_False};
+};
+
 /// Convert a Geant4 three-vector to an OCCT point.
 gp_Pnt ToPoint(const G4ThreeVector& point) { return gp_Pnt(point.x(), point.y(), point.z()); }
 
@@ -753,7 +879,54 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     }
   }
 
-  // Tier-2: ray-parity test using per-thread intersector cache.
+  // Tier-2a: BVH ray-parity test over the pre-built fTriangleSet.
+  // Cast a +Z ray and count crossings via Möller–Trumbore in a single
+  // O(log N_triangles) BVH traversal, replacing the per-face
+  // IntCurvesFace_Intersector calls for curved faces.
+  if (!fTriangleSet.IsNull() && fTriangleSet->Size() > 0) {
+    // Guard: if the point is within the mesh error band (distance-to-surface
+    // not provably greater than tolerance + deflection), the tessellation may
+    // disagree with the exact solid near the boundary.  Fall back to the exact
+    // classifier so the classification is always consistent with the analytic shape.
+    if (fBVHDeflection > 0.0) {
+      const G4double bvhLB = BVHLowerBoundDistance(p);
+      if (bvhLB < tolerance) {
+        BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+        classifier.Perform(ToPoint(p), tolerance);
+        return ToG4Inside(classifier.State());
+      }
+    }
+
+    TriangleRayCast caster;
+    caster.SetRay(BVH_Vec3d(p.x(), p.y(), p.z()), BVH_Vec3d(0.0, 0.0, 1.0),
+                  static_cast<Standard_Real>(tolerance));
+    caster.SetBVHSet(fTriangleSet.get());
+    caster.Select();
+
+    if (caster.OnSurface()) {
+      return kSurface;
+    }
+    // Degenerate hit (ray near triangle edge/vertex): fall back to the exact
+    // classifier so the skipped crossing does not misclassify the point.
+    if (caster.Degenerate()) {
+      BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+      classifier.Perform(ToPoint(p), tolerance);
+      return ToG4Inside(classifier.State());
+    }
+    // Safety fallback: a zero-crossing BVH ray can still correspond to an
+    // interior point if intersections were missed due to numerical rejection
+    // or edge/vertex degeneracies.  Delegate to the exact classifier as in
+    // the Tier-2b implementation.
+    if (caster.Crossings() == 0) {
+      BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+      classifier.Perform(ToPoint(p), tolerance);
+      return ToG4Inside(classifier.State());
+    }
+    return (caster.Crossings() % 2 == 1) ? kInside : kOutside;
+  }
+
+  // Tier-2b: fallback when fTriangleSet is unavailable — original per-face
+  // ray-parity test using per-thread IntCurvesFace_Intersector cache.
   // Cast a ray from p in the canonical +Z direction and count how many faces
   // the ray crosses strictly through their interior (TopAbs_IN).  Odd = inside.
   // TopAbs_ON hits (shared edges/vertices) are excluded from the parity count;
