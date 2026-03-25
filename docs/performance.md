@@ -440,3 +440,61 @@ item references the relevant section of this document.
 | **8** | Plane-distance lower bound for all-planar solids (`DistanceToOut(p)`) | ✅ Done (PR #222) | Exact O(N_faces) plane-distance with no BRep heap allocation for `fAllFacesPlanar` solids | §2.4 |
 | **9** | Cache `G4Polyhedron` in `CreatePolyhedron` | Planned | Avoids repeated full tessellation on visualisation refreshes | §2.7 |
 | **10** | Direct ray-plane fast path for planar faces in DTI/DTO(p,v) | 🚧 In-flight (PR #233) | Replaces `IntCurvesFace_Intersector::Perform` for all-straight-edge planar faces; algebraic ray–plane intersection with no OCCT call | §2.2 |
+| **11** | SIMD-accelerated AABB prefilter via `FaceBoundsSOA` | ✅ Done (this PR) | AVX2 4-wide double batch AABB test replaces scalar `Bnd_Box::IsOut` per face in `Inside`, `DistanceToIn/Out(p,v)`; AVX2 FMA `MinPlaneDistance` replaces scalar loop in `SurfaceNormal` and `PlanarFaceLowerBoundDistance`; 2–37× speedup on polyhedral and planar solids (geomean: inside 2.0×, rays 2.7×, safety 2.5×) | §8 |
+
+---
+
+## 8. SIMD AABB Prefilter (`FaceBoundsSOA`)
+
+### Motivation
+
+The scalar per-face AABB prefilter (`Bnd_Box::IsOut`) is the dominant cost
+in `Inside(p)` and `DistanceToIn/Out(p,v)` for solids with many faces.
+Each call tests one AABB against a ray or point, loading six scalars from
+heap-allocated `Bnd_Box` objects scattered in memory.
+
+### Implementation
+
+`FaceBoundsSOA` (see `include/G4OCCT/FaceBoundsSOA.hh`) stores the same
+bounding-box data in Struct-of-Arrays layout:
+
+```
+fXmin[0..N], fXmax[0..N]   — 32-byte aligned
+fYmin[0..N], fYmax[0..N]
+fZmin[0..N], fZmax[0..N]
+fPlaneA[0..N], fPlaneB[0..N], fPlaneC[0..N], fPlaneD[0..N]
+```
+
+Arrays are padded to a multiple of 4 (AVX2 double lane width) so SIMD
+loops need no tail handling.
+
+Three high-level methods hide all SIMD from call sites:
+
+| Method | Used in | SIMD kernel |
+|---|---|---|
+| `RayZPassFilter(px, py, out[])` | `Inside(p)` parity stage | AVX2 4-wide `(px∈[xmin,xmax]) & (py∈[ymin,ymax])` |
+| `RayPassFilter(ray, out[])` | `DistanceToIn/Out(p,v)` | AVX2 4-wide slab test; scalar fallback for axis-aligned rays |
+| `MinPlaneDistance(px,py,pz)` | `SurfaceNormal`, `PlanarFaceLowerBoundDistance` | AVX2 4-wide FMA `‖A·p+D‖`; horizontal min reduction |
+
+The ISA level is selected at **runtime** using `__builtin_cpu_supports`:
+all ISA variants (scalar, AVX2+FMA) are compiled into the binary via
+`__attribute__((target(...)))` function attributes, so the binary runs
+correctly on any x86 CPU — including CI hosts — and automatically uses
+the widest supported ISA.  Build with `-DUSE_SIMD=ON` (the default) to
+enable this; `-DUSE_SIMD=OFF` reverts to the scalar auto-vectorisable
+path only.  No per-file `-mavx2` flags are required.
+
+### Benchmark results (Intel Core i7-10510U, Release build, 2048 points/rays)
+
+The gains are largest for solids whose AABB prefilter dominates (polyhedral
+and all-planar solids with few faces); complex curved solids remain bottlenecked
+by `IntCurvesFace_Intersector::Perform`.
+
+| Solid category | Inside speedup | Rays speedup | Safety speedup |
+|---|---|---|---|
+| All-planar compound (box union/subtraction) | 11–14× | 9–12× | 20–37× |
+| Direct polyhedral primitives (box, TRD, trap, para) | 10–13× | 7–11× | 3–18× |
+| Tessellated solids | 1.7× | 10× | 2.4× |
+| Curved primitives (tubs, sphere, cons, torus) | 1.2–1.4× | 1.3–1.6× | 2–3× |
+| Complex curved/swept solids | ≈1× | ≈1× | ≈1× |
+| **Geometric mean over all fixtures** | **2.0×** | **2.7×** | **2.5×** |

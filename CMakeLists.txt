@@ -40,7 +40,8 @@ add_library(
   G4OCCT
   src/G4OCCTSolid.cc src/G4OCCTLogicalVolume.cc src/G4OCCTPlacement.cc
   src/G4OCCTMaterialMap.cc src/G4OCCTMaterialMapReader.cc
-  src/G4OCCTAssemblyVolume.cc)
+  src/G4OCCTAssemblyVolume.cc
+  src/FaceBoundsSOA.cc)
 add_library(G4OCCT::G4OCCT ALIAS G4OCCT)
 
 target_include_directories(
@@ -52,6 +53,35 @@ target_include_directories(G4OCCT SYSTEM PUBLIC ${Geant4_INCLUDE_DIRS}
 
 target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
                                     ${OpenCASCADE_LIBRARIES})
+
+# ─── SIMD acceleration ────────────────────────────────────────────────────────
+#
+# When USE_SIMD=ON (the default), the library is compiled with
+# -DG4OCCT_USE_SIMD=1.  FaceBoundsSOA.cc uses __attribute__((target("avx2,fma")))
+# etc. to compile ISA-specific kernels within a single translation unit.
+# The dispatch functions select the widest supported ISA at runtime via
+# __builtin_cpu_supports, so the binary runs correctly on any x86 CPU.
+#
+# No per-file -mavx2 / -msse4.1 flags are needed; the target attribute
+# handles code generation for each ISA variant independently.
+#
+# Disable with -DUSE_SIMD=OFF to use only the scalar auto-vectorised path.
+
+option(USE_SIMD "Enable SIMD acceleration with runtime CPU dispatch (AVX2+FMA, scalar)" ON)
+
+if(USE_SIMD
+   AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|Intel"
+   AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|X86_64|amd64|AMD64|i[3-6]86|x86|X86)$")
+  target_compile_definitions(G4OCCT PRIVATE G4OCCT_USE_SIMD=1)
+  message(STATUS "G4OCCT SIMD: runtime CPU dispatch enabled (AVX2+FMA / scalar)")
+elseif(NOT USE_SIMD)
+  message(STATUS "G4OCCT SIMD: disabled (USE_SIMD=OFF; scalar auto-vectorisation only)")
+elseif(USE_SIMD)
+  message(
+    STATUS
+    "G4OCCT SIMD: requested but not enabled (unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR})"
+  )
+endif()
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
 

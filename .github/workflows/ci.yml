@@ -48,6 +48,8 @@ jobs:
               -DBUILD_TESTING=ON \
               -DBUILD_BENCHMARKS=ON \
               -DBUILD_EXAMPLES=ON \
+              -DUSE_SIMD=ON \
+              -DCMAKE_CXX_FLAGS="-march=native" \
               -DENABLE_WERROR=ON \
               -DB4C_CHECK_OVERLAPS=OFF \
               -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \

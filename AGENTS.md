@@ -463,7 +463,94 @@ pre-commit run --all-files
 
 ---
 
-## 15. Updating These Instructions
+## 15. SIMD Conventions
+
+G4OCCT uses AVX2-accelerated AABB batch tests and plane-distance reductions
+to speed up the O(N_faces) prefilter loops in `Inside`, `DistanceToIn/Out(p,v)`,
+`SurfaceNormal`, and `PlanarFaceLowerBoundDistance`.
+
+### Architecture
+
+```
+include/G4OCCT/SimdSupport.hh   — target-attribute macros
+                                   (G4OCCT_TARGET_AVX2, G4OCCT_TARGET_DEFAULT)
+                                   runtime CPU-check macro
+                                   (G4OCCT_CPU_HAS_AVX2)
+                                   AlignedAllocator<T, 32> helper
+include/G4OCCT/FaceBoundsSOA.hh — SoA layout + clean API
+                                   (RayZPassFilter, RayPassFilter, MinPlaneDistance)
+src/FaceBoundsSOA.cc            — scalar + AVX2+FMA implementation (one TU)
+                                   ISA variants compiled via __attribute__((target(...)))
+                                   runtime dispatch via __builtin_cpu_supports
+```
+
+### Conventions
+
+- **Portability layer**: All call sites in `G4OCCTSolid.cc` use `FaceBoundsSOA`
+  public methods only.  No call site includes `<immintrin.h>` or uses
+  `__m256` directly.  All intrinsic code lives in `FaceBoundsSOA.cc`,
+  decorated with `G4OCCT_TARGET_AVX2`.
+
+- **Runtime dispatch**: Dispatch functions in `FaceBoundsSOA.cc` check
+  `G4OCCT_CPU_HAS_AVX2` (which expands to `__builtin_cpu_supports("avx2")`)
+  at runtime and call the appropriate kernel.  All ISA variants are compiled
+  into every binary built with `USE_SIMD=ON`; the binary runs correctly on
+  any x86 CPU regardless of which ISA it supports.
+
+- **`G4OCCT_TARGET_AVX2`** (and `_DEFAULT`): Apply these macros to
+  function *definitions* (and matching class declarations guarded by
+  `#if defined(G4OCCT_USE_SIMD)`) that contain ISA-specific intrinsics.
+  Never apply `-mavx2` globally.  Example:
+  ```cpp
+  G4OCCT_TARGET_AVX2
+  void FaceBoundsSOA::MyKernel_avx2(...) const { /* _mm256_* intrinsics */ }
+  ```
+
+- **`<immintrin.h>` visibility**: On GCC, `<immintrin.h>` guards intrinsic
+  definitions with `#ifdef __AVX2__` etc.  `FaceBoundsSOA.cc` uses a
+  `#pragma GCC push_options / target("avx2,fma") / pop_options` block
+  to include `<immintrin.h>` with AVX2+FMA macros active, making the intrinsic
+  definitions visible to `target`-attributed functions throughout the TU.
+  Clang exposes all intrinsics unconditionally and needs no pragma.
+
+- **`USE_SIMD` CMake option** (default `ON`): Defines `G4OCCT_USE_SIMD=1`
+  for the library.  When `OFF`, no SIMD functions are compiled and the scalar
+  auto-vectorisable path is used exclusively.  The API (`FaceBoundsSOA` public
+  methods) is identical in both cases.  Do not use `#if USE_SIMD` guards in
+  headers; use `#if defined(G4OCCT_USE_SIMD)` in `.cc` files only.
+
+- **`AlignedAllocator<T, Alignment>`**: Wrap SoA `std::vector` declarations
+  with this allocator to guarantee 32-byte alignment for aligned AVX2 loads:
+  ```cpp
+  std::vector<double, AlignedAllocator<double, 32>> fXmin;
+  ```
+
+- **SoA padding**: Pad SoA arrays to the next multiple of `kLaneWidth = 4`
+  (AVX2 double lane width).  Fill padding slots with empty-interval sentinels
+  (`xmin = 1e300, xmax = -1e300`) so they always fail the filter — no tail
+  handling needed in SIMD loops.
+
+- **Non-planar face sentinel**: Non-planar faces must use
+  `fPlaneD[i] = kNoPlaneDist = 1e300` with `A = B = C = 0` so they
+  contribute an infinite distance and never win the `MinPlaneDistance`
+  reduction.
+
+- **NaN safety in slab tests**: For axis-aligned rays (`|d_x| < 1e-12`),
+  slab arithmetic produces `0 * inf → NaN`.  `RayPassFilter` detects zero
+  direction components and falls back to a scalar path with correct interval
+  arithmetic.
+
+### Benchmark results (Intel Core i7-10510U)
+
+| Benchmark | Geomean speedup | Peak speedup |
+|---|---|---|
+| `BM_inside` | 2.0× | 14× |
+| `BM_rays` (DTI/DTO) | 2.7× | 12× |
+| `BM_safety` | 2.5× | 37× |
+
+---
+
+## 16. Updating These Instructions
 
 If a PR discussion establishes a new convention:
 
