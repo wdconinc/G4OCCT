@@ -4,11 +4,18 @@
 /// @file FaceBoundsSOA.cc
 /// @brief Scalar and SIMD implementations of FaceBoundsSOA batch tests.
 ///
-/// This translation unit is compiled by CMake with the flags appropriate for
-/// the widest available SIMD ISA (`-mavx2 -mfma`, `-msse4.1`, or none).
-/// The preprocessor macros `G4OCCT_HAVE_AVX2` / `G4OCCT_HAVE_SSE4` are set by
-/// the compiler when those flags are active and steer the implementation
-/// selected by `FaceBoundsSOA`.
+/// All ISA variants (scalar, SSE4.1, AVX2+FMA) are compiled into the same
+/// translation unit.  Each SIMD function is tagged with
+/// `__attribute__((target(...)))` so the compiler generates ISA-specific
+/// code for that function only, without requiring global `-mavx2` flags.
+///
+/// The public dispatch methods (`RayZPassFilter`, `RayPassFilter`,
+/// `MinPlaneDistance`) use `__builtin_cpu_supports` to select the widest
+/// ISA supported by the executing CPU at runtime.
+///
+/// When `G4OCCT_USE_SIMD` is not defined (i.e. `-DUSE_SIMD=OFF` was passed
+/// to CMake) the SIMD variants are not compiled and the scalar path is always
+/// taken.
 
 #include "G4OCCT/FaceBoundsSOA.hh"
 
@@ -18,8 +25,20 @@
 #include <cstdint>
 #include <limits>
 
-#if defined(G4OCCT_HAVE_AVX2)
+#if defined(G4OCCT_USE_SIMD) && (defined(__GNUC__) || defined(__clang__))
+// Make all ISA intrinsics visible to __attribute__((target(...))) functions
+// in this TU.  On GCC, <immintrin.h> guards individual ISA sections with
+// #ifdef __AVX2__ etc.; the pragma temporarily sets those macros so the
+// header exposes the full intrinsic set.  The pop_options restores default
+// code-generation flags; the intrinsic *definitions* remain visible.
+#  if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC push_options
+#    pragma GCC target("avx2,fma,sse4.1")
+#  endif
 #  include <immintrin.h>
+#  if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC pop_options
+#  endif
 #endif
 
 #include <gp_Dir.hxx>
@@ -55,11 +74,13 @@ G4OCCT_IVDEP
 }
 
 void FaceBoundsSOA::RayZPassFilter(double px, double py, std::uint8_t* out) const {
-#if defined(G4OCCT_HAVE_AVX2)
-  RayZPassFilter_avx2(px, py, out);
-#else
-  RayZPassFilter_scalar(px, py, out);
+#if defined(G4OCCT_USE_SIMD)
+  if (G4OCCT_CPU_HAS_AVX2) {
+    RayZPassFilter_avx2(px, py, out);
+    return;
+  }
 #endif
+  RayZPassFilter_scalar(px, py, out);
 }
 
 // ── RayPassFilter ─────────────────────────────────────────────────────────────
@@ -185,11 +206,13 @@ void FaceBoundsSOA::RayPassFilter(const gp_Lin& ray, std::uint8_t* out) const {
   const double     inv_dy  = dy_zero ? 0.0 : 1.0 / dy;
   const double     inv_dz  = dz_zero ? 0.0 : 1.0 / dz;
 
-#if defined(G4OCCT_HAVE_AVX2)
-  RayPassFilter_avx2(ox, oy, oz, inv_dx, inv_dy, inv_dz, dx_zero, dy_zero, dz_zero, out);
-#else
-  RayPassFilter_scalar(ox, oy, oz, inv_dx, inv_dy, inv_dz, dx_zero, dy_zero, dz_zero, out);
+#if defined(G4OCCT_USE_SIMD)
+  if (G4OCCT_CPU_HAS_AVX2) {
+    RayPassFilter_avx2(ox, oy, oz, inv_dx, inv_dy, inv_dz, dx_zero, dy_zero, dz_zero, out);
+    return;
+  }
 #endif
+  RayPassFilter_scalar(ox, oy, oz, inv_dx, inv_dy, inv_dz, dx_zero, dy_zero, dz_zero, out);
 }
 
 // ── MinPlaneDistance ──────────────────────────────────────────────────────────
@@ -225,21 +248,23 @@ std::pair<double, std::size_t> FaceBoundsSOA::MinPlaneDistance(double px, double
   if (fActualSize == 0) {
     return {kNoPlaneDist, std::size_t(-1)};
   }
-#if defined(G4OCCT_HAVE_AVX2)
-  return MinPlaneDistance_avx2(px, py, pz);
-#else
-  return MinPlaneDistance_scalar(px, py, pz);
+#if defined(G4OCCT_USE_SIMD)
+  if (G4OCCT_CPU_HAS_AVX2) {
+    return MinPlaneDistance_avx2(px, py, pz);
+  }
 #endif
+  return MinPlaneDistance_scalar(px, py, pz);
 }
 
 // ── AVX2 implementations ──────────────────────────────────────────────────────
 
-#if defined(G4OCCT_HAVE_AVX2)
+#if defined(G4OCCT_USE_SIMD)
 
 /// AVX2 +Z ray AABB filter: 4 boxes per iteration.
 ///
 /// The +Z ray test reduces to 2-D point-in-rectangle.  We process 4 boxes
 /// per `_mm256_*` instruction and store one byte per face into `out`.
+G4OCCT_TARGET_AVX2
 void FaceBoundsSOA::RayZPassFilter_avx2(double px, double py, std::uint8_t* out) const {
   const __m256d px4   = _mm256_set1_pd(px);
   const __m256d py4   = _mm256_set1_pd(py);
@@ -280,6 +305,7 @@ void FaceBoundsSOA::RayZPassFilter_avx2(double px, double py, std::uint8_t* out)
 /// For the common case where all direction components are non-zero we execute
 /// the standard slab test 4-wide.  Degenerate (axis-aligned) rays fall back
 /// to the scalar implementation.
+G4OCCT_TARGET_AVX2
 void FaceBoundsSOA::RayPassFilter_avx2(double ox, double oy, double oz, double inv_dx,
                                        double inv_dy, double inv_dz, bool dx_zero, bool dy_zero,
                                        bool dz_zero, std::uint8_t* out) const {
@@ -338,6 +364,7 @@ void FaceBoundsSOA::RayPassFilter_avx2(double ox, double oy, double oz, double i
 ///
 /// Computes |A·px + B·py + C·pz + D| for four faces per iteration using
 /// FMA instructions, then tracks the running minimum and winning index.
+G4OCCT_TARGET_AVX2
 std::pair<double, std::size_t> FaceBoundsSOA::MinPlaneDistance_avx2(double px, double py,
                                                                      double pz) const {
   const __m256d px4 = _mm256_set1_pd(px);
@@ -394,6 +421,6 @@ std::pair<double, std::size_t> FaceBoundsSOA::MinPlaneDistance_avx2(double px, d
   return {scalar_min, scalar_base};
 }
 
-#endif // G4OCCT_HAVE_AVX2
+#endif // G4OCCT_USE_SIMD
 
 } // namespace G4OCCT

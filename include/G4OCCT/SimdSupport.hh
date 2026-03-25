@@ -2,35 +2,65 @@
 // Copyright (C) 2026 G4OCCT Contributors
 
 /// @file G4OCCT/SimdSupport.hh
-/// @brief Compile-time ISA detection and SIMD portability helpers.
+/// @brief SIMD portability helpers: target-attribute macros, runtime CPU checks,
+///        auto-vectorisation hints, and the aligned allocator.
 ///
-/// Algorithm code should include this header to access:
-/// - Detection macros (`G4OCCT_HAVE_AVX2`, `G4OCCT_HAVE_SSE4`, `G4OCCT_HAVE_FMA`)
-/// - `G4OCCT::AlignedAllocator<T, Alignment>` for SIMD-aligned `std::vector` storage
+/// Algorithm code includes this header to access:
+/// - `G4OCCT_TARGET_AVX2` / `G4OCCT_TARGET_DEFAULT` — GCC/Clang function
+///   target attributes that compile specific functions for a given ISA without
+///   requiring global `-mavx2` flags.
+/// - `G4OCCT_CPU_HAS_AVX2` / `G4OCCT_CPU_HAS_SSE4` — runtime CPU capability
+///   checks via `__builtin_cpu_supports`; evaluate to `false` when
+///   `G4OCCT_USE_SIMD` is not defined or the compiler lacks the builtin.
+/// - `G4OCCT::AlignedAllocator<T, Alignment>` for SIMD-aligned `std::vector`.
 ///
-/// No SIMD intrinsics appear here; they live in implementation files that are
-/// compiled with the appropriate `-mavx2`/`-msse4.1` flags.
+/// No SIMD intrinsics appear here; they live in `FaceBoundsSOA.cc` which uses
+/// `__attribute__((target(...)))` to compile ISA-specific kernels within a
+/// single translation unit, selected at runtime by `__builtin_cpu_supports`.
 
 #pragma once
 
 #include <cstddef>
 #include <new>
 
-// ── Compile-time ISA detection ────────────────────────────────────────────────
+// ── Function target-attribute macros ─────────────────────────────────────────
+//
+// Apply these to function *definitions* (and matching declarations) whose body
+// uses SIMD intrinsics.  The compiler generates ISA-specific code for that
+// function only, without changing the global compilation target.
+//
+// Example:
+//   G4OCCT_TARGET_AVX2
+//   void MyFunc_avx2(...) { /* may use _mm256_* intrinsics */ }
 
-#if defined(__AVX2__)
-/// Defined when the translation unit is compiled with AVX2 support.
-#  define G4OCCT_HAVE_AVX2 1
+#if defined(__GNUC__) || defined(__clang__)
+/// Mark a function to be compiled for the AVX2 + FMA instruction set.
+#  define G4OCCT_TARGET_AVX2    __attribute__((target("avx2,fma")))
+/// Mark a function to be compiled for the SSE 4.1 instruction set.
+#  define G4OCCT_TARGET_SSE4    __attribute__((target("sse4.1")))
+/// Explicit default-target marker (no ISA extension required).
+#  define G4OCCT_TARGET_DEFAULT __attribute__((target("default")))
+#else
+#  define G4OCCT_TARGET_AVX2
+#  define G4OCCT_TARGET_SSE4
+#  define G4OCCT_TARGET_DEFAULT
 #endif
 
-#if defined(__SSE4_1__)
-/// Defined when the translation unit is compiled with SSE 4.1 support.
-#  define G4OCCT_HAVE_SSE4 1
-#endif
+// ── Runtime CPU capability checks ────────────────────────────────────────────
+//
+// Use these in dispatch functions to select the widest supported ISA at
+// runtime.  Both evaluate to `false` constants when `G4OCCT_USE_SIMD` is
+// not defined (i.e. the library was built with `-DUSE_SIMD=OFF`) or when the
+// compiler does not provide `__builtin_cpu_supports`.
 
-#if defined(__FMA__)
-/// Defined when the translation unit is compiled with FMA support.
-#  define G4OCCT_HAVE_FMA 1
+#if defined(G4OCCT_USE_SIMD) && (defined(__GNUC__) || defined(__clang__))
+/// True at runtime when the executing CPU supports AVX2.
+#  define G4OCCT_CPU_HAS_AVX2  (__builtin_cpu_supports("avx2"))
+/// True at runtime when the executing CPU supports SSE 4.1.
+#  define G4OCCT_CPU_HAS_SSE4  (__builtin_cpu_supports("sse4.1"))
+#else
+#  define G4OCCT_CPU_HAS_AVX2  false
+#  define G4OCCT_CPU_HAS_SSE4  false
 #endif
 
 // ── Auto-vectorisation hint ───────────────────────────────────────────────────

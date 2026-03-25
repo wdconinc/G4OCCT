@@ -19,10 +19,13 @@
 ///   - `MinPlaneDistance(px, py, pz)`  — minimum plane distance over all planar
 ///     faces, used in `SurfaceNormal(p)` and `PlanarFaceLowerBoundDistance`.
 ///
-/// The SIMD implementation is selected at compile time by the macros defined
-/// in `SimdSupport.hh` (`G4OCCT_HAVE_AVX2`, `G4OCCT_HAVE_SSE4`).  On platforms
-/// without any SIMD support the scalar fallback is used instead; it is written
-/// in a form that GCC/Clang can auto-vectorize with `-O3 -march=native`.
+/// The SIMD implementation is selected at **runtime** using
+/// `__builtin_cpu_supports` when the library is built with `-DUSE_SIMD=ON`
+/// (the default).  All ISA variants are compiled into the binary via
+/// `__attribute__((target(...)))` function attributes; the dispatcher in each
+/// public method picks the widest supported ISA without any host-CPU
+/// restriction at build time.  The scalar fallback is used automatically on
+/// platforms without AVX2 or SSE4.1 support, and when `USE_SIMD=OFF`.
 
 #pragma once
 
@@ -110,11 +113,14 @@ private:
   /// Return minimum plane distance over `[0, fPaddedSize)` using scalar code.
   std::pair<double, std::size_t> MinPlaneDistance_scalar(double px, double py, double pz) const;
 
-#if defined(G4OCCT_HAVE_AVX2)
+#if defined(G4OCCT_USE_SIMD)
+  G4OCCT_TARGET_AVX2
   void             RayZPassFilter_avx2(double px, double py, std::uint8_t* out) const;
+  G4OCCT_TARGET_AVX2
   void             RayPassFilter_avx2(double ox, double oy, double oz, double inv_dx,
                                       double inv_dy, double inv_dz, bool dx_zero, bool dy_zero,
                                       bool dz_zero, std::uint8_t* out) const;
+  G4OCCT_TARGET_AVX2
   std::pair<double, std::size_t> MinPlaneDistance_avx2(double px, double py, double pz) const;
 #endif
 
