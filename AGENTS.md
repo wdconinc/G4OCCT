@@ -454,7 +454,77 @@ pre-commit run --all-files
 
 ---
 
-## 15. Updating These Instructions
+## 15. SIMD Conventions
+
+G4OCCT uses AVX2-accelerated AABB batch tests and plane-distance reductions
+to speed up the O(N_faces) prefilter loops in `Inside`, `DistanceToIn/Out(p,v)`,
+`SurfaceNormal`, and `PlanarFaceLowerBoundDistance`.
+
+### Architecture
+
+```
+include/G4OCCT/SimdSupport.hh   — compile-time ISA detection macros
+                                   (GOCCT_HAVE_AVX2, GOCCT_HAVE_SSE4, GOCCT_HAVE_FMA)
+                                   AlignedAllocator<T, 32> helper
+include/G4OCCT/FaceBoundsSOA.hh — SoA layout + clean API
+                                   (RayZPassFilter, RayPassFilter, MinPlaneDistance)
+src/FaceBoundsSOA.cc            — scalar + AVX2 implementation (one TU)
+```
+
+### Conventions
+
+- **Portability layer**: All call sites in `G4OCCTSolid.cc` use `FaceBoundsSOA`
+  public methods only.  No call site includes `<immintrin.h>` or uses
+  `__m256`/`__m128` directly.  All intrinsic code lives behind `#ifdef GOCCT_HAVE_AVX2`
+  guards in `FaceBoundsSOA.cc`.
+
+- **`SimdSupport.hh`**: The only header that includes `<immintrin.h>`.  Include
+  this header (not `<immintrin.h>`) whenever ISA detection macros or
+  `AlignedAllocator` are needed.
+
+- **`AlignedAllocator<T, Alignment>`**: Wrap SoA `std::vector` declarations
+  with this allocator to guarantee 32-byte alignment for aligned AVX2 loads:
+  ```cpp
+  std::vector<double, AlignedAllocator<double, 32>> fXmin;
+  ```
+
+- **Per-file compile flags**: `FaceBoundsSOA.cc` is compiled with
+  `-mavx2 -mfma` via CMake `set_source_files_properties(... COMPILE_FLAGS ...)`.
+  Never add `-mavx2` to the global `target_compile_options`; only the SIMD
+  translation unit receives these flags.
+
+- **`USE_SIMD` CMake option** (default `ON`): When `OFF`, `FaceBoundsSOA.cc`
+  is still compiled and linked (provides the scalar fallback), but no
+  `GOCCT_HAVE_AVX2` / `GOCCT_HAVE_SSE4` macros are defined, so only the
+  auto-vectorisable scalar paths are active.  Do not use `#if USE_SIMD`
+  guards in headers; the API is always present.
+
+- **SoA padding**: Pad SoA arrays to the next multiple of `kLaneWidth = 4`
+  (AVX2 double lane width).  Fill padding slots with empty-interval sentinels
+  (`xmin = 1e300, xmax = -1e300`) so they always fail the filter — no tail
+  handling needed in SIMD loops.
+
+- **Non-planar face sentinel**: Non-planar faces must use
+  `fPlaneD[i] = kNoPlaneDist = 1e300` with `A = B = C = 0` so they
+  contribute an infinite distance and never win the `MinPlaneDistance`
+  reduction.
+
+- **NaN safety in slab tests**: For axis-aligned rays (`|d_x| < 1e-12`),
+  slab arithmetic produces `0 * inf → NaN`.  `RayPassFilter` detects zero
+  direction components and falls back to a scalar path with correct interval
+  arithmetic.
+
+### Benchmark results (Intel Core i7-10510U)
+
+| Benchmark | Geomean speedup | Peak speedup |
+|---|---|---|
+| `BM_inside` | 2.0× | 14× |
+| `BM_rays` (DTI/DTO) | 2.7× | 12× |
+| `BM_safety` | 2.5× | 37× |
+
+---
+
+## 16. Updating These Instructions
 
 If a PR discussion establishes a new convention:
 

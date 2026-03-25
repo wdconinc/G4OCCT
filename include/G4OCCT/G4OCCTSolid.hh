@@ -24,6 +24,8 @@
 #include <gp_Pln.hxx>
 #include <gp_Pnt2d.hxx>
 
+#include "G4OCCT/FaceBoundsSOA.hh"
+
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -305,10 +307,15 @@ private:
   /// floating-point false positive for such degenerate boxes when the line
   /// grazes the bounding plane.  Enlarging by the tolerance ensures every box
   /// has finite extent in all directions and makes the `IsOut` test robust.
+  ///
+  /// `passFilter` is a pre-allocated workspace used by the SIMD batch AABB
+  /// prefilter.  It is written and read within the same method call; its size
+  /// equals `fFaceBoundsCache.size()`.
   struct IntersectorCache {
     std::uint64_t generation{std::numeric_limits<std::uint64_t>::max()};
     std::vector<std::unique_ptr<IntCurvesFace_Intersector>> faceIntersectors;
     std::vector<Bnd_Box> expandedBoxes; ///< per-face boxes enlarged by `IntersectionTolerance()`
+    std::vector<std::uint8_t> passFilter; ///< workspace for SIMD AABB batch prefilter
   };
 
   /// A proven inscribed sphere: every point within @c radius of @c centre is
@@ -432,6 +439,14 @@ private:
   /// faces are planar).  Set by `ComputeBounds()`.  When true, `DistanceToOut(p)`
   /// can bypass the BVH triangle-mesh traversal entirely.
   bool fAllFacesPlanar{false};
+
+  /// SIMD-accelerated Struct-of-Arrays mirror of @c fFaceBoundsCache.
+  ///
+  /// Stores bounding-box corners and plane coefficients in contiguous
+  /// aligned arrays for vectorised AABB and plane-distance batch queries.
+  /// Built once in `ComputeBounds()` alongside `fFaceBoundsCache`.
+  /// Read-only during navigation; no additional synchronisation required.
+  G4OCCT::FaceBoundsSOA fFaceBoundsSOA;
 
   /// Monotonically increasing counter; incremented by each `SetOCCTShape()` call.
   /// Read (acquire) in `GetOrCreateClassifier()` and `GetOrCreateIntersector()` const;
