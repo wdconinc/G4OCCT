@@ -217,6 +217,7 @@ jobs:
           path: |
             reports/
             bench_raw.json
+            bench_assembly_raw_*.json
           if-no-files-found: ignore
           retention-days: 1
 
