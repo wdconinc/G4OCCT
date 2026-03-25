@@ -26,7 +26,7 @@ jobs:
       - name: Set up Spack
         uses: spack/setup-spack@v3
         with:
-          spack_ref: releases/v0.23
+          spack_ref: releases/v1.1
           buildcache: false
 
       - name: Log in to GitHub Container Registry
