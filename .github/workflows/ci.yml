@@ -49,6 +49,7 @@ jobs:
               -DBUILD_BENCHMARKS=ON \
               -DBUILD_EXAMPLES=ON \
               -DUSE_SIMD=ON \
+              -DCMAKE_CXX_FLAGS="-march=native" \
               -DENABLE_WERROR=ON \
               -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
