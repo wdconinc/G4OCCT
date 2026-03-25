@@ -24,6 +24,9 @@
 namespace g4occt::benchmarks {
 namespace {
 
+  // Reduced ray/point count for NIST CTC fixtures (large AP203 assemblies).
+  constexpr std::size_t kNistCtcRayCount = 64;
+
   using g4occt::tests::geometry::CompareFixtureInside;
   using g4occt::tests::geometry::CompareFixturePolyhedron;
   using g4occt::tests::geometry::CompareFixtureRays;
@@ -264,10 +267,98 @@ namespace {
           continue;
         }
 
-        // Skip navigation comparisons for imported-only fixtures (G4OCCTSolid /
-        // NIST CTC).  These are large, complex AP203 assemblies: navigation is
-        // very slow and triggers G4Exceptions.
+        // For imported-self-comparison fixtures (G4OCCTSolid / NIST CTC), register
+        // reduced-ray-count BM_rays and BM_inside benchmarks instead of skipping.
+        // Native == imported for these fixtures so mismatches are always 0.
+        // BM_safety and BM_polyhedron are skipped (too expensive for large assemblies).
         if (IsImportedSelfComparisonFixture(fixture)) {
+          const std::string fixture_id = family_manifest.family + "/" + fixture.id;
+
+          {
+            std::lock_guard<std::mutex> lk(g_state->mu);
+            if (!g_state->summaries.contains(fixture_id)) {
+              g_state->fixture_order.push_back(fixture_id);
+              g_state->summaries[fixture_id].fixture_id = fixture_id;
+              g_state->summaries[fixture_id].has_expected_failure =
+                  expected_failure.enabled || expected_failure.safety_enabled;
+            }
+          }
+
+          FixtureRayComparisonOptions nist_ctc_ray_opts = ray_opts;
+          nist_ctc_ray_opts.ray_count                  = kNistCtcRayCount;
+
+          benchmark::RegisterBenchmark(
+              ("BM_rays/" + fixture_id).c_str(),
+              [fixture_id, request, nist_ctc_ray_opts, expected_failure](benchmark::State& state) {
+                for (auto _ : state) {
+                  g4occt::tests::geometry::FixtureRayComparisonSummary ray;
+                  try {
+                    ValidationReport report = CompareFixtureRays(request, nist_ctc_ray_opts, &ray);
+                    report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
+                                                                                 expected_failure);
+                    std::lock_guard<std::mutex> lk(g_state->mu);
+                    g_state->summaries[fixture_id].ray = ray;
+                    if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                      g_state->summaries[fixture_id].geant4_class = ray.geant4_class;
+                    }
+                    g_state->aggregate_report.Append(report);
+                  } catch (const std::exception& ex) {
+                    std::cerr << "[BM_rays/" << fixture_id << "] exception: " << ex.what() << "\n";
+                  }
+                  state.SetIterationTime(ray.imported_elapsed_ms / 1000.0);
+                  state.SetLabel(ray.geant4_class);
+                  state.counters["native_ms"]   = ray.native_elapsed_ms;
+                  state.counters["imported_ms"] = ray.imported_elapsed_ms;
+                  state.counters["mismatches"]  = static_cast<double>(RayOnlyMismatches(ray));
+                  state.counters["exit_normal_mismatches"] =
+                      static_cast<double>(ray.normal_mismatch_count);
+                  state.counters["sn_native_ms"]   = ray.native_surface_normal_ms;
+                  state.counters["sn_imported_ms"] = ray.imported_surface_normal_ms;
+                  state.counters["sn_mismatches"] =
+                      static_cast<double>(ray.surface_normal_mismatch_count);
+                  state.counters["has_expected_failure"] = static_cast<double>(
+                      expected_failure.enabled || expected_failure.safety_enabled);
+                }
+              })
+              ->UseManualTime()
+              ->Iterations(1)
+              ->Unit(benchmark::kMillisecond);
+
+          FixtureInsideComparisonOptions nist_ctc_inside_opts = inside_opts;
+          nist_ctc_inside_opts.point_count                   = kNistCtcRayCount;
+          nist_ctc_inside_opts.include_near_surface_points   = false;
+
+          benchmark::RegisterBenchmark(
+              ("BM_inside/" + fixture_id).c_str(),
+              [fixture_id, request, nist_ctc_inside_opts,
+               expected_failure](benchmark::State& state) {
+                for (auto _ : state) {
+                  g4occt::tests::geometry::FixtureInsideComparisonSummary inside;
+                  try {
+                    ValidationReport report =
+                        CompareFixtureInside(request, nist_ctc_inside_opts, &inside);
+                    report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
+                                                                                 expected_failure);
+                    std::lock_guard<std::mutex> lk(g_state->mu);
+                    g_state->summaries[fixture_id].inside = inside;
+                    if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                      g_state->summaries[fixture_id].geant4_class = inside.geant4_class;
+                    }
+                    g_state->aggregate_report.Append(report);
+                  } catch (const std::exception& ex) {
+                    std::cerr << "[BM_inside/" << fixture_id << "] exception: " << ex.what()
+                              << "\n";
+                  }
+                  state.SetIterationTime(inside.imported_elapsed_ms / 1000.0);
+                  state.counters["native_ms"]   = inside.native_elapsed_ms;
+                  state.counters["imported_ms"] = inside.imported_elapsed_ms;
+                  state.counters["mismatches"]  = static_cast<double>(inside.mismatch_count);
+                }
+              })
+              ->UseManualTime()
+              ->Iterations(1)
+              ->Unit(benchmark::kMillisecond);
+
           continue;
         }
 
