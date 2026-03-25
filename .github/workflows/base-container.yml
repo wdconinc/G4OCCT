@@ -27,7 +27,6 @@ jobs:
         uses: spack/setup-spack@v3
         with:
           spack_ref: releases/v0.23
-          packages_ref: v2025.11.0
           buildcache: false
 
       - name: Log in to GitHub Container Registry
