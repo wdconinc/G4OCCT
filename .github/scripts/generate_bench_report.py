@@ -658,8 +658,7 @@ def _render_report(data: dict, viewer_path: str,
                 "",
                 "<details open><summary>Show chart</summary>",
                 "",
-                '<img src="bench-chart.svg"'
-                ' alt="Benchmark timing chart — horizontal grouped bar chart per fixture"/>',
+                '![Benchmark timing chart — horizontal grouped bar chart per fixture](bench-chart.svg)',
                 "",
                 "</details>",
             ]
