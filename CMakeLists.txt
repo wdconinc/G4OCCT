@@ -66,17 +66,22 @@ target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
 option(USE_SIMD "Enable SIMD acceleration for batch AABB and plane-distance queries" ON)
 
 if(USE_SIMD AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|Intel")
-  check_cxx_compiler_flag("-mavx2" _G4OCCT_HAVE_AVX2)
-  check_cxx_compiler_flag("-msse4.1" _G4OCCT_HAVE_SSE4)
+  # Probe host CPU for ISA support so we never emit instructions the runtime
+  # CPU cannot execute (guard against cross-build or non-AVX2 hosts).
+  cmake_host_system_information(RESULT _G4OCCT_CPU_HAS_AVX2  QUERY HAS_AVX2)
+  cmake_host_system_information(RESULT _G4OCCT_CPU_HAS_SSE41 QUERY HAS_SSE4_1)
 
-  if(_G4OCCT_HAVE_AVX2)
+  check_cxx_compiler_flag("-mavx2"   _G4OCCT_COMPILER_HAS_AVX2)
+  check_cxx_compiler_flag("-msse4.1" _G4OCCT_COMPILER_HAS_SSE4)
+
+  if(_G4OCCT_COMPILER_HAS_AVX2 AND _G4OCCT_CPU_HAS_AVX2)
     # Compile FaceBoundsSOA.cc with AVX2 + FMA.  The file itself selects the
     # AVX2 implementation via #ifdef G4OCCT_HAVE_AVX2 (set by -mavx2).
     set_source_files_properties(
       src/FaceBoundsSOA.cc
       PROPERTIES COMPILE_FLAGS "-mavx2 -mfma")
     message(STATUS "G4OCCT SIMD: AVX2 + FMA enabled for FaceBoundsSOA")
-  elseif(_G4OCCT_HAVE_SSE4)
+  elseif(_G4OCCT_COMPILER_HAS_SSE4 AND _G4OCCT_CPU_HAS_SSE41)
     set_source_files_properties(
       src/FaceBoundsSOA.cc
       PROPERTIES COMPILE_FLAGS "-msse4.1")

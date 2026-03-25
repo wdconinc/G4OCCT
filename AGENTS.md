@@ -498,7 +498,11 @@ src/FaceBoundsSOA.cc            — scalar + AVX2 implementation (one TU)
 - **Per-file compile flags**: `FaceBoundsSOA.cc` is compiled with
   `-mavx2 -mfma` via CMake `set_source_files_properties(... COMPILE_FLAGS ...)`.
   Never add `-mavx2` to the global `target_compile_options`; only the SIMD
-  translation unit receives these flags.
+  translation unit receives these flags.  ISA flags are enabled only when
+  **both** the compiler accepts the flag (`check_cxx_compiler_flag`) **and**
+  the host CPU reports the feature (`cmake_host_system_information(QUERY
+  HAS_AVX2 / HAS_SSE4_1)`), preventing illegal-instruction crashes on
+  non-AVX2 hosts or in cross-build scenarios.
 
 - **`USE_SIMD` CMake option** (default `ON`): When `OFF`, `FaceBoundsSOA.cc`
   is still compiled and linked (provides the scalar fallback), but no
