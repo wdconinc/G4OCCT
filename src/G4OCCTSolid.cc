@@ -6,6 +6,8 @@
 
 #include "G4OCCT/G4OCCTSolid.hh"
 
+#include "G4OCCT/FaceBoundsSOA.hh"
+
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepBndLib.hxx>
@@ -655,6 +657,11 @@ void G4OCCTSolid::ComputeBounds() {
     fTriangleSet = new BRepExtrema_TriangleSet(faces);
   }
 
+  // Build the SIMD-accelerated SoA mirror of fFaceBoundsCache.
+  // Uses the same tolerance enlargement as IntersectorCache::expandedBoxes so
+  // that the SoA batch prefilter is a drop-in replacement.
+  fFaceBoundsSOA.Build(fFaceBoundsCache, IntersectionTolerance());
+
   ComputeInitialSpheres();
 }
 
@@ -791,6 +798,7 @@ G4OCCTSolid::IntersectorCache& G4OCCTSolid::GetOrCreateIntersector() const {
     cache.faceIntersectors.reserve(fFaceBoundsCache.size());
     cache.expandedBoxes.clear();
     cache.expandedBoxes.reserve(fFaceBoundsCache.size());
+    cache.passFilter.assign(fFaceBoundsCache.size(), 0);
     for (const auto& fb : fFaceBoundsCache) {
       cache.faceIntersectors.push_back(
           std::make_unique<IntCurvesFace_Intersector>(fb.face, tol)); // O(1) per face
@@ -938,8 +946,13 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
   bool onSurface     = false;
   bool degenerateRay = false;
 
+  // SIMD batch AABB prefilter: the +Z ray test reduces to a 2-D
+  // point-in-rectangle check per face (Z slab is always satisfied for an
+  // infinite vertical line).  Process all faces in one vectorised pass.
+  fFaceBoundsSOA.RayZPassFilter(p.x(), p.y(), cache.passFilter.data());
+
   for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
-    if (cache.expandedBoxes[i].IsOut(ray)) {
+    if (!cache.passFilter[i]) {
       continue;
     }
     const FaceBounds& fb = fFaceBoundsCache[i];
@@ -1007,21 +1020,11 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // For planar solids every face's outward normal is constant and precomputed in
   // fFaceBoundsCache.  The closest face is identified by the minimum plane distance.
   if (fAllFacesPlanar) {
-    const gp_Pnt pt              = ToPoint(p);
-    const FaceBounds* bestFB     = nullptr;
-    G4double bestDist            = kInfinity;
-    for (const FaceBounds& fb : fFaceBoundsCache) {
-      if (!fb.plane.has_value() || !fb.outwardNormal.has_value()) {
-        continue;
-      }
-      const G4double d = fb.plane->Distance(pt);
-      if (d < bestDist) {
-        bestDist = d;
-        bestFB   = &fb;
-      }
-    }
-    if (bestFB) {
-      return *bestFB->outwardNormal;
+    // SIMD batch plane-distance: compute |A·px + B·py + C·pz + D| for all faces
+    // simultaneously using FMA instructions and select the minimum.
+    const auto [bestDist, bestIdx] = fFaceBoundsSOA.MinPlaneDistance(p.x(), p.y(), p.z());
+    if (bestIdx < fFaceBoundsCache.size() && fFaceBoundsCache[bestIdx].outwardNormal.has_value()) {
+      return *fFaceBoundsCache[bestIdx].outwardNormal;
     }
   }
 
@@ -1109,9 +1112,12 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& 
 
   IntersectorCache& cache = GetOrCreateIntersector();
 
+  // SIMD batch AABB prefilter for the ray direction.
+  fFaceBoundsSOA.RayPassFilter(ray, cache.passFilter.data());
+
   G4double minDistance = kInfinity;
   for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
-    if (cache.expandedBoxes[i].IsOut(ray)) {
+    if (!cache.passFilter[i]) {
       continue;
     }
     const FaceBounds& fb = fFaceBoundsCache[i];
@@ -1181,18 +1187,10 @@ G4double G4OCCTSolid::BVHLowerBoundDistance(const G4ThreeVector& p) const {
 }
 
 G4double G4OCCTSolid::PlanarFaceLowerBoundDistance(const G4ThreeVector& p) const {
-  const gp_Pnt pt  = ToPoint(p);
-  G4double minDist = kInfinity;
-  for (const FaceBounds& fb : fFaceBoundsCache) {
-    if (!fb.plane.has_value()) {
-      continue;
-    }
-    const G4double d = static_cast<G4double>(fb.plane->Distance(pt));
-    if (d < minDist) {
-      minDist = d;
-    }
-  }
-  return minDist;
+  // SIMD batch plane distance: reuse the SoA data (non-planar faces contribute
+  // kNoPlaneDist and never win the minimum).
+  const auto [minDist, idx] = fFaceBoundsSOA.MinPlaneDistance(p.x(), p.y(), p.z());
+  return (minDist >= G4OCCT::FaceBoundsSOA::kNoPlaneDist) ? kInfinity : minDist;
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p) const {
@@ -1230,6 +1228,9 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
 
   IntersectorCache& cache = GetOrCreateIntersector();
 
+  // SIMD batch AABB prefilter for the ray direction.
+  fFaceBoundsSOA.RayPassFilter(ray, cache.passFilter.data());
+
   G4double minDistance   = kInfinity;
   std::size_t minFaceIdx = std::numeric_limits<std::size_t>::max();
   G4double minU          = 0.0;
@@ -1238,7 +1239,7 @@ G4double G4OCCTSolid::DistanceToOut(const G4ThreeVector& p, const G4ThreeVector&
   bool minIsFastPath     = false;
 
   for (std::size_t i = 0; i < fFaceBoundsCache.size(); ++i) {
-    if (cache.expandedBoxes[i].IsOut(ray)) {
+    if (!cache.passFilter[i]) {
       continue;
     }
     const FaceBounds& fb = fFaceBoundsCache[i];

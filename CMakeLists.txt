@@ -40,7 +40,8 @@ add_library(
   G4OCCT
   src/G4OCCTSolid.cc src/G4OCCTLogicalVolume.cc src/G4OCCTPlacement.cc
   src/G4OCCTMaterialMap.cc src/G4OCCTMaterialMapReader.cc
-  src/G4OCCTAssemblyVolume.cc)
+  src/G4OCCTAssemblyVolume.cc
+  src/FaceBoundsSOA.cc)
 add_library(G4OCCT::G4OCCT ALIAS G4OCCT)
 
 target_include_directories(
@@ -52,6 +53,40 @@ target_include_directories(G4OCCT SYSTEM PUBLIC ${Geant4_INCLUDE_DIRS}
 
 target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
                                     ${OpenCASCADE_LIBRARIES})
+
+# ─── SIMD acceleration ────────────────────────────────────────────────────────
+#
+# `FaceBoundsSOA.cc` is compiled with the widest available SIMD flags.
+# The source file uses `#ifdef GOCCT_HAVE_AVX2` / `GOCCT_HAVE_SSE4` guards so
+# it is always safe to compile regardless of the host ISA.
+#
+# SIMD is enabled by default and can be disabled with -DUSE_SIMD=OFF for
+# debugging, sanitizer runs, or architectures without SIMD support.
+
+option(USE_SIMD "Enable SIMD acceleration for batch AABB and plane-distance queries" ON)
+
+if(USE_SIMD AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|Intel")
+  check_cxx_compiler_flag("-mavx2" _GOCCT_HAVE_AVX2)
+  check_cxx_compiler_flag("-msse4.1" _GOCCT_HAVE_SSE4)
+
+  if(_GOCCT_HAVE_AVX2)
+    # Compile FaceBoundsSOA.cc with AVX2 + FMA.  The file itself selects the
+    # AVX2 implementation via #ifdef GOCCT_HAVE_AVX2 (set by -mavx2).
+    set_source_files_properties(
+      src/FaceBoundsSOA.cc
+      PROPERTIES COMPILE_FLAGS "-mavx2 -mfma")
+    message(STATUS "G4OCCT SIMD: AVX2 + FMA enabled for FaceBoundsSOA")
+  elseif(_GOCCT_HAVE_SSE4)
+    set_source_files_properties(
+      src/FaceBoundsSOA.cc
+      PROPERTIES COMPILE_FLAGS "-msse4.1")
+    message(STATUS "G4OCCT SIMD: SSE4.1 enabled for FaceBoundsSOA (no AVX2)")
+  else()
+    message(STATUS "G4OCCT SIMD: no SIMD flags available; scalar auto-vectorisation only")
+  endif()
+elseif(NOT USE_SIMD)
+  message(STATUS "G4OCCT SIMD: disabled (USE_SIMD=OFF)")
+endif()
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
