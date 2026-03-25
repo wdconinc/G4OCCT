@@ -375,6 +375,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: reldebinfo-binaries
+          path: build/src
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
@@ -459,6 +460,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: reldebinfo-binaries
+          path: build/src
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
@@ -526,6 +528,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: reldebinfo-binaries
+          path: build/src
 
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
