@@ -524,8 +524,24 @@ void G4OCCTSolid::ComputeBounds() {
   }
   if (faces.IsEmpty()) {
     fTriangleSet.Nullify();
+    fFaceDeflections.clear();
   } else {
     fTriangleSet = new BRepExtrema_TriangleSet(faces);
+
+    // Build per-face deflection table indexed in the same order as fFaceBoundsCache
+    // (and as the faces list above — both use the same TopExp_Explorer traversal).
+    // At query time, BRepExtrema_TriangleSet::GetFaceID() maps the nearest triangle's
+    // post-BVH-reorder index back to its face index, allowing a per-face lookup here.
+    fFaceDeflections.clear();
+    fFaceDeflections.reserve(fFaceBoundsCache.size());
+    for (const FaceBounds& fb : fFaceBoundsCache) {
+      Standard_Real fx0 = 0.0, fy0 = 0.0, fz0 = 0.0;
+      Standard_Real fx1 = 0.0, fy1 = 0.0, fz1 = 0.0;
+      fb.box.Get(fx0, fy0, fz0, fx1, fy1, fz1);
+      const G4double faceDiag =
+          G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
+      fFaceDeflections.push_back(kRelativeDeflection * faceDiag);
+    }
   }
 
   ComputeInitialSpheres();
@@ -968,7 +984,22 @@ G4double G4OCCTSolid::BVHLowerBoundDistance(const G4ThreeVector& p) const {
   // The solver returns a squared distance; take the single sqrt here
   // before subtracting the deflection bound (which is in actual-distance space).
   const G4double meshDist = std::sqrt(static_cast<G4double>(meshDistSq));
-  return std::max(0.0, meshDist - fBVHDeflection);
+
+  // Use per-face deflection for the face owning the nearest triangle.
+  // BRepExtrema_TriangleSet::GetFaceID() maps the BVH-reordered triangle index
+  // back to the face index in fFaceBoundsCache (the same ordering used to build
+  // the shape list passed to fTriangleSet).  This is tighter than fBVHDeflection
+  // when the nearest triangle belongs to a small face.
+  G4double deflection            = fBVHDeflection;
+  const Standard_Integer bestIdx = solver.BestIndex();
+  if (bestIdx >= 0) {
+    const Standard_Integer faceId = fTriangleSet->GetFaceID(bestIdx);
+    if (faceId >= 0 && static_cast<std::size_t>(faceId) < fFaceDeflections.size()) {
+      deflection = fFaceDeflections[static_cast<std::size_t>(faceId)];
+    }
+  }
+
+  return std::max(0.0, meshDist - deflection);
 }
 
 G4double G4OCCTSolid::PlanarFaceLowerBoundDistance(const G4ThreeVector& p) const {
