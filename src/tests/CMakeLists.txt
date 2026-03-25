@@ -5,6 +5,15 @@
 
 cmake_minimum_required(VERSION 3.16)
 
+# ─── G4OCCTTestSupport ────────────────────────────────────────────────────────
+# Static library linked by all GTest-based tests.  Contains a global-initializer
+# that registers a G4VExceptionHandler converting unexpected JustWarning
+# G4Exceptions from G4OCCT_ codes into Google Test failures.
+add_library(G4OCCTTestSupport STATIC g4occt_test_env.cc)
+target_include_directories(G4OCCTTestSupport PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(G4OCCTTestSupport PUBLIC G4OCCT GTest::gtest
+                                               ${Geant4_LIBRARIES})
+
 # Helper macro: register a GTest-based unit test executable. Usage:
 # g4occt_gtest(target sources... LINK_LIBRARIES libs...)
 macro(g4occt_gtest _target)
@@ -12,7 +21,7 @@ macro(g4occt_gtest _target)
   add_executable(${_target} ${_arg_UNPARSED_ARGUMENTS})
   target_include_directories(${_target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(${_target} PRIVATE ${_arg_LINK_LIBRARIES}
-                                           GTest::gtest_main)
+                                           G4OCCTTestSupport GTest::gtest_main)
   gtest_discover_tests(${_target})
 endmacro()
 
