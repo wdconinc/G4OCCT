@@ -36,6 +36,7 @@
     <element name="O" formula="O" Z="8">
       <atom value="15.9994"/>
     </element>
+    <element name="Ar" formula="Ar" Z="18"><atom value="39.948"/></element>
     <!-- Simplified aluminium (same density as G4_Al) -->
     <material name="G4_Al" state="solid">
       <D unit="g/cm3" value="2.699"/>
@@ -47,6 +48,7 @@
       <D unit="g/cm3" value="0.00120479"/>
       <fraction n="0.755636" ref="N"/>
       <fraction n="0.231781" ref="O"/>
+      <fraction n="0.012583" ref="Ar"/>
     </material>
   </materials>
 

@@ -53,6 +53,7 @@
     <element name="Si" formula="Si" Z="14"><atom value="28.0855"/></element>
     <element name="O"  formula="O"  Z="8" ><atom value="15.9994"/></element>
     <element name="N"  formula="N"  Z="7" ><atom value="14.0067"/></element>
+    <element name="Ar" formula="Ar" Z="18"><atom value="39.948"/></element>
     <!-- Lead-glass (Pb+Si+O mixture, density 3.86 g/cm³) -->
     <material name="LeadGlass" state="solid">
       <D unit="g/cm3" value="3.86"/>
@@ -66,6 +67,7 @@
       <D unit="g/cm3" value="0.00120479"/>
       <fraction n="0.755636" ref="N"/>
       <fraction n="0.231781" ref="O"/>
+      <fraction n="0.012583" ref="Ar"/>
     </material>
   </materials>
 
