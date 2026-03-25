@@ -34,6 +34,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 /**
@@ -260,6 +261,10 @@ private:
     /// argument passed to the search) used to retrieve the cached
     /// @c FaceBounds::adaptor without reconstructing it on the fly.
     std::size_t faceIndex{0};
+    /// UV parameters at the closest point on the face, available when
+    /// BRepExtrema_DistShapeShape found an interior solution
+    /// (BRepExtrema_IsInFace).  Not set for edge or vertex solutions.
+    std::optional<std::pair<Standard_Real, Standard_Real>> uv;
   };
 
   /// Axis-aligned bounding box: minimum and maximum corners.

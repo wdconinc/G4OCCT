@@ -11,6 +11,7 @@
 #include <BRepBndLib.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
+#include <BRepExtrema_SupportType.hxx>
 #include <BRepExtrema_TriangleSet.hxx>
 #include <BRepGProp.hxx>
 #include <BRepLib.hxx>
@@ -626,7 +627,19 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
     if (bestMatch.has_value() && candidateDistance >= bestMatch->distance) {
       continue;
     }
-    bestMatch = ClosestFaceMatch{.face = fb.face, .distance = candidateDistance, .faceIndex = i};
+    ClosestFaceMatch match{.face = fb.face, .distance = candidateDistance, .faceIndex = i};
+    // Extract UV from BRepExtrema when solution is on the face interior.
+    // For edge/vertex solutions ParOnFaceS2 has a different meaning so we
+    // skip caching in those cases and let SurfaceNormal fall back to
+    // GeomAPI_ProjectPointOnSurf.
+    if (distance.NbSolution() > 0 &&
+        distance.SupportTypeShape2(1) == BRepExtrema_IsInFace) {
+      Standard_Real u = 0.0;
+      Standard_Real v = 0.0;
+      distance.ParOnFaceS2(1, u, v);
+      match.uv = std::make_pair(u, v);
+    }
+    bestMatch = std::move(match);
   }
 
   return bestMatch;
@@ -864,7 +877,7 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // Shared helper: project @p onto @face using a pre-built surface adaptor,
   // obtain (u,v), and evaluate the outward normal.  Accepting the cached
   // BRepAdaptor_Surface avoids reconstructing it on the fly on this hot path.
-  const auto projectAndGetNormal = [&](const FaceBounds& fb) -> G4ThreeVector {
+  const auto projectAndGetNormalFallback = [&](const FaceBounds& fb) -> G4ThreeVector {
     TopLoc_Location loc;
     const Handle(Geom_Surface) surface = BRep_Tool::Surface(fb.face, loc);
     if (surface.IsNull()) {
@@ -891,7 +904,30 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   if (!closestFaceMatch.has_value()) {
     return FallbackNormal();
   }
-  return projectAndGetNormal(fFaceBoundsCache[closestFaceMatch->faceIndex]);
+  const FaceBounds& fb = fFaceBoundsCache[closestFaceMatch->faceIndex];
+
+  // Fast-path A: planar face with precomputed constant outward normal.
+  // Applies even in mixed solids (e.g. G4CutTubs) where fAllFacesPlanar is
+  // false but the closest face happens to be a flat endcap.
+  if (fb.outwardNormal.has_value()) {
+    return *fb.outwardNormal;
+  }
+
+  // Fast-path B: reuse UV already computed by BRepExtrema_DistShapeShape
+  // when the solution is on the face interior, skipping GeomAPI_ProjectPointOnSurf.
+  if (closestFaceMatch->uv.has_value()) {
+    const auto [u, v] = *closestFaceMatch->uv;
+    const auto result = TryGetOutwardNormal(fb.adaptor, fb.face, u, v);
+    if (result.has_value()) {
+      return *result;
+    }
+    // Fall through to full projection if normal evaluation failed at stored UV
+    // (e.g. torus seam or degenerate point).
+  }
+
+  // Fallback: full GeomAPI_ProjectPointOnSurf reprojection for edge/vertex
+  // solutions and cases where TryGetOutwardNormal returned nullopt.
+  return projectAndGetNormalFallback(fb);
 }
 
 G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p, const G4ThreeVector& v) const {
