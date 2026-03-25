@@ -32,8 +32,13 @@
 // Example:
 //   G4OCCT_TARGET_AVX2
 //   void MyFunc_avx2(...) { /* may use _mm256_* intrinsics */ }
+//
+// These macros are non-empty only on x86/x86-64 with GCC or Clang, where
+// __attribute__((target(...))) is well-defined.  On all other architectures
+// (AArch64, RISC-V, …) they expand to nothing so the code still compiles.
 
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && \
+    (defined(__x86_64__) || defined(__i386__))
 /// Mark a function to be compiled for the AVX2 + FMA instruction set.
 #  define G4OCCT_TARGET_AVX2    __attribute__((target("avx2,fma")))
 /// Mark a function to be compiled for the SSE 4.1 instruction set.
@@ -50,10 +55,12 @@
 //
 // Use these in dispatch functions to select the widest supported ISA at
 // runtime.  Both evaluate to `false` constants when `G4OCCT_USE_SIMD` is
-// not defined (i.e. the library was built with `-DUSE_SIMD=OFF`) or when the
-// compiler does not provide `__builtin_cpu_supports`.
+// not defined (i.e. the library was built with `-DUSE_SIMD=OFF`), when the
+// compiler does not provide `__builtin_cpu_supports`, or when building for a
+// non-x86 architecture (where the builtin is not available or meaningful).
 
-#if defined(G4OCCT_USE_SIMD) && (defined(__GNUC__) || defined(__clang__))
+#if defined(G4OCCT_USE_SIMD) && (defined(__GNUC__) || defined(__clang__)) && \
+    (defined(__x86_64__) || defined(__i386__))
 /// True at runtime when the executing CPU supports AVX2.
 #  define G4OCCT_CPU_HAS_AVX2  (__builtin_cpu_supports("avx2"))
 /// True at runtime when the executing CPU supports SSE 4.1.

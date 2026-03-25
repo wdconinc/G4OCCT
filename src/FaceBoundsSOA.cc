@@ -2,12 +2,12 @@
 // Copyright (C) 2026 G4OCCT Contributors
 
 /// @file FaceBoundsSOA.cc
-/// @brief Scalar and SIMD implementations of FaceBoundsSOA batch tests.
+/// @brief Scalar and AVX2 implementations of FaceBoundsSOA batch tests.
 ///
-/// All ISA variants (scalar, SSE4.1, AVX2+FMA) are compiled into the same
-/// translation unit.  Each SIMD function is tagged with
-/// `__attribute__((target(...)))` so the compiler generates ISA-specific
-/// code for that function only, without requiring global `-mavx2` flags.
+/// Scalar and AVX2+FMA variants are compiled into the same translation unit.
+/// Each SIMD function is tagged with `__attribute__((target(...)))` so the
+/// compiler generates ISA-specific code for that function only, without
+/// requiring global `-mavx2` flags.
 ///
 /// The public dispatch methods (`RayZPassFilter`, `RayPassFilter`,
 /// `MinPlaneDistance`) use `__builtin_cpu_supports` to select the widest

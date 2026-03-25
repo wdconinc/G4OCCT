@@ -25,7 +25,7 @@
 /// `__attribute__((target(...)))` function attributes; the dispatcher in each
 /// public method picks the widest supported ISA without any host-CPU
 /// restriction at build time.  The scalar fallback is used automatically on
-/// platforms without AVX2 or SSE4.1 support, and when `USE_SIMD=OFF`.
+/// platforms without AVX2 support, and when `USE_SIMD=OFF`.
 
 #pragma once
 
@@ -60,7 +60,7 @@ public:
   ///                    `plane` (`std::optional<gp_Pln>`).
   /// @param  cache      Per-face metadata vector from `G4OCCTSolid`.
   /// @param  tolerance  Enlargement applied to each face box (same value
-  ///                    used by `IntersectorCache::expandedBoxes`).
+  ///                    used in `GetOrCreateIntersector()`).
   template <typename FaceCache>
   void Build(const FaceCache& cache, double tolerance);
 
@@ -87,7 +87,8 @@ public:
   /// Return the minimum plane distance and the index of the closest planar face.
   ///
   /// Non-planar faces contribute `kNoPlaneDist` and are never the minimum.
-  /// Returns `{kNoPlaneDist, npos}` when `Size() == 0`.
+  /// Returns `{kNoPlaneDist, std::size_t(-1)}` when `Size() == 0` or when no
+  /// planar face exists.
   ///
   /// @param px, py, pz  Query point coordinates.
   std::pair<double, std::size_t> MinPlaneDistance(double px, double py, double pz) const;
