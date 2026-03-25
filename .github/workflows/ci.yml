@@ -564,6 +564,7 @@ jobs:
     if: always()
     permissions:
       contents: read
+      actions: read
 
     steps:
       - name: Checkout repository
@@ -653,6 +654,53 @@ jobs:
           path: reports/bench-assembly-results.md
           if-no-files-found: warn
           retention-days: 1
+
+      - name: Download target-branch ci-reports artifact
+        if: github.event_name == 'pull_request'
+        id: download-target-bench
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: ci.yml
+          branch: ${{ github.base_ref }}
+          name: ci-reports
+          path: target-ci-reports/
+          workflow_conclusion: success
+          if_no_artifact_found: ignore
+        continue-on-error: true
+
+      - name: Generate comparative OCCT benchmark report
+        if: always()
+        run: |
+          if [ -f ci-reports/bench_raw.json ] && [ -f target-ci-reports/bench_raw.json ]; then
+            mkdir -p reports
+            python3 .github/scripts/generate_bench_compare_report.py \
+              ci-reports/bench_raw.json \
+              target-ci-reports/bench_raw.json \
+              reports/bench-compare-results.md \
+              reports/bench-compare-chart.svg \
+              "${{ github.base_ref }}"
+          else
+            echo "Skipping comparative report: one or both bench_raw.json files are not available."
+          fi
+
+      - name: Post comparative bench report as step summary
+        if: always()
+        run: |
+          if [ -f reports/bench-compare-results.md ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            cat reports/bench-compare-results.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload comparative bench chart SVG artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-compare-chart
+          path: reports/bench-compare-chart.svg
+          if-no-files-found: warn
+          archive: false
+          retention-days: 7
 
   sanitizer:
     name: Build and test with sanitizers (eic_xl)
