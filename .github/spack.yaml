@@ -2,7 +2,7 @@
 # Copyright (C) 2026 G4OCCT Contributors
 
 spack:
-  view: /opt/view
+  view: /opt/local
 
   specs:
   - "geant4@11.3: ~opengl ~qt ~x11"
@@ -10,7 +10,7 @@ spack:
 
   config:
     install_tree:
-      root: /opt/spack
+      root: /opt/software
       padded_length: 128
 
   packages:
