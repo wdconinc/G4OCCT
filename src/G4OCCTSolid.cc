@@ -601,12 +601,16 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
   Bnd_Box queryBox;
   queryBox.Add(queryPoint);
 
+  // Only confirmed BRepExtrema distances are used to prune subsequent faces.
+  // Do not rely on projection-based estimates: rectangular UV-bounds checks are not
+  // equivalent to the actual trimmed boundary (e.g., faces with inner wires / holes),
+  // so projection distances can underestimate the true face distance and cause
+  // incorrect pruning.  maxDistance provides a safe initial upper bound (e.g. from
+  // BVH tessellation) when no confirmed result is available yet.
   std::optional<ClosestFaceMatch> bestMatch;
   for (std::size_t i = 0; i < faceBoundsCache.size(); ++i) {
     const FaceBounds& fb = faceBoundsCache[i];
     // Lower bound: distance from query point to the face's axis-aligned bounding box.
-    // Use maxDistance as the initial pruning threshold (before a bestMatch is found),
-    // tightening to bestMatch->distance once a candidate has been accepted.
     const G4double threshold = bestMatch.has_value() ? bestMatch->distance : maxDistance;
     if (threshold < kInfinity && fb.box.Distance(queryBox) > threshold) {
       continue;
