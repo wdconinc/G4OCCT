@@ -202,14 +202,17 @@ Do not lower these version floors without an explicit project decision.
   `find_package` first; use FetchContent as a fallback with a cache key so CI
   doesn't re-download on every run.  Use `actions/cache` to cache the
   FetchContent download directory between runs.
-- **CI job (`ci.yml`):** Two jobs:
+- **CI job (`ci.yml`):** Three main jobs:
   1. `build-test-benchmark` — builds with `-DCMAKE_BUILD_TYPE=Release
      -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`, runs tests, and installs.
-  2. `sanitizer` — builds with `-DCMAKE_BUILD_TYPE=RelWithDebInfo
-     -DBUILD_TESTING=ON -DUSE_ASAN=ON -DUSE_UBSAN=ON` and runs tests.
-  Both jobs check out the repository, install CVMFS, and run inside
+  2. `sanitizer` (matrix) — two entries running inside `eic_xl:nightly`:
+     - `asan`: builds with `-DCMAKE_BUILD_TYPE=RelWithDebInfo
+       -DBUILD_TESTING=ON -DUSE_ASAN=ON -DUSE_UBSAN=ON`, runs tests and B1.
+     - `tsan`: builds with `-DCMAKE_BUILD_TYPE=RelWithDebInfo
+       -DBUILD_TESTING=ON -DUSE_TSAN=ON`, runs tests and B1.
+  All jobs check out the repository, install CVMFS, and run inside
   `eic/run-cvmfs-osg-eic-shell@v1` with `platform-release: "eic_xl:nightly"`.
-- The `sanitizer` job also fetches NIST CTC STEP fixtures (`fetch-nist-ctc`
+- The `sanitizer` matrix job also fetches NIST CTC STEP fixtures (`fetch-nist-ctc`
   composite action) to exercise `test_nist_ctc_inside_volume` under ASAN and
   UBSAN.
 - **NIST CTC fixtures** (`nist-ctc-01` through `nist-ctc-11`) are AP203
@@ -218,10 +221,10 @@ Do not lower these version floors without an explicit project decision.
   `Inside()`-based volume estimate to an OCCT reference volume computed from
   the imported shape, and benchmarked independently in `bench_navigator`.  See
   [docs/nist_ctc.md](docs/nist_ctc.md) for details.
-- The sanitizer job sets `ASAN_OPTIONS`, `LSAN_OPTIONS`, and `UBSAN_OPTIONS`
-  in the job-level `env:` block of the `sanitizer` job in `.github/workflows/ci.yml` —
-  do **not** put them in the workflow's top-level `env:` or in the
-  `build-test-benchmark` job.
+- The `sanitizer` matrix job sets `ASAN_OPTIONS`, `LSAN_OPTIONS`, `UBSAN_OPTIONS`,
+  and `TSAN_OPTIONS` unconditionally in the job-level `env:` block — do **not**
+  put them in the workflow's top-level `env:` or in the `build-test-benchmark`
+  job. Inactive sanitizers ignore the unrelated env vars.
 - Suppression files live in `.github/asan.supp`, `.github/lsan.supp`, and
   `.github/ubsan.supp`.
 - **Do not split** tests and benchmarks into separate jobs.
@@ -417,11 +420,13 @@ pre-commit run --all-files
 
 ## 12. Sanitizers
 
-- **Scope:** `ASAN_OPTIONS`, `LSAN_OPTIONS`, and `UBSAN_OPTIONS` environment
-  variables must be set **only in the `sanitizer` CI job**, not globally or in
-  the `build-test-benchmark` job.
+- **Scope:** All sanitizer environment variables (`ASAN_OPTIONS`, `LSAN_OPTIONS`,
+  `UBSAN_OPTIONS`, `TSAN_OPTIONS`) must be set **only in the `sanitizer` matrix
+  CI job**, not globally or in the `build-test-benchmark` job. All four are
+  defined unconditionally at job level; inactive sanitizers simply ignore
+  the unrelated vars.
 - **Suppression files:** `.github/asan.supp`, `.github/lsan.supp`,
-  `.github/ubsan.supp`.  New
+  `.github/ubsan.supp`, and `.github/tsan.supp`.  New
   sanitizer failures originating from Geant4 internals or other third-party
   libraries should be suppressed in the appropriate file rather than disabling
   the sanitizer build.

@@ -727,10 +727,20 @@ jobs:
           retention-days: 7
 
   sanitizer:
-    name: Build and test with sanitizers (eic_xl)
+    name: Build and test with ${{ matrix.sanitizer.label }} (eic_xl)
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer:
+          - label: ASAN+UBSAN
+            name: asan
+            cmake_flags: -DUSE_ASAN=ON -DUSE_UBSAN=ON
+          - label: TSAN
+            name: tsan
+            cmake_flags: -DUSE_TSAN=ON
     env:
       # detect_leaks=1: also enable leak sanitizer via ASan
       # verify_asan_link_order=0: allow ASan in shared-library builds (Geant4/OCCT)
@@ -744,55 +754,6 @@ jobs:
       # silence_unsigned_overflow=1: suppress unsigned overflow (defined in C++)
       # report_error_type=1: include the sanitizer type in the error message
       UBSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/ubsan.supp:print_stacktrace=1:silence_unsigned_overflow=1:report_error_type=1
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Fetch NIST CTC STEP fixtures
-        uses: ./.github/actions/fetch-nist-ctc
-
-      - name: Install CVMFS
-        uses: cvmfs-contrib/github-action-cvmfs@v5
-
-      - name: Cache FetchContent dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            _fetchcontent/*-src
-            _fetchcontent/*-subbuild
-          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
-
-      - name: Build and test with ASAN and UBSAN inside eic_xl container
-        uses: eic/run-cvmfs-osg-eic-shell@v1
-        with:
-          platform-release: "eic_xl:nightly"
-          run: |
-            set -euo pipefail
-
-            # ── Configure ──────────────────────────────────────────────────
-            cmake -S . -B build \
-              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-              -DBUILD_TESTING=ON \
-              -DBUILD_EXAMPLES=ON \
-              -DUSE_ASAN=ON \
-              -DUSE_UBSAN=ON \
-              -DENABLE_WERROR=ON \
-              -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
-              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
-
-            # ── Build ──────────────────────────────────────────────────────
-            cmake --build build -- -j$(nproc)
-
-            # ── Test ───────────────────────────────────────────────────────
-            ctest --test-dir build --output-on-failure -j$(nproc)
-
-  tsan:
-    name: Build and test with thread sanitizer (eic_xl)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
       # halt_on_error=1: treat every race as fatal
       # second_deadlock_stack=1: print both stacks for deadlock reports
       # history_size=7: increase per-thread history for better stack traces
@@ -814,9 +775,9 @@ jobs:
           path: |
             _fetchcontent/*-src
             _fetchcontent/*-subbuild
-          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+          key: ${{ runner.os }}-fetchcontent-${{ matrix.sanitizer.name }}-${{ hashFiles('CMakeLists.txt') }}
 
-      - name: Build and test with TSAN inside eic_xl container
+      - name: Build and test with ${{ matrix.sanitizer.label }} inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
           platform-release: "eic_xl:nightly"
@@ -828,7 +789,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=RelWithDebInfo \
               -DBUILD_TESTING=ON \
               -DBUILD_EXAMPLES=ON \
-              -DUSE_TSAN=ON \
+              ${{ matrix.sanitizer.cmake_flags }} \
               -DENABLE_WERROR=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
               -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
