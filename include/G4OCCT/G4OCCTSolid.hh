@@ -426,7 +426,20 @@ private:
   /// which bounds the chord-height error for a relative linear deflection of
   /// `kRelativeDeflection`.  Used in `BVHLowerBoundDistance()` as the correction
   /// term `δ` in `s = max(0, mesh_dist − δ)` to guarantee a valid lower bound.
+  /// Also retained for contexts where a conservative global bound is needed (e.g.
+  /// the `SurfaceNormal` seed distance calculation).
   G4double fBVHDeflection{0.0};
+
+  /// Per-face Hausdorff deflection bound: `kRelativeDeflection × face_bbox_diagonal` for
+  /// each face in @c fFaceBoundsCache (same ordering).  In `BVHLowerBoundDistance()`,
+  /// `BRepExtrema_TriangleSet::GetFaceID()` maps the nearest triangle back to its face
+  /// so the tightest per-face correction can be used instead of the global
+  /// @c fBVHDeflection.  For queries near small faces this yields a tighter lower bound
+  /// and avoids unnecessary fall-through to the expensive exact solver.
+  ///
+  /// Populated alongside @c fTriangleSet in `ComputeBounds()`.  Empty when
+  /// @c fTriangleSet is null (no faces).
+  std::vector<G4double> fFaceDeflections;
 
   /// True if every face in @c fFaceBoundsCache has a precomputed plane (i.e. all
   /// faces are planar).  Set by `ComputeBounds()`.  When true, `DistanceToOut(p)`
