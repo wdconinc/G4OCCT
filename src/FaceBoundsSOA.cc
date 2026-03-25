@@ -47,7 +47,7 @@ void FaceBoundsSOA::RayZPassFilter_scalar(double px, double py, std::uint8_t* ou
   const double* __restrict__ ymin = fYmin.data();
   const double* __restrict__ ymax = fYmax.data();
 
-#pragma GCC ivdep
+GOCCT_IVDEP
   for (std::size_t i = 0; i < n; ++i) {
     out[i] = static_cast<std::uint8_t>((px >= xmin[i]) & (px <= xmax[i]) &
                                        (py >= ymin[i]) & (py <= ymax[i]));
@@ -91,7 +91,7 @@ void FaceBoundsSOA::RayPassFilter_scalar(double ox, double oy, double oz, double
 
   if (!dx_zero && !dy_zero && !dz_zero) {
     // All axes non-zero: fully vectorisable inner loop.
-#pragma GCC ivdep
+GOCCT_IVDEP
     for (std::size_t i = 0; i < n; ++i) {
       double tx1 = (xmin_ptr[i] - ox) * inv_dx;
       double tx2 = (xmax_ptr[i] - ox) * inv_dx;
