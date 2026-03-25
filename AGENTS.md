@@ -209,6 +209,15 @@ Do not lower these version floors without an explicit project decision.
      -DBUILD_TESTING=ON -DUSE_ASAN=ON -DUSE_UBSAN=ON` and runs tests.
   Both jobs check out the repository, install CVMFS, and run inside
   `eic/run-cvmfs-osg-eic-shell@v1` with `platform-release: "eic_xl:nightly"`.
+- The `sanitizer` job also fetches NIST CTC STEP fixtures (`fetch-nist-ctc`
+  composite action) to exercise `test_nist_ctc_inside_volume` under ASAN and
+  UBSAN.
+- **NIST CTC fixtures** (`nist-ctc-01` through `nist-ctc-11`) are AP203
+  compound assemblies with no native Geant4 solid equivalent.  They are
+  validated via `test_nist_ctc_inside_volume`, which compares a Monte-Carlo
+  `Inside()`-based volume estimate to an OCCT reference volume computed from
+  the imported shape, and benchmarked independently in `bench_navigator`.  See
+  [docs/nist_ctc.md](docs/nist_ctc.md) for details.
 - The sanitizer job sets `ASAN_OPTIONS`, `LSAN_OPTIONS`, and `UBSAN_OPTIONS`
   in the job-level `env:` block of the `sanitizer` job in `.github/workflows/ci.yml` —
   do **not** put them in the workflow's top-level `env:` or in the
@@ -412,7 +421,7 @@ pre-commit run --all-files
   variables must be set **only in the `sanitizer` CI job**, not globally or in
   the `build-test-benchmark` job.
 - **Suppression files:** `.github/asan.supp`, `.github/lsan.supp`,
-  `.github/ubsan.supp` (and `.github/tsan.supp` if a TSAN job exists).  New
+  `.github/ubsan.supp`.  New
   sanitizer failures originating from Geant4 internals or other third-party
   libraries should be suppressed in the appropriate file rather than disabling
   the sanitizer build.
