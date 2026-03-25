@@ -138,17 +138,23 @@ class TriangleRayCast
     : public BVH_Traverse<Standard_Real, 3, BRepExtrema_TriangleSet, Standard_Real> {
 public:
   /// Set the ray origin, normalised direction, and intersection tolerance.
+  /// Also resets all traversal output state so each cast starts clean.
   void SetRay(const BVH_Vec3d& theOrigin, const BVH_Vec3d& theDir, Standard_Real theTolerance) {
     myOrigin    = theOrigin;
     myDir       = theDir;
     myTolerance = theTolerance;
+
+    // Reset traversal output state so each cast starts from a clean state.
+    myCrossings  = 0;
+    myOnSurface  = Standard_False;
+    myDegenerate = Standard_False;
   }
 
   /// Reject a BVH node when the ray misses its AABB (slab method).
   Standard_Boolean RejectNode(const BVH_Vec3d& theCornerMin, const BVH_Vec3d& theCornerMax,
                               Standard_Real& theMetric) const override {
     Standard_Real tmin = 0.0;
-    Standard_Real tmax = 1e100;
+    Standard_Real tmax = Precision::Infinite();
     for (int k = 0; k < 3; ++k) {
       const Standard_Real dk =
           (k == 0) ? myDir.x() : (k == 1) ? myDir.y() : myDir.z();
@@ -158,7 +164,7 @@ public:
           (k == 0) ? theCornerMin.x() : (k == 1) ? theCornerMin.y() : theCornerMin.z();
       const Standard_Real ck_max =
           (k == 0) ? theCornerMax.x() : (k == 1) ? theCornerMax.y() : theCornerMax.z();
-      if (std::abs(dk) < 1e-12) {
+      if (std::abs(dk) < Precision::Confusion()) {
         if (ok < ck_min - myTolerance || ok > ck_max + myTolerance) {
           return Standard_True;
         }
@@ -878,6 +884,19 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
   // O(log N_triangles) BVH traversal, replacing the per-face
   // IntCurvesFace_Intersector calls for curved faces.
   if (!fTriangleSet.IsNull() && fTriangleSet->Size() > 0) {
+    // Guard: if the point is within the mesh error band (distance-to-surface
+    // not provably greater than tolerance + deflection), the tessellation may
+    // disagree with the exact solid near the boundary.  Fall back to the exact
+    // classifier so the classification is always consistent with the analytic shape.
+    if (fBVHDeflection > 0.0) {
+      const G4double bvhLB = BVHLowerBoundDistance(p);
+      if (bvhLB < tolerance) {
+        BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+        classifier.Perform(ToPoint(p), tolerance);
+        return ToG4Inside(classifier.State());
+      }
+    }
+
     TriangleRayCast caster;
     caster.SetRay(BVH_Vec3d(p.x(), p.y(), p.z()), BVH_Vec3d(0.0, 0.0, 1.0),
                   static_cast<Standard_Real>(tolerance));
@@ -890,6 +909,15 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     // Degenerate hit (ray near triangle edge/vertex): fall back to the exact
     // classifier so the skipped crossing does not misclassify the point.
     if (caster.Degenerate()) {
+      BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+      classifier.Perform(ToPoint(p), tolerance);
+      return ToG4Inside(classifier.State());
+    }
+    // Safety fallback: a zero-crossing BVH ray can still correspond to an
+    // interior point if intersections were missed due to numerical rejection
+    // or edge/vertex degeneracies.  Delegate to the exact classifier as in
+    // the Tier-2b implementation.
+    if (caster.Crossings() == 0) {
       BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
       classifier.Perform(ToPoint(p), tolerance);
       return ToG4Inside(classifier.State());
