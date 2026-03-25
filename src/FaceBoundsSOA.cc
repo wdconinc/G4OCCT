@@ -6,7 +6,7 @@
 ///
 /// This translation unit is compiled by CMake with the flags appropriate for
 /// the widest available SIMD ISA (`-mavx2 -mfma`, `-msse4.1`, or none).
-/// The preprocessor macros `GOCCT_HAVE_AVX2` / `GOCCT_HAVE_SSE4` are set by
+/// The preprocessor macros `G4OCCT_HAVE_AVX2` / `G4OCCT_HAVE_SSE4` are set by
 /// the compiler when those flags are active and steer the implementation
 /// selected by `FaceBoundsSOA`.
 
@@ -18,7 +18,7 @@
 #include <cstdint>
 #include <limits>
 
-#if defined(GOCCT_HAVE_AVX2)
+#if defined(G4OCCT_HAVE_AVX2)
 #  include <immintrin.h>
 #endif
 
@@ -47,7 +47,7 @@ void FaceBoundsSOA::RayZPassFilter_scalar(double px, double py, std::uint8_t* ou
   const double* __restrict__ ymin = fYmin.data();
   const double* __restrict__ ymax = fYmax.data();
 
-GOCCT_IVDEP
+G4OCCT_IVDEP
   for (std::size_t i = 0; i < n; ++i) {
     out[i] = static_cast<std::uint8_t>((px >= xmin[i]) & (px <= xmax[i]) &
                                        (py >= ymin[i]) & (py <= ymax[i]));
@@ -55,7 +55,7 @@ GOCCT_IVDEP
 }
 
 void FaceBoundsSOA::RayZPassFilter(double px, double py, std::uint8_t* out) const {
-#if defined(GOCCT_HAVE_AVX2)
+#if defined(G4OCCT_HAVE_AVX2)
   RayZPassFilter_avx2(px, py, out);
 #else
   RayZPassFilter_scalar(px, py, out);
@@ -91,7 +91,7 @@ void FaceBoundsSOA::RayPassFilter_scalar(double ox, double oy, double oz, double
 
   if (!dx_zero && !dy_zero && !dz_zero) {
     // All axes non-zero: fully vectorisable inner loop.
-GOCCT_IVDEP
+G4OCCT_IVDEP
     for (std::size_t i = 0; i < n; ++i) {
       double tx1 = (xmin_ptr[i] - ox) * inv_dx;
       double tx2 = (xmax_ptr[i] - ox) * inv_dx;
@@ -185,7 +185,7 @@ void FaceBoundsSOA::RayPassFilter(const gp_Lin& ray, std::uint8_t* out) const {
   const double     inv_dy  = dy_zero ? 0.0 : 1.0 / dy;
   const double     inv_dz  = dz_zero ? 0.0 : 1.0 / dz;
 
-#if defined(GOCCT_HAVE_AVX2)
+#if defined(G4OCCT_HAVE_AVX2)
   RayPassFilter_avx2(ox, oy, oz, inv_dx, inv_dy, inv_dz, dx_zero, dy_zero, dz_zero, out);
 #else
   RayPassFilter_scalar(ox, oy, oz, inv_dx, inv_dy, inv_dz, dx_zero, dy_zero, dz_zero, out);
@@ -225,7 +225,7 @@ std::pair<double, std::size_t> FaceBoundsSOA::MinPlaneDistance(double px, double
   if (fActualSize == 0) {
     return {kNoPlaneDist, std::size_t(-1)};
   }
-#if defined(GOCCT_HAVE_AVX2)
+#if defined(G4OCCT_HAVE_AVX2)
   return MinPlaneDistance_avx2(px, py, pz);
 #else
   return MinPlaneDistance_scalar(px, py, pz);
@@ -234,7 +234,7 @@ std::pair<double, std::size_t> FaceBoundsSOA::MinPlaneDistance(double px, double
 
 // ── AVX2 implementations ──────────────────────────────────────────────────────
 
-#if defined(GOCCT_HAVE_AVX2)
+#if defined(G4OCCT_HAVE_AVX2)
 
 /// AVX2 +Z ray AABB filter: 4 boxes per iteration.
 ///
@@ -394,6 +394,6 @@ std::pair<double, std::size_t> FaceBoundsSOA::MinPlaneDistance_avx2(double px, d
   return {scalar_min, scalar_base};
 }
 
-#endif // GOCCT_HAVE_AVX2
+#endif // G4OCCT_HAVE_AVX2
 
 } // namespace G4OCCT

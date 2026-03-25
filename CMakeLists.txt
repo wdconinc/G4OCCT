@@ -57,7 +57,7 @@ target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
 # ─── SIMD acceleration ────────────────────────────────────────────────────────
 #
 # `FaceBoundsSOA.cc` is compiled with the widest available SIMD flags.
-# The source file uses `#ifdef GOCCT_HAVE_AVX2` / `GOCCT_HAVE_SSE4` guards so
+# The source file uses `#ifdef G4OCCT_HAVE_AVX2` / `G4OCCT_HAVE_SSE4` guards so
 # it is always safe to compile regardless of the host ISA.
 #
 # SIMD is enabled by default and can be disabled with -DUSE_SIMD=OFF for
@@ -66,17 +66,17 @@ target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
 option(USE_SIMD "Enable SIMD acceleration for batch AABB and plane-distance queries" ON)
 
 if(USE_SIMD AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|Intel")
-  check_cxx_compiler_flag("-mavx2" _GOCCT_HAVE_AVX2)
-  check_cxx_compiler_flag("-msse4.1" _GOCCT_HAVE_SSE4)
+  check_cxx_compiler_flag("-mavx2" _G4OCCT_HAVE_AVX2)
+  check_cxx_compiler_flag("-msse4.1" _G4OCCT_HAVE_SSE4)
 
-  if(_GOCCT_HAVE_AVX2)
+  if(_G4OCCT_HAVE_AVX2)
     # Compile FaceBoundsSOA.cc with AVX2 + FMA.  The file itself selects the
-    # AVX2 implementation via #ifdef GOCCT_HAVE_AVX2 (set by -mavx2).
+    # AVX2 implementation via #ifdef G4OCCT_HAVE_AVX2 (set by -mavx2).
     set_source_files_properties(
       src/FaceBoundsSOA.cc
       PROPERTIES COMPILE_FLAGS "-mavx2 -mfma")
     message(STATUS "G4OCCT SIMD: AVX2 + FMA enabled for FaceBoundsSOA")
-  elseif(_GOCCT_HAVE_SSE4)
+  elseif(_G4OCCT_HAVE_SSE4)
     set_source_files_properties(
       src/FaceBoundsSOA.cc
       PROPERTIES COMPILE_FLAGS "-msse4.1")
