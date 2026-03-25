@@ -1,0 +1,60 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  G4OCCT logo — asymmetric lemniscate (OpenCASCADE) + radial particle tracks (Geant4)
+
+  Layout (viewBox 0 0 100 100):
+    Crossing point : (50, 50)
+    Right lobe     : centre (73, 50), radius 23  — Geant4 blue
+    Left lobe      : centre (35, 50), radius 15  — OpenCASCADE gold
+    Tracks         : 8 rays from crossing to canvas edge
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <!-- Blue gradient: bright upper-right inside the larger lobe -->
+    <radialGradient id="bg" cx="76" cy="37" r="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#6080E0"/>
+      <stop offset="100%" stop-color="#122070"/>
+    </radialGradient>
+    <!-- Gold gradient: bright upper-left inside the smaller lobe -->
+    <radialGradient id="gg" cx="30" cy="40" r="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFD060"/>
+      <stop offset="100%" stop-color="#B85000"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ── Particle tracks (drawn first so lobes cover them at centre) ──────── -->
+  <!-- 8 rays at 45° intervals from the crossing point (50, 50)               -->
+  <g stroke="#2A48B8" stroke-width="0.9" stroke-linecap="round" opacity="0.60">
+    <line x1="50" y1="50" x2="50"  y2="1"/>   <!-- N  -->
+    <line x1="50" y1="50" x2="85"  y2="15"/>  <!-- NE -->
+    <line x1="50" y1="50" x2="99"  y2="50"/>  <!-- E  -->
+    <line x1="50" y1="50" x2="85"  y2="85"/>  <!-- SE -->
+    <line x1="50" y1="50" x2="50"  y2="99"/>  <!-- S  -->
+    <line x1="50" y1="50" x2="15"  y2="85"/>  <!-- SW -->
+    <line x1="50" y1="50" x2="1"   y2="50"/>  <!-- W  -->
+    <line x1="50" y1="50" x2="15"  y2="15"/>  <!-- NW -->
+  </g>
+
+  <!-- ── Right lobe — Geant4 blue, radius 23, centre (73, 50) ────────────── -->
+  <!-- Cubic-Bézier circle approximation: control offset = 0.5523 × 23 ≈ 12.7 -->
+  <path d="M50,50
+            C50,37.3  60.3,27  73,27
+            C85.7,27  96,37.3  96,50
+            C96,62.7  85.7,73  73,73
+            C60.3,73  50,62.7  50,50 Z"
+        fill="url(#bg)" stroke="#0D1860" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- ── Left lobe — OpenCASCADE gold, radius 15, centre (35, 50) ─────────── -->
+  <!-- Cubic-Bézier circle approximation: control offset = 0.5523 × 15 ≈ 8.3  -->
+  <path d="M50,50
+            C50,41.7  43.3,35  35,35
+            C26.7,35  20,41.7  20,50
+            C20,58.3  26.7,65  35,65
+            C43.3,65  50,58.3  50,50 Z"
+        fill="url(#gg)" stroke="#7A3000" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- ── Centre crossing dot ──────────────────────────────────────────────── -->
+  <circle cx="50" cy="50" r="4"   fill="#0D1860"/>
+  <circle cx="50" cy="50" r="1.8" fill="#8090E8"/>
+</svg>
