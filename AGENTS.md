@@ -498,17 +498,22 @@ src/FaceBoundsSOA.cc            — scalar + AVX2 implementation (one TU)
 - **Per-file compile flags**: `FaceBoundsSOA.cc` is compiled with
   `-mavx2 -mfma` via CMake `set_source_files_properties(... COMPILE_FLAGS ...)`.
   Never add `-mavx2` to the global `target_compile_options`; only the SIMD
-  translation unit receives these flags.  ISA flags are enabled only when
-  **both** the compiler accepts the flag (`check_cxx_compiler_flag`) **and**
-  the host CPU reports the feature (`cmake_host_system_information(QUERY
-  HAS_AVX2 / HAS_SSE4_1)`), preventing illegal-instruction crashes on
-  non-AVX2 hosts or in cross-build scenarios.
+  translation unit receives these flags.  ISA-specific flags are **opt-in**:
+  pass `-DUSE_AVX2=ON` or `-DUSE_SSE4=ON` to CMake explicitly; they default
+  to `OFF` so that the scalar auto-vectorisable build is the safe default on
+  all CPUs and in cross-build scenarios.
 
 - **`USE_SIMD` CMake option** (default `ON`): When `OFF`, `FaceBoundsSOA.cc`
   is still compiled and linked (provides the scalar fallback), but no
   `G4OCCT_HAVE_AVX2` / `G4OCCT_HAVE_SSE4` macros are defined, so only the
   auto-vectorisable scalar paths are active.  Do not use `#if USE_SIMD`
   guards in headers; the API is always present.
+
+- **`USE_AVX2` / `USE_SSE4` CMake options** (default `OFF`): Opt-in flags
+  that add `-mavx2 -mfma` or `-msse4.1` to `FaceBoundsSOA.cc`'s compile
+  flags after verifying compiler support via `check_cxx_compiler_flag`.  Set
+  these only when you know the target CPU supports the ISA.  `USE_AVX2` takes
+  precedence over `USE_SSE4`.
 
 - **SoA padding**: Pad SoA arrays to the next multiple of `kLaneWidth = 4`
   (AVX2 double lane width).  Fill padding slots with empty-interval sentinels
