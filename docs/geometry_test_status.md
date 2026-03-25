@@ -28,7 +28,7 @@ errors.
 | `tessellated` | 1 | 1 | 0 | Closed-facet tetrahedron passes fully |
 | `boolean-compound` | 4 | 4 | 0 | All boolean fixtures enforced |
 | `wrapper-decorator` | 2 | 1 | 1 | `G4ScaledSolid` still needs frame alignment |
-| `nist-ctc` | 11 | 0 | 0 | No native G4 equivalent; STEP import only |
+| `nist-ctc` | 11 | 0 | 0 | No native G4 equivalent; STEP import + MC volume check only |
 | **Total** | **44** | **30** | **3** | — |
 
 The table counts unique STEP fixtures. Several fixtures are reused by `G4U*`
@@ -37,10 +37,11 @@ parent `G4*` fixture and are not listed separately.
 
 > **`nist-ctc` fixtures are a special case:** they are `G4OCCTSolid`-only and
 > cannot be compared against native Geant4 geometry because no Geant4 analytic
-> equivalent exists.  Validation is limited to STEP import and an `Inside()`
-> Monte-Carlo volume self-consistency check.  They are excluded from the
-> Enforced and Xfail categories above.  See [NIST CTC Fixtures](nist_ctc.md)
-> for the full description.
+> equivalent exists.  Validation is limited to STEP import plus an `Inside()`-
+> driven Monte-Carlo volume estimate that is compared against an OCCT reference
+> volume computed from the imported shape.  They are excluded from the Enforced
+> and Xfail categories above.  See [NIST CTC Fixtures](nist_ctc.md) for details
+> of the OCCT reference volume and Monte-Carlo setup.
 
 ---
 
