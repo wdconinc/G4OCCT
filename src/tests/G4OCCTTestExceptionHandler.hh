@@ -19,10 +19,16 @@
  *
  * G4Exception calls from Geant4-internal code (e.g. @c mat031 from
  * G4Material::FillVectors) are silently passed through.
+ *
+ * For non-JustWarning severities (FatalException, FatalErrorInArgument,
+ * etc.) the call is forwarded to @p previousHandler if non-null, or the
+ * function returns @c true so that Geant4 aborts the process—preserving
+ * the expected fatal-abort semantics during tests.
  */
 class G4OCCTTestExceptionHandler : public G4VExceptionHandler {
 public:
-  G4OCCTTestExceptionHandler() = default;
+  explicit G4OCCTTestExceptionHandler(G4VExceptionHandler* previousHandler)
+      : fPreviousHandler(previousHandler) {}
 
   G4bool Notify(const char* originOfException, const char* exceptionCode,
                 G4ExceptionSeverity severity, const char* description) override {
@@ -32,7 +38,17 @@ public:
         ADD_FAILURE() << "Unexpected G4Exception [" << exceptionCode << "] from "
                       << originOfException << ": " << description;
       }
+      return false;
     }
-    return false;
+    // For fatal or other severities, delegate to the previous handler so that
+    // abort semantics are preserved.  If there is no previous handler, return
+    // true to tell Geant4 to abort the process.
+    if (fPreviousHandler != nullptr) {
+      return fPreviousHandler->Notify(originOfException, exceptionCode, severity, description);
+    }
+    return severity == FatalException || severity == FatalErrorInArgument;
   }
+
+private:
+  G4VExceptionHandler* fPreviousHandler = nullptr;
 };

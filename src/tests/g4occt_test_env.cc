@@ -16,7 +16,8 @@ class G4OCCTTestEnv : public ::testing::Environment {
 public:
   void SetUp() override {
     fPreviousHandler = G4StateManager::GetStateManager()->GetExceptionHandler();
-    G4StateManager::GetStateManager()->SetExceptionHandler(new G4OCCTTestExceptionHandler);
+    G4StateManager::GetStateManager()->SetExceptionHandler(
+        new G4OCCTTestExceptionHandler(fPreviousHandler));
   }
 
   void TearDown() override {
