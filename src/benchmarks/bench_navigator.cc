@@ -62,7 +62,8 @@ namespace {
   // Returns true for fixtures where both "native" and "imported" solids are
   // the same G4OCCTSolid loaded from the same STEP file (i.e., NIST CTC
   // fixtures whose geant4_class is G4OCCTSolid).  Mismatches are always 0 for
-  // these fixtures; BM_safety and BM_polyhedron are skipped for large assemblies.
+  // these imported self-comparison fixtures; BM_safety and BM_polyhedron are
+  // skipped for them.
   bool IsImportedSelfComparisonFixture(const g4occt::tests::geometry::FixtureReference& fixture) {
     return fixture.geant4_class == "G4OCCTSolid";
   }
@@ -264,7 +265,7 @@ namespace {
         // For imported-self-comparison fixtures (G4OCCTSolid / NIST CTC), register
         // BM_rays and BM_inside benchmarks instead of skipping.
         // Native == imported for these fixtures so mismatches are always 0.
-        // BM_safety and BM_polyhedron are skipped for large assemblies.
+        // BM_safety and BM_polyhedron are skipped for them.
         if (IsImportedSelfComparisonFixture(fixture)) {
           const std::string fixture_id = family_manifest.family + "/" + fixture.id;
 
