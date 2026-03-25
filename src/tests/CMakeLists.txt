@@ -178,7 +178,7 @@ if(G4_VIS_EXECUTIVE_HH)
   # ── Per-fixture tests ─────────────────────────────────────────────────────
   # Families with large assemblies that exceed the CI memory/time budget are
   # excluded; they are covered by dedicated correctness tests instead.
-  set(_render_skip_families "nist-ctc")
+  set(_render_skip_families)
   file(
     GLOB _render_family_manifests CONFIGURE_DEPENDS
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -212,6 +212,12 @@ if(G4_VIS_EXECUTIVE_HH)
   endforeach()
   list(SORT _render_qualified_ids)
   foreach(_qualified_id IN LISTS _render_qualified_ids)
+    string(REGEX REPLACE "/.*$" "" _family "${_qualified_id}")
+    if(_family STREQUAL "nist-ctc")
+      set(_render_timeout 300)
+    else()
+      set(_render_timeout 120)
+    endif()
     add_test(
       NAME "render_geometry_fixtures/${_qualified_id}"
       COMMAND
@@ -220,7 +226,8 @@ if(G4_VIS_EXECUTIVE_HH)
         ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml --fixture
         ${_qualified_id})
     set_tests_properties("render_geometry_fixtures/${_qualified_id}"
-                         PROPERTIES RUN_SERIAL TRUE LABELS "visualization")
+                         PROPERTIES RUN_SERIAL TRUE LABELS "visualization"
+                                    TIMEOUT ${_render_timeout})
   endforeach()
   unset(_render_skip_families)
   unset(_render_family_manifests)
@@ -232,6 +239,7 @@ if(G4_VIS_EXECUTIVE_HH)
   unset(_fixture_id)
   unset(_render_qualified_ids)
   unset(_qualified_id)
+  unset(_render_timeout)
 else()
   message(
     STATUS
