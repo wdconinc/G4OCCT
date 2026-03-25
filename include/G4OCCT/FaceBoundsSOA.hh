@@ -20,7 +20,7 @@
 ///     faces, used in `SurfaceNormal(p)` and `PlanarFaceLowerBoundDistance`.
 ///
 /// The SIMD implementation is selected at compile time by the macros defined
-/// in `SimdSupport.hh` (`GOCCT_HAVE_AVX2`, `GOCCT_HAVE_SSE4`).  On platforms
+/// in `SimdSupport.hh` (`G4OCCT_HAVE_AVX2`, `G4OCCT_HAVE_SSE4`).  On platforms
 /// without any SIMD support the scalar fallback is used instead; it is written
 /// in a form that GCC/Clang can auto-vectorize with `-O3 -march=native`.
 
@@ -110,7 +110,7 @@ private:
   /// Return minimum plane distance over `[0, fPaddedSize)` using scalar code.
   std::pair<double, std::size_t> MinPlaneDistance_scalar(double px, double py, double pz) const;
 
-#if defined(GOCCT_HAVE_AVX2)
+#if defined(G4OCCT_HAVE_AVX2)
   void             RayZPassFilter_avx2(double px, double py, std::uint8_t* out) const;
   void             RayPassFilter_avx2(double ox, double oy, double oz, double inv_dx,
                                       double inv_dy, double inv_dz, bool dx_zero, bool dy_zero,

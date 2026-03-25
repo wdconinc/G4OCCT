@@ -5,7 +5,7 @@
 /// @brief Compile-time ISA detection and SIMD portability helpers.
 ///
 /// Algorithm code should include this header to access:
-/// - Detection macros (`GOCCT_HAVE_AVX2`, `GOCCT_HAVE_SSE4`, `GOCCT_HAVE_FMA`)
+/// - Detection macros (`G4OCCT_HAVE_AVX2`, `G4OCCT_HAVE_SSE4`, `G4OCCT_HAVE_FMA`)
 /// - `G4OCCT::AlignedAllocator<T, Alignment>` for SIMD-aligned `std::vector` storage
 ///
 /// No SIMD intrinsics appear here; they live in implementation files that are
@@ -20,17 +20,17 @@
 
 #if defined(__AVX2__)
 /// Defined when the translation unit is compiled with AVX2 support.
-#  define GOCCT_HAVE_AVX2 1
+#  define G4OCCT_HAVE_AVX2 1
 #endif
 
 #if defined(__SSE4_1__)
 /// Defined when the translation unit is compiled with SSE 4.1 support.
-#  define GOCCT_HAVE_SSE4 1
+#  define G4OCCT_HAVE_SSE4 1
 #endif
 
 #if defined(__FMA__)
 /// Defined when the translation unit is compiled with FMA support.
-#  define GOCCT_HAVE_FMA 1
+#  define G4OCCT_HAVE_FMA 1
 #endif
 
 // ── Auto-vectorisation hint ───────────────────────────────────────────────────
@@ -40,15 +40,15 @@
 ///
 /// Usage:
 /// ```cpp
-/// GOCCT_IVDEP
+/// G4OCCT_IVDEP
 /// for (std::size_t i = 0; i < n; ++i) { ... }
 /// ```
 #if defined(__clang__)
-#  define GOCCT_IVDEP _Pragma("clang loop vectorize(enable)")
+#  define G4OCCT_IVDEP _Pragma("clang loop vectorize(enable)")
 #elif defined(__GNUC__)
-#  define GOCCT_IVDEP _Pragma("GCC ivdep")
+#  define G4OCCT_IVDEP _Pragma("GCC ivdep")
 #else
-#  define GOCCT_IVDEP
+#  define G4OCCT_IVDEP
 #endif
 
 // ── Aligned allocator ─────────────────────────────────────────────────────────

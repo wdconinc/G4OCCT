@@ -478,7 +478,7 @@ Three high-level methods hide all SIMD from call sites:
 
 The ISA level is selected at compile time via `USE_SIMD` (CMake option, ON
 by default): `FaceBoundsSOA.cc` is compiled with `-mavx2 -mfma` when
-available, and uses `#ifdef GOCCT_HAVE_AVX2` guards internally.  The build
+available, and uses `#ifdef G4OCCT_HAVE_AVX2` guards internally.  The build
 falls back to an auto-vectorisable scalar implementation when AVX2 is
 absent or `USE_SIMD=OFF`.
 

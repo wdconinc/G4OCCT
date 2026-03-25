@@ -464,7 +464,7 @@ to speed up the O(N_faces) prefilter loops in `Inside`, `DistanceToIn/Out(p,v)`,
 
 ```
 include/G4OCCT/SimdSupport.hh   — compile-time ISA detection macros
-                                   (GOCCT_HAVE_AVX2, GOCCT_HAVE_SSE4, GOCCT_HAVE_FMA)
+                                   (G4OCCT_HAVE_AVX2, G4OCCT_HAVE_SSE4, G4OCCT_HAVE_FMA)
                                    AlignedAllocator<T, 32> helper
 include/G4OCCT/FaceBoundsSOA.hh — SoA layout + clean API
                                    (RayZPassFilter, RayPassFilter, MinPlaneDistance)
@@ -475,19 +475,19 @@ src/FaceBoundsSOA.cc            — scalar + AVX2 implementation (one TU)
 
 - **Portability layer**: All call sites in `G4OCCTSolid.cc` use `FaceBoundsSOA`
   public methods only.  No call site includes `<immintrin.h>` or uses
-  `__m256`/`__m128` directly.  All intrinsic code lives behind `#ifdef GOCCT_HAVE_AVX2`
+  `__m256`/`__m128` directly.  All intrinsic code lives behind `#ifdef G4OCCT_HAVE_AVX2`
   guards in `FaceBoundsSOA.cc`.
 
 - **`SimdSupport.hh`**: Header providing ISA detection macros
-  (`GOCCT_HAVE_AVX2`, `GOCCT_HAVE_SSE4`, `GOCCT_HAVE_FMA`), the
-  `AlignedAllocator` helper, and the `GOCCT_IVDEP` cross-compiler
+  (`G4OCCT_HAVE_AVX2`, `G4OCCT_HAVE_SSE4`, `G4OCCT_HAVE_FMA`), the
+  `AlignedAllocator` helper, and the `G4OCCT_IVDEP` cross-compiler
   auto-vectorisation hint.  Include this header at call sites that need ISA
   feature macros or aligned containers.  Do **not** include `<immintrin.h>`
   from headers.
 
 - **SIMD intrinsics headers**: Include `<immintrin.h>` only from `.cc` files
   that implement SIMD kernels (for example, `FaceBoundsSOA.cc`), and always
-  under the appropriate `#if defined(GOCCT_HAVE_AVX2)` (or similar) guard.
+  under the appropriate `#if defined(G4OCCT_HAVE_AVX2)` (or similar) guard.
 
 - **`AlignedAllocator<T, Alignment>`**: Wrap SoA `std::vector` declarations
   with this allocator to guarantee 32-byte alignment for aligned AVX2 loads:
@@ -502,7 +502,7 @@ src/FaceBoundsSOA.cc            — scalar + AVX2 implementation (one TU)
 
 - **`USE_SIMD` CMake option** (default `ON`): When `OFF`, `FaceBoundsSOA.cc`
   is still compiled and linked (provides the scalar fallback), but no
-  `GOCCT_HAVE_AVX2` / `GOCCT_HAVE_SSE4` macros are defined, so only the
+  `G4OCCT_HAVE_AVX2` / `G4OCCT_HAVE_SSE4` macros are defined, so only the
   auto-vectorisable scalar paths are active.  Do not use `#if USE_SIMD`
   guards in headers; the API is always present.
 
