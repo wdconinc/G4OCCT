@@ -309,7 +309,7 @@ jobs:
               -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
 
             # ── Build ──────────────────────────────────────────────────────
-            cmake --build build -- -j$(nproc)
+            cmake --build build --parallel "$(nproc)"
 
       - name: Upload reldebinfo binaries as artifact
         uses: actions/upload-artifact@v7
