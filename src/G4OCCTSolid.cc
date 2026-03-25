@@ -607,54 +607,52 @@ void G4OCCTSolid::ComputeInitialSpheres() {
   // fInitialSpheres.  This improves coverage for twisted or elongated shapes where many
   // of the 15 fixed candidates land outside the solid.
   // If no interior reference points exist, the adaptive pass is skipped entirely.
-  int extraCount = 0;
+  if (!succeededPts.empty()) {
+    int extraCount = 0;
 
-  for (const G4ThreeVector& failedPt : failedPts) {
-    if (succeededPts.empty()) {
-      // No interior reference points available: skip adaptive refinement.
-      break;
-    }
-    if (extraCount >= kMaxExtra) {
-      break;
-    }
-
-    // Find the nearest succeeded point to use as the bisection target.
-    G4ThreeVector refPt   = succeededPts[0];
-    G4double bestRefDist2 = (failedPt - refPt).mag2();
-    for (const G4ThreeVector& sp : succeededPts) {
-      const G4double d2 = (failedPt - sp).mag2();
-      if (d2 < bestRefDist2) {
-        bestRefDist2 = d2;
-        refPt        = sp;
-      }
-    }
-
-    // Bisect: current starts at the exterior side, refPt is the interior reference.
-    G4ThreeVector current = failedPt;
-    for (int level = 0; level < kMaxBisectLevels; ++level) {
+    for (const G4ThreeVector& failedPt : failedPts) {
       if (extraCount >= kMaxExtra) {
         break;
       }
-      const G4ThreeVector mid = 0.5 * (current + refPt);
-      localClassifier.Perform(ToPoint(mid), tol);
-      if (localClassifier.State() == TopAbs_IN) {
-        const auto r = computeRadius(mid);
-        if (!r.has_value()) {
-          // Inside but no usable radius; keep as reference for further bisection.
+
+      // Find the nearest succeeded point to use as the bisection target.
+      G4ThreeVector refPt   = succeededPts[0];
+      G4double bestRefDist2 = (failedPt - refPt).mag2();
+      for (const G4ThreeVector& sp : succeededPts) {
+        const G4double d2 = (failedPt - sp).mag2();
+        if (d2 < bestRefDist2) {
+          bestRefDist2 = d2;
+          refPt        = sp;
+        }
+      }
+
+      // Bisect: current starts at the exterior side, refPt is the interior reference.
+      G4ThreeVector current = failedPt;
+      for (int level = 0; level < kMaxBisectLevels; ++level) {
+        if (extraCount >= kMaxExtra) {
+          break;
+        }
+        const G4ThreeVector mid = 0.5 * (current + refPt);
+        localClassifier.Perform(ToPoint(mid), tol);
+        if (localClassifier.State() == TopAbs_IN) {
+          const auto r = computeRadius(mid);
+          if (!r.has_value()) {
+            // Inside but no usable radius; keep as reference for further bisection.
+            succeededPts.push_back(mid);
+            refPt   = mid;
+            current = failedPt;
+            continue;
+          }
+          fInitialSpheres.push_back({mid, *r});
           succeededPts.push_back(mid);
+          ++extraCount;
+          // Continue bisecting between the original failed side and this new interior point.
           refPt   = mid;
           current = failedPt;
-          continue;
+        } else {
+          // mid is still outside; move the exterior boundary inward.
+          current = mid;
         }
-        fInitialSpheres.push_back({mid, *r});
-        succeededPts.push_back(mid);
-        ++extraCount;
-        // Continue bisecting between the original failed side and this new interior point.
-        refPt   = mid;
-        current = failedPt;
-      } else {
-        // mid is still outside; move the exterior boundary inward.
-        current = mid;
       }
     }
   }
