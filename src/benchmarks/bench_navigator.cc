@@ -24,9 +24,6 @@
 namespace g4occt::benchmarks {
 namespace {
 
-  // Reduced ray/point count for NIST CTC fixtures (large AP203 assemblies).
-  constexpr std::size_t kNistCtcRayCount = 64;
-
   using g4occt::tests::geometry::CompareFixtureInside;
   using g4occt::tests::geometry::CompareFixturePolyhedron;
   using g4occt::tests::geometry::CompareFixtureRays;
@@ -64,11 +61,9 @@ namespace {
 
   // Returns true for fixtures where both "native" and "imported" solids are
   // the same G4OCCTSolid loaded from the same STEP file (i.e., NIST CTC
-  // fixtures whose geant4_class is G4OCCTSolid).  Navigation comparison on
-  // these very large compound assemblies is extremely slow and produces
-  // G4Exceptions; geometry import and volume checks are covered by
-  // test_nist_ctc_inside_volume (test_geometry_validation/nist-ctc-* is
-  // temporarily disabled).
+  // fixtures whose geant4_class is G4OCCTSolid).  Mismatches are always 0 for
+  // these imported self-comparison fixtures; BM_safety and BM_polyhedron are
+  // skipped for them.
   bool IsImportedSelfComparisonFixture(const g4occt::tests::geometry::FixtureReference& fixture) {
     return fixture.geant4_class == "G4OCCTSolid";
   }
@@ -268,9 +263,9 @@ namespace {
         }
 
         // For imported-self-comparison fixtures (G4OCCTSolid / NIST CTC), register
-        // reduced-ray-count BM_rays and BM_inside benchmarks instead of skipping.
+        // BM_rays and BM_inside benchmarks instead of skipping.
         // Native == imported for these fixtures so mismatches are always 0.
-        // BM_safety and BM_polyhedron are skipped (too expensive for large assemblies).
+        // BM_safety and BM_polyhedron are skipped for them.
         if (IsImportedSelfComparisonFixture(fixture)) {
           const std::string fixture_id = family_manifest.family + "/" + fixture.id;
 
@@ -284,75 +279,79 @@ namespace {
             }
           }
 
-          FixtureRayComparisonOptions nist_ctc_ray_opts = ray_opts;
-          nist_ctc_ray_opts.ray_count                  = kNistCtcRayCount;
-
           benchmark::RegisterBenchmark(
               ("BM_rays/" + fixture_id).c_str(),
-              [fixture_id, request, nist_ctc_ray_opts, expected_failure](benchmark::State& state) {
+              [fixture_id, request, ray_opts, expected_failure](benchmark::State& state) {
                 for (auto _ : state) {
                   g4occt::tests::geometry::FixtureRayComparisonSummary ray;
                   try {
-                    ValidationReport report = CompareFixtureRays(request, nist_ctc_ray_opts, &ray);
+                    ValidationReport report = CompareFixtureRays(request, ray_opts, &ray);
                     report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
                                                                                  expected_failure);
-                    std::lock_guard<std::mutex> lk(g_state->mu);
-                    g_state->summaries[fixture_id].ray = ray;
-                    if (g_state->summaries[fixture_id].geant4_class.empty()) {
-                      g_state->summaries[fixture_id].geant4_class = ray.geant4_class;
+                    {
+                      std::lock_guard<std::mutex> lk(g_state->mu);
+                      g_state->summaries[fixture_id].ray = ray;
+                      if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                        g_state->summaries[fixture_id].geant4_class = ray.geant4_class;
+                      }
+                      g_state->aggregate_report.Append(report);
                     }
-                    g_state->aggregate_report.Append(report);
+                    state.SetIterationTime(ray.imported_elapsed_ms / 1000.0);
+                    state.SetLabel(ray.geant4_class);
+                    state.counters["native_ms"]   = ray.native_elapsed_ms;
+                    state.counters["imported_ms"] = ray.imported_elapsed_ms;
+                    state.counters["mismatches"]  = static_cast<double>(RayOnlyMismatches(ray));
+                    state.counters["exit_normal_mismatches"] =
+                        static_cast<double>(ray.normal_mismatch_count);
+                    state.counters["sn_native_ms"]   = ray.native_surface_normal_ms;
+                    state.counters["sn_imported_ms"] = ray.imported_surface_normal_ms;
+                    state.counters["sn_mismatches"] =
+                        static_cast<double>(ray.surface_normal_mismatch_count);
+                    state.counters["has_expected_failure"] = static_cast<double>(
+                        expected_failure.enabled || expected_failure.safety_enabled);
                   } catch (const std::exception& ex) {
-                    std::cerr << "[BM_rays/" << fixture_id << "] exception: " << ex.what() << "\n";
+                    const std::string msg =
+                        "[BM_rays/" + fixture_id + "] exception: " + ex.what();
+                    std::cerr << msg << "\n";
+                    state.SkipWithError(msg.c_str());
+                    return;
                   }
-                  state.SetIterationTime(ray.imported_elapsed_ms / 1000.0);
-                  state.SetLabel(ray.geant4_class);
-                  state.counters["native_ms"]   = ray.native_elapsed_ms;
-                  state.counters["imported_ms"] = ray.imported_elapsed_ms;
-                  state.counters["mismatches"]  = static_cast<double>(RayOnlyMismatches(ray));
-                  state.counters["exit_normal_mismatches"] =
-                      static_cast<double>(ray.normal_mismatch_count);
-                  state.counters["sn_native_ms"]   = ray.native_surface_normal_ms;
-                  state.counters["sn_imported_ms"] = ray.imported_surface_normal_ms;
-                  state.counters["sn_mismatches"] =
-                      static_cast<double>(ray.surface_normal_mismatch_count);
-                  state.counters["has_expected_failure"] = static_cast<double>(
-                      expected_failure.enabled || expected_failure.safety_enabled);
                 }
               })
               ->UseManualTime()
               ->Iterations(1)
               ->Unit(benchmark::kMillisecond);
 
-          FixtureInsideComparisonOptions nist_ctc_inside_opts = inside_opts;
-          nist_ctc_inside_opts.point_count                   = kNistCtcRayCount;
-          nist_ctc_inside_opts.include_near_surface_points   = false;
-
           benchmark::RegisterBenchmark(
               ("BM_inside/" + fixture_id).c_str(),
-              [fixture_id, request, nist_ctc_inside_opts,
+              [fixture_id, request, inside_opts,
                expected_failure](benchmark::State& state) {
                 for (auto _ : state) {
                   g4occt::tests::geometry::FixtureInsideComparisonSummary inside;
                   try {
                     ValidationReport report =
-                        CompareFixtureInside(request, nist_ctc_inside_opts, &inside);
+                        CompareFixtureInside(request, inside_opts, &inside);
                     report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
                                                                                  expected_failure);
-                    std::lock_guard<std::mutex> lk(g_state->mu);
-                    g_state->summaries[fixture_id].inside = inside;
-                    if (g_state->summaries[fixture_id].geant4_class.empty()) {
-                      g_state->summaries[fixture_id].geant4_class = inside.geant4_class;
+                    {
+                      std::lock_guard<std::mutex> lk(g_state->mu);
+                      g_state->summaries[fixture_id].inside = inside;
+                      if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                        g_state->summaries[fixture_id].geant4_class = inside.geant4_class;
+                      }
+                      g_state->aggregate_report.Append(report);
                     }
-                    g_state->aggregate_report.Append(report);
+                    state.SetIterationTime(inside.imported_elapsed_ms / 1000.0);
+                    state.counters["native_ms"]   = inside.native_elapsed_ms;
+                    state.counters["imported_ms"] = inside.imported_elapsed_ms;
+                    state.counters["mismatches"]  = static_cast<double>(inside.mismatch_count);
                   } catch (const std::exception& ex) {
-                    std::cerr << "[BM_inside/" << fixture_id << "] exception: " << ex.what()
-                              << "\n";
+                    const std::string msg =
+                        "[BM_inside/" + fixture_id + "] exception: " + ex.what();
+                    std::cerr << msg << "\n";
+                    state.SkipWithError(msg.c_str());
+                    return;
                   }
-                  state.SetIterationTime(inside.imported_elapsed_ms / 1000.0);
-                  state.counters["native_ms"]   = inside.native_elapsed_ms;
-                  state.counters["imported_ms"] = inside.imported_elapsed_ms;
-                  state.counters["mismatches"]  = static_cast<double>(inside.mismatch_count);
                 }
               })
               ->UseManualTime()
