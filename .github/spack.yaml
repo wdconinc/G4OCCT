@@ -15,6 +15,27 @@ spack:
   packages:
     all:
       require: 'target=x86_64_v2'
+    gl:
+      require:
+        - glx
+    libglx:
+      require:
+        - opengl
+    egl:
+      buildable: false
+      externals:
+        - spec: egl@1.5
+          prefix: /usr
+    opengl:
+      buildable: false
+      externals:
+        - spec: opengl@4.6
+          prefix: /usr
+    openglu:
+      buildable: false
+      externals:
+        - spec: openglu@1.4
+          prefix: /usr
 
   mirrors:
     eic-buildcache:
