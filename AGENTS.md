@@ -214,8 +214,9 @@ Do not lower these version floors without an explicit project decision.
   UBSAN.
 - **NIST CTC fixtures** (`nist-ctc-01` through `nist-ctc-11`) are AP203
   compound assemblies with no native Geant4 solid equivalent.  They are
-  validated via `test_nist_ctc_inside_volume` (Inside volume self-consistency
-  check) and benchmarked independently in `bench_navigator`.  See
+  validated via `test_nist_ctc_inside_volume`, which compares a Monte-Carlo
+  `Inside()`-based volume estimate to an OCCT reference volume computed from
+  the imported shape, and benchmarked independently in `bench_navigator`.  See
   [docs/nist_ctc.md](docs/nist_ctc.md) for details.
 - The sanitizer job sets `ASAN_OPTIONS`, `LSAN_OPTIONS`, and `UBSAN_OPTIONS`
   in the job-level `env:` block of the `sanitizer` job in `.github/workflows/ci.yml` —
