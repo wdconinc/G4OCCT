@@ -535,12 +535,15 @@ void G4OCCTSolid::ComputeBounds() {
     fFaceDeflections.clear();
     fFaceDeflections.reserve(fFaceBoundsCache.size());
     for (const FaceBounds& fb : fFaceBoundsCache) {
-      Standard_Real fx0 = 0.0, fy0 = 0.0, fz0 = 0.0;
-      Standard_Real fx1 = 0.0, fy1 = 0.0, fz1 = 0.0;
-      fb.box.Get(fx0, fy0, fz0, fx1, fy1, fz1);
-      const G4double faceDiag =
-          G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
-      fFaceDeflections.push_back(kRelativeDeflection * faceDiag);
+      G4double deflection = 0.0;
+      if (!fb.box.IsVoid()) {
+        Standard_Real fx0 = 0.0, fy0 = 0.0, fz0 = 0.0;
+        Standard_Real fx1 = 0.0, fy1 = 0.0, fz1 = 0.0;
+        fb.box.Get(fx0, fy0, fz0, fx1, fy1, fz1);
+        const G4double faceDiag = G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
+        deflection              = kRelativeDeflection * faceDiag;
+      }
+      fFaceDeflections.push_back(deflection);
     }
   }
 
