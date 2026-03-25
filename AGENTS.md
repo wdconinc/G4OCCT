@@ -268,7 +268,39 @@ Do not lower these version floors without an explicit project decision.
 
 ---
 
-## 8. Material Bridging
+## 8. G4Exception Policy
+
+### Severity guidelines
+
+| Situation | Severity |
+|---|---|
+| Unmapped / invalid input that cannot be recovered from | `FatalException` |
+| Degenerate solid geometry (e.g. empty tessellation) | `FatalException` |
+| Skippable STEP assembly component (null shape, missing reference) | `JustWarning` |
+
+Never use `JustWarning` for situations where the result returned to the caller
+would be incorrect or unusable.  If in doubt, prefer `FatalException`.
+
+### Test-time handler
+
+All GTest-based tests link **`G4OCCTTestSupport`**, which installs a
+`G4VExceptionHandler` at suite startup.  The handler converts any
+`JustWarning` G4Exception whose code starts with `G4OCCT_` or equals
+`GeomMgt1001` into a Google Test `ADD_FAILURE()` call.  This means
+unexpected warnings from our own code automatically fail the test.
+
+Geant4-internal warnings (e.g. `mat031` from `G4Material::FillVectors()`)
+are passed through silently.
+
+### GDML fixture materials
+
+All GDML fixture files must define materials with fractions that sum to
+**exactly 1.0**.  Dry air must be defined as a ternary N+O+Ar mixture
+(matching the `string-array-v1` fixture), not a binary N+O mixture.
+
+---
+
+## 9. Material Bridging
 
 - Material assignments must be **correct, unique, and unambiguous**.
 - **No heuristics are permitted** (e.g., guessing material from density,
@@ -282,7 +314,7 @@ Do not lower these version floors without an explicit project decision.
 
 ---
 
-## 9. Geometry and Navigation
+## 10. Geometry and Navigation
 
 - `G4OCCTSolid` wraps a `TopoDS_Shape` and inherits `G4VSolid`.
 - `G4OCCTLogicalVolume` inherits `G4LogicalVolume` and carries an optional
@@ -347,7 +379,7 @@ Do not lower these version floors without an explicit project decision.
 
 ---
 
-## 10. Code Style
+## 11. Code Style
 
 - Doxygen `/** ... */` block comments before all public API (classes,
   constructors, methods).
@@ -363,7 +395,7 @@ Do not lower these version floors without an explicit project decision.
 
 ---
 
-## 11. Code Quality Tools (pre-commit)
+## 12. Code Quality Tools (pre-commit)
 
 The project uses **pre-commit** hooks (`.pre-commit-config.yaml`) to enforce
 consistent style automatically before every commit.  Install once with:
@@ -415,7 +447,7 @@ pre-commit run --all-files
 
 ---
 
-## 12. Sanitizers
+## 13. Sanitizers
 
 - **Scope:** `ASAN_OPTIONS`, `LSAN_OPTIONS`, and `UBSAN_OPTIONS` environment
   variables must be set **only in the `sanitizer` CI job**, not globally or in
@@ -432,7 +464,7 @@ pre-commit run --all-files
 
 ---
 
-## 13. Report and Script Conventions
+## 14. Report and Script Conventions
 
 - CI-specific Python and shell scripts belong in **`.github/scripts/`**, not
   in a top-level `scripts/` directory.  Top-level `scripts/` should not exist.
@@ -447,7 +479,7 @@ pre-commit run --all-files
 
 ---
 
-## 14. Examples
+## 15. Examples
 
 - **License:** Source files copied from Geant4 examples (B1, B4c, etc.) must
   retain their **original Geant4 license block** unchanged.  Do not replace it
@@ -463,7 +495,7 @@ pre-commit run --all-files
 
 ---
 
-## 15. Updating These Instructions
+## 16. Updating These Instructions
 
 If a PR discussion establishes a new convention:
 

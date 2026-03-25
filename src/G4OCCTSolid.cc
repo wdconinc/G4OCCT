@@ -1247,8 +1247,8 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
     G4ExceptionDescription msg;
     msg << "Tessellation of solid \"" << GetName()
         << "\" produced no valid triangles.  Returning origin.";
-    G4Exception("G4OCCTSolid::GetPointOnSurface", "GeomMgt1001", JustWarning, msg);
-    return {0.0, 0.0, 0.0};
+    G4Exception("G4OCCTSolid::GetPointOnSurface", "GeomMgt1001", FatalException, msg);
+    return {0.0, 0.0, 0.0};  // unreachable; silences compiler warning
   }
 
   // Select a triangle with probability proportional to its area using a
