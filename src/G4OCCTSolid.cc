@@ -877,7 +877,7 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     // classifier so the classification is always consistent with the analytic shape.
     if (fBVHDeflection > 0.0) {
       const G4double bvhLB = BVHLowerBoundDistance(p);
-      if (bvhLB < tolerance + fBVHDeflection) {
+      if (bvhLB < tolerance) {
         BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
         classifier.Perform(ToPoint(p), tolerance);
         return ToG4Inside(classifier.State());
