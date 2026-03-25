@@ -301,13 +301,6 @@ private:
   /// in a bbox-prefiltered loop that avoids `NCollection_Sequence` heap
   /// allocation.
   ///
-  /// `expandedBoxes` holds a copy of each entry's `FaceBounds::box`, enlarged
-  /// by `IntersectionTolerance()`.  Planar faces have zero-thickness bounding
-  /// boxes in their normal direction; `Bnd_Box::IsOut(gp_Lin)` can return a
-  /// floating-point false positive for such degenerate boxes when the line
-  /// grazes the bounding plane.  Enlarging by the tolerance ensures every box
-  /// has finite extent in all directions and makes the `IsOut` test robust.
-  ///
   /// `passFilter` is a pre-allocated workspace used by the SIMD batch AABB
   /// prefilter.  It is written and read within the same method call; its size
   /// equals `fFaceBoundsSOA.PaddedSize()` (the face count rounded up to the
@@ -316,7 +309,6 @@ private:
   struct IntersectorCache {
     std::uint64_t generation{std::numeric_limits<std::uint64_t>::max()};
     std::vector<std::unique_ptr<IntCurvesFace_Intersector>> faceIntersectors;
-    std::vector<Bnd_Box> expandedBoxes; ///< per-face boxes enlarged by `IntersectionTolerance()`
     std::vector<std::uint8_t> passFilter; ///< workspace for SIMD AABB batch prefilter
   };
 

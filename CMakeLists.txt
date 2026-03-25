@@ -67,13 +67,20 @@ target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
 #
 # Disable with -DUSE_SIMD=OFF to use only the scalar auto-vectorised path.
 
-option(USE_SIMD "Enable SIMD acceleration with runtime CPU dispatch (AVX2+FMA, SSE4.1, scalar)" ON)
+option(USE_SIMD "Enable SIMD acceleration with runtime CPU dispatch (AVX2+FMA, scalar)" ON)
 
-if(USE_SIMD AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|Intel")
+if(USE_SIMD
+   AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|Intel"
+   AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|X86_64|amd64|AMD64|i[3-6]86|x86|X86)$")
   target_compile_definitions(G4OCCT PRIVATE G4OCCT_USE_SIMD=1)
-  message(STATUS "G4OCCT SIMD: runtime CPU dispatch enabled (AVX2+FMA / SSE4.1 / scalar)")
+  message(STATUS "G4OCCT SIMD: runtime CPU dispatch enabled (AVX2+FMA / scalar)")
 elseif(NOT USE_SIMD)
   message(STATUS "G4OCCT SIMD: disabled (USE_SIMD=OFF; scalar auto-vectorisation only)")
+elseif(USE_SIMD)
+  message(
+    STATUS
+    "G4OCCT SIMD: requested but not enabled (unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR})"
+  )
 endif()
 
 # ─── Tests ────────────────────────────────────────────────────────────────────

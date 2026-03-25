@@ -6,8 +6,6 @@
 
 #include "G4OCCT/G4OCCTSolid.hh"
 
-#include "G4OCCT/FaceBoundsSOA.hh"
-
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepBndLib.hxx>
@@ -658,8 +656,8 @@ void G4OCCTSolid::ComputeBounds() {
   }
 
   // Build the SIMD-accelerated SoA mirror of fFaceBoundsCache.
-  // Uses the same tolerance enlargement as IntersectorCache::expandedBoxes so
-  // that the SoA batch prefilter is a drop-in replacement.
+  // Applies the same tolerance enlargement that is used in GetOrCreateIntersector()
+  // so that the SoA batch prefilter is a drop-in replacement.
   fFaceBoundsSOA.Build(fFaceBoundsCache, IntersectionTolerance());
 
   ComputeInitialSpheres();
@@ -796,15 +794,10 @@ G4OCCTSolid::IntersectorCache& G4OCCTSolid::GetOrCreateIntersector() const {
     const G4double tol = IntersectionTolerance();
     cache.faceIntersectors.clear();
     cache.faceIntersectors.reserve(fFaceBoundsCache.size());
-    cache.expandedBoxes.clear();
-    cache.expandedBoxes.reserve(fFaceBoundsCache.size());
     cache.passFilter.assign(fFaceBoundsSOA.PaddedSize(), 0);
     for (const auto& fb : fFaceBoundsCache) {
       cache.faceIntersectors.push_back(
           std::make_unique<IntCurvesFace_Intersector>(fb.face, tol)); // O(1) per face
-      Bnd_Box expanded = fb.box;
-      expanded.Enlarge(tol); // prevent false-positive IsOut for zero-thickness planar face boxes
-      cache.expandedBoxes.push_back(std::move(expanded));
     }
     cache.generation = currentGen;
   }

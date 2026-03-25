@@ -2,12 +2,12 @@
 // Copyright (C) 2026 G4OCCT Contributors
 
 /// @file FaceBoundsSOA.cc
-/// @brief Scalar and SIMD implementations of FaceBoundsSOA batch tests.
+/// @brief Scalar and AVX2 implementations of FaceBoundsSOA batch tests.
 ///
-/// All ISA variants (scalar, SSE4.1, AVX2+FMA) are compiled into the same
-/// translation unit.  Each SIMD function is tagged with
-/// `__attribute__((target(...)))` so the compiler generates ISA-specific
-/// code for that function only, without requiring global `-mavx2` flags.
+/// Scalar and AVX2+FMA variants are compiled into the same translation unit.
+/// Each SIMD function is tagged with `__attribute__((target(...)))` so the
+/// compiler generates ISA-specific code for that function only, without
+/// requiring global `-mavx2` flags.
 ///
 /// The public dispatch methods (`RayZPassFilter`, `RayPassFilter`,
 /// `MinPlaneDistance`) use `__builtin_cpu_supports` to select the widest
@@ -26,14 +26,14 @@
 #include <limits>
 
 #if defined(G4OCCT_USE_SIMD) && (defined(__GNUC__) || defined(__clang__))
-// Make all ISA intrinsics visible to __attribute__((target(...))) functions
+// Make AVX2+FMA intrinsics visible to __attribute__((target(...))) functions
 // in this TU.  On GCC, <immintrin.h> guards individual ISA sections with
-// #ifdef __AVX2__ etc.; the pragma temporarily sets those macros so the
-// header exposes the full intrinsic set.  The pop_options restores default
+// #ifdef __AVX2__ etc.; the pragma temporarily enables avx2+fma so the
+// header exposes those intrinsics.  The pop_options restores the default
 // code-generation flags; the intrinsic *definitions* remain visible.
 #  if defined(__GNUC__) && !defined(__clang__)
 #    pragma GCC push_options
-#    pragma GCC target("avx2,fma,sse4.1")
+#    pragma GCC target("avx2,fma")
 #  endif
 #  include <immintrin.h>
 #  if defined(__GNUC__) && !defined(__clang__)
@@ -225,7 +225,7 @@ void FaceBoundsSOA::RayPassFilter(const gp_Lin& ray, std::uint8_t* out) const {
 std::pair<double, std::size_t>
 FaceBoundsSOA::MinPlaneDistance_scalar(double px, double py, double pz) const {
   double      minDist = kNoPlaneDist;
-  std::size_t minIdx  = fActualSize; // sentinel "not found"
+  std::size_t minIdx  = kNoPlaneIndex;
 
   const double* a_ptr = fPlaneA.data();
   const double* b_ptr = fPlaneB.data();
@@ -246,7 +246,7 @@ FaceBoundsSOA::MinPlaneDistance_scalar(double px, double py, double pz) const {
 std::pair<double, std::size_t> FaceBoundsSOA::MinPlaneDistance(double px, double py,
                                                                 double pz) const {
   if (fActualSize == 0) {
-    return {kNoPlaneDist, std::size_t(-1)};
+    return {kNoPlaneDist, kNoPlaneIndex};
   }
 #if defined(G4OCCT_USE_SIMD)
   if (G4OCCT_CPU_HAS_AVX2) {
@@ -416,7 +416,7 @@ std::pair<double, std::size_t> FaceBoundsSOA::MinPlaneDistance_avx2(double px, d
   }
 
   if (scalar_min >= kNoPlaneDist) {
-    return {kNoPlaneDist, std::size_t(-1)};
+    return {kNoPlaneDist, kNoPlaneIndex};
   }
   return {scalar_min, scalar_base};
 }

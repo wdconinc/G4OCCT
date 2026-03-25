@@ -473,15 +473,14 @@ to speed up the O(N_faces) prefilter loops in `Inside`, `DistanceToIn/Out(p,v)`,
 
 ```
 include/G4OCCT/SimdSupport.hh   — target-attribute macros
-                                   (G4OCCT_TARGET_AVX2, G4OCCT_TARGET_SSE4,
-                                    G4OCCT_TARGET_DEFAULT)
-                                   runtime CPU-check macros
-                                   (G4OCCT_CPU_HAS_AVX2, G4OCCT_CPU_HAS_SSE4)
+                                   (G4OCCT_TARGET_AVX2, G4OCCT_TARGET_DEFAULT)
+                                   runtime CPU-check macro
+                                   (G4OCCT_CPU_HAS_AVX2)
                                    AlignedAllocator<T, 32> helper
 include/G4OCCT/FaceBoundsSOA.hh — SoA layout + clean API
                                    (RayZPassFilter, RayPassFilter, MinPlaneDistance)
-src/FaceBoundsSOA.cc            — scalar + SIMD implementation (one TU)
-                                   all ISA variants compiled via __attribute__((target(...)))
+src/FaceBoundsSOA.cc            — scalar + AVX2+FMA implementation (one TU)
+                                   ISA variants compiled via __attribute__((target(...)))
                                    runtime dispatch via __builtin_cpu_supports
 ```
 
@@ -489,8 +488,8 @@ src/FaceBoundsSOA.cc            — scalar + SIMD implementation (one TU)
 
 - **Portability layer**: All call sites in `G4OCCTSolid.cc` use `FaceBoundsSOA`
   public methods only.  No call site includes `<immintrin.h>` or uses
-  `__m256`/`__m128` directly.  All intrinsic code lives in `FaceBoundsSOA.cc`,
-  decorated with `G4OCCT_TARGET_AVX2` / `G4OCCT_TARGET_SSE4`.
+  `__m256` directly.  All intrinsic code lives in `FaceBoundsSOA.cc`,
+  decorated with `G4OCCT_TARGET_AVX2`.
 
 - **Runtime dispatch**: Dispatch functions in `FaceBoundsSOA.cc` check
   `G4OCCT_CPU_HAS_AVX2` (which expands to `__builtin_cpu_supports("avx2")`)
@@ -498,7 +497,7 @@ src/FaceBoundsSOA.cc            — scalar + SIMD implementation (one TU)
   into every binary built with `USE_SIMD=ON`; the binary runs correctly on
   any x86 CPU regardless of which ISA it supports.
 
-- **`G4OCCT_TARGET_AVX2`** (and `_SSE4`, `_DEFAULT`): Apply these macros to
+- **`G4OCCT_TARGET_AVX2`** (and `_DEFAULT`): Apply these macros to
   function *definitions* (and matching class declarations guarded by
   `#if defined(G4OCCT_USE_SIMD)`) that contain ISA-specific intrinsics.
   Never apply `-mavx2` globally.  Example:
@@ -509,8 +508,8 @@ src/FaceBoundsSOA.cc            — scalar + SIMD implementation (one TU)
 
 - **`<immintrin.h>` visibility**: On GCC, `<immintrin.h>` guards intrinsic
   definitions with `#ifdef __AVX2__` etc.  `FaceBoundsSOA.cc` uses a
-  `#pragma GCC push_options / target("avx2,fma,sse4.1") / pop_options` block
-  to include `<immintrin.h>` with all ISA macros active, making the intrinsic
+  `#pragma GCC push_options / target("avx2,fma") / pop_options` block
+  to include `<immintrin.h>` with AVX2+FMA macros active, making the intrinsic
   definitions visible to `target`-attributed functions throughout the TU.
   Clang exposes all intrinsics unconditionally and needs no pragma.
 
