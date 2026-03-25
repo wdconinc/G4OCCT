@@ -48,6 +48,7 @@ jobs:
               -DBUILD_TESTING=ON \
               -DBUILD_BENCHMARKS=ON \
               -DBUILD_EXAMPLES=ON \
+              -DUSE_SIMD=ON \
               -DENABLE_WERROR=ON \
               -DB4C_CHECK_OVERLAPS=OFF \
               -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \

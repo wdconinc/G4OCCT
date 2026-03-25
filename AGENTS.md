@@ -472,57 +472,59 @@ to speed up the O(N_faces) prefilter loops in `Inside`, `DistanceToIn/Out(p,v)`,
 ### Architecture
 
 ```
-include/G4OCCT/SimdSupport.hh   — compile-time ISA detection macros
-                                   (G4OCCT_HAVE_AVX2, G4OCCT_HAVE_SSE4, G4OCCT_HAVE_FMA)
+include/G4OCCT/SimdSupport.hh   — target-attribute macros
+                                   (G4OCCT_TARGET_AVX2, G4OCCT_TARGET_SSE4,
+                                    G4OCCT_TARGET_DEFAULT)
+                                   runtime CPU-check macros
+                                   (G4OCCT_CPU_HAS_AVX2, G4OCCT_CPU_HAS_SSE4)
                                    AlignedAllocator<T, 32> helper
 include/G4OCCT/FaceBoundsSOA.hh — SoA layout + clean API
                                    (RayZPassFilter, RayPassFilter, MinPlaneDistance)
-src/FaceBoundsSOA.cc            — scalar + AVX2 implementation (one TU)
+src/FaceBoundsSOA.cc            — scalar + SIMD implementation (one TU)
+                                   all ISA variants compiled via __attribute__((target(...)))
+                                   runtime dispatch via __builtin_cpu_supports
 ```
 
 ### Conventions
 
 - **Portability layer**: All call sites in `G4OCCTSolid.cc` use `FaceBoundsSOA`
   public methods only.  No call site includes `<immintrin.h>` or uses
-  `__m256`/`__m128` directly.  All intrinsic code lives behind `#ifdef G4OCCT_HAVE_AVX2`
-  guards in `FaceBoundsSOA.cc`.
+  `__m256`/`__m128` directly.  All intrinsic code lives in `FaceBoundsSOA.cc`,
+  decorated with `G4OCCT_TARGET_AVX2` / `G4OCCT_TARGET_SSE4`.
 
-- **`SimdSupport.hh`**: Header providing ISA detection macros
-  (`G4OCCT_HAVE_AVX2`, `G4OCCT_HAVE_SSE4`, `G4OCCT_HAVE_FMA`), the
-  `AlignedAllocator` helper, and the `G4OCCT_IVDEP` cross-compiler
-  auto-vectorisation hint.  Include this header at call sites that need ISA
-  feature macros or aligned containers.  Do **not** include `<immintrin.h>`
-  from headers.
+- **Runtime dispatch**: Dispatch functions in `FaceBoundsSOA.cc` check
+  `G4OCCT_CPU_HAS_AVX2` (which expands to `__builtin_cpu_supports("avx2")`)
+  at runtime and call the appropriate kernel.  All ISA variants are compiled
+  into every binary built with `USE_SIMD=ON`; the binary runs correctly on
+  any x86 CPU regardless of which ISA it supports.
 
-- **SIMD intrinsics headers**: Include `<immintrin.h>` only from `.cc` files
-  that implement SIMD kernels (for example, `FaceBoundsSOA.cc`), and always
-  under the appropriate `#if defined(G4OCCT_HAVE_AVX2)` (or similar) guard.
+- **`G4OCCT_TARGET_AVX2`** (and `_SSE4`, `_DEFAULT`): Apply these macros to
+  function *definitions* (and matching class declarations guarded by
+  `#if defined(G4OCCT_USE_SIMD)`) that contain ISA-specific intrinsics.
+  Never apply `-mavx2` globally.  Example:
+  ```cpp
+  G4OCCT_TARGET_AVX2
+  void FaceBoundsSOA::MyKernel_avx2(...) const { /* _mm256_* intrinsics */ }
+  ```
+
+- **`<immintrin.h>` visibility**: On GCC, `<immintrin.h>` guards intrinsic
+  definitions with `#ifdef __AVX2__` etc.  `FaceBoundsSOA.cc` uses a
+  `#pragma GCC push_options / target("avx2,fma,sse4.1") / pop_options` block
+  to include `<immintrin.h>` with all ISA macros active, making the intrinsic
+  definitions visible to `target`-attributed functions throughout the TU.
+  Clang exposes all intrinsics unconditionally and needs no pragma.
+
+- **`USE_SIMD` CMake option** (default `ON`): Defines `G4OCCT_USE_SIMD=1`
+  for the library.  When `OFF`, no SIMD functions are compiled and the scalar
+  auto-vectorisable path is used exclusively.  The API (`FaceBoundsSOA` public
+  methods) is identical in both cases.  Do not use `#if USE_SIMD` guards in
+  headers; use `#if defined(G4OCCT_USE_SIMD)` in `.cc` files only.
 
 - **`AlignedAllocator<T, Alignment>`**: Wrap SoA `std::vector` declarations
   with this allocator to guarantee 32-byte alignment for aligned AVX2 loads:
   ```cpp
   std::vector<double, AlignedAllocator<double, 32>> fXmin;
   ```
-
-- **Per-file compile flags**: `FaceBoundsSOA.cc` is compiled with
-  `-mavx2 -mfma` via CMake `set_source_files_properties(... COMPILE_FLAGS ...)`.
-  Never add `-mavx2` to the global `target_compile_options`; only the SIMD
-  translation unit receives these flags.  ISA-specific flags are **opt-in**:
-  pass `-DUSE_AVX2=ON` or `-DUSE_SSE4=ON` to CMake explicitly; they default
-  to `OFF` so that the scalar auto-vectorisable build is the safe default on
-  all CPUs and in cross-build scenarios.
-
-- **`USE_SIMD` CMake option** (default `ON`): When `OFF`, `FaceBoundsSOA.cc`
-  is still compiled and linked (provides the scalar fallback), but no
-  `G4OCCT_HAVE_AVX2` / `G4OCCT_HAVE_SSE4` macros are defined, so only the
-  auto-vectorisable scalar paths are active.  Do not use `#if USE_SIMD`
-  guards in headers; the API is always present.
-
-- **`USE_AVX2` / `USE_SSE4` CMake options** (default `OFF`): Opt-in flags
-  that add `-mavx2 -mfma` or `-msse4.1` to `FaceBoundsSOA.cc`'s compile
-  flags after verifying compiler support via `check_cxx_compiler_flag`.  Set
-  these only when you know the target CPU supports the ISA.  `USE_AVX2` takes
-  precedence over `USE_SSE4`.
 
 - **SoA padding**: Pad SoA arrays to the next multiple of `kLaneWidth = 4`
   (AVX2 double lane width).  Fill padding slots with empty-interval sentinels

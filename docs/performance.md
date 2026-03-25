@@ -476,11 +476,13 @@ Three high-level methods hide all SIMD from call sites:
 | `RayPassFilter(ray, out[])` | `DistanceToIn/Out(p,v)` | AVX2 4-wide slab test; scalar fallback for axis-aligned rays |
 | `MinPlaneDistance(px,py,pz)` | `SurfaceNormal`, `PlanarFaceLowerBoundDistance` | AVX2 4-wide FMA `‖A·p+D‖`; horizontal min reduction |
 
-The ISA level is selected at compile time via `USE_SIMD` (CMake option, ON
-by default): `FaceBoundsSOA.cc` is compiled with `-mavx2 -mfma` when
-available, and uses `#ifdef G4OCCT_HAVE_AVX2` guards internally.  The build
-falls back to an auto-vectorisable scalar implementation when AVX2 is
-absent or `USE_SIMD=OFF`.
+The ISA level is selected at **runtime** using `__builtin_cpu_supports`:
+all ISA variants (scalar, AVX2+FMA) are compiled into the binary via
+`__attribute__((target(...)))` function attributes, so the binary runs
+correctly on any x86 CPU — including CI hosts — and automatically uses
+the widest supported ISA.  Build with `-DUSE_SIMD=ON` (the default) to
+enable this; `-DUSE_SIMD=OFF` reverts to the scalar auto-vectorisable
+path only.  No per-file `-mavx2` flags are required.
 
 ### Benchmark results (Intel Core i7-10510U, Release build, 2048 points/rays)
 

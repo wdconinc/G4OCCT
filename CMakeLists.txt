@@ -56,47 +56,24 @@ target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
 
 # ─── SIMD acceleration ────────────────────────────────────────────────────────
 #
-# `FaceBoundsSOA.cc` is compiled with the widest available SIMD flags.
-# The source file uses `#ifdef G4OCCT_HAVE_AVX2` / `G4OCCT_HAVE_SSE4` guards so
-# it is always safe to compile regardless of the host ISA.
+# When USE_SIMD=ON (the default), the library is compiled with
+# -DG4OCCT_USE_SIMD=1.  FaceBoundsSOA.cc uses __attribute__((target("avx2,fma")))
+# etc. to compile ISA-specific kernels within a single translation unit.
+# The dispatch functions select the widest supported ISA at runtime via
+# __builtin_cpu_supports, so the binary runs correctly on any x86 CPU.
 #
-# SIMD is enabled by default (scalar auto-vectorisation) and can be disabled
-# with -DUSE_SIMD=OFF.  Explicit ISA flags (-mavx2, -msse4.1) are opt-in via
-# -DUSE_AVX2=ON or -DUSE_SSE4=ON; they are OFF by default to avoid emitting
-# instructions that crash on CPUs without the required ISA support.
+# No per-file -mavx2 / -msse4.1 flags are needed; the target attribute
+# handles code generation for each ISA variant independently.
+#
+# Disable with -DUSE_SIMD=OFF to use only the scalar auto-vectorised path.
 
-option(USE_SIMD "Enable SIMD acceleration for batch AABB and plane-distance queries" ON)
-option(USE_AVX2 "Compile FaceBoundsSOA.cc with -mavx2 -mfma (requires AVX2 CPU)" OFF)
-option(USE_SSE4 "Compile FaceBoundsSOA.cc with -msse4.1 (requires SSE4.1 CPU)" OFF)
+option(USE_SIMD "Enable SIMD acceleration with runtime CPU dispatch (AVX2+FMA, SSE4.1, scalar)" ON)
 
 if(USE_SIMD AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|Intel")
-  if(USE_AVX2)
-    check_cxx_compiler_flag("-mavx2" _G4OCCT_COMPILER_HAS_AVX2)
-    if(_G4OCCT_COMPILER_HAS_AVX2)
-      # Compile FaceBoundsSOA.cc with AVX2 + FMA.  The file itself selects the
-      # AVX2 implementation via #ifdef G4OCCT_HAVE_AVX2 (set by -mavx2).
-      set_source_files_properties(
-        src/FaceBoundsSOA.cc
-        PROPERTIES COMPILE_FLAGS "-mavx2 -mfma")
-      message(STATUS "G4OCCT SIMD: AVX2 + FMA enabled for FaceBoundsSOA")
-    else()
-      message(WARNING "G4OCCT SIMD: USE_AVX2=ON but compiler does not support -mavx2; falling back to scalar")
-    endif()
-  elseif(USE_SSE4)
-    check_cxx_compiler_flag("-msse4.1" _G4OCCT_COMPILER_HAS_SSE4)
-    if(_G4OCCT_COMPILER_HAS_SSE4)
-      set_source_files_properties(
-        src/FaceBoundsSOA.cc
-        PROPERTIES COMPILE_FLAGS "-msse4.1")
-      message(STATUS "G4OCCT SIMD: SSE4.1 enabled for FaceBoundsSOA")
-    else()
-      message(WARNING "G4OCCT SIMD: USE_SSE4=ON but compiler does not support -msse4.1; falling back to scalar")
-    endif()
-  else()
-    message(STATUS "G4OCCT SIMD: scalar auto-vectorisation only (set USE_AVX2=ON or USE_SSE4=ON to enable ISA-specific paths)")
-  endif()
+  target_compile_definitions(G4OCCT PRIVATE G4OCCT_USE_SIMD=1)
+  message(STATUS "G4OCCT SIMD: runtime CPU dispatch enabled (AVX2+FMA / SSE4.1 / scalar)")
 elseif(NOT USE_SIMD)
-  message(STATUS "G4OCCT SIMD: disabled (USE_SIMD=OFF)")
+  message(STATUS "G4OCCT SIMD: disabled (USE_SIMD=OFF; scalar auto-vectorisation only)")
 endif()
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
