@@ -554,7 +554,8 @@ def _render_chart_svg(fixtures: list[dict]) -> str:
 def _render_report(data: dict, viewer_path: str,
                    onshape_links: dict[str, str] | None = None,
                    callgrind_links: dict[str, str] | None = None,
-                   chart_svg: str | None = None) -> str:
+                   chart_svg: str | None = None,
+                   chart_src: str | None = None) -> str:
     """Render the Markdown string for benchmark data."""
     ts           = timestamp()
     aggregate    = data.get("aggregate", [])
@@ -652,13 +653,14 @@ def _render_report(data: dict, viewer_path: str,
         ]
     else:
         if chart_svg:
+            src = xml.sax.saxutils.escape(chart_src or "bench-chart.svg")
             lines += [
                 "",
                 "## Timing Chart",
                 "",
                 "<details open><summary>Show chart</summary>",
                 "",
-                '<img src="bench-chart.svg"'
+                f'<img src="{src}"'
                 ' alt="Benchmark timing chart — horizontal grouped bar chart per fixture"/>',
                 "",
                 "</details>",
@@ -833,8 +835,9 @@ def main() -> None:
 
     data      = _parse_bench_json(raw)
     chart_svg = _render_chart_svg(data.get("fixtures", []))
+    chart_src = (Path(md_path).parent / "bench-chart.svg").as_posix() if chart_svg else None
     md        = _render_report(data, viewer_path, onshape_links, callgrind_links,
-                               chart_svg=chart_svg)
+                               chart_svg=chart_svg, chart_src=chart_src)
     write_report(Path(md_path), md, label="Benchmark report")
     if chart_svg:
         chart_path = Path(md_path).parent / "bench-chart.svg"
