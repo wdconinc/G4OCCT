@@ -49,6 +49,7 @@ jobs:
               -DBUILD_BENCHMARKS=ON \
               -DBUILD_EXAMPLES=ON \
               -DENABLE_WERROR=ON \
+              -DB4C_CHECK_OVERLAPS=OFF \
               -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
               -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
@@ -265,9 +266,67 @@ jobs:
           request_changes: false
           suggestions_per_comment: 10
 
+  build-reldebinfo:
+    name: Build with debug symbols (eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            _fetchcontent/*-src
+            _fetchcontent/*-subbuild
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Build inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            # RelWithDebInfo retains debug symbols so callgrind_annotate can
+            # map instruction costs back to source lines.
+            # VALGRIND_INCLUDE_DIR points find_path() to the valgrind headers
+            # provided by the container's valgrind installation at /opt/local.
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              -DBUILD_BENCHMARKS=ON \
+              -DBUILD_EXAMPLES=ON \
+              -DENABLE_WERROR=ON \
+              -DB4C_CHECK_OVERLAPS=OFF \
+              -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
+              -DVALGRIND_INCLUDE_DIR=/opt/local/include \
+              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build --parallel "$(nproc)"
+
+      - name: Upload reldebinfo binaries as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: reldebinfo-binaries
+          path: |
+            build/src/benchmarks/bench_callgrind
+            build/src/benchmarks/bench_assembly_navigator
+            build/src/examples/B4c/exampleB4c
+          if-no-files-found: error
+          retention-days: 1
+
   callgrind:
     name: Callgrind profile (${{ matrix.fixture.name }}, eic_xl)
     runs-on: ubuntu-latest
+    needs: [build-reldebinfo]
     permissions:
       contents: read
     strategy:
@@ -313,39 +372,21 @@ jobs:
             exit 1
           fi
 
+      - name: Download reldebinfo binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: reldebinfo-binaries
+          path: build/src
+
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
-      - name: Cache FetchContent dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            _fetchcontent/*-src
-            _fetchcontent/*-subbuild
-          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
-
-      - name: Build, profile, and annotate inside eic_xl container
+      - name: Profile and annotate inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
           platform-release: "eic_xl:nightly"
           run: |
             set -euo pipefail
-
-            # ── Configure ──────────────────────────────────────────────────
-            # RelWithDebInfo retains debug symbols so callgrind_annotate can
-            # map instruction costs back to source lines.
-            # VALGRIND_INCLUDE_DIR points find_path() to the valgrind headers
-            # provided by the container's valgrind installation at /opt/local.
-            cmake -S . -B build \
-              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-              -DBUILD_BENCHMARKS=ON \
-              -DENABLE_WERROR=ON \
-              -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
-              -DVALGRIND_INCLUDE_DIR=/opt/local/include \
-              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
-
-            # ── Build ──────────────────────────────────────────────────────
-            cmake --build build --target bench_callgrind -- -j$(nproc)
 
             # ── Profile ────────────────────────────────────────────────────
             # --instr-atstart=no: instrumentation off at launch; the binary
@@ -354,6 +395,7 @@ jobs:
             # --collect-atstart=no: collection also off at launch; the binary
             # enables it via CALLGRIND_TOGGLE_COLLECT so only the hot loop
             # contributes to the callgrind profile.
+            chmod +x ./build/src/benchmarks/bench_callgrind
             valgrind --tool=callgrind \
               --instr-atstart=no \
               --collect-atstart=no \
@@ -407,6 +449,7 @@ jobs:
   callgrind-assembly:
     name: Callgrind profile (string-array-v1 assembly, eic_xl)
     runs-on: ubuntu-latest
+    needs: [build-reldebinfo]
     permissions:
       contents: read
 
@@ -414,30 +457,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Download reldebinfo binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: reldebinfo-binaries
+          path: build/src
+
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
-      - name: Build, profile, and annotate inside eic_xl container
+      - name: Profile and annotate inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
           platform-release: "eic_xl:nightly"
           run: |
             set -euo pipefail
-
-            # ── Configure ──────────────────────────────────────────────────
-            # RelWithDebInfo retains debug symbols so callgrind_annotate can
-            # map instruction costs back to source lines.
-            # VALGRIND_INCLUDE_DIR points find_path() to the valgrind headers
-            # provided by the container's valgrind installation at /opt/local.
-            cmake -S . -B build \
-              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-              -DBUILD_BENCHMARKS=ON \
-              -DENABLE_WERROR=ON \
-              -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
-              -DVALGRIND_INCLUDE_DIR=/opt/local/include
-
-            # ── Build ──────────────────────────────────────────────────────
-            cmake --build build --target bench_assembly_navigator -- -j$(nproc)
 
             # ── Profile ────────────────────────────────────────────────────
             # Single-fixture mode: pass the fixture directory directly so that
@@ -449,6 +483,7 @@ jobs:
             #   GDML parse, STEP import, and geometry construction from the profile.
             # --benchmark_iterations=1: one iteration per benchmark variant keeps
             #   the callgrind run fast while still profiling the full navigation loop.
+            chmod +x ./build/src/benchmarks/bench_assembly_navigator
             valgrind --tool=callgrind \
               --instr-atstart=no \
               --collect-atstart=no \
@@ -482,6 +517,7 @@ jobs:
   callgrind-b4c:
     name: Callgrind profile (B4c G4OCCTSolid, eic_xl)
     runs-on: ubuntu-latest
+    needs: [build-reldebinfo]
     permissions:
       contents: read
 
@@ -489,34 +525,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Download reldebinfo binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: reldebinfo-binaries
+          path: build/src
+
       - name: Install CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v5
 
-      - name: Build, profile, and annotate inside eic_xl container
+      - name: Profile and annotate inside eic_xl container
         uses: eic/run-cvmfs-osg-eic-shell@v1
         with:
           platform-release: "eic_xl:nightly"
           run: |
             set -euo pipefail
-
-            # ── Configure ──────────────────────────────────────────────────
-            # RelWithDebInfo retains debug symbols for source-level annotation.
-            # B4C_CHECK_OVERLAPS=OFF: prevents Inside() calls during placement
-            # overlap checking from inflating the profiled call counts.
-            # BUILD_EXAMPLES=ON: required to generate the exampleB4c target.
-            # BUILD_TESTING=OFF / BUILD_BENCHMARKS=OFF: skip unneeded targets.
-            cmake -S . -B build \
-              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-              -DBUILD_EXAMPLES=ON \
-              -DBUILD_TESTING=OFF \
-              -DBUILD_BENCHMARKS=OFF \
-              -DENABLE_WERROR=ON \
-              -DB4C_CHECK_OVERLAPS=OFF \
-              -DVALGRIND_INCLUDE_DIR=/opt/local/include \
-              -DCMAKE_INSTALL_PREFIX="${PWD}/install"
-
-            # ── Build ──────────────────────────────────────────────────────
-            cmake --build build --target exampleB4c -- -j$(nproc)
 
             # ── Profile ────────────────────────────────────────────────────
             # RunAction wraps BeginOfRunAction/EndOfRunAction with CALLGRIND
@@ -528,6 +551,7 @@ jobs:
             #   CALLGRIND_TOGGLE_COLLECT is called inside BeginOfRunAction.
             # run_profile.mac: 100 events of e- 300 MeV — enough statistics
             #   for stable per-method call ratios without excessive CI runtime.
+            chmod +x ./build/src/examples/B4c/exampleB4c
             valgrind --tool=callgrind \
               --instr-atstart=no \
               --collect-atstart=no \
