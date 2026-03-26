@@ -958,10 +958,17 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     int insideVotes  = 0;
     int outsideVotes = 0;
     if (!caster.Degenerate()) {
-      (caster.Crossings() % 2 == 1 ? insideVotes : outsideVotes)++;
+      if (caster.Crossings() % 2 == 1) {
+        ++insideVotes;
+      } else {
+        ++outsideVotes;
+      }
     }
 
-    const BVH_Vec3d kExtraRays[2] = {BVH_Vec3d(1.0, 0.0, 0.0), BVH_Vec3d(0.0, 1.0, 0.0)};
+    const BVH_Vec3d kExtraRays[2] = {
+      BVH_Vec3d(1.0, 0.0, 0.0),
+      BVH_Vec3d(0.0, 1.0, 0.0),
+    };
     for (const BVH_Vec3d& dir : kExtraRays) {
       caster.SetRay(bvhOrigin, dir, bvhTol);
       caster.Select();
@@ -969,7 +976,11 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
         return kSurface;
       }
       if (!caster.Degenerate()) {
-        (caster.Crossings() % 2 == 1 ? insideVotes : outsideVotes)++;
+        if (caster.Crossings() % 2 == 1) {
+          ++insideVotes;
+        } else {
+          ++outsideVotes;
+        }
       }
     }
 

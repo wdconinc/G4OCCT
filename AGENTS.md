@@ -376,7 +376,10 @@ All GDML fixture files must define materials with fractions that sum to
   (`bvhLB < tolerance`) still routes directly to the exact classifier for
   correctness.  This pattern eliminates `BRepClass3d_SolidClassifier::Perform()`
   calls for the degenerate/zero-crossing cases (the main source of `CSLib_Class2d`
-  overhead and NCollection heap churn for complex solids).
+  overhead and NCollection heap churn for complex solids).  This Tier-2
+  navigation convention is intentionally documented only here; the
+  `.github/copilot-instructions.md` quick reference remains high-level and
+  does not list individual Tier-2 variants.
 - `GetPointOnSurface()` must sample from OCCT tessellation.  Returning the
   origin (the `G4VSolid` base-class default) triggers Geant4 warnings.
 - Internal helper types (e.g. `FaceBounds`, `ClosestFaceMatch`) must be
