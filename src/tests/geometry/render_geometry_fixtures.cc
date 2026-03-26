@@ -561,8 +561,6 @@ namespace {
                                native_path, initialized, visualization_ready)) {
               std::cerr << "WARNING: " << qualified_id << ": native render produced no output\n";
               ++skipped_count;
-              done = !fixture_filter.empty();
-              continue;
             }
           }
 
