@@ -134,9 +134,10 @@ via the `DECLARE_DETELEMENT` macro.
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2026 G4OCCT Contributors
 
+#include <stdexcept>
 #include <DD4hep/DetFactoryHelper.h>
 #include <DD4hep/Printout.h>
-#include <G4OCCT/G4OCCTSolid.hh>
+#include "G4OCCT/G4OCCTSolid.hh"
 
 using namespace dd4hep;
 
@@ -152,10 +153,13 @@ static Ref_t create_detector(Detector& description, xml_h e,
   std::string name = x_det.nameStr();
   std::string path = x_step.attr<std::string>(_Unicode(path));
 
-  // Import the STEP solid via G4OCCT
-  G4OCCTSolid* g4solid = G4OCCTSolid::FromSTEP(name, path);
-  if (!g4solid) {
-    throw std::runtime_error("G4OCCT_STEPSolid: failed to import " + path);
+  // Import the STEP solid via G4OCCT. FromSTEP throws on failure.
+  G4OCCTSolid* g4solid = nullptr;
+  try {
+    g4solid = G4OCCTSolid::FromSTEP(name, path);
+  } catch (const std::exception& ex) {
+    throw std::runtime_error("G4OCCT_STEPSolid: failed to import " + path +
+                             " (" + ex.what() + ")");
   }
 
   // Wrap in DD4hep constructs
@@ -201,10 +205,11 @@ into the DD4hep geometry tree.
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2026 G4OCCT Contributors
 
+#include <G4Material.hh>
 #include <DD4hep/DetFactoryHelper.h>
 #include <DD4hep/Printout.h>
-#include <G4OCCT/G4OCCTAssemblyVolume.hh>
-#include <G4OCCT/G4OCCTMaterialMap.hh>
+#include "G4OCCT/G4OCCTAssemblyVolume.hh"
+#include "G4OCCT/G4OCCTMaterialMap.hh"
 
 using namespace dd4hep;
 
@@ -236,23 +241,20 @@ static Ref_t create_assembly_detector(Detector& description, xml_h e,
     matMap.Add(stepName, g4mat);
   }
 
-  // Import the STEP assembly
+  // Import the STEP assembly. FromSTEP throws std::runtime_error on failure.
   G4OCCTAssemblyVolume* assembly =
       G4OCCTAssemblyVolume::FromSTEP(path, matMap);
-  if (!assembly) {
-    throw std::runtime_error(
-        "G4OCCT_STEPAssembly: failed to import " + path);
-  }
 
   // Place the assembly
   DetElement det(name, x_det.id());
   Position   pos(x_pos.x(), x_pos.y(), x_pos.z());
-  G4ThreeVector g4pos(pos.x(), pos.y(), pos.z());
-  // Assemblies are placed without an enclosing rotation; individual
-  // part placements carry their own orientations from the STEP file.
+  G4ThreeVector     g4pos(pos.x(), pos.y(), pos.z());
   G4RotationMatrix* g4rot = nullptr;
-  assembly->MakeImprint(
-      description.pickMotherVolume(det).solid().ptr(), g4pos, g4rot);
+  // DD4hep's pickMotherVolume(det) returns a logical volume wrapper; obtain
+  // the underlying Geant4 G4LogicalVolume* for the MakeImprint mother.
+  auto motherVol = description.pickMotherVolume(det);
+  auto* motherLV = motherVol.volume().ptr();
+  assembly->MakeImprint(motherLV, g4pos, g4rot);
 
   return det;
 }
@@ -326,10 +328,6 @@ target_link_libraries(G4OCCTDD4hep
     DD4hep::DDCore
 )
 
-install(TARGETS G4OCCTDD4hep
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
 if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
@@ -338,12 +336,22 @@ endif()
 The `dd4hep_add_plugin` helper (provided by `DD4hepConfig.cmake`) generates the
 shared library and registers it with DD4hep's plugin system automatically.
 
+> **Note:** Following project convention (see `AGENTS.md` §4), the install rule
+> for `G4OCCTDD4hep` lives in the **top-level** `CMakeLists.txt` install block
+> alongside the other exported targets, not in the subdirectory `CMakeLists.txt`.
+> A typical addition to the top-level install section would be:
+>
+> ```cmake
+> install(TARGETS G4OCCTDD4hep
+>   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+> )
+> ```
+
 ### 5.3 Downstream usage
 
 A downstream DD4hep geometry description that wants to use the plugin needs
 only to ensure the shared library is on `LD_LIBRARY_PATH` (or `RPATH`) and to
-call `find_package(G4OCCT REQUIRED COMPONENTS DD4hepPlugin)` in its own
-`CMakeLists.txt`:
+call `find_package(G4OCCT REQUIRED)` in its own `CMakeLists.txt`:
 
 ```cmake
 find_package(Geant4 REQUIRED)
