@@ -62,8 +62,8 @@ namespace {
   // Returns true for fixtures where both "native" and "imported" solids are
   // the same G4OCCTSolid loaded from the same STEP file (i.e., NIST CTC
   // fixtures whose geant4_class is G4OCCTSolid).  Mismatches are always 0 for
-  // these imported self-comparison fixtures; BM_safety and BM_polyhedron are
-  // skipped for them.
+  // these imported self-comparison fixtures; BM_safety is skipped for them
+  // (no two different solids to compare), but BM_polyhedron is registered.
   bool IsImportedSelfComparisonFixture(const g4occt::tests::geometry::FixtureReference& fixture) {
     return fixture.geant4_class == "G4OCCTSolid";
   }
@@ -263,9 +263,9 @@ namespace {
         }
 
         // For imported-self-comparison fixtures (G4OCCTSolid / NIST CTC), register
-        // BM_rays and BM_inside benchmarks instead of skipping.
+        // BM_rays, BM_inside, and BM_polyhedron benchmarks.
         // Native == imported for these fixtures so mismatches are always 0.
-        // BM_safety and BM_polyhedron are skipped for them.
+        // BM_safety is skipped (no two different solids to compare).
         if (IsImportedSelfComparisonFixture(fixture)) {
           const std::string fixture_id = family_manifest.family + "/" + fixture.id;
 
@@ -358,7 +358,35 @@ namespace {
               ->Iterations(1)
               ->Unit(benchmark::kMillisecond);
 
-          continue;
+          // Register CreatePolyhedron() benchmark.  Tessellation timing and
+          // vertex/facet counts are meaningful even when native == imported.
+          benchmark::RegisterBenchmark(
+              ("BM_polyhedron/" + fixture_id).c_str(),
+              [fixture_id, request, poly_opts](benchmark::State& state) {
+                for (auto _ : state) {
+                  g4occt::tests::geometry::FixturePolyhedronComparisonSummary poly;
+                  const ValidationReport report =
+                      CompareFixturePolyhedron(request, poly_opts, &poly);
+                  state.SetIterationTime(poly.imported_elapsed_ms / 1000.0);
+                  state.counters["native_ms"]         = poly.native_elapsed_ms;
+                  state.counters["imported_ms"]       = poly.imported_elapsed_ms;
+                  state.counters["native_vertices"]   = static_cast<double>(poly.native_vertices);
+                  state.counters["imported_vertices"] = static_cast<double>(poly.imported_vertices);
+                  state.counters["native_facets"]     = static_cast<double>(poly.native_facets);
+                  state.counters["imported_facets"]   = static_cast<double>(poly.imported_facets);
+                  std::lock_guard<std::mutex> lk(g_state->mu);
+                  g_state->summaries[fixture_id].polyhedron = poly;
+                  if (g_state->summaries[fixture_id].geant4_class.empty()) {
+                    g_state->summaries[fixture_id].geant4_class = poly.geant4_class;
+                  }
+                  g_state->aggregate_report.Append(report);
+                }
+              })
+              ->UseManualTime()
+              ->Iterations(1)
+              ->Unit(benchmark::kMillisecond);
+
+          continue;  // BM_safety skipped: no two different solids to compare
         }
 
         const std::string fixture_id = family_manifest.family + "/" + fixture.id;
