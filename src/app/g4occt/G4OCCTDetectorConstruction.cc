@@ -31,6 +31,7 @@
 #include <G4UImanager.hh>
 
 #include <filesystem>
+#include <memory>
 #include <string>
 
 // ── Helper: detect whether a STEP file is an assembly ────────────────────────
@@ -160,17 +161,9 @@ G4VPhysicalVolume* G4OCCTDetectorConstruction::Construct() {
   G4OCCTMaterialMapReader reader;
   for (const auto& xmlFile : fMaterialXmlFiles) {
     G4OCCTMaterialMap loaded = reader.ReadFile(xmlFile);
-    // G4OCCTMaterialMap has no iteration API; re-read directly into a local
-    // map by using the reader result as the authoritative map for that file.
-    // Subsequent XML files override earlier entries for the same name.
-    // We achieve merging by reading each file into a combined structure
-    // through the reader's G4MaterialTable side-effects: materials registered
-    // during ReadFile() are available to G4NistManager lookups in later files.
-    // The final materialMap is reconstructed by reading all files in sequence.
-    // Since the reader adds materials to the global G4MaterialTable, a final
-    // read of the last file suffices for NIST-backed entries; for map-only
-    // entries we simply keep the last loaded map (later files win on conflict).
-    materialMap = std::move(loaded);
+    // Merge into the combined map; later files override earlier entries for
+    // the same STEP material name.
+    materialMap.Merge(loaded);
   }
   // If no XML files were loaded, materialMap remains empty; NIST fallback
   // applies per-solid below.
@@ -218,9 +211,10 @@ G4VPhysicalVolume* G4OCCTDetectorConstruction::Construct() {
   }
 
   // ── Build STEP assemblies ──────────────────────────────────────────────────
-  std::vector<G4OCCTAssemblyVolume*> assemblies;
+  std::vector<std::unique_ptr<G4OCCTAssemblyVolume>> assemblies;
   for (const auto& entry : fAssemblyEntries) {
-    auto* assembly = G4OCCTAssemblyVolume::FromSTEP(entry.file, materialMap);
+    auto assembly = std::unique_ptr<G4OCCTAssemblyVolume>(
+        G4OCCTAssemblyVolume::FromSTEP(entry.file, materialMap));
     for (const auto& [lvName, lv] : assembly->GetLogicalVolumes()) {
       if (auto* occSolid = dynamic_cast<G4OCCTSolid*>(lv->GetSolid())) {
         Bnd_Box bbox;
@@ -229,7 +223,7 @@ G4VPhysicalVolume* G4OCCTDetectorConstruction::Construct() {
         hasBounds = true;
       }
     }
-    assemblies.push_back(assembly);
+    assemblies.push_back(std::move(assembly));
   }
 
   // ── Compute world half-size ────────────────────────────────────────────────
@@ -271,7 +265,7 @@ G4VPhysicalVolume* G4OCCTDetectorConstruction::Construct() {
   }
 
   // ── Imprint assemblies at origin ───────────────────────────────────────────
-  for (auto* assembly : assemblies) {
+  for (auto& assembly : assemblies) {
     G4Transform3D identity;
     assembly->MakeImprint(worldLV, identity);
   }

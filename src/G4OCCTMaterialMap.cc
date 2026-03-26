@@ -35,3 +35,9 @@ G4Material* G4OCCTMaterialMap::Resolve(const G4String& stepName) const {
 bool G4OCCTMaterialMap::Contains(const G4String& stepName) const {
   return fMap.count(stepName) > 0;
 }
+
+void G4OCCTMaterialMap::Merge(const G4OCCTMaterialMap& other) {
+  for (const auto& [name, mat] : other.fMap) {
+    Add(name, mat);
+  }
+}

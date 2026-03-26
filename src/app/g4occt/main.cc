@@ -80,15 +80,23 @@ int main(int argc, char** argv) {
       }
       session = argv[i];
     } else if (arg == "-t") {
-#ifdef G4MULTITHREADED
-      if (++i >= argc) {
+      // Require an explicit value for -t in all builds, and ensure we don't
+      // accidentally treat the next option token (e.g. "-m") as that value.
+      if (i + 1 >= argc) {
         PrintUsage(argv[0]);
         return 1;
       }
+      const std::string nextArg(argv[i + 1]);
+      if (nextArg[0] == '-') {
+        PrintUsage(argv[0]);
+        return 1;
+      }
+      ++i; // move to the value for -t
+#ifdef G4MULTITHREADED
       nThreads = G4UIcommand::ConvertToInt(argv[i]);
 #else
-      G4cerr << "Warning: -t option ignored (Geant4 built without multi-threading)." << G4endl;
-      ++i; // skip the value
+      G4cerr << "Warning: -t option (" << argv[i]
+             << ") ignored (Geant4 built without multi-threading)." << G4endl;
 #endif
     } else if (arg[0] == '-') {
       G4cerr << "Unknown option: " << arg << G4endl;
@@ -140,8 +148,13 @@ int main(int argc, char** argv) {
   runManager->SetUserInitialization(new G4OCCTActionInitialization);
 
   // ── Visualisation ─────────────────────────────────────────────────────────
-  auto* visManager = new G4VisExecutive("Quiet");
-  visManager->Initialize();
+  // Only initialize vis in interactive mode; batch runs don't require it and
+  // may run in environments without display/vis support.
+  G4VisExecutive* visManager = nullptr;
+  if (ui != nullptr) {
+    visManager = new G4VisExecutive("Quiet");
+    visManager->Initialize();
+  }
 
   // ── Macro search path ─────────────────────────────────────────────────────
   // Register the installed data directory first, then the build-tree copy.
