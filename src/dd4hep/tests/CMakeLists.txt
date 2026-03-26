@@ -23,6 +23,10 @@ configure_file(compact_step_assembly.xml.in
 
 add_executable(test_dd4hep_plugins test_dd4hep_plugins.cc)
 
+# DD4hep headers require C++17 (see parent CMakeLists.txt for rationale).
+set_target_properties(test_dd4hep_plugins PROPERTIES CXX_STANDARD 17
+                                                      CXX_STANDARD_REQUIRED OFF)
+
 target_compile_definitions(
   test_dd4hep_plugins
   PRIVATE
