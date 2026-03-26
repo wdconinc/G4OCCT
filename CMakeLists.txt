@@ -15,6 +15,23 @@ project(
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# ─── CMake policies ───────────────────────────────────────────────────────────
+
+# CMP0135: ExternalProject/FetchContent timestamp policy; set before FetchContent use.
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
+# CMP0144: find_package uses upper-case <PACKAGENAME>_ROOT variables.
+if(POLICY CMP0144)
+  cmake_policy(SET CMP0144 NEW)
+endif()
+
+# CMP0167: The FindBoost module is removed; use upstream BoostConfig.cmake.
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+
 # ─── Compiler feature checks ──────────────────────────────────────────────────
 
 include(CheckCXXCompilerFlag)
@@ -58,20 +75,6 @@ target_link_libraries(G4OCCT PUBLIC ${Geant4_LIBRARIES}
 include(CTest)
 
 # ─── GoogleTest ───────────────────────────────────────────────────────────────
-
-if(POLICY CMP0135)
-  cmake_policy(SET CMP0135 NEW)
-endif()
-
-# CMP0144: find_package uses upper-case <PACKAGENAME>_ROOT variables.
-if(POLICY CMP0144)
-  cmake_policy(SET CMP0144 NEW)
-endif()
-
-# CMP0167: The FindBoost module is removed; use upstream BoostConfig.cmake.
-if(POLICY CMP0167)
-  cmake_policy(SET CMP0167 NEW)
-endif()
 
 if(BUILD_TESTING)
   include(GoogleTest)
