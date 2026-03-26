@@ -567,8 +567,24 @@ namespace {
     double agg_poly_native_ms   = 0.0;
     double agg_poly_imported_ms = 0.0;
 
+    // Count fixtures excluded from the G4-vs-OCCT aggregate because they have no
+    // genuine Geant4 native solid (NIST CTC: geant4_class == "G4OCCTSolid").
+    // For these fixtures both "native" and "imported" are the same G4OCCTSolid, so
+    // including them would inflate the Geant4 baseline with OCCT timings and make
+    // the speedup ratio meaningless.
+    std::size_t agg_excluded_count = 0;
+
     for (const auto& s : nav_summaries) {
-      if (s.ray.ray_count > 0U) {
+      // Fixtures where the Geant4 class is itself G4OCCTSolid (NIST CTC) have no
+      // genuine Geant4 native solid; both solids are the same G4OCCTSolid loaded
+      // from the same STEP file.  Exclude them from the G4-vs-OCCT aggregate so
+      // the aggregate ratio reflects only fixtures where both representations exist.
+      const bool has_geant4_native = (s.geant4_class != "G4OCCTSolid");
+      if (!has_geant4_native) {
+        ++agg_excluded_count;
+      }
+
+      if (has_geant4_native && s.ray.ray_count > 0U) {
         agg_ray_native_ms += s.ray.native_elapsed_ms;
         agg_ray_imported_ms += s.ray.imported_elapsed_ms;
         agg_ray_mismatches += RayOnlyMismatches(s.ray);
@@ -591,7 +607,7 @@ namespace {
         }
       }
 
-      if (s.inside.point_count > 0U) {
+      if (has_geant4_native && s.inside.point_count > 0U) {
         agg_inside_native_ms += s.inside.native_elapsed_ms;
         agg_inside_imported_ms += s.inside.imported_elapsed_ms;
         agg_inside_mismatches += s.inside.mismatch_count;
@@ -600,6 +616,8 @@ namespace {
         }
       }
 
+      // Safety and polyhedron benchmarks are never registered for NIST CTC
+      // fixtures, so no guard is needed here.
       if (s.safety.point_count > 0U) {
         agg_dti_native_ms += s.safety.native_safety_in_ms;
         agg_dti_imported_ms += s.safety.imported_safety_in_ms;
@@ -622,7 +640,13 @@ namespace {
       }
     }
 
-    out << "Aggregate:\n";
+    out << "Aggregate";
+    if (agg_excluded_count > 0U) {
+      out << " (" << agg_excluded_count << " NIST CTC fixture"
+          << (agg_excluded_count == 1U ? "" : "s")
+          << " excluded from G4-vs-OCCT rows: no Geant4 native solid available)";
+    }
+    out << ":\n";
     out << "  " << std::left << std::setw(24) << "Method" << std::right << std::setw(12)
         << "Native(ms)" << std::setw(14) << "Imported(ms)" << std::setw(10) << "Ratio"
         << std::setw(13) << "Mismatches" << std::setw(14) << "Exp. Failures" << "\n";
