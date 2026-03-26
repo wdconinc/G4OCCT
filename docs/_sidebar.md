@@ -7,6 +7,7 @@
 - [Reference Position Handling](reference_position.md)
 - [Material Bridging](material_bridging.md)
 - [Multi-Shape STEP Assembly Import](step_assembly_import.md)
+- [DD4hep Plugin Design](dd4hep_plugin.md)
 - [Solid Navigation Design](solid_navigation.md)
 - [Performance Considerations](performance.md)
 - [Low-Level Optimization Design Notes](low_level_optimization.md)
