@@ -544,20 +544,26 @@ namespace {
 
         try {
           // ── Native solid ─────────────────────────────────────────────────
-          FixtureDetectorConstruction::Request native_req;
-          native_req.provenance_path = provenance_path;
-          native_req.manifest        = family_manifest;
-          native_req.fixture         = fixture;
-          native_req.use_imported    = false;
-          native_req.name            = G4String(fixture.id + "_native");
+          // G4OCCTSolid fixtures (e.g. NIST CTC) have no analytic native solid;
+          // BuildNativeSolid() would throw for them.  Skip the native render and
+          // emit only the imported image.
+          const bool has_native_solid = (fixture.geant4_class != "G4OCCTSolid");
+          if (has_native_solid) {
+            FixtureDetectorConstruction::Request native_req;
+            native_req.provenance_path = provenance_path;
+            native_req.manifest        = family_manifest;
+            native_req.fixture         = fixture;
+            native_req.use_imported    = false;
+            native_req.name            = G4String(fixture.id + "_native");
 
-          const auto native_path = output_dir / (safe_id + "_native.jpeg");
-          if (!RenderFixture(runManager, detector, vis_manager, ui, st_tracer, native_req,
-                             native_path, initialized, visualization_ready)) {
-            std::cerr << "WARNING: " << qualified_id << ": native render produced no output\n";
-            ++skipped_count;
-            done = !fixture_filter.empty();
-            continue;
+            const auto native_path = output_dir / (safe_id + "_native.jpeg");
+            if (!RenderFixture(runManager, detector, vis_manager, ui, st_tracer, native_req,
+                               native_path, initialized, visualization_ready)) {
+              std::cerr << "WARNING: " << qualified_id << ": native render produced no output\n";
+              ++skipped_count;
+              done = !fixture_filter.empty();
+              continue;
+            }
           }
 
           // ── Imported solid (STEP → G4OCCTSolid) ─────────────────────────
