@@ -15,14 +15,6 @@ dd4hep_add_plugin(
   SOURCES G4OCCT_STEPSolid.cc   G4OCCT_STEPSolid_impl.cc
           G4OCCT_STEPAssembly.cc G4OCCT_STEPAssembly_impl.cc)
 
-# DD4hep headers use C++17 patterns (implicit const Handle<T> conversions) that
-# are rejected under C++20's stricter const rules.  Compile the plugin with
-# C++17 to match the C++ standard DD4hep was built with in the container.
-# CXX_STANDARD_REQUIRED OFF allows a higher standard if the toolchain requires.
-set_target_properties(G4OCCTDD4hep PROPERTIES
-  CXX_STANDARD          17
-  CXX_STANDARD_REQUIRED OFF)
-
 target_link_libraries(G4OCCTDD4hep PRIVATE G4OCCT::G4OCCT DD4hep::DDCore)
 
 # ─── Rootmap (components file) ────────────────────────────────────────────────
