@@ -195,6 +195,10 @@ if(BUILD_EXAMPLES)
   add_subdirectory(src/examples)
 endif()
 
+# ─── App ──────────────────────────────────────────────────────────────────────
+
+add_subdirectory(src/app/g4occt)
+
 # ─── Installation ─────────────────────────────────────────────────────────────
 
 include(GNUInstallDirs)

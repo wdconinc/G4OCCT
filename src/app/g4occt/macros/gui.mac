@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+#
+# gui.mac — GUI menu-bar additions for the g4occt Qt session.
+# Adds File, Run, and View menus with convenient buttons.
+
+/gui/addMenu file "File"
+/gui/addButton file "Load STEP solid..."    "/G4OCCT/load/step "
+/gui/addButton file "Load STEP assembly..." "/G4OCCT/load/assembly "
+/gui/addButton file "Load material XML..."  "/G4OCCT/load/material "
+
+/gui/addMenu run "Run"
+/gui/addButton run "Initialize"     "/run/initialize"
+/gui/addButton run "Run 1 event"    "/run/beamOn 1"
+/gui/addButton run "Run 100 events" "/run/beamOn 100"
+
+/gui/addMenu view "View"
+/gui/addButton view "Open OGL viewer" "/G4OCCT/vis/open OGL"
+/gui/addButton view "Refresh scene"   "/G4OCCT/vis/scene"

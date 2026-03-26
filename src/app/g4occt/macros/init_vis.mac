@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+#
+# init_vis.mac — Interactive startup macro for g4occt.
+# Initialises the run, opens an OGL viewer, and draws the geometry.
+
+/vis/open OGL 800x600-0+0
+/vis/viewer/set/autoRefresh false
+/vis/verbose errors
+
+/run/initialize
+
+/vis/drawVolume
+/vis/viewer/set/viewpointThetaPhi 30 45
+/vis/scene/add/axes 0 0 0 100 mm
+/vis/viewer/set/autoRefresh true
+/vis/viewer/flush

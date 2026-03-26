@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+#
+# init_batch.mac — Minimal batch initialisation macro for g4occt.
+# Initialises the run without opening any visualisation.
+
+/run/initialize
