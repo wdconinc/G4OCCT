@@ -25,6 +25,10 @@ struct FixtureRayComparisonOptions {
   std::size_t max_reported_mismatches{8};
   /// Output directory for per-fixture point-cloud JSON files; empty means skip.
   std::filesystem::path point_cloud_dir;
+  /// Number of inward-bound rays to fire per bounding-box face (6 faces total).
+  /// These surface rays expose interior surface patches that central rays miss
+  /// in non-convex solids such as the torus and NIST CTC shapes.
+  std::size_t surface_rays_per_face{1024};
 };
 
 /** Summary of one fixture's native-vs-imported ray-comparison run. */
@@ -41,6 +45,8 @@ struct FixtureRayComparisonSummary {
   EInside imported_origin_state{kOutside};
   double native_elapsed_ms{0.0};
   double imported_elapsed_ms{0.0};
+  /// Total number of bounding-box surface rays fired (6 × surface_rays_per_face).
+  std::size_t surface_ray_count{0};
   /// Number of agreed hit points where SurfaceNormal(p) was evaluated.
   std::size_t surface_normal_count{0};
   /// Number of hit points where native and imported SurfaceNormal(p) disagreed.
@@ -70,11 +76,13 @@ G4double DefaultRayComparisonTolerance();
  * internal consistency check.
  *
  * Validation codes produced by this function include:
- *  - `fixture.ray_origin_state_mismatch` — origin classification differs.
- *  - `fixture.ray_intersection_mismatch` — one solid hits, the other misses.
- *  - `fixture.ray_distance_mismatch`     — hit distances disagree beyond tolerance.
- *  - `fixture.ray_normal_mismatch`       — DistanceToOut exit normals disagree.
- *  - `fixture.surface_normal_mismatch`   — SurfaceNormal(p) normals disagree.
+ *  - `fixture.ray_origin_state_mismatch`         — origin classification differs.
+ *  - `fixture.ray_intersection_mismatch`          — one solid hits, the other misses.
+ *  - `fixture.ray_distance_mismatch`              — hit distances disagree beyond tolerance.
+ *  - `fixture.ray_normal_mismatch`                — DistanceToOut exit normals disagree.
+ *  - `fixture.surface_normal_mismatch`            — SurfaceNormal(p) normals disagree.
+ *  - `fixture.surface_ray_intersection_mismatch`  — bounding-box surface ray hit mismatch.
+ *  - `fixture.surface_ray_distance_mismatch`      — surface ray distances disagree.
  *
  * The distance tolerance defaults to `DefaultRayComparisonTolerance()` (the Geant4
  * surface tolerance).  Fixtures with approximate STEP representations may specify a

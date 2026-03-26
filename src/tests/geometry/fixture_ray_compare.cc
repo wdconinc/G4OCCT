@@ -61,6 +61,70 @@ namespace {
     return "<unknown EInside>";
   }
 
+  /// One value of the Halton low-discrepancy sequence in the given prime base.
+  /// index is 1-based so Halton(1, base) is the first value (in (0, 1)).
+  double Halton(std::size_t index, std::size_t base) {
+    double result = 0.0;
+    double frac   = 1.0;
+    while (index > 0) {
+      frac /= static_cast<double>(base);
+      result += frac * static_cast<double>(index % base);
+      index /= base;
+    }
+    return result;
+  }
+
+  struct SurfaceRay {
+    G4ThreeVector origin;    ///< Just outside the bounding-box face.
+    G4ThreeVector direction; ///< Unit inward normal of the face.
+  };
+
+  /**
+   * Generate n_per_face inward-bound rays across each of the six axis-aligned
+   * bounding-box faces of solid using a 2-D Halton sequence (bases 2 and 3).
+   * Origins are offset outward by the Geant4 surface tolerance so they start
+   * in the kOutside region; directions are the inward face normals.
+   */
+  std::vector<SurfaceRay> GenerateSurfaceRays(const G4VSolid& solid, std::size_t n_per_face) {
+    if (n_per_face == 0) {
+      return {};
+    }
+    G4ThreeVector bb_min, bb_max;
+    solid.BoundingLimits(bb_min, bb_max);
+    const G4double margin = G4GeometryTolerance::GetInstance()->GetSurfaceTolerance();
+    const G4double dx     = bb_max.x() - bb_min.x();
+    const G4double dy     = bb_max.y() - bb_min.y();
+    const G4double dz     = bb_max.z() - bb_min.z();
+
+    std::vector<SurfaceRay> rays;
+    rays.reserve(6 * n_per_face);
+
+    for (std::size_t i = 1; i <= n_per_face; ++i) {
+      const double u = Halton(i, 2); // first face-local coordinate
+      const double v = Halton(i, 3); // second face-local coordinate
+
+      // +x face (y-z plane), direction −x
+      rays.push_back({G4ThreeVector(bb_max.x() + margin, bb_min.y() + u * dy, bb_min.z() + v * dz),
+                      G4ThreeVector(-1, 0, 0)});
+      // −x face, direction +x
+      rays.push_back({G4ThreeVector(bb_min.x() - margin, bb_min.y() + u * dy, bb_min.z() + v * dz),
+                      G4ThreeVector(1, 0, 0)});
+      // +y face (x-z plane), direction −y
+      rays.push_back({G4ThreeVector(bb_min.x() + u * dx, bb_max.y() + margin, bb_min.z() + v * dz),
+                      G4ThreeVector(0, -1, 0)});
+      // −y face, direction +y
+      rays.push_back({G4ThreeVector(bb_min.x() + u * dx, bb_min.y() - margin, bb_min.z() + v * dz),
+                      G4ThreeVector(0, 1, 0)});
+      // +z face (x-y plane), direction −z
+      rays.push_back({G4ThreeVector(bb_min.x() + u * dx, bb_min.y() + v * dy, bb_max.z() + margin),
+                      G4ThreeVector(0, 0, -1)});
+      // −z face, direction +z
+      rays.push_back({G4ThreeVector(bb_min.x() + u * dx, bb_min.y() + v * dy, bb_min.z() - margin),
+                      G4ThreeVector(0, 0, 1)});
+    }
+    return rays;
+  }
+
   RaySample TraceRay(const G4VSolid& solid, const G4ThreeVector& origin, const EInside state,
                      const G4ThreeVector& direction) {
     RaySample sample;
@@ -360,6 +424,65 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
     }
     local_summary.surface_normal_count = agreed_hits.size();
 
+    // ── Bounding-box surface rays ─────────────────────────────────────────────
+    // Fire n_per_face inward-bound rays per bounding-box face to expose interior
+    // surface patches that central rays miss in non-convex solids (torus, NIST CTC).
+    // Origins come from the native solid's bounding box and the same origin/direction
+    // is used for both solids so distance comparisons remain fair.
+    // Hit points feed the point cloud but NOT the SurfaceNormal benchmark: axis-aligned
+    // rays frequently land on edges where the outward normal is geometrically ambiguous.
+    const std::vector<SurfaceRay> surface_rays =
+        GenerateSurfaceRays(*native_solid, options.surface_rays_per_face);
+    local_summary.surface_ray_count = surface_rays.size();
+
+    std::vector<G4double> native_surface_dists(surface_rays.size());
+    std::vector<G4double> imported_surface_dists(surface_rays.size());
+    for (std::size_t i = 0; i < surface_rays.size(); ++i) {
+      native_surface_dists[i]   = native_solid->DistanceToIn(surface_rays[i].origin, surface_rays[i].direction);
+      imported_surface_dists[i] = imported_solid->DistanceToIn(surface_rays[i].origin, surface_rays[i].direction);
+    }
+
+    for (std::size_t i = 0; i < surface_rays.size(); ++i) {
+      const G4double nd = native_surface_dists[i];
+      const G4double id = imported_surface_dists[i];
+      const bool native_hit   = !std::isinf(nd) && nd < kInfinity;
+      const bool imported_hit = !std::isinf(id) && id < kInfinity;
+
+      if (native_hit != imported_hit) {
+        ++local_summary.mismatch_count;
+        if (local_summary.mismatch_count <= options.max_reported_mismatches) {
+          report.AddError(
+              "fixture.surface_ray_intersection_mismatch",
+              "Surface ray " + std::to_string(i) + " hit mismatch for fixture '" +
+                  request.fixture.id + "': native=" + (native_hit ? "hit" : "miss") +
+                  ", imported=" + (imported_hit ? "hit" : "miss") +
+                  ", origin=" + ToString(surface_rays[i].origin) +
+                  ", direction=" + ToString(surface_rays[i].direction),
+              provenance_path);
+        }
+        continue;
+      }
+      if (!native_hit) {
+        continue;
+      }
+
+      const G4double delta = std::fabs(nd - id);
+      if (delta > local_summary.distance_tolerance) {
+        ++local_summary.mismatch_count;
+        if (local_summary.mismatch_count <= options.max_reported_mismatches) {
+          std::ostringstream message;
+          message << "Surface ray " << i << " distance mismatch for fixture '"
+                  << request.fixture.id << "': native=" << DistanceString(nd)
+                  << ", imported=" << DistanceString(id) << ", |delta|=" << delta
+                  << ", tolerance=" << local_summary.distance_tolerance
+                  << ", origin=" << ToString(surface_rays[i].origin)
+                  << ", direction=" << ToString(surface_rays[i].direction);
+          report.AddError("fixture.surface_ray_distance_mismatch", message.str(), provenance_path);
+        }
+        continue;
+      }
+    }
+
     // Time native SurfaceNormal(p) calls.
     std::vector<G4ThreeVector> native_surface_normals(agreed_hits.size());
     const auto sn_native_begin = std::chrono::steady_clock::now();
@@ -436,6 +559,7 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
                    << " ms, imported=" << local_summary.imported_elapsed_ms
                    << " ms, mismatches=" << local_summary.mismatch_count
                    << ", normal_mismatches=" << local_summary.normal_mismatch_count
+                   << "; surface_rays=" << local_summary.surface_ray_count
                    << "; SurfaceNormal(" << local_summary.surface_normal_count
                    << " points): native=" << local_summary.native_surface_normal_ms
                    << " ms, imported=" << local_summary.imported_surface_normal_ms
@@ -445,8 +569,8 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
     if (!options.point_cloud_dir.empty()) {
       std::vector<G4ThreeVector> native_hits;
       std::vector<G4ThreeVector> imported_hits;
-      native_hits.reserve(directions.size());
-      imported_hits.reserve(directions.size());
+      native_hits.reserve(directions.size() + surface_rays.size());
+      imported_hits.reserve(directions.size() + surface_rays.size());
       for (std::size_t index = 0; index < directions.size(); ++index) {
         if (native_samples[index].intersects) {
           native_hits.push_back(local_summary.native_origin +
@@ -455,6 +579,16 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
         if (imported_samples[index].intersects) {
           imported_hits.push_back(local_summary.imported_origin +
                                   imported_samples[index].distance * directions[index]);
+        }
+      }
+      for (std::size_t i = 0; i < surface_rays.size(); ++i) {
+        if (!std::isinf(native_surface_dists[i]) && native_surface_dists[i] < kInfinity) {
+          native_hits.push_back(surface_rays[i].origin +
+                                native_surface_dists[i] * surface_rays[i].direction);
+        }
+        if (!std::isinf(imported_surface_dists[i]) && imported_surface_dists[i] < kInfinity) {
+          imported_hits.push_back(surface_rays[i].origin +
+                                  imported_surface_dists[i] * surface_rays[i].direction);
         }
       }
       // Derive a safe flat filename from the qualified fixture ID.
