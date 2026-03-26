@@ -91,9 +91,6 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
   }
 
   int nConstituents = static_cast<int>(assembly->GetLogicalVolumes().size());
-  printout(INFO, "G4OCCT_STEPAssembly",
-           "Imported '%s' from '%s'; %d constituent solid(s)",
-           name.c_str(), path.c_str(), nConstituents);
 
   // ── Create a DD4hep assembly and place constituents ──────────────────────
   // Phase 1: represent each constituent as a bounding-box volume so that
@@ -101,6 +98,11 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
   // call below populates the Geant4 logical-volume hierarchy directly, so the
   // TGeo representation is used only for DD4hep bookkeeping and visualisation.
   Assembly dd4hepAssembly(name + "_assembly");
+
+  printout(INFO, "G4OCCT_STEPAssembly",
+           "Imported '%s' from '%s'; %d constituent solid(s) in dd4hep::Assembly '%s'",
+           name.c_str(), path.c_str(), nConstituents,
+           (name + "_assembly").c_str());
 
   // ── DetElement and placement ─────────────────────────────────────────────
   DetElement det(name, x_det.id());

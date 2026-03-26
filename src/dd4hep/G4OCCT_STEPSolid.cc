@@ -51,13 +51,14 @@ static Ref_t create_step_solid(Detector& description, xml_h e,
 
   // ── Import STEP solid ────────────────────────────────────────────────────
   // G4OCCTSolid::FromSTEP throws std::runtime_error on failure.
-  G4OCCTSolid* g4solid = nullptr;
-  try {
-    g4solid = G4OCCTSolid::FromSTEP(name, path);
-  } catch (const std::exception& ex) {
-    throw std::runtime_error("G4OCCT_STEPSolid: failed to import '" + path +
-                             "' (" + ex.what() + ")");
-  }
+  G4OCCTSolid* g4solid = [&]() -> G4OCCTSolid* {
+    try {
+      return G4OCCTSolid::FromSTEP(name, path);
+    } catch (const std::exception& ex) {
+      throw std::runtime_error("G4OCCT_STEPSolid: failed to import '" + path +
+                               "' (" + ex.what() + ")");
+    }
+  }();
 
   // ── Bounding box → TGeo placeholder ─────────────────────────────────────
   // Phase 1: use the axis-aligned bounding box as the TGeo solid.

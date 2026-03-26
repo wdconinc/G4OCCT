@@ -35,8 +35,7 @@ target_include_directories(test_dd4hep_plugins
 
 target_link_libraries(
   test_dd4hep_plugins
-  PRIVATE G4OCCT::G4OCCT G4OCCTDD4hep DD4hep::DDCore GTest::gtest_main
-          ${Geant4_LIBRARIES})
+  PRIVATE G4OCCT::G4OCCT G4OCCTDD4hep DD4hep::DDCore GTest::gtest_main)
 
 # ── CTest registration ────────────────────────────────────────────────────────
 

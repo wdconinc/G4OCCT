@@ -50,6 +50,7 @@ dd4hep::Detector& LoadCompact(const std::string& path)
 }
 
 /// Destroy and reset the Detector singleton between tests.
+/// In DD4hep, destroyInstance() handles both destruction and state reset.
 void DestroyDetector()
 {
   dd4hep::Detector::destroyInstance();
