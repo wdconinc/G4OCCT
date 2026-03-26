@@ -14,6 +14,7 @@
 ///  - @c .xml               — G4OCCT material-map XML file
 
 #include "G4OCCTActionInitialization.hh"
+#include "G4OCCTAppConfig.hh"
 #include "G4OCCTDetectorConstruction.hh"
 
 #include <FTFP_BERT.hh>
@@ -143,9 +144,15 @@ int main(int argc, char** argv) {
   auto* visManager = new G4VisExecutive("Quiet");
   visManager->Initialize();
 
-  // ── Execute macro or start interactive session ────────────────────────────
+  // ── Macro search path ─────────────────────────────────────────────────────
+  // Register the installed data directory first, then the build-tree copy.
+  // This satisfies both `make install` users and in-tree development/testing.
   auto* UImanager = G4UImanager::GetUIpointer();
-  int exitCode    = 0;
+  UImanager->SetMacroSearchPath(G4String(G4OCCT_MACRO_DIR_INSTALL) + ":" +
+                                G4OCCT_MACRO_DIR_BUILD);
+
+  // ── Execute macro or start interactive session ────────────────────────────
+  int exitCode = 0;
 
   if (!macro.empty()) {
     exitCode = UImanager->ApplyCommand("/control/execute " + macro);

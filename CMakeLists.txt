@@ -197,11 +197,12 @@ endif()
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
+include(GNUInstallDirs)
+
 add_subdirectory(src/app/g4occt)
 
 # ─── Installation ─────────────────────────────────────────────────────────────
 
-include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 install(

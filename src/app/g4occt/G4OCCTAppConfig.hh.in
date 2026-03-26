@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2026 G4OCCT Contributors
+
+/// @file G4OCCTAppConfig.hh.in
+/// @brief CMake-generated paths for run-time macro discovery.
+///
+/// Two directories are embedded so that macros are found both when running
+/// from the build tree (development/test) and after installation.
+
+#pragma once
+
+/// Installed macro directory: @CMAKE_INSTALL_FULL_DATADIR@/g4occt/macros
+#define G4OCCT_MACRO_DIR_INSTALL "@G4OCCT_MACRO_DIR_INSTALL@"
+
+/// Build-tree macro directory (populated by configure_file during build)
+#define G4OCCT_MACRO_DIR_BUILD "@G4OCCT_MACRO_DIR_BUILD@"
