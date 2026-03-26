@@ -128,12 +128,6 @@ namespace {
   /// too memory-hungry in practice. 4x4 keeps this harness as a minimal
   /// smoke test intended to stay within an 8 GB CI memory budget.
   constexpr int kRenderResolution = 240;
-  /// ViewSpan zoom factor applied after Geant4 auto-computes the camera FOV.
-  /// The auto-computed span frames the full world box (kWorldHalfSpanFactor ×
-  /// solid span), leaving the solid tiny in the image.  Multiplying by this
-  /// factor narrows the FOV so the solid fills more of the frame without moving
-  /// the eye position (which must stay inside the world volume).
-  constexpr G4double kViewSpanZoomFactor = 0.80;
 
   bool IsRayTracerNickname(const G4String& nickname) {
     return nickname == "RayTracer" || nickname == "RT";
@@ -201,7 +195,7 @@ namespace {
       worldLV->SetVisAttributes(G4VisAttributes::GetInvisible());
 
       auto* solidLV = new G4LogicalVolume(solid, air, fRequest.name + "_lv");
-      // Steel-blue: clearly visible against a white RT background.
+      // Bright steel-blue: high contrast against the dark render background.
       solidLV->SetVisAttributes(new G4VisAttributes(G4Colour(0.45, 0.73, 0.95)));
 
       // Translate so the bounding-box centre lands at the world origin.
@@ -406,7 +400,7 @@ namespace {
     st_tracer->SetEyePosition(mt_tracer->GetEyePosition());
     st_tracer->SetTargetPosition(mt_tracer->GetTargetPosition());
     st_tracer->SetLightDirection(mt_tracer->GetLightDirection());
-    st_tracer->SetViewSpan(mt_tracer->GetViewSpan() * kViewSpanZoomFactor);
+    st_tracer->SetViewSpan(mt_tracer->GetViewSpan());
     st_tracer->SetHeadAngle(mt_tracer->GetHeadAngle());
     st_tracer->SetUpVector(mt_tracer->GetUpVector());
     // Dark background: high contrast against the steel-blue solid and more
