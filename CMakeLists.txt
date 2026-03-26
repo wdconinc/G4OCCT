@@ -208,6 +208,25 @@ if(BUILD_EXAMPLES)
   add_subdirectory(src/examples)
 endif()
 
+# ─── DD4hep plugin ────────────────────────────────────────────────────────────
+
+# cmake-format: off
+option(BUILD_DD4HEP_PLUGIN
+  "Build DD4hep detector element plugins (requires DD4hep)" OFF)
+# cmake-format: on
+
+if(BUILD_DD4HEP_PLUGIN)
+  find_package(DD4hep QUIET)
+  if(NOT DD4hep_FOUND)
+    message(
+      WARNING
+      "BUILD_DD4HEP_PLUGIN=ON but DD4hep was not found. "
+      "The DD4hep plugin will not be built.")
+  else()
+    add_subdirectory(src/dd4hep)
+  endif()
+endif()
+
 # ─── App ──────────────────────────────────────────────────────────────────────
 
 include(GNUInstallDirs)
@@ -224,6 +243,10 @@ install(
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+if(BUILD_DD4HEP_PLUGIN AND DD4hep_FOUND)
+  install(TARGETS G4OCCTDD4hep LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
 
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 

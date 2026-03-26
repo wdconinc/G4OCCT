@@ -48,6 +48,7 @@ jobs:
               -DBUILD_TESTING=ON \
               -DBUILD_BENCHMARKS=ON \
               -DBUILD_EXAMPLES=ON \
+              -DBUILD_DD4HEP_PLUGIN=ON \
               -DENABLE_WERROR=ON \
               -DB4C_CHECK_OVERLAPS=OFF \
               -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
@@ -58,9 +59,12 @@ jobs:
             cmake --build build -- -j$(nproc)
 
             # ── Test ───────────────────────────────────────────────────────
+            # DD4hep plugin tests (label "dd4hep") run in the dedicated
+            # dd4hep-plugin job; exclude them here to avoid redundant runs.
             ctest --test-dir build --output-on-failure \
               --output-junit "${PWD}/test-results.xml" \
               --exclude-regex "^render_geometry_fixtures" \
+              -LE dd4hep \
               -j$(nproc)
 
             # ── Render fixture solids to JPEG via Geant4 RayTracer ──────────
@@ -303,6 +307,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=RelWithDebInfo \
               -DBUILD_BENCHMARKS=ON \
               -DBUILD_EXAMPLES=ON \
+              -DBUILD_DD4HEP_PLUGIN=ON \
               -DENABLE_WERROR=ON \
               -DB4C_CHECK_OVERLAPS=OFF \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
@@ -789,6 +794,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=RelWithDebInfo \
               -DBUILD_TESTING=ON \
               -DBUILD_EXAMPLES=ON \
+              -DBUILD_DD4HEP_PLUGIN=ON \
               ${{ matrix.sanitizer.cmake_flags }} \
               -DENABLE_WERROR=ON \
               -DCMAKE_INSTALL_PREFIX="${PWD}/install" \
@@ -798,12 +804,68 @@ jobs:
             cmake --build build -- -j$(nproc)
 
             # ── Test ───────────────────────────────────────────────────────
-            ctest --test-dir build --output-on-failure -j$(nproc)
+            # DD4hep plugin tests (label "dd4hep") run in the dedicated
+            # dd4hep-plugin job; exclude them here to keep sanitizer runs fast.
+            ctest --test-dir build --output-on-failure -LE dd4hep -j$(nproc)
 
             # ── Run B1 with $(nproc) threads to exercise multi-threading ───
             ./build/src/examples/B1/exampleB1 \
               "${PWD}/src/examples/B1/run.mac" \
               $(nproc)
+
+  # ── DD4hep plugin tests ──────────────────────────────────────────────────────
+  dd4hep-plugin:
+    name: DD4hep plugin tests (eic_xl)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install CVMFS
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            _fetchcontent/*-src
+            _fetchcontent/*-subbuild
+          key: ${{ runner.os }}-fetchcontent-dd4hep-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Build and test DD4hep plugin inside eic_xl container
+        uses: eic/run-cvmfs-osg-eic-shell@v1
+        with:
+          platform-release: "eic_xl:nightly"
+          run: |
+            set -euo pipefail
+
+            # ── Configure ──────────────────────────────────────────────────
+            cmake -S . -B build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_TESTING=ON \
+              -DBUILD_DD4HEP_PLUGIN=ON \
+              -DENABLE_WERROR=ON \
+              -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
+
+            # ── Build ──────────────────────────────────────────────────────
+            cmake --build build --parallel "$(nproc)"
+
+            # ── Test ───────────────────────────────────────────────────────
+            # Run only the DD4hep plugin tests (CTest label "dd4hep").
+            ctest --test-dir build -L dd4hep --output-on-failure \
+              --output-junit "${PWD}/dd4hep-test-results.xml"
+
+      - name: Upload DD4hep test results as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dd4hep-test-results
+          path: dd4hep-test-results.xml
+          if-no-files-found: warn
+          retention-days: 7
 
   # ── Coverage report ─────────────────────────────────────────────────────────
   coverage:
@@ -844,6 +906,7 @@ jobs:
             cmake -S . -B build \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_TESTING=ON \
+              -DBUILD_DD4HEP_PLUGIN=ON \
               -DUSE_COVERAGE=ON \
               -DFETCHCONTENT_BASE_DIR="${PWD}/_fetchcontent"
 
@@ -854,8 +917,10 @@ jobs:
             # Capture the exit code so that gcovr always runs (collecting
             # coverage from any tests that did execute) while still failing
             # the job if tests fail.
+            # DD4hep plugin tests (label "dd4hep") run in the dedicated
+            # dd4hep-plugin job; exclude them here.
             set +e
-            ctest --test-dir build --output-on-failure -j$(nproc)
+            ctest --test-dir build --output-on-failure -LE dd4hep -j$(nproc)
             CTEST_EXIT=$?
             set -e
 

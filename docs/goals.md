@@ -114,6 +114,10 @@ G4OCCT/
 │   ├── examples/
 │   │   ├── B1/                  # water phantom example
 │   │   └── B4c/                 # sampling calorimeter example
+│   ├── dd4hep/                  # optional DD4hep detector element plugins
+│   │   ├── G4OCCT_STEPSolid.cc
+│   │   ├── G4OCCT_STEPAssembly.cc
+│   │   └── tests/
 │   ├── tests/                   # CTest-integrated unit tests
 │   └── benchmarks/              # navigator benchmarks (bench_navigator, bench_assembly_navigator)
 └── docs/
@@ -142,4 +146,5 @@ G4OCCT/
 | v0.4 | ✅ Complete | STEP import end-to-end example | [Example B1 — Water Phantom](example_b1.md) |
 | v0.5 | 🔨 In progress | Full test suite passing for all G4 primitives | [Geometry Test Status](geometry_test_status.md) |
 | v0.6 | 🔲 Planned | Multi-shape STEP assembly import (`G4OCCTAssemblyBuilder`) | [Multi-Shape STEP Assembly Import](step_assembly_import.md) |
+| v0.7 | 🔲 Planned | DD4hep plugin (`G4OCCT_STEPSolid`, `G4OCCT_STEPAssembly`) | [DD4hep Plugin Design](dd4hep_plugin.md) |
 | v1.0 | 🔲 Planned | Production-quality performance, material bridging | [Performance Considerations](performance.md), [Material Bridging](material_bridging.md) |
