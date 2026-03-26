@@ -945,12 +945,12 @@ jobs:
             ROOT=$(realpath .)
 
             # Select the coverage-processing tool that matches the compiler.
-            # CMAKE_CXX_COMPILER_ID is read from the cache so we use exactly
-            # the same toolchain version that wrote the .gcno/.gcda files.
-            CXX=$(cmake -LA -N build \
-                  | awk -F= '/CMAKE_CXX_COMPILER:FILEPATH/{print $2; exit}')
-            CXX_ID=$(cmake -LA -N build \
-                     | awk -F= '/CMAKE_CXX_COMPILER_ID:STRING/{print $2; exit}')
+            # Read directly from the CMake cache file — avoids a SIGPIPE that
+            # would occur if cmake -LA -N is piped to awk with early exit.
+            CXX=$(grep '^CMAKE_CXX_COMPILER:FILEPATH=' build/CMakeCache.txt \
+                  | cut -d= -f2-)
+            CXX_ID=$(grep '^CMAKE_CXX_COMPILER_ID:STRING=' build/CMakeCache.txt \
+                     | cut -d= -f2-)
             CXX_DIR=$(dirname "${CXX}")
 
             if echo "${CXX_ID}" | grep -qi "clang"; then
