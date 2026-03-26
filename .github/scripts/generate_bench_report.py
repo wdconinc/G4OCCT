@@ -128,6 +128,9 @@ def _parse_bench_json(data: dict) -> dict:
     agg_dto_lb_violations  = 0.0
     agg_poly_native_ms     = 0.0
     agg_poly_imported_ms   = 0.0
+    # Number of fixtures excluded from the G4-vs-OCCT aggregate rows because
+    # they have no genuine Geant4 native solid (NIST CTC: class == "G4OCCTSolid").
+    agg_excluded_count     = 0
 
     for fixture_id in fixture_order:
         group     = fixture_groups[fixture_id]
@@ -139,6 +142,15 @@ def _parse_bench_json(data: dict) -> dict:
         geant4_class         = rays_bm.get("label", "") if rays_bm else ""
         has_expected_failure = (_get_ctr(rays_bm, "has_expected_failure") != 0.0
                                 if rays_bm else False)
+
+        # NIST CTC fixtures (geant4_class == "G4OCCTSolid") use the same
+        # G4OCCTSolid as both native and imported solid.  They must not
+        # contribute to the G4-vs-OCCT aggregate totals because their
+        # "native" timing is OCCT, not Geant4, which would make the
+        # aggregate ratio misleadingly close to 1.
+        has_geant4_native = (geant4_class != "G4OCCTSolid")
+        if not has_geant4_native:
+            agg_excluded_count += 1
 
         methods: dict[str, dict] = {}
 
@@ -165,13 +177,14 @@ def _parse_bench_json(data: dict) -> dict:
                 "ratio":       _fmt_ratio(sn_n, sn_i),
                 "mismatches":  int(_get_ctr(rays_bm, "sn_mismatches")),
             }
-            agg_ray_native_ms   += n
-            agg_ray_imported_ms += i
-            agg_ray_mismatches  += _get_ctr(rays_bm, "mismatches")
-            agg_exit_mismatches += _get_ctr(rays_bm, "exit_normal_mismatches")
-            agg_sn_native_ms    += sn_n
-            agg_sn_imported_ms  += sn_i
-            agg_sn_mismatches   += _get_ctr(rays_bm, "sn_mismatches")
+            if has_geant4_native:
+                agg_ray_native_ms   += n
+                agg_ray_imported_ms += i
+                agg_ray_mismatches  += _get_ctr(rays_bm, "mismatches")
+                agg_exit_mismatches += _get_ctr(rays_bm, "exit_normal_mismatches")
+                agg_sn_native_ms    += sn_n
+                agg_sn_imported_ms  += sn_i
+                agg_sn_mismatches   += _get_ctr(rays_bm, "sn_mismatches")
 
         if inside_bm:
             n = _get_ctr(inside_bm, "native_ms")
@@ -182,9 +195,10 @@ def _parse_bench_json(data: dict) -> dict:
                 "ratio":       _fmt_ratio(n, i),
                 "mismatches":  int(_get_ctr(inside_bm, "mismatches")),
             }
-            agg_inside_native_ms   += n
-            agg_inside_imported_ms += i
-            agg_inside_mismatches  += _get_ctr(inside_bm, "mismatches")
+            if has_geant4_native:
+                agg_inside_native_ms   += n
+                agg_inside_imported_ms += i
+                agg_inside_mismatches  += _get_ctr(inside_bm, "mismatches")
 
         if safety_bm:
             dti_n   = _get_ctr(safety_bm, "safety_in_native_ms")
@@ -225,6 +239,8 @@ def _parse_bench_json(data: dict) -> dict:
                 "avg_lb_ratio":  dto_lb_r,
                 "lb_violations": int(dto_lbv),
             }
+            # Safety benchmarks are never registered for NIST CTC fixtures,
+            # so no has_geant4_native guard is needed here.
             agg_dti_native_ms     += dti_n
             agg_dti_imported_ms   += dti_i
             agg_dti_exact_ms      += dti_e
@@ -246,6 +262,8 @@ def _parse_bench_json(data: dict) -> dict:
                 "native_facets":      int(_get_ctr(poly_bm, "native_facets")),
                 "imported_facets":    int(_get_ctr(poly_bm, "imported_facets")),
             }
+            # Polyhedron benchmarks are never registered for NIST CTC fixtures,
+            # so no has_geant4_native guard is needed here.
             agg_poly_native_ms  += p_n
             agg_poly_imported_ms += p_i
 
@@ -348,11 +366,12 @@ def _parse_bench_json(data: dict) -> dict:
     ]
 
     return {
-        "ray_count":    ray_count,
-        "inside_count": inside_count,
-        "safety_count": safety_count,
-        "fixtures":     fixtures,
-        "aggregate":    aggregate,
+        "ray_count":      ray_count,
+        "inside_count":   inside_count,
+        "safety_count":   safety_count,
+        "fixtures":       fixtures,
+        "aggregate":      aggregate,
+        "excluded_count": agg_excluded_count,
     }
 
 
@@ -557,12 +576,13 @@ def _render_report(data: dict, viewer_path: str,
                    chart_svg: str | None = None,
                    chart_src: str | None = None) -> str:
     """Render the Markdown string for benchmark data."""
-    ts           = timestamp()
-    aggregate    = data.get("aggregate", [])
-    ray_count    = data.get("ray_count")
-    inside_count = data.get("inside_count")
-    safety_count = data.get("safety_count")
-    fixtures     = data.get("fixtures", [])
+    ts             = timestamp()
+    aggregate      = data.get("aggregate", [])
+    ray_count      = data.get("ray_count")
+    inside_count   = data.get("inside_count")
+    safety_count   = data.get("safety_count")
+    fixtures       = data.get("fixtures", [])
+    excluded_count = data.get("excluded_count", 0)
 
     meta_line = f"Generated: {ts}"
     if ray_count is not None:
@@ -637,6 +657,19 @@ def _render_report(data: dict, viewer_path: str,
             " points where the lower bound exceeded the exact distance (hard fail);"
             " `---` means not applicable.",
         ]
+
+        if excluded_count:
+            fixture_noun = "fixture" if excluded_count == 1 else "fixtures"
+            lines += [
+                "",
+                f"> **Note:** {excluded_count} NIST CTC {fixture_noun} (class `G4OCCTSolid`) "
+                "are excluded from the G4-vs-OCCT aggregate rows above. "
+                "These fixtures have no Geant4 native solid — both the native and imported "
+                "solids are the same `G4OCCTSolid` loaded from a STEP file — so including them "
+                "would inflate the Geant4 baseline with OCCT timings and make the speedup "
+                "ratio meaningless. Their individual results are still shown in the per-fixture "
+                "table below.",
+            ]
 
         if total_exp_failures:
             lines += [
