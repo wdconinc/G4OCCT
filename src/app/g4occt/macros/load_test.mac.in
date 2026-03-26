@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+#
+# load_test.mac — Test macro for g4occt messenger commands.
+# File paths are substituted by CMake configure_file at build time.
+
+/G4OCCT/load/material @G4OCCT_APP_MAT_XML@
+/G4OCCT/load/step @G4OCCT_APP_STEP_DIR@/absorber.step
+/run/initialize
+/run/beamOn 0

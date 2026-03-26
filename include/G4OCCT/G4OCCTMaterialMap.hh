@@ -69,6 +69,16 @@ public:
    */
   std::size_t Size() const { return fMap.size(); }
 
+  /**
+   * Merge all entries from @p other into this map.
+   *
+   * If a STEP name already exists in this map, the entry from @p other
+   * overwrites it (later files win on conflict).
+   *
+   * @param other Source map whose entries are merged into this one.
+   */
+  void Merge(const G4OCCTMaterialMap& other);
+
 private:
   std::map<G4String, G4Material*> fMap;
 };

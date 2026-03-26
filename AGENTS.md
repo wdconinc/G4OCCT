@@ -516,7 +516,28 @@ pre-commit run --all-files
 
 ---
 
-## 16. Updating These Instructions
+## 16. Application (`src/app/`)
+
+Standalone application targets (not pedagogical examples, not test
+infrastructure) live in `src/app/<name>/` and are built unconditionally
+(no `BUILD_APP` option).
+
+- **Location:** `src/app/g4occt/` for the `g4occt` interactive tool.
+- **Messenger pattern:** Use `G4GenericMessenger` (`DeclareMethod` /
+  `DeclareProperty`) rather than the low-level `G4UIcmd*` / `SetNewValue`
+  approach.  One `G4GenericMessenger` instance per UI sub-directory; owned
+  by the class that controls the state.
+- **Macro files:** Committed under `src/app/<name>/macros/`; copied to the
+  build directory via `configure_file(...COPYONLY)`.  Template macros
+  (with `@VAR@` placeholders) use the `.mac.in` extension and are processed
+  with `configure_file(...@ONLY)`.
+- **Tests:** CTest integration tests are added in the same `CMakeLists.txt`,
+  gated on `BUILD_TESTING`.  They run the executable with pre-built STEP
+  fixtures and check the exit code.
+
+---
+
+## 17. Updating These Instructions
 
 If a PR discussion establishes a new convention:
 

@@ -208,9 +208,14 @@ if(BUILD_EXAMPLES)
   add_subdirectory(src/examples)
 endif()
 
-# ─── Installation ─────────────────────────────────────────────────────────────
+# ─── App ──────────────────────────────────────────────────────────────────────
 
 include(GNUInstallDirs)
+
+add_subdirectory(src/app/g4occt)
+
+# ─── Installation ─────────────────────────────────────────────────────────────
+
 include(CMakePackageConfigHelpers)
 
 install(
