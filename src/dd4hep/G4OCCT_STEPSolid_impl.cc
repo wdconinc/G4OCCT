@@ -12,7 +12,13 @@
 
 #include "G4OCCT/G4OCCTSolid.hh"
 
-#include <G4ThreeVector.hh>
+#include <BRepMesh_IncrementalMesh.hxx>
+#include <BRep_Tool.hxx>
+#include <Poly_Triangulation.hxx>
+#include <TopAbs_Orientation.hxx>
+#include <TopExp_Explorer.hxx>
+#include <TopoDS.hxx>
+#include <TopoDS_Face.hxx>
 
 #include <stdexcept>
 #include <string>
@@ -28,17 +34,52 @@ G4OCCT_STEPSolidGeometry G4OCCT_ImportSTEPSolid(const std::string& name,
                              "' (" + ex.what() + ")");
   }
 
-  G4ThreeVector pMin, pMax;
-  solid->BoundingLimits(pMin, pMax);
+  const TopoDS_Shape& shape = solid->GetOCCTShape();
 
-  const double halfX = (pMax.x() - pMin.x()) / 2.0;
-  const double halfY = (pMax.y() - pMin.y()) / 2.0;
-  const double halfZ = (pMax.z() - pMin.z()) / 2.0;
+  // Tessellate with 1 % relative deflection, matching G4OCCTSolid::CreatePolyhedron().
+  static constexpr double kRelativeDeflection = 0.01;
+  BRepMesh_IncrementalMesh mesher(shape, kRelativeDeflection,
+                                  /*isRelative=*/Standard_True);
+  (void)mesher;
 
-  if (halfX <= 0.0 || halfY <= 0.0 || halfZ <= 0.0) {
-    throw std::runtime_error("G4OCCT_STEPSolid: bounding box of '" + path +
-                             "' has zero or negative extent");
+  G4OCCT_STEPSolidGeometry result;
+
+  for (TopExp_Explorer explorer(shape, TopAbs_FACE);
+       explorer.More(); explorer.Next())
+  {
+    const TopoDS_Face& face = TopoDS::Face(explorer.Current());
+    TopLoc_Location    location;
+    const Handle(Poly_Triangulation)& tri =
+        BRep_Tool::Triangulation(face, location);
+    if (tri.IsNull() || tri->NbTriangles() == 0) {
+      continue;
+    }
+
+    const gp_Trsf& transform     = location.Transformation();
+    const bool     reverseWinding = (face.Orientation() == TopAbs_REVERSED);
+
+    for (Standard_Integer i = 1; i <= tri->NbTriangles(); ++i) {
+      Standard_Integer n1, n2, n3;
+      tri->Triangle(i).Get(n1, n2, n3);
+      if (reverseWinding) {
+        std::swap(n2, n3);
+      }
+
+      const gp_Pnt p1 = tri->Node(n1).Transformed(transform);
+      const gp_Pnt p2 = tri->Node(n2).Transformed(transform);
+      const gp_Pnt p3 = tri->Node(n3).Transformed(transform);
+
+      G4OCCT_Triangle facet;
+      facet.v[0] = {p1.X(), p1.Y(), p1.Z()};
+      facet.v[1] = {p2.X(), p2.Y(), p2.Z()};
+      facet.v[2] = {p3.X(), p3.Y(), p3.Z()};
+      result.triangles.push_back(facet);
+    }
   }
 
-  return {halfX, halfY, halfZ};
+  if (result.triangles.empty()) {
+    throw std::runtime_error(
+        "G4OCCT_STEPSolid: tessellation of '" + path + "' produced no triangles");
+  }
+  return result;
 }
