@@ -63,6 +63,16 @@ if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
 
+# CMP0144: find_package uses upper-case <PACKAGENAME>_ROOT variables.
+if(POLICY CMP0144)
+  cmake_policy(SET CMP0144 NEW)
+endif()
+
+# CMP0167: The FindBoost module is removed; use upstream BoostConfig.cmake.
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+
 if(BUILD_TESTING)
   include(GoogleTest)
   find_package(GTest QUIET)
