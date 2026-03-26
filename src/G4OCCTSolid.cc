@@ -920,32 +920,82 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
       }
     }
 
-    TriangleRayCast caster;
-    caster.SetRay(BVH_Vec3d(p.x(), p.y(), p.z()), BVH_Vec3d(0.0, 0.0, 1.0),
-                  static_cast<Standard_Real>(tolerance));
+    // Multi-ray majority vote: cast up to three orthogonal rays (+Z, +X, +Y)
+    // through the BVH triangle set and tally inside/outside votes.
+    //
+    // Fast path: if the primary (+Z) ray is non-degenerate and has a non-zero
+    // crossing count, its parity is reliable and we return immediately.
+    //
+    // Slow path (primary degenerate or zero crossings): cast +X and +Y as
+    // tie-breakers.  Only non-degenerate rays contribute a vote.  A clear
+    // majority (more inside votes than outside, or vice versa) determines the
+    // result.  If no majority can be established (all three rays degenerate, or
+    // a genuine 1–1 tie), we fall back to the exact OCCT classifier.
+    //
+    // This eliminates BRepClass3d_SolidClassifier::Perform() calls for all but
+    // the near-surface and all-degenerate cases, collapsing the CSLib_Class2d
+    // and NCollection heap-allocation overhead for complex solids.
+    const BVH_Vec3d     bvhOrigin(p.x(), p.y(), p.z());
+    const Standard_Real bvhTol = static_cast<Standard_Real>(tolerance);
+    TriangleRayCast     caster;
     caster.SetBVHSet(fTriangleSet.get());
+
+    // Primary ray: +Z
+    caster.SetRay(bvhOrigin, BVH_Vec3d(0.0, 0.0, 1.0), bvhTol);
     caster.Select();
 
     if (caster.OnSurface()) {
       return kSurface;
     }
-    // Degenerate hit (ray near triangle edge/vertex): fall back to the exact
-    // classifier so the skipped crossing does not misclassify the point.
-    if (caster.Degenerate()) {
-      BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
-      classifier.Perform(ToPoint(p), tolerance);
-      return ToG4Inside(classifier.State());
+
+    // Fast path: primary ray is unambiguous.
+    if (!caster.Degenerate() && caster.Crossings() > 0) {
+      return (caster.Crossings() % 2 == 1) ? kInside : kOutside;
     }
-    // Safety fallback: a zero-crossing BVH ray can still correspond to an
-    // interior point if intersections were missed due to numerical rejection
-    // or edge/vertex degeneracies.  Delegate to the exact classifier as in
-    // the Tier-2b implementation.
-    if (caster.Crossings() == 0) {
-      BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
-      classifier.Perform(ToPoint(p), tolerance);
-      return ToG4Inside(classifier.State());
+
+    // Primary is problematic (degenerate or zero crossings).  Tally its vote
+    // (excluded if degenerate), then cast two more orthogonal rays.
+    int insideVotes  = 0;
+    int outsideVotes = 0;
+    if (!caster.Degenerate()) {
+      if (caster.Crossings() % 2 == 1) {
+        ++insideVotes;
+      } else {
+        ++outsideVotes;
+      }
     }
-    return (caster.Crossings() % 2 == 1) ? kInside : kOutside;
+
+    const BVH_Vec3d kExtraRays[2] = {
+      BVH_Vec3d(1.0, 0.0, 0.0),
+      BVH_Vec3d(0.0, 1.0, 0.0),
+    };
+    for (const BVH_Vec3d& dir : kExtraRays) {
+      caster.SetRay(bvhOrigin, dir, bvhTol);
+      caster.Select();
+      if (caster.OnSurface()) {
+        return kSurface;
+      }
+      if (!caster.Degenerate()) {
+        if (caster.Crossings() % 2 == 1) {
+          ++insideVotes;
+        } else {
+          ++outsideVotes;
+        }
+      }
+    }
+
+    if (insideVotes > outsideVotes) {
+      return kInside;
+    }
+    if (outsideVotes > insideVotes) {
+      return kOutside;
+    }
+
+    // No majority (all degenerate, or genuine 1–1 tie): fall back to the exact
+    // OCCT classifier.
+    BRepClass3d_SolidClassifier& classifier = GetOrCreateClassifier();
+    classifier.Perform(ToPoint(p), tolerance);
+    return ToG4Inside(classifier.State());
   }
 
   // Tier-2b: fallback when fTriangleSet is unavailable — original per-face
