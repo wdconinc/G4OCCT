@@ -14,7 +14,6 @@
 ///  - @c .xml               — G4OCCT material-map XML file
 
 #include "G4OCCTActionInitialization.hh"
-#include "G4OCCTAppConfig.hh"
 #include "G4OCCTDetectorConstruction.hh"
 
 #include <FTFP_BERT.hh>

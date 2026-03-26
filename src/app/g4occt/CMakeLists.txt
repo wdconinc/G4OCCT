@@ -9,7 +9,7 @@ add_executable(
   G4OCCTDetectorConstruction.cc
   G4OCCTActionInitialization.cc)
 
-target_include_directories(g4occt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(g4occt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(g4occt PRIVATE G4OCCT::G4OCCT ${Geant4_LIBRARIES})
 
@@ -22,8 +22,11 @@ target_link_libraries(g4occt PRIVATE G4OCCT::G4OCCT ${Geant4_LIBRARIES})
 set(G4OCCT_MACRO_DIR_BUILD "${CMAKE_CURRENT_BINARY_DIR}/macros")
 set(G4OCCT_MACRO_DIR_INSTALL "${CMAKE_INSTALL_FULL_DATADIR}/g4occt/macros")
 
-# Generate the config header that embeds both paths into the executable.
-configure_file(G4OCCTAppConfig.hh.in ${CMAKE_CURRENT_BINARY_DIR}/G4OCCTAppConfig.hh @ONLY)
+# Embed both directories directly as compile definitions — no generated header.
+target_compile_definitions(
+  g4occt
+  PRIVATE G4OCCT_MACRO_DIR_INSTALL="${G4OCCT_MACRO_DIR_INSTALL}"
+          G4OCCT_MACRO_DIR_BUILD="${G4OCCT_MACRO_DIR_BUILD}")
 
 # Copy macro files into the build-tree macros/ subdirectory.
 foreach(_mac init_vis gui init_batch)
