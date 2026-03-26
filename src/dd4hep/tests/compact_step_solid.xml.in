@@ -19,13 +19,6 @@
     <constant name="world_side" value="500*mm"/>
   </define>
 
-  <!--
-    DD4hep 1.35 resets the ROOT TGeoElementTable to empty on startup and fills
-    it only from compact XML.  TGeoMixture::AddElement(TGeoElement*, Double_t)
-    internally calls AddElement(A, Z, w), which checks z > GetNelements()-1.
-    Including DD4hep's standard elements.xml first populates all Z=1..Z=118
-    entries so the table is large enough for any element.
-  -->
   <includes>
     <gdmlFile ref="@G4OCCT_DD4HEP_ELEMENTS_XML@"/>
   </includes>
