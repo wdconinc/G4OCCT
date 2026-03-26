@@ -93,20 +93,37 @@ AI agents) must follow these instructions.
   `<algorithm>`, `<cmath>`, `<cstdlib>`, `<cstddef>`, `<stdexcept>`, etc.
   when using their symbols, and remove unused includes to silence
   compiler/clang-tidy warnings about unused includes.
-- **DD4hep + OCCT include ordering:** In any translation unit that includes
-  both DD4hep and OpenCASCADE headers, **DD4hep headers must come first**.
-  `Standard_Handle.hxx` (pulled in by any OCCT header) defines a
-  function-like macro `Handle(Class)` → `opencascade::handle<Class>`.  If
-  this macro is visible when `DD4hep/Handle.h` is parsed, every occurrence of
-  `Handle(...)` inside that header (e.g. `Handle() = default`) is
-  macro-expanded into a broken template instantiation.  Placing DD4hep
-  includes before G4OCCT/OCCT includes prevents the macro from being in scope
-  during DD4hep header parsing.  Example correct ordering for a DD4hep plugin:
+- **DD4hep + OCCT include ordering / firewall pattern:** Including DD4hep and
+  OpenCASCADE headers in the same translation unit produces two independent
+  hard errors:
+
+  1. **`Handle` macro collision** — `Standard_Handle.hxx` defines
+     `Handle(Class)` → `opencascade::handle<Class>`.  If OCC headers are
+     included before `DD4hep/Handle.h`, every `Handle(...)` inside that header
+     (e.g. `Handle() = default`) is macro-expanded into a broken template
+     instantiation.
+
+  2. **`Printf` return-type conflict** — ROOT's `TString.h` (pulled in by
+     DD4hep) declares `extern void Printf(...)` while OCC's
+     `Standard_CString.hxx` (pulled in by any OCC header) declares
+     `Standard_EXPORT int Printf(...)`.  These two declarations with different
+     return types cannot coexist in the same TU.
+
+  **Required pattern for DD4hep plugins that use G4OCCT:** use a *firewall*:
+  keep the DD4hep-facing code and the G4OCCT/OCC-facing code in separate
+  translation units, bridged by a thin header that includes neither.
+
+  ```
+  PluginName.cc          ← includes DD4hep only; calls bridge function
+  PluginName_impl.hh     ← bridge header: std::string, plain POD, forward decls only
+  PluginName_impl.cc     ← includes G4OCCT/OCC only; implements bridge function
+  ```
+
+  Example bridge header (no DD4hep, no OCC):
   ```cpp
-  #include <DD4hep/DetFactoryHelper.h>  // DD4hep first — before any OCCT header
-  #include <DD4hep/Printout.h>
-  #include "G4OCCT/G4OCCTSolid.hh"     // G4OCCT (pulls in OCCT) after DD4hep
-  #include <G4ThreeVector.hh>
+  #include <string>
+  struct MyPluginResult { double halfX, halfY, halfZ; };
+  MyPluginResult LoadSTEP(const std::string& name, const std::string& path);
   ```
 - The **IWYU workflow** (`.github/workflows/iwyu.yml`) enforces
   include-what-you-use on every PR using `iwyu_tool.py` + `fix_includes.py`.

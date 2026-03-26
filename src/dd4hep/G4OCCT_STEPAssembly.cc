@@ -19,28 +19,30 @@
 /// Phase 1 implementation notes
 /// ----------------------------
 /// The plugin reads the material map from the compact XML, imports the STEP
-/// assembly via G4OCCTAssemblyVolume::FromSTEP, and places each constituent
-/// solid into a dd4hep::Assembly volume using a TGeo bounding-box placeholder
-/// for each solid.
+/// assembly via G4OCCTAssemblyVolume::FromSTEP (in a separate OCC-side TU),
+/// and places each constituent solid into a dd4hep::Assembly volume using a
+/// TGeo bounding-box placeholder for each solid.
 ///
 /// @todo Phase 2: replace per-solid bounding-box placeholders with a proper
 /// TGeo↔G4OCCTSolid bridge so that Geant4 navigation uses the exact OCCT
 /// BRep geometry.
 
-// DD4hep headers must precede any OpenCASCADE headers.  OpenCASCADE defines
-// a function-like macro `Handle(Class)` that expands to
-// `opencascade::handle<Class>`.  If OCC headers are included first, that
-// macro fires inside DD4hep/Handle.h and turns its member declarations (e.g.
-// `Handle() = default`) into malformed template instantiations.
+// Two header worlds must not meet in the same TU:
+//   DD4hep → ROOT → TString.h         declares: extern void Printf(...)
+//   G4OCCT → OCC → Standard_CString.h declares: int Printf(...)
+// Keeping them in separate TUs (firewall pattern) resolves both this Printf
+// conflict and the Handle(Class) macro collision.
+// G4OCCT_STEPAssembly_impl.{hh,cc} is the OCC-side TU; this file is the
+// DD4hep-side TU.
 #include <DD4hep/DetFactoryHelper.h>
 #include <DD4hep/Printout.h>
 
-#include "G4OCCT/G4OCCTAssemblyVolume.hh"
-#include "G4OCCT/G4OCCTMaterialMap.hh"
+#include "G4OCCT_STEPAssembly_impl.hh"
 
 #include <G4Material.hh>
 #include <G4NistManager.hh>
 
+#include <map>
 #include <stdexcept>
 #include <string>
 
@@ -57,11 +59,11 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
   std::string name = x_det.nameStr();
   std::string path = x_step.attr<std::string>(_Unicode(path));
 
-  // ── Build the G4OCCTMaterialMap from the compact XML entries ─────────────
-  G4OCCTMaterialMap matMap;
+  // ── Build the material map from the compact XML entries ───────────────────
+  std::map<std::string, G4Material*> materials;
   for (xml_coll_t it(x_map, _Unicode(entry)); it; ++it) {
     xml_comp_t x_entry = it;
-    std::string stepName     = x_entry.attr<std::string>(_Unicode(step_name));
+    std::string stepName      = x_entry.attr<std::string>(_Unicode(step_name));
     std::string dd4hepMatName =
         x_entry.attr<std::string>(_Unicode(dd4hep_material));
 
@@ -78,30 +80,16 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
           "G4OCCT_STEPAssembly: Geant4 material '" + dd4hepMatName +
           "' not found for STEP name '" + stepName + "'");
     }
-    matMap.Add(stepName, g4mat);
+    materials[stepName] = g4mat;
     printout(DEBUG, "G4OCCT_STEPAssembly",
              "Mapped STEP material '%s' → G4Material '%s'",
              stepName.c_str(), dd4hepMatName.c_str());
   }
 
-  // ── Import the STEP assembly ─────────────────────────────────────────────
-  // G4OCCTAssemblyVolume::FromSTEP throws std::runtime_error on failure.
-  G4OCCTAssemblyVolume* assembly = nullptr;
-  try {
-    assembly = G4OCCTAssemblyVolume::FromSTEP(path, matMap);
-  } catch (const std::exception& ex) {
-    throw std::runtime_error(
-        "G4OCCT_STEPAssembly: failed to import '" + path +
-        "' (" + ex.what() + ")");
-  }
-
-  int nConstituents = static_cast<int>(assembly->GetLogicalVolumes().size());
+  // ── Import the STEP assembly (OCC side, separate TU) ─────────────────────
+  int nConstituents = G4OCCT_ImportSTEPAssembly(path, materials);
 
   // ── Create a DD4hep assembly and place constituents ──────────────────────
-  // Phase 1: represent each constituent as a bounding-box volume so that
-  // DD4hep's TGeo hierarchy is valid.  The G4OCCTAssemblyVolume::MakeImprint
-  // call below populates the Geant4 logical-volume hierarchy directly, so the
-  // TGeo representation is used only for DD4hep bookkeeping and visualisation.
   Assembly dd4hepAssembly(name + "_assembly");
 
   printout(INFO, "G4OCCT_STEPAssembly",
