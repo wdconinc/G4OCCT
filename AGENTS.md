@@ -93,6 +93,21 @@ AI agents) must follow these instructions.
   `<algorithm>`, `<cmath>`, `<cstdlib>`, `<cstddef>`, `<stdexcept>`, etc.
   when using their symbols, and remove unused includes to silence
   compiler/clang-tidy warnings about unused includes.
+- **DD4hep + OCCT include ordering:** In any translation unit that includes
+  both DD4hep and OpenCASCADE headers, **DD4hep headers must come first**.
+  `Standard_Handle.hxx` (pulled in by any OCCT header) defines a
+  function-like macro `Handle(Class)` → `opencascade::handle<Class>`.  If
+  this macro is visible when `DD4hep/Handle.h` is parsed, every occurrence of
+  `Handle(...)` inside that header (e.g. `Handle() = default`) is
+  macro-expanded into a broken template instantiation.  Placing DD4hep
+  includes before G4OCCT/OCCT includes prevents the macro from being in scope
+  during DD4hep header parsing.  Example correct ordering for a DD4hep plugin:
+  ```cpp
+  #include <DD4hep/DetFactoryHelper.h>  // DD4hep first — before any OCCT header
+  #include <DD4hep/Printout.h>
+  #include "G4OCCT/G4OCCTSolid.hh"     // G4OCCT (pulls in OCCT) after DD4hep
+  #include <G4ThreeVector.hh>
+  ```
 - The **IWYU workflow** (`.github/workflows/iwyu.yml`) enforces
   include-what-you-use on every PR using `iwyu_tool.py` + `fix_includes.py`.
   The mapping file `.github/iwyu.imp` handles OCCT header aliases.  PRs that

@@ -27,11 +27,16 @@
 /// TGeo↔G4OCCTSolid bridge so that Geant4 navigation uses the exact OCCT
 /// BRep geometry.
 
-#include "G4OCCT/G4OCCTAssemblyVolume.hh"
-#include "G4OCCT/G4OCCTMaterialMap.hh"
-
+// DD4hep headers must precede any OpenCASCADE headers.  OpenCASCADE defines
+// a function-like macro `Handle(Class)` that expands to
+// `opencascade::handle<Class>`.  If OCC headers are included first, that
+// macro fires inside DD4hep/Handle.h and turns its member declarations (e.g.
+// `Handle() = default`) into malformed template instantiations.
 #include <DD4hep/DetFactoryHelper.h>
 #include <DD4hep/Printout.h>
+
+#include "G4OCCT/G4OCCTAssemblyVolume.hh"
+#include "G4OCCT/G4OCCTMaterialMap.hh"
 
 #include <G4Material.hh>
 #include <G4NistManager.hh>
