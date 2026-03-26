@@ -1,7 +1,6 @@
-<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
-<!-- Copyright (C) 2026 G4OCCT Contributors -->
-
 ---
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
 name: pr-history-lessons
 description: >
   Review merged pull request history and update AGENTS.md with lessons learned.
