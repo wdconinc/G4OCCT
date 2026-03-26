@@ -128,6 +128,12 @@ namespace {
   /// too memory-hungry in practice. 4x4 keeps this harness as a minimal
   /// smoke test intended to stay within an 8 GB CI memory budget.
   constexpr int kRenderResolution = 240;
+  /// ViewSpan zoom factor applied after Geant4 auto-computes the camera FOV.
+  /// The auto-computed span frames the full world box (kWorldHalfSpanFactor ×
+  /// solid span), leaving the solid tiny in the image.  Multiplying by this
+  /// factor narrows the FOV so the solid fills more of the frame without moving
+  /// the eye position (which must stay inside the world volume).
+  constexpr G4double kViewSpanZoomFactor = 0.80;
 
   bool IsRayTracerNickname(const G4String& nickname) {
     return nickname == "RayTracer" || nickname == "RT";
@@ -196,7 +202,7 @@ namespace {
 
       auto* solidLV = new G4LogicalVolume(solid, air, fRequest.name + "_lv");
       // Steel-blue: clearly visible against a white RT background.
-      solidLV->SetVisAttributes(new G4VisAttributes(G4Colour(0.25, 0.60, 0.85)));
+      solidLV->SetVisAttributes(new G4VisAttributes(G4Colour(0.45, 0.73, 0.95)));
 
       // Translate so the bounding-box centre lands at the world origin.
       new G4PVPlacement(nullptr, -center, solidLV, fRequest.name + "_pv", worldLV, false, 0);
@@ -400,10 +406,12 @@ namespace {
     st_tracer->SetEyePosition(mt_tracer->GetEyePosition());
     st_tracer->SetTargetPosition(mt_tracer->GetTargetPosition());
     st_tracer->SetLightDirection(mt_tracer->GetLightDirection());
-    st_tracer->SetViewSpan(mt_tracer->GetViewSpan());
+    st_tracer->SetViewSpan(mt_tracer->GetViewSpan() * kViewSpanZoomFactor);
     st_tracer->SetHeadAngle(mt_tracer->GetHeadAngle());
     st_tracer->SetUpVector(mt_tracer->GetUpVector());
-    st_tracer->SetBackgroundColour(mt_tracer->GetBackgroundColour());
+    // Dark background: high contrast against the steel-blue solid and more
+    // visually appealing than the default white.
+    st_tracer->SetBackgroundColour(G4Colour(0.12, 0.12, 0.16));
 
     // G4TheRayTracer::Trace() processes events on the master thread and writes
     // the JPEG at the exact path given (no extension is appended).
