@@ -364,6 +364,19 @@ All GDML fixture files must define materials with fractions that sum to
   approach (previously `BVHFindNearestFaceBounds`) — tessellation error `fBVHDeflection`
   can cause the nearest tessellated triangle to belong to a different analytical face than
   the true nearest face, producing wrong normals for all non-planar solids.
+- **Multi-ray majority vote for `Inside(p)` Tier-2a**: When the primary BVH
+  ray-parity cast (+Z direction) is degenerate (ray grazes a triangle edge or
+  vertex) or yields zero crossings, do **not** fall back to
+  `BRepClass3d_SolidClassifier` immediately.  Instead cast two more orthogonal
+  rays (+X, +Y) using the same `TriangleRayCast` object (reset by `SetRay()`).
+  Non-degenerate rays vote; degenerate rays abstain.  A strict majority
+  (insideVotes > outsideVotes, or vice versa) determines the result.  Fall back
+  to the exact classifier only when no majority is obtainable (all three rays
+  degenerate, or a genuine 1–1 tie).  The near-surface guard
+  (`bvhLB < tolerance`) still routes directly to the exact classifier for
+  correctness.  This pattern eliminates `BRepClass3d_SolidClassifier::Perform()`
+  calls for the degenerate/zero-crossing cases (the main source of `CSLib_Class2d`
+  overhead and NCollection heap churn for complex solids).
 - `GetPointOnSurface()` must sample from OCCT tessellation.  Returning the
   origin (the `G4VSolid` base-class default) triggers Geant4 warnings.
 - Internal helper types (e.g. `FaceBounds`, `ClosestFaceMatch`) must be
