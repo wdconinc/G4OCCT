@@ -123,10 +123,9 @@ namespace {
   /// RayTracer camera placement can sit several radii away from the target; keep
   /// the synthetic world comfortably larger so the eye remains inside it.
   constexpr G4double kWorldHalfSpanFactor = 10.0;
-  /// Image resolution (pixels) passed to the RayTracer driver. Keep this tiny:
-  /// RayTracer launches one Geant4 event per pixel, and even an 8x8 run proved
-  /// too memory-hungry in practice. 4x4 keeps this harness as a minimal
-  /// smoke test intended to stay within an 8 GB CI memory budget.
+  /// Image resolution (pixels) passed to the RayTracer driver.
+  /// RayTracer launches one Geant4 event per pixel; 240 px is the largest
+  /// resolution that keeps this harness within the 8 GB CI memory budget.
   constexpr int kRenderResolution = 240;
 
   bool IsRayTracerNickname(const G4String& nickname) {
@@ -195,7 +194,7 @@ namespace {
       worldLV->SetVisAttributes(G4VisAttributes::GetInvisible());
 
       auto* solidLV = new G4LogicalVolume(solid, air, fRequest.name + "_lv");
-      // Bright steel-blue: high contrast against the dark render background.
+      // Steel-blue shade chosen for good contrast against the configured RayTracer background.
       solidLV->SetVisAttributes(new G4VisAttributes(G4Colour(0.45, 0.73, 0.95)));
 
       // Translate so the bounding-box centre lands at the world origin.
@@ -403,7 +402,7 @@ namespace {
     st_tracer->SetViewSpan(mt_tracer->GetViewSpan());
     st_tracer->SetHeadAngle(mt_tracer->GetHeadAngle());
     st_tracer->SetUpVector(mt_tracer->GetUpVector());
-    // Dark background: high contrast against the steel-blue solid and more
+    // Dark background: high contrast against the fixture geometry and more
     // visually appealing than the default white.
     st_tracer->SetBackgroundColour(G4Colour(0.12, 0.12, 0.16));
 
