@@ -9,19 +9,19 @@
 /// opencascade/Standard_CString.hxx) produces a hard error:
 ///
 ///   ROOT declares:   extern void Printf(const char *fmt, ...);
-///   OCC declares:    Standard_EXPORT int Printf(const char* theFormat, ...);
+///   OCCT declares:   Standard_EXPORT int Printf(const char* theFormat, ...);
 ///
 /// Functions that differ only in return type cannot be overloaded.  The
 /// firewall pattern keeps the two include worlds in separate TUs.  This header
 /// is included in both the DD4hep-facing plugin TU and the OCC impl TU; it
-/// must not pull in either DD4hep/ROOT or G4OCCT/OCC.
+/// must not pull in either DD4hep/ROOT or G4OCCT/OCCT.
 
 #ifndef G4OCCT_DD4HEP_STEPSolid_impl_hh
 #define G4OCCT_DD4HEP_STEPSolid_impl_hh
 
 #include <string>
 
-/// Plain data returned by the OCC impl TU to the DD4hep plugin TU.
+/// Plain data returned by the OCCT impl TU to the DD4hep plugin TU.
 struct G4OCCT_STEPSolidGeometry
 {
   double halfX = 0.;
