@@ -18,14 +18,15 @@
 ///
 /// Phase 1 implementation notes
 /// ----------------------------
-/// The plugin reads the material map from the compact XML, imports the STEP
-/// assembly via G4OCCTAssemblyVolume::FromSTEP (in a separate OCCT-side TU),
-/// and places each constituent solid into a dd4hep::Assembly volume using a
-/// TGeo bounding-box placeholder for each solid.
+/// The plugin reads the material map from the compact XML and imports the STEP
+/// assembly via G4OCCTAssemblyVolume::FromSTEP (in a separate OCCT-side TU).
+/// The constituent G4LogicalVolumes are registered in the Geant4 volume store
+/// by FromSTEP() but are NOT placed into the dd4hep::Assembly here; the
+/// assembly is therefore empty from the TGeo/DD4hep perspective in Phase 1.
 ///
-/// @todo Phase 2: replace per-solid bounding-box placeholders with a proper
-/// TGeo↔G4OCCTSolid bridge so that Geant4 navigation uses the exact OCCT
-/// BRep geometry.
+/// @todo Phase 2: return per-solid placement data from the OCCT-side TU and
+/// populate the dd4hep::Assembly with TGeo placeholder volumes so that DD4hep
+/// and visualisation tools can see the constituent geometry.
 
 // Two header worlds must not meet in the same TU:
 //   DD4hep → ROOT → TString.h         declares: extern void Printf(...)
@@ -89,11 +90,19 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
   // ── Import the STEP assembly (OCCT side, separate TU) ────────────────────
   int nConstituents = G4OCCT_ImportSTEPAssembly(path, materials);
 
-  // ── Create a DD4hep assembly and place constituents ──────────────────────
+  // ── Create a DD4hep assembly container (no per-solid placements here) ────
+  // Phase 1 limitation: the STEP assembly is imported on the OCCT side and its
+  // constituent G4LogicalVolumes live in the Geant4 volume store, but they are
+  // not placed into this dd4hep::Assembly.  The assembly is therefore empty
+  // from the TGeo/DD4hep perspective.
+  // @todo Phase 2: return per-solid placement data from the OCCT-side TU and
+  // populate dd4hepAssembly with TGeo placeholder volumes so DD4hep and
+  // visualisation tools can see the constituent geometry.
   Assembly dd4hepAssembly(name + "_assembly");
 
   printout(INFO, "G4OCCT_STEPAssembly",
-           "Imported '%s' from '%s'; %d constituent solid(s) in dd4hep::Assembly '%s'",
+           "Imported STEP assembly '%s' from '%s'; %d constituent solid(s) on "
+           "OCCT side; created empty dd4hep::Assembly '%s' as top-level container",
            name.c_str(), path.c_str(), nConstituents,
            (name + "_assembly").c_str());
 

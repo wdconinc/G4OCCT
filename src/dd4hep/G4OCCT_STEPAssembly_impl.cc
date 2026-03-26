@@ -35,5 +35,13 @@ int G4OCCT_ImportSTEPAssembly(const std::string&                        path,
                              "' (" + ex.what() + ")");
   }
 
-  return static_cast<int>(assembly->GetLogicalVolumes().size());
+  // Extract the constituent count before releasing the assembly.
+  // G4OCCTAssemblyVolume::FromSTEP() returns a heap-allocated object owned by
+  // the caller.  We only need the count here; the G4 logical volumes that
+  // FromSTEP() registered in the Geant4 volume store remain valid after this.
+  const int nConstituents =
+      static_cast<int>(assembly->GetLogicalVolumes().size());
+  delete assembly;
+  assembly = nullptr;
+  return nConstituents;
 }

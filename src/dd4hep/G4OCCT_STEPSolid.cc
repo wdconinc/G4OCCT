@@ -40,6 +40,7 @@
 #include "G4OCCT_STEPSolid_impl.hh"
 
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -68,8 +69,14 @@ static Ref_t create_step_solid(Detector& description, xml_h e,
   // TessellatedSolid wraps ROOT's TGeoTessellated: a polyhedral mesh solid
   // that can be visualised and used for navigation by TGeo-based tools.
   // We pass the triangle count as a capacity hint, then add facets one by one.
-  TessellatedSolid tess(name + "_tess",
-                        static_cast<int>(geom.triangles.size()));
+  const std::size_t nTriangles = geom.triangles.size();
+  if (nTriangles > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    throw std::runtime_error(
+        "G4OCCT_STEPSolid: tessellation of '" + path + "' produced " +
+        std::to_string(nTriangles) +
+        " triangles, which exceeds TessellatedSolid's int capacity");
+  }
+  TessellatedSolid tess(name + "_tess", static_cast<int>(nTriangles));
   for (const auto& tri : geom.triangles) {
     tess.addFacet(TessellatedSolid::Vertex(tri.v[0].x, tri.v[0].y, tri.v[0].z),
                   TessellatedSolid::Vertex(tri.v[1].x, tri.v[1].y, tri.v[1].z),

@@ -34,7 +34,12 @@ G4OCCT_STEPSolidGeometry G4OCCT_ImportSTEPSolid(const std::string& name,
                              "' (" + ex.what() + ")");
   }
 
-  const TopoDS_Shape& shape = solid->GetOCCTShape();
+  // Copy the shape out before deleting the solid so we don't hold a reference
+  // into a deleted object.  G4OCCTSolid::FromSTEP() returns a heap-allocated
+  // object owned by the caller; the Geant4 solid store keeps a separate entry.
+  const TopoDS_Shape shape = solid->GetOCCTShape();
+  delete solid;
+  solid = nullptr;
 
   // Tessellate with 1 % relative deflection, matching G4OCCTSolid::CreatePolyhedron().
   static constexpr double kRelativeDeflection = 0.01;
