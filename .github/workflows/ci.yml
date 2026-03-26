@@ -944,12 +944,22 @@ jobs:
             # regexes, with .* absorbing whatever prefix the build system used).
             ROOT=$(realpath .)
 
-            # Locate the gcov binary.  The eic_xl container ships GCC with
-            # versioned binaries (gcov-14) but no unversioned gcov symlink.
-            GCOV_EXECUTABLE=$(command -v gcov 2>/dev/null \
-                            || command -v gcov-14 2>/dev/null \
-                            || command -v gcov-13 2>/dev/null)
-            echo "Using gcov: ${GCOV_EXECUTABLE}"
+            # Derive gcov from the exact compiler CMake used.  The eic_xl
+            # container ships its own spack-built GCC; using the host runner's
+            # /usr/bin/gcov-14 causes "Version mismatch gcc/gcov" because the
+            # spack GCC and the Ubuntu system gcov may differ at the sub-version
+            # level even when the major version is the same.
+            CXX=$(cmake -LA -N build \
+                  | awk -F= '/CMAKE_CXX_COMPILER:FILEPATH/{print $2; exit}')
+            CXX_DIR=$(dirname "${CXX}")
+            if   [ -x "${CXX_DIR}/gcov" ];     then GCOV_EXECUTABLE="${CXX_DIR}/gcov"
+            elif [ -x "${CXX_DIR}/gcov-14" ];  then GCOV_EXECUTABLE="${CXX_DIR}/gcov-14"
+            elif [ -x "${CXX_DIR}/gcov-13" ];  then GCOV_EXECUTABLE="${CXX_DIR}/gcov-13"
+            else GCOV_EXECUTABLE=$(command -v gcov 2>/dev/null \
+                                || command -v gcov-14 2>/dev/null \
+                                || command -v gcov-13 2>/dev/null)
+            fi
+            echo "Using gcov: ${GCOV_EXECUTABLE} (derived from CXX: ${CXX})"
 
             # Include only project library sources; exclude tests, benchmarks,
             # examples, and any third-party headers caught by --coverage.
