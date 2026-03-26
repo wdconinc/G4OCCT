@@ -13,7 +13,7 @@
 ///
 /// Functions that differ only in return type cannot be overloaded.  The
 /// firewall pattern keeps the two include worlds in separate TUs.  This header
-/// is included in both the DD4hep-facing plugin TU and the OCC impl TU; it
+/// is included in both the DD4hep-facing plugin TU and the OCCT impl TU; it
 /// must not pull in either DD4hep/ROOT or G4OCCT/OCCT.
 
 #ifndef G4OCCT_DD4HEP_STEPSolid_impl_hh

@@ -98,28 +98,28 @@ AI agents) must follow these instructions.
   hard errors:
 
   1. **`Handle` macro collision** — `Standard_Handle.hxx` defines
-     `Handle(Class)` → `opencascade::handle<Class>`.  If OCC headers are
+     `Handle(Class)` → `opencascade::handle<Class>`.  If OCCT headers are
      included before `DD4hep/Handle.h`, every `Handle(...)` inside that header
      (e.g. `Handle() = default`) is macro-expanded into a broken template
      instantiation.
 
   2. **`Printf` return-type conflict** — ROOT's `TString.h` (pulled in by
-     DD4hep) declares `extern void Printf(...)` while OCC's
-     `Standard_CString.hxx` (pulled in by any OCC header) declares
+     DD4hep) declares `extern void Printf(...)` while OCCT's
+     `Standard_CString.hxx` (pulled in by any OCCT header) declares
      `Standard_EXPORT int Printf(...)`.  These two declarations with different
      return types cannot coexist in the same TU.
 
   **Required pattern for DD4hep plugins that use G4OCCT:** use a *firewall*:
-  keep the DD4hep-facing code and the G4OCCT/OCC-facing code in separate
+  keep the DD4hep-facing code and the G4OCCT/OCCT-facing code in separate
   translation units, bridged by a thin header that includes neither.
 
   ```
   PluginName.cc          ← includes DD4hep only; calls bridge function
   PluginName_impl.hh     ← bridge header: std::string, plain POD, forward decls only
-  PluginName_impl.cc     ← includes G4OCCT/OCC only; implements bridge function
+  PluginName_impl.cc     ← includes G4OCCT/OCCT only; implements bridge function
   ```
 
-  Example bridge header (no DD4hep, no OCC):
+  Example bridge header (no DD4hep, no OCCT):
   ```cpp
   #include <string>
   struct MyPluginResult { double halfX, halfY, halfZ; };

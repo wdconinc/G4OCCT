@@ -7,7 +7,7 @@
 /// See G4OCCT_STEPSolid_impl.hh for a full explanation of the Printf
 /// return-type collision that makes this firewall necessary.
 ///
-/// This header must not pull in either DD4hep/ROOT or G4OCCT/OCC.
+/// This header must not pull in either DD4hep/ROOT or G4OCCT/OCCT.
 
 #ifndef G4OCCT_DD4HEP_STEPAssembly_impl_hh
 #define G4OCCT_DD4HEP_STEPAssembly_impl_hh

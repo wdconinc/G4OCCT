@@ -19,7 +19,7 @@
 /// Phase 1 implementation notes
 /// ----------------------------
 /// The plugin reads the material map from the compact XML, imports the STEP
-/// assembly via G4OCCTAssemblyVolume::FromSTEP (in a separate OCC-side TU),
+/// assembly via G4OCCTAssemblyVolume::FromSTEP (in a separate OCCT-side TU),
 /// and places each constituent solid into a dd4hep::Assembly volume using a
 /// TGeo bounding-box placeholder for each solid.
 ///
@@ -29,10 +29,10 @@
 
 // Two header worlds must not meet in the same TU:
 //   DD4hep → ROOT → TString.h         declares: extern void Printf(...)
-//   G4OCCT → OCC → Standard_CString.h declares: int Printf(...)
+//   G4OCCT → OCCT → Standard_CString.h declares: int Printf(...)
 // Keeping them in separate TUs (firewall pattern) resolves both this Printf
 // conflict and the Handle(Class) macro collision.
-// G4OCCT_STEPAssembly_impl.{hh,cc} is the OCC-side TU; this file is the
+// G4OCCT_STEPAssembly_impl.{hh,cc} is the OCCT-side TU; this file is the
 // DD4hep-side TU.
 #include <DD4hep/DetFactoryHelper.h>
 #include <DD4hep/Printout.h>
@@ -86,7 +86,7 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
              stepName.c_str(), dd4hepMatName.c_str());
   }
 
-  // ── Import the STEP assembly (OCC side, separate TU) ─────────────────────
+  // ── Import the STEP assembly (OCCT side, separate TU) ────────────────────
   int nConstituents = G4OCCT_ImportSTEPAssembly(path, materials);
 
   // ── Create a DD4hep assembly and place constituents ──────────────────────

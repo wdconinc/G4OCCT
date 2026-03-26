@@ -27,10 +27,10 @@
 
 // Two header worlds must not meet in the same TU:
 //   DD4hep → ROOT → TString.h         declares: extern void Printf(...)
-//   G4OCCT → OCC → Standard_CString.h declares: int Printf(...)
+//   G4OCCT → OCCT → Standard_CString.h declares: int Printf(...)
 // Keeping them in separate TUs (firewall pattern) resolves both this Printf
 // conflict and the Handle(Class) macro collision described above.
-// G4OCCT_STEPSolid_impl.{hh,cc} is the OCC-side TU; this file is the
+// G4OCCT_STEPSolid_impl.{hh,cc} is the OCCT-side TU; this file is the
 // DD4hep-side TU.
 #include <DD4hep/DetFactoryHelper.h>
 #include <DD4hep/Printout.h>
@@ -54,7 +54,7 @@ static Ref_t create_step_solid(Detector& description, xml_h e,
   std::string name = x_det.nameStr();
   std::string path = x_step.attr<std::string>(_Unicode(path));
 
-  // ── Import STEP solid (OCC side, separate TU) ────────────────────────────
+  // ── Import STEP solid (OCCT side, separate TU) ───────────────────────────
   // Phase 1: use the axis-aligned bounding box as the TGeo solid.
   // G4VSolid::BoundingLimits returns the AABB corners in Geant4's native
   // unit system (mm).  DD4hep (with Geant4 backend) also works in mm, so

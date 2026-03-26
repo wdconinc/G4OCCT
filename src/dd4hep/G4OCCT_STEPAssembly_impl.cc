@@ -2,7 +2,7 @@
 // Copyright (C) 2026 G4OCCT Contributors
 
 /// @file G4OCCT_STEPAssembly_impl.cc
-/// @brief OCC-side implementation of the STEP assembly import bridge.
+/// @brief OCCT-side implementation of the STEP assembly import bridge.
 ///
 /// This TU includes G4OCCT and OpenCASCADE headers and must NOT include any
 /// DD4hep or ROOT headers to avoid the Printf return-type collision (see
