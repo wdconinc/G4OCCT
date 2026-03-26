@@ -644,8 +644,7 @@ namespace {
         }
       }
 
-      // Safety and polyhedron benchmarks are never registered for NIST CTC
-      // fixtures, so no guard is needed here.
+      // Safety is never registered for NIST CTC fixtures, so no guard is needed here.
       if (s.safety.point_count > 0U) {
         agg_dti_native_ms += s.safety.native_safety_in_ms;
         agg_dti_imported_ms += s.safety.imported_safety_in_ms;
@@ -661,8 +660,10 @@ namespace {
         }
       }
 
-      // Accumulate CreatePolyhedron() timing whenever either mesh was produced.
-      if (s.polyhedron.native_valid || s.polyhedron.imported_valid) {
+      // Accumulate CreatePolyhedron() timing only for fixtures with a genuine
+      // Geant4 native solid; NIST CTC fixtures have native == imported (both
+      // G4OCCTSolid), so including them would skew the ratio toward ~1.0.
+      if (has_geant4_native && (s.polyhedron.native_valid || s.polyhedron.imported_valid)) {
         agg_poly_native_ms += s.polyhedron.native_elapsed_ms;
         agg_poly_imported_ms += s.polyhedron.imported_elapsed_ms;
       }

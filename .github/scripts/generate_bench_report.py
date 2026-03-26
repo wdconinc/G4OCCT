@@ -262,10 +262,12 @@ def _parse_bench_json(data: dict) -> dict:
                 "native_facets":      int(_get_ctr(poly_bm, "native_facets")),
                 "imported_facets":    int(_get_ctr(poly_bm, "imported_facets")),
             }
-            # Polyhedron benchmarks are never registered for NIST CTC fixtures,
-            # so no has_geant4_native guard is needed here.
-            agg_poly_native_ms  += p_n
-            agg_poly_imported_ms += p_i
+            # Polyhedron benchmarks are now registered for NIST CTC fixtures,
+            # but their native == imported (both G4OCCTSolid), so including
+            # them in the aggregate would skew the ratio toward ~1.0.
+            if has_geant4_native:
+                agg_poly_native_ms  += p_n
+                agg_poly_imported_ms += p_i
 
         fixtures.append({
             "id":                   fixture_id,
