@@ -492,9 +492,10 @@ namespace {
     const FixtureRepositoryManifest repository_manifest =
         ParseFixtureRepositoryManifest(repository_manifest_path);
 
-    std::size_t rendered_count = 0;
-    std::size_t skipped_count  = 0;
-    std::size_t failed_count   = 0;
+    std::size_t rendered_count       = 0;
+    std::size_t skipped_count        = 0;
+    std::size_t native_skipped_count = 0;
+    std::size_t failed_count         = 0;
     bool done                  = false;
 
     for (const auto& family : repository_manifest.families) {
@@ -560,7 +561,7 @@ namespace {
             if (!RenderFixture(runManager, detector, vis_manager, ui, st_tracer, native_req,
                                native_path, initialized, visualization_ready)) {
               std::cerr << "WARNING: " << qualified_id << ": native render produced no output\n";
-              ++skipped_count;
+              ++native_skipped_count;
             }
           }
 
@@ -605,7 +606,8 @@ namespace {
       return EXIT_FAILURE;
     }
     std::cout << "Render summary: " << rendered_count << " rendered, " << skipped_count
-              << " skipped, " << failed_count << " failed.\n";
+              << " skipped, " << native_skipped_count << " native skipped, " << failed_count
+              << " failed.\n";
     return (failed_count > 0U) ? EXIT_FAILURE : EXIT_SUCCESS;
   }
 
