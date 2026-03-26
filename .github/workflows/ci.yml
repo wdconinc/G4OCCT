@@ -944,10 +944,18 @@ jobs:
             # regexes, with .* absorbing whatever prefix the build system used).
             ROOT=$(realpath .)
 
+            # Locate the gcov binary.  The eic_xl container ships GCC with
+            # versioned binaries (gcov-14) but no unversioned gcov symlink.
+            GCOV_EXECUTABLE=$(command -v gcov 2>/dev/null \
+                            || command -v gcov-14 2>/dev/null \
+                            || command -v gcov-13 2>/dev/null)
+            echo "Using gcov: ${GCOV_EXECUTABLE}"
+
             # Include only project library sources; exclude tests, benchmarks,
             # examples, and any third-party headers caught by --coverage.
             "${PWD}/.venv-gcovr/bin/gcovr" \
               --root "${ROOT}" \
+              --gcov-executable "${GCOV_EXECUTABLE}" \
               --filter '/.*/src/G4OCCT[^/]*' \
               --filter '/.*/include/G4OCCT/.*' \
               --html-details coverage/index.html \
