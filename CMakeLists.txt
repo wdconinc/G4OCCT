@@ -179,7 +179,7 @@ if(USE_UBSAN)
 endif()
 
 # Code coverage (gcov/llvm-cov; incompatible with optimised builds)
-option(USE_COVERAGE "Compile with code coverage instrumentation (gcov)" OFF)
+option(USE_COVERAGE "Compile with code coverage instrumentation (gcov/llvm-cov)" OFF)
 if(USE_COVERAGE)
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(FATAL_ERROR "USE_COVERAGE requires a GCC or Clang compiler")
