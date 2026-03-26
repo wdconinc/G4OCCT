@@ -210,16 +210,14 @@ endif()
 
 # ─── DD4hep plugin ────────────────────────────────────────────────────────────
 
-# cmake-format: off
 option(BUILD_DD4HEP_PLUGIN
   "Build DD4hep detector element plugins (requires DD4hep)" OFF)
-# cmake-format: on
 
 if(BUILD_DD4HEP_PLUGIN)
   find_package(DD4hep QUIET)
   if(NOT DD4hep_FOUND)
     message(
-      WARNING
+      FATAL_ERROR
       "BUILD_DD4HEP_PLUGIN=ON but DD4hep was not found. "
       "The DD4hep plugin will not be built.")
   else()
