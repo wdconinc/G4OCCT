@@ -3,7 +3,8 @@
 # Copyright (C) 2026 G4OCCT Contributors
 # cmake-format: on
 
-# Coverage instrumentation and report target using bilke/cmake-modules CodeCoverage.
+# Coverage instrumentation and report target using bilke/cmake-modules
+# CodeCoverage.
 #
 # This module is included by the top-level CMakeLists.txt when USE_COVERAGE=ON.
 # It configures the compiler-appropriate gcov/llvm-cov tool at CMake configure
@@ -11,12 +12,12 @@
 # then defines a `coverage-report` build target that runs ctest and produces an
 # HTML report plus a JSON summary via gcovr.
 #
-# Usage (from the build directory):
-#   cmake --build . --target coverage-report
+# Usage (from the build directory): cmake --build . --target coverage-report
 #
 # gcovr must be on PATH when the target is invoked.  In CI a venv is used:
-#   python3 -m venv .venv-gcovr && .venv-gcovr/bin/pip install gcovr
-#   PATH="$(pwd)/.venv-gcovr/bin:$PATH" cmake --build build --target coverage-report
+# python3 -m venv .venv-gcovr && .venv-gcovr/bin/pip install gcovr
+# PATH="$(pwd)/.venv-gcovr/bin:$PATH" cmake --build build --target
+# coverage-report
 
 include(FetchContent)
 
@@ -24,54 +25,68 @@ include(FetchContent)
 FetchContent_Declare(
   cmake_modules
   GIT_REPOSITORY https://github.com/bilke/cmake-modules.git
-  GIT_TAG 5b988b5beb64270cf68b7d6c20298ebc8236b580
-)
+  GIT_TAG 5b988b5beb64270cf68b7d6c20298ebc8236b580)
 FetchContent_MakeAvailable(cmake_modules)
 list(APPEND CMAKE_MODULE_PATH "${cmake_modules_SOURCE_DIR}")
 
 # ── Detect coverage tool matching the active compiler ────────────────────────
 # Use private _g4occt_* variables for find_program to avoid polluting the cache
 # with an intermediate NOTFOUND value that would cause CodeCoverage.cmake's own
-# find_program(GCOV_PATH NAMES gcov) to re-run and hit its FATAL_ERROR.
-# After detection, GCOV_PATH is set with FORCE so CodeCoverage's check passes.
+# find_program(GCOV_PATH NAMES gcov) to re-run and hit its FATAL_ERROR. After
+# detection, GCOV_PATH is set with FORCE so CodeCoverage's check passes.
 get_filename_component(_cxx_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Prefer llvm-cov (native Clang coverage tool).  Search in the compiler's
-  # directory first (spack installations co-locate all LLVM binaries), then
-  # fall through to the default PATH search.
-  find_program(_g4occt_llvm_cov NAMES llvm-cov HINTS "${_cxx_dir}")
+  # directory first (spack installations co-locate all LLVM binaries), then fall
+  # through to the default PATH search.
+  find_program(
+    _g4occt_llvm_cov
+    NAMES llvm-cov
+    HINTS "${_cxx_dir}")
   if(_g4occt_llvm_cov)
     set(_gcov_executable "${_g4occt_llvm_cov} gcov")
-    set(GCOV_PATH "${_g4occt_llvm_cov}" CACHE FILEPATH
-        "llvm-cov command for Clang coverage" FORCE)
-    message(STATUS "Coverage: Clang + llvm-cov; gcov executable: ${_gcov_executable}")
+    set(GCOV_PATH
+        "${_g4occt_llvm_cov}"
+        CACHE FILEPATH "llvm-cov command for Clang coverage" FORCE)
+    message(
+      STATUS "Coverage: Clang + llvm-cov; gcov executable: ${_gcov_executable}")
   else()
     # llvm-cov not found.  Clang's --coverage flag generates GCOV-compatible
     # .gcno/.gcda files that can also be processed by system gcov.
-    find_program(_g4occt_gcov NAMES gcov gcov-14 gcov-13 HINTS "${_cxx_dir}")
+    find_program(
+      _g4occt_gcov
+      NAMES gcov gcov-14 gcov-13
+      HINTS "${_cxx_dir}")
     if(_g4occt_gcov)
       set(_gcov_executable "${_g4occt_gcov}")
     else()
       set(_g4occt_gcov "gcov")
       set(_gcov_executable "gcov")
     endif()
-    set(GCOV_PATH "${_g4occt_gcov}" CACHE FILEPATH
-        "gcov command (llvm-cov fallback for Clang coverage)" FORCE)
+    set(GCOV_PATH
+        "${_g4occt_gcov}"
+        CACHE FILEPATH "gcov command (llvm-cov fallback for Clang coverage)"
+              FORCE)
     message(STATUS "Coverage: Clang + system gcov (llvm-cov not found); "
                    "gcov executable: ${_gcov_executable}")
   endif()
 else()
   # GCC: find gcov from the same toolchain directory to avoid version mismatches
   # with any system-installed /usr/bin/gcov-* binaries.
-  find_program(_g4occt_gcov NAMES gcov gcov-14 gcov-13 HINTS "${_cxx_dir}")
+  find_program(
+    _g4occt_gcov
+    NAMES gcov gcov-14 gcov-13
+    HINTS "${_cxx_dir}")
   if(_g4occt_gcov)
     set(_gcov_executable "${_g4occt_gcov}")
   else()
     set(_g4occt_gcov "gcov")
     set(_gcov_executable "gcov")
   endif()
-  set(GCOV_PATH "${_g4occt_gcov}" CACHE FILEPATH "gcov command for GCC coverage" FORCE)
+  set(GCOV_PATH
+      "${_g4occt_gcov}"
+      CACHE FILEPATH "gcov command for GCC coverage" FORCE)
   message(STATUS "Coverage: GCC; gcov executable: ${_gcov_executable}")
 endif()
 
@@ -81,17 +96,18 @@ endif()
 if(NOT GCOVR_PATH)
   set(GCOVR_PATH
       "gcovr"
-      CACHE FILEPATH "gcovr command; must be on PATH when coverage-report is built")
+      CACHE FILEPATH
+            "gcovr command; must be on PATH when coverage-report is built")
 endif()
 
 include(CodeCoverage)
 
-# Add --coverage, -g, -fprofile-abs-path, and (when supported) -fprofile-update=atomic
-# to all targets via CMAKE_CXX_FLAGS / CMAKE_C_FLAGS.
+# Add --coverage, -g, -fprofile-abs-path, and (when supported)
+# -fprofile-update=atomic to all targets via CMAKE_CXX_FLAGS / CMAKE_C_FLAGS.
 append_coverage_compiler_flags()
 
-# Supplement with flags that improve line-level accuracy but are not part of
-# the upstream CodeCoverage module's default set.
+# Supplement with flags that improve line-level accuracy but are not part of the
+# upstream CodeCoverage module's default set.
 add_compile_options(-fno-inline -fno-omit-frame-pointer)
 
 # coverage-report target: runs ctest (excluding dd4hep plugin tests, which run
@@ -104,12 +120,13 @@ endif()
 
 # setup_target_for_coverage_gcovr_html() stops the custom-target pipeline when
 # ctest fails, which prevents gcovr from running and generating reports for
-# failing test runs.  Instead, write a small CMake -P script that:
-#   1. runs ctest and records its exit code (does not stop on failure),
-#   2. runs gcovr unconditionally to produce HTML + JSON reports,
-#   3. propagates any failure via FATAL_ERROR after the report is generated.
+# failing test runs.  Instead, write a small CMake -P script that: 1. runs ctest
+# and records its exit code (does not stop on failure), 2. runs gcovr
+# unconditionally to produce HTML + JSON reports, 3. propagates any failure via
+# FATAL_ERROR after the report is generated.
 set(_coverage_runner "${CMAKE_BINARY_DIR}/coverage-runner.cmake")
-file(WRITE "${_coverage_runner}"
+file(
+  WRITE "${_coverage_runner}"
   "cmake_minimum_required(VERSION 3.16)\n"
   "# Step 1: run ctest, capture exit code without aborting.\n"
   "execute_process(\n"
