@@ -20,27 +20,35 @@ AI agents) must follow these instructions.
   non-blank line(s).
 - The required identifier is `LGPL-2.1-or-later`.
 - C/C++ style:
+
   ```cpp
   // SPDX-License-Identifier: LGPL-2.1-or-later
   // Copyright (C) 2026 G4OCCT Contributors
   ```
+
 - CMake `#`-comment style:
+
   ```cmake
   # cmake-format: off
   # SPDX-License-Identifier: LGPL-2.1-or-later
   # Copyright (C) 2026 G4OCCT Contributors
   # cmake-format: on
   ```
+
 - YAML `#`-comment style:
+
   ```yaml
   # SPDX-License-Identifier: LGPL-2.1-or-later
   # Copyright (C) 2026 G4OCCT Contributors
   ```
+
 - HTML/Markdown `<!-- -->` style:
+
   ```html
   <!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
   <!-- Copyright (C) 2026 G4OCCT Contributors -->
   ```
+
 - The CI workflow `.github/workflows/spdx.yml` uses `enarx/spdx@master` to
   enforce headers on every PR.  A new file that fails the SPDX check will
   block merge.
@@ -48,19 +56,23 @@ AI agents) must follow these instructions.
   exception: executable scripts may have a shebang (`#!/...`) on line 1,
   followed immediately by the SPDX header on subsequent lines.  This is the
   required layout for shell scripts in the repository:
+
   ```bash
   #!/usr/bin/env bash
   # SPDX-License-Identifier: LGPL-2.1-or-later
   # Copyright (C) 2026 G4OCCT Contributors
   ```
+
 - CMake files must wrap the SPDX header in `# cmake-format: off` / `# cmake-format: on`
   guards so `cmake-format` cannot reflow the comment block:
+
   ```cmake
   # cmake-format: off
   # SPDX-License-Identifier: LGPL-2.1-or-later
   # Copyright (C) 2026 G4OCCT Contributors
   # cmake-format: on
   ```
+
 - Jinja2 template files (`.html.jinja2`) must use the HTML comment style
   (`<!-- -->`) for the SPDX header, **not** the Jinja comment style (`{# #}`).
 - Scripts under `.github/` (Python, shell, `.supp`, `.gitignore`) are also
@@ -76,13 +88,16 @@ AI agents) must follow these instructions.
 
 - **External headers** (Geant4, OCCT, standard library, third-party) must use
   **angle brackets**:
+
   ```cpp
   #include <G4VSolid.hh>
   #include <TopoDS_Shape.hxx>
   #include <vector>
   ```
+
 - **Internal project headers** (headers that live inside `include/G4OCCT/`)
   must use **double quotes**:
+
   ```cpp
   #include "G4OCCT/G4OCCTSolid.hh"
   #include "G4OCCT/G4OCCTLogicalVolume.hh"
@@ -120,11 +135,13 @@ AI agents) must follow these instructions.
   ```
 
   Example bridge header (no DD4hep, no OCCT):
+
   ```cpp
   #include <string>
   struct MyPluginResult { double halfX, halfY, halfZ; };
   MyPluginResult LoadSTEP(const std::string& name, const std::string& path);
   ```
+
 - The **IWYU workflow** (`.github/workflows/iwyu.yml`) enforces
   include-what-you-use on every PR using `iwyu_tool.py` + `fix_includes.py`.
   The mapping file `.github/iwyu.imp` handles OCCT header aliases.  PRs that
@@ -226,9 +243,11 @@ Do not lower these version floors without an explicit project decision.
 - **Python packages in the container:** The eic-shell container has a
   read-only system Python.  Do **not** use bare `pip install <pkg>`.  Instead
   create a local virtual environment:
+
   ```bash
   python3 -m venv /tmp/venv && /tmp/venv/bin/pip install <pkg>
   ```
+
 - **FetchContent in the container:** HTTP downloads via FetchContent may fail
   inside the eic-shell container due to network restrictions.  Always attempt
   `find_package` first; use FetchContent as a fallback with a cache key so CI
@@ -440,6 +459,7 @@ All GDML fixture files must define materials with fractions that sum to
 - No trailing whitespace; use 2-space indentation for C++; 100-character column limit.
 - Use **`using`** declarations to alias long OCCT or Geant4 type names at
   local scope rather than repeating the full name at each call site.  Example:
+
   ```cpp
   using Handle_Geom_Plane = opencascade::handle<Geom_Plane>;
   ```
@@ -471,6 +491,7 @@ The active hooks are:
 | `cmake-lint` | Lints `CMakeLists.txt` (config: `.github/cmake-lint.py`) |
 
 **Configuration files:**
+
 - `.clang-format` — LLVM-based C++ style, **`Standard: c++20`**, 100-column
   limit.  The standard must not be downgraded to `c++17`.
 - `.clang-tidy` — Static-analysis checks: `bugprone-*`, `modernize-*`,
@@ -480,6 +501,7 @@ The active hooks are:
 - `.github/cmake-lint.py` — cmake-lint settings.
 
 **Codespell notes:**
+
 - Fix genuine prose misspellings in any file, including Geant4-derived sources.
 - Do **not** rename Geant4 macro commands that look like misspellings (e.g.
   `/process/inactivate` is a valid Geant4 UI command, not a typo for
@@ -487,11 +509,13 @@ The active hooks are:
   stops flagging it.
 
 **CSS / JavaScript in Python scripts:**
+
 - CSS and JavaScript content used by report generators must live in **separate
   tracked files**, not as inline strings inside Python scripts.  Inline content
   creates diff noise and confuses content-type handling.
 
 Run all hooks manually on all files:
+
 ```bash
 pre-commit run --all-files
 ```
