@@ -17,7 +17,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ─── CMake policies ───────────────────────────────────────────────────────────
 
-# CMP0135: ExternalProject/FetchContent timestamp policy; set before FetchContent use.
+# CMP0135: ExternalProject/FetchContent timestamp policy; set before
+# FetchContent use.
 if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
@@ -179,7 +180,8 @@ if(USE_UBSAN)
 endif()
 
 # Code coverage (gcov/llvm-cov; incompatible with optimised builds)
-option(USE_COVERAGE "Compile with code coverage instrumentation (gcov/llvm-cov)" OFF)
+option(USE_COVERAGE
+       "Compile with code coverage instrumentation (gcov/llvm-cov)" OFF)
 if(USE_COVERAGE)
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(FATAL_ERROR "USE_COVERAGE requires a GCC or Clang compiler")
@@ -211,19 +213,27 @@ endif()
 # ─── DD4hep plugin ────────────────────────────────────────────────────────────
 
 option(BUILD_DD4HEP_PLUGIN
-  "Build DD4hep detector element plugins (requires DD4hep)" OFF)
+       "Build DD4hep detector element plugins (requires DD4hep)" OFF)
 
 if(BUILD_DD4HEP_PLUGIN)
   find_package(DD4hep QUIET)
   if(NOT DD4hep_FOUND)
-    message(
-      FATAL_ERROR
-      "BUILD_DD4HEP_PLUGIN=ON but DD4hep was not found. "
-      "The DD4hep plugin will not be built.")
+    message(FATAL_ERROR "BUILD_DD4HEP_PLUGIN=ON but DD4hep was not found. "
+                        "The DD4hep plugin will not be built.")
   else()
     add_subdirectory(src/dd4hep)
   endif()
 endif()
+
+# ─── RPATH ────────────────────────────────────────────────────────────────────
+
+# Keep RPATH in the build tree (stated explicitly for clarity).
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+# Use build-tree paths during the build, not the install RPATH.
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+# Embed the link-time library directories of all linked targets (Geant4,
+# OpenCASCADE, …) into the installed binary/library RPATH automatically.
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
