@@ -119,6 +119,7 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
 ```
 
 **Notes:**
+
 * The per-thread caches (`fSphereCache`, `fIntersectorCache`) are
   `G4Cache<T>` objects so that each worker thread owns independent mutable
   state — the shape itself (`fShape`) is read-only and shared safely.
@@ -138,6 +139,7 @@ for points not on the surface.
 **OCCT algorithm:**
 Use `BRepAdaptor_Surface` or `BRepGProp_Face` on the closest face.  The
 sequence is:
+
 1. Find the face closest to `p` using `BRepExtrema_DistShapeShape` between
    `p` (as a `BRep_Builder` vertex) and the shape.
 2. Project `p` onto that face to get UV parameters using
@@ -219,6 +221,7 @@ G4double G4OCCTSolid::DistanceToIn(const G4ThreeVector& p,
 ```
 
 **Notes:**
+
 * Each `IntCurvesFace_Intersector` in the cache is associated with a single
   `TopoDS_Face`; this replaces the previous `IntCurvesFace_ShapeIntersector`
   which operated on the whole shape and could not be prefiltered per-face.
@@ -474,6 +477,7 @@ optimisation of the navigator.
 
 **OCCT counterpart:**
 There is no direct OCCT equivalent.  The function must be implemented by:
+
 1. Transforming `fShape` by `pTransform` using `BRepBuilderAPI_Transform`.
 2. Computing the axis-aligned bounding box with `BRepBndLib::Add`.
 3. Clipping the result to `pVoxelLimits`.
@@ -582,6 +586,7 @@ reports (see `callgrind-reports-*/`) continues to guide further work.
 ### 4.5 Shape Validity
 
 Not all `TopoDS_Shape` objects are valid for navigation:
+
 * `TopoDS_Compound` — a group of shapes; does not define an interior/exterior.
 * Open shells — `Inside` is undefined.
 * Shapes with gaps or overlaps in the boundary.

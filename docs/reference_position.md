@@ -119,18 +119,21 @@ new G4PVPlacement(nullptr, G4ThreeVector(50, 0, 100), logVol, "phys", mother, fa
 ```
 
 **Advantages:**
+
 * The solid behaves exactly like a native Geant4 solid.
 * Placement transforms have the same semantics as for `G4Box`, `G4Tubs`, etc.
 * Downstream code (detector construction, GDML, scoring) requires no special
   treatment.
 
 **Disadvantages:**
+
 * The recentering copies the shape (`BRepBuilderAPI_Transform` with
   `Copy = true`), which has a small memory and CPU cost at construction time.
   For shapes used in many placements, share a single `G4OCCTSolid` (registered
   in a logical volume) and let `G4PVPlacement` handle the per-instance offsets.
 
 **When to use this strategy:**
+
 * Always, unless there is a strong reason to keep the shape in its original
   coordinate frame (e.g., when sharing geometry with other OCCT workflows that
   depend on the original position).
@@ -154,9 +157,11 @@ new G4PVPlacement(nullptr, occtOriginInWorld, logVol, "phys", mother, false, 0);
 ```
 
 **Advantages:**
+
 * No shape copy — uses the raw imported shape.
 
 **Disadvantages:**
+
 * The placement translation no longer refers to the geometric center.  This
   breaks the standard Geant4 convention and makes the geometry harder to
   understand, verify, and document.
@@ -166,6 +171,7 @@ new G4PVPlacement(nullptr, occtOriginInWorld, logVol, "phys", mother, false, 0);
   positions relative to the OCCT origin, not the shape center.
 
 **When to use this strategy:**
+
 * Avoid it in general.  It may be acceptable as a transitional measure when
   importing legacy STEP files whose coordinate systems cannot be changed.
 
@@ -194,15 +200,18 @@ algorithms (`BRepClass3d_SolidClassifier`, `IntCurvesFace_ShapeIntersector`,
 etc.) automatically compose the location into their computations.
 
 **Advantages:**
+
 * No deep copy of BRep geometry — only the location wrapper is created.
 * Efficient for shapes that are constructed once and placed many times.
 
 **Disadvantages:**
+
 * Subtle: `shape.Moved(loc)` returns a **new** `TopoDS_Shape` object (same
   underlying geometry, different location).  The original `shape` is unchanged.
   Keep the recentered handle around, not the raw one.
 
 **When to use this strategy:**
+
 * When performance or memory usage is a concern and many large shapes need
   recentering.
 
@@ -281,6 +290,7 @@ new G4PVPlacement(nullptr, G4ThreeVector(-50*mm, 0, 100*mm), logVol, "detPart_2"
 ```
 
 Key points:
+
 1. The STEP file may define a box with corners anywhere — the `CenterShape`
    step removes that ambiguity.
 2. After recentering, `G4PVPlacement` receives the **geometric center** of the
@@ -300,6 +310,7 @@ Key points:
 | Avoid | Strategy B (offset encoded in placement) — breaks Geant4 conventions |
 
 See also:
+
 * [Geometry Mapping](geometry_mapping.md) — class correspondence and
   transformation conversion between Geant4 and OCCT.
 * [Solid Navigation Design](solid_navigation.md) — unit convention and

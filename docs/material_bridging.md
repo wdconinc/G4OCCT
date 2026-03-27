@@ -45,6 +45,7 @@ is applied; any unmapped material name is a fatal error that must be resolved
 before the simulation can run.
 
 **Format example (GDML-inspired XML):**
+
 ```xml
 <materials>
   <!-- Map STEP name → Geant4 NIST material -->
@@ -76,6 +77,7 @@ parsing vocabulary (`<fraction>`, `<composite>`, `<D>`, `<T>`, `<P>`, `<MEE>`,
 the dispatch on `stepName` and `geant4Name` attributes (~125 lines total).
 
 **Usage:**
+
 ```cpp
 G4OCCTMaterialMapReader reader;
 G4OCCTMaterialMap map = reader.ReadFile("materials.xml");
@@ -83,6 +85,7 @@ auto* assembly = G4OCCTAssemblyVolume::FromSTEP("detector.step", map);
 ```
 
 **Two entry types:**
+
 * `stepName` + `geant4Name` → `G4NistManager::FindOrBuildMaterial(geant4Name)`.
   This first checks the Geant4 `G4MaterialTable`, so it resolves any material
   already constructed (e.g. from a previously parsed GDML file) as well as
@@ -91,6 +94,7 @@ auto* assembly = G4OCCTAssemblyVolume::FromSTEP("detector.step", map);
 
 **Material resolution from STEP:**
 G4OCCT resolves the map key for each STEP shape in two steps:
+
 1. If the XDE label carries a material attribute (set in the CAD tool), that
    attribute string is used as the `stepName` lookup key.
 2. If no material attribute is present, the XDE label *name* is used instead.
@@ -100,6 +104,7 @@ G4OCCT resolves the map key for each STEP shape in two steps:
    `"SOLID"` — both must appear in the map.
 
 **Behaviour:**
+
 * Every material name encountered in the STEP file **must** appear in the
   mapping file.
 * If a name is absent, G4OCCT aborts with a descriptive error listing the
@@ -107,12 +112,14 @@ G4OCCT resolves the map key for each STEP shape in two steps:
 * There are no defaults or catch-all fallbacks.
 
 **Pros:**
+
 * Unambiguous — the user explicitly controls every material assignment.
 * User-maintained file separates material physics from CAD geometry.
 * Custom multi-element materials can be defined inline using the full GDML
   material vocabulary (no code changes required).
 
 **Cons:**
+
 * Requires the user to create and maintain the mapping file.
 
 ---
@@ -130,6 +137,7 @@ Using GDML for the material side of the bridge leverages existing Geant4
 tooling (`G4GDMLParser`), schema validation, and community familiarity.
 
 **Workflow:**
+
 1. Import the STEP file → build G4OCCT geometry tree (solids + placements,
    no materials yet).
 2. Parse the GDML file.  Extract:
@@ -140,6 +148,7 @@ tooling (`G4GDMLParser`), schema validation, and community familiarity.
    `<structure>`.  Unmatched volumes are a fatal error.
 
 **Pros:**
+
 * GDML is schema-validated; errors are caught before the simulation runs.
 * The full Geant4 `G4GDMLParser` material vocabulary is available, including
   isotopes, natural elements, molecules, mixtures, optical properties, and
@@ -147,6 +156,7 @@ tooling (`G4GDMLParser`), schema validation, and community familiarity.
 * Separates CAD geometry (STEP) from simulation physics (GDML) cleanly.
 
 **Cons:**
+
 * Requires maintaining two separate files (STEP + GDML) in sync.
 * Volume naming must be consistent between XDE labels and GDML names.
 
@@ -160,6 +170,7 @@ field.  G4OCCT reads the embedded name and resolves it via a provided GDML
 materials fragment.
 
 **Workflow:**
+
 1. In the CAD tool, set the material name of each part to the exact string
    that appears as a `<material name="...">` entry in the GDML materials
    fragment.
@@ -168,11 +179,13 @@ materials fragment.
    lookup — no normalization or matching beyond exact string equality.
 
 **Pros:**
+
 * The complete material identity is encoded in the STEP file itself.
 * No separate mapping file is needed.
 * Still unambiguous: exact string matching, no guessing.
 
 **Cons:**
+
 * Requires strict CAD tool discipline; automated STEP editors may overwrite
   custom names.
 

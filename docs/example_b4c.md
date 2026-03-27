@@ -26,7 +26,7 @@ to a ROOT file.
 The calorimeter consists of 10 identical layers stacked along the z-axis, each
 containing one absorber slab followed by one gap slab:
 
-```
+```text
 ┌──────────────────────────────────────┐  World (Galactic vacuum)
 │  ┌──────────────────────────────┐    │
 │  │         Calorimeter          │    │  10 × 15 mm = 150 mm total depth

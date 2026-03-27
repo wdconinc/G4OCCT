@@ -49,7 +49,7 @@ as a tree of `PRODUCT_DEFINITION` entities linked by
 a `PRODUCT_DEFINITION_TRANSFORMATION` (a `gp_Trsf` in OCCT terms) that
 positions the child part in the parent's coordinate frame.
 
-```
+```text
 Assembly (PRODUCT_DEFINITION)
 ├── Part A  (PRODUCT_DEFINITION)  ← transformation T_A
 │   └── geometry (ADVANCED_BREP_SHAPE_REPRESENTATION)
@@ -213,7 +213,7 @@ depth-first traversal and builds the Geant4 hierarchy as it unwinds.
 
 ### 5.1 Pseudocode
 
-```
+```text
 function ImportLabel(label, parentLV, placement, shapeTool, matTool, materialMap):
 
   if shapeTool.IsAssembly(label):
@@ -357,7 +357,7 @@ coincides with the local OCCT origin (see
 translation must be *absorbed into the placement transformation* so that the
 shape appears at its intended position in the assembly:
 
-```
+```text
 T_effective = T_placement ∘ T_recenter
 ```
 

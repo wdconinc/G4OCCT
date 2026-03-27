@@ -94,12 +94,14 @@ classes and embed an OCCT object.
 | `G4OCCTPlacement` | `G4PVPlacement` | `TopLoc_Location` |
 
 **Advantages:**
+
 * Drop-in replacement — a `G4OCCTSolid*` can be passed anywhere a `G4VSolid*`
   is expected without changes to the Geant4 kernel.
 * The Geant4 navigator calls virtual methods on `G4OCCTSolid`, which delegate
   to OCCT algorithms.  No navigator modification is needed.
 
 **Disadvantages:**
+
 * `G4LogicalVolume` is a concrete, non-virtual-destructor class in some
   Geant4 versions, so subclassing requires care.
 * The OCCT shape is carried redundantly alongside the `G4VSolid` pointer in
@@ -114,7 +116,7 @@ classes and embed an OCCT object.
 **Description:** The G4OCCT classes hold pointers to *both* a Geant4 object
 and an OCCT object without inheriting from either framework.
 
-```
+```text
 G4OCCTGeometry {
   G4LogicalVolume*  g4Volume;
   TopoDS_Shape      occtShape;
@@ -123,11 +125,13 @@ G4OCCTGeometry {
 ```
 
 **Advantages:**
+
 * Clean separation of concerns.
 * Easier to unit-test OCCT-side logic independently.
 * No risk of violating Geant4 class invariants.
 
 **Disadvantages:**
+
 * Requires an adapter layer to feed results back to Geant4 navigation — the
   navigator cannot call virtual methods on `G4OCCTGeometry` directly.
 * More boilerplate; user must register the `G4VSolid` with the logical volume
@@ -140,7 +144,7 @@ G4OCCTGeometry {
 **Description:** A lightweight bridge object holds a `TopoDS_Shape*` and a
 `G4VSolid*`.  A registry maps Geant4 volume IDs to OCCT shapes.
 
-```
+```text
 G4OCCTRegistry {
   std::map<G4int, TopoDS_Shape>   solidMap;
   std::map<G4int, TopLoc_Location> locationMap;
@@ -148,11 +152,13 @@ G4OCCTRegistry {
 ```
 
 **Advantages:**
+
 * Non-intrusive — existing Geant4 geometry code is unchanged.
 * Can be used to annotate an existing Geant4 geometry with OCCT shapes
   without rebuilding it.
 
 **Disadvantages:**
+
 * Navigation still uses Geant4 native algorithms unless the `G4VSolid` is
   replaced with a `G4OCCTSolid`.
 * Registry synchronisation (keeping map up to date during construction /

@@ -108,7 +108,7 @@ dependencies automatically.
 
 ## Repository Layout
 
-```
+```text
 G4OCCT/
 ├── CMakeLists.txt          # Top-level build; installs G4OCCTConfig.cmake
 ├── cmake/
