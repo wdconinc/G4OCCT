@@ -52,6 +52,16 @@ endif()
 find_package(Geant4 11.3 REQUIRED)
 find_package(OpenCASCADE REQUIRED)
 
+# ─── RPATH ────────────────────────────────────────────────────────────────────
+
+# Keep RPATH in the build tree (stated explicitly for clarity).
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+# Use build-tree paths during the build, not the install RPATH.
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+# Embed the link-time library directories of all linked targets (Geant4,
+# OpenCASCADE, …) into the installed binary/library RPATH automatically.
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 # ─── Library ─────────────────────────────────────────────────────────────────
 
 add_library(
@@ -224,16 +234,6 @@ if(BUILD_DD4HEP_PLUGIN)
     add_subdirectory(src/dd4hep)
   endif()
 endif()
-
-# ─── RPATH ────────────────────────────────────────────────────────────────────
-
-# Keep RPATH in the build tree (stated explicitly for clarity).
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
-# Use build-tree paths during the build, not the install RPATH.
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-# Embed the link-time library directories of all linked targets (Geant4,
-# OpenCASCADE, …) into the installed binary/library RPATH automatically.
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
