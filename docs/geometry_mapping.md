@@ -116,7 +116,7 @@ classes and embed an OCCT object.
 **Description:** The G4OCCT classes hold pointers to *both* a Geant4 object
 and an OCCT object without inheriting from either framework.
 
-```
+```text
 G4OCCTGeometry {
   G4LogicalVolume*  g4Volume;
   TopoDS_Shape      occtShape;
@@ -144,7 +144,7 @@ G4OCCTGeometry {
 **Description:** A lightweight bridge object holds a `TopoDS_Shape*` and a
 `G4VSolid*`.  A registry maps Geant4 volume IDs to OCCT shapes.
 
-```
+```text
 G4OCCTRegistry {
   std::map<G4int, TopoDS_Shape>   solidMap;
   std::map<G4int, TopLoc_Location> locationMap;

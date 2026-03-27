@@ -15,5 +15,27 @@
     "code_blocks": false,
     "tables": false,
     "headings": false
-  }
+  },
+
+  // MD036: Emphasis used instead of a heading.
+  // Disabled because bold tier labels (e.g. **Tier 0 — ...**) are used as
+  // descriptive sub-section labels following a code block, not as headings.
+  "MD036": false,
+
+  // MD041: First line in a file should be a top-level heading.
+  // Disabled because Docsify navigation files (_sidebar.md, _coverpage.md)
+  // intentionally omit an H1 heading at the top.
+  "MD041": false,
+
+  // MD051: Link fragments should be valid.
+  // Disabled because Docsify uses non-standard fragment syntax (#/page)
+  // which does not correspond to standard HTML anchor fragments.
+  "MD051": false,
+
+  // MD060: Table column style.
+  // Disabled because tables containing backtick code spans and Unicode
+  // characters (e.g. δ, ·, ³, —) confuse the parser's column-alignment
+  // calculation; the tables are consistently formatted with spaces around
+  // pipes and are not auto-fixable by markdownlint --fix.
+  "MD060": false
 }

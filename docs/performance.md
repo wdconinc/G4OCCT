@@ -389,7 +389,7 @@ points, reports per-method wall-clock time and the imported-to-native speed
 ratio (how many times slower the imported solid is), and flags any correctness
 mismatches between the two solids.
 
-```
+```shell
 ./bench_navigator [ray_count [manifest_path [point_cloud_dir]]]
 #                  default: 2048
 ```

@@ -222,7 +222,7 @@ return a **conservative lower bound** (never an overestimate) of the true
 distance from `p` to the nearest surface.  Formally, the returned value `s`
 must satisfy:
 
-```
+```text
 0 ≤ s ≤ true minimum distance to nearest surface
 ```
 
@@ -306,7 +306,7 @@ proven deflection bound `δ` (the Hausdorff distance between the analytical
 surface and its tessellation, bounded by the mesher's linear deflection
 parameter) and then clamped to zero:
 
-```
+```text
 s = max(0, mesh_distance − δ)
 ```
 
@@ -405,7 +405,7 @@ A valid Geant4 safety lower bound `s` must satisfy `0 ≤ s ≤ true distance`.
 The mesh-BVH approach produces a conservative lower bound when the deflection
 correction described above is applied:
 
-```
+```text
 s = max(0, mesh_distance − δ)    where δ ≤ linear deflection parameter d
 ```
 
@@ -414,7 +414,7 @@ In G4OCCT, the reference deflection is `IntersectionTolerance()` = 0.5 ×
 `src/G4OCCTSolid.cc`).  The safety validation fixture (`fixture_safety_compare.cc`)
 accepts a mismatch between native and imported solids if it satisfies:
 
-```
+```text
 |native − imported| ≤ max(G4GeometryTolerance::GetInstance()->GetSurfaceTolerance(),
                           0.01 × max(native, imported))
 ```
@@ -427,7 +427,7 @@ directional variants.
 #### Summary of safety-distance approach by tier
 
 | Tier | Method | Setup | Per-query | Lower bound? |
-|------|--------|-------|-----------|--------------|
+| --- | --- | --- | --- | --- |
 | 0 | AABB (`BVH_Tools::PointBoxSquareDistance`) | O(F) once | O(1) | Yes |
 | 0 | Enclosing sphere (`Bnd_Sphere`) | O(F) once | O(1) | Yes (min) |
 | 1 | Mesh BVH (`BRepExtrema_TriangleSet`) | O(T log T) once | O(log T) | Yes (with δ correction) |

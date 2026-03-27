@@ -128,7 +128,7 @@ AI agents) must follow these instructions.
   keep the DD4hep-facing code and the G4OCCT/OCCT-facing code in separate
   translation units, bridged by a thin header that includes neither.
 
-  ```
+  ```text
   PluginName.cc          ← includes DD4hep only; calls bridge function
   PluginName_impl.hh     ← bridge header: std::string, plain POD, forward decls only
   PluginName_impl.cc     ← includes G4OCCT/OCCT only; implements bridge function
