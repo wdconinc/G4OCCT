@@ -8,8 +8,6 @@
 #include "G4OCCTRunAction.hh"
 
 #include <G4AnalysisManager.hh>
-#include <G4Event.hh>
-#include <G4EventManager.hh>
 #include <G4SystemOfUnits.hh>
 #include <G4Track.hh>
 #include <G4VProcess.hh>
@@ -31,8 +29,7 @@ void G4OCCTTrackingAction::PostUserTrackingAction(const G4Track* track) {
   const G4int ntId = fRunAction->GetTracksNtupleId();
   if (ntId < 0) return;
 
-  const G4int eventId =
-      G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetEventID();
+  const G4int eventId = fEventAction->GetEventId();
 
   const G4ThreeVector& vertex = track->GetVertexPosition();
   const G4ThreeVector& final  = track->GetPosition();

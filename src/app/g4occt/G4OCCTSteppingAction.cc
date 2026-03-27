@@ -9,8 +9,6 @@
 #include "G4OCCTTrackingAction.hh"
 
 #include <G4AnalysisManager.hh>
-#include <G4Event.hh>
-#include <G4EventManager.hh>
 #include <G4Step.hh>
 #include <G4SystemOfUnits.hh>
 #include <G4Track.hh>
@@ -36,8 +34,7 @@ void G4OCCTSteppingAction::UserSteppingAction(const G4Step* step) {
   const G4ThreeVector&     pos   = pre->GetPosition();
   const G4VPhysicalVolume* vol   = pre->GetPhysicalVolume();
   const G4String volName = vol ? vol->GetLogicalVolume()->GetName() : "OutOfWorld";
-  const G4int eventId =
-      G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetEventID();
+  const G4int eventId = fEventAction->GetEventId();
 
   auto* am  = G4AnalysisManager::Instance();
   G4int col = 0;

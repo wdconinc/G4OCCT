@@ -8,6 +8,7 @@ add_executable(
   main.cc
   G4OCCTDetectorConstruction.cc
   G4OCCTActionInitialization.cc
+  G4OCCTOutputConfig.cc
   G4OCCTRunAction.cc
   G4OCCTEventAction.cc
   G4OCCTSteppingAction.cc
@@ -75,7 +76,7 @@ if(BUILD_TESTING)
   set(_output_dir ${CMAKE_CURRENT_BINARY_DIR}/output_test)
   add_test(
     NAME run_g4occt_output
-    COMMAND g4occt -t 1 -m ${G4OCCT_MACRO_DIR_BUILD}/run_output.mac
+    COMMAND $<TARGET_FILE:g4occt> -t 1 -m ${G4OCCT_MACRO_DIR_BUILD}/run_output.mac
     WORKING_DIRECTORY ${_output_dir})
 
   # Geant4 physics data must be accessible when running events.  Collect all
@@ -94,12 +95,14 @@ if(BUILD_TESTING)
       FIXTURES_SETUP g4occt_output_files
       ENVIRONMENT "${_g4_env_vars}")
 
-  # Verify each CSV is non-empty.  With one worker thread the CSV backend
-  # writes files with a _t0 suffix (e.g. g4occt_nt_steps_t0.csv).
+  # Verify each CSV has at least a header row and one data row.
+  # With one worker thread the CSV backend writes files with a _t0 suffix.
   foreach(_level steps tracks events)
     add_test(
       NAME check_g4occt_output_${_level}
-      COMMAND ${CMAKE_COMMAND} -E cat ${_output_dir}/g4occt_nt_${_level}_t0.csv)
+      COMMAND ${CMAKE_COMMAND}
+              -D "FILE=${_output_dir}/g4occt_nt_${_level}_t0.csv"
+              -P "${CMAKE_CURRENT_SOURCE_DIR}/check_nonempty.cmake")
     set_tests_properties(
       check_g4occt_output_${_level}
       PROPERTIES

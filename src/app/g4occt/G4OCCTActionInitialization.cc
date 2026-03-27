@@ -38,13 +38,13 @@ private:
 } // namespace
 
 void G4OCCTActionInitialization::BuildForMaster() const {
-  SetUserAction(new G4OCCTRunAction(/*isMaster=*/true));
+  SetUserAction(new G4OCCTRunAction(&fConfig));
 }
 
 void G4OCCTActionInitialization::Build() const {
   SetUserAction(new DefaultPrimaryGeneratorAction);
 
-  auto* runAction = new G4OCCTRunAction(/*isMaster=*/false);
+  auto* runAction = new G4OCCTRunAction(&fConfig);
   SetUserAction(runAction);
 
   auto* eventAction = new G4OCCTEventAction(runAction);

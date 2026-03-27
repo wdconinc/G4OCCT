@@ -4,40 +4,15 @@
 /// @file G4OCCTRunAction.cc
 
 #include "G4OCCTRunAction.hh"
+#include "G4OCCTOutputConfig.hh"
 
 #include <G4AnalysisManager.hh>
-#include <G4GenericMessenger.hh>
 #include <G4Run.hh>
 #include <G4SystemOfUnits.hh>
 #include <G4Threading.hh>
 
-G4OCCTRunAction::G4OCCTRunAction(G4bool isMaster) {
-  if (isMaster) {
-    DefineMessenger();
-  }
-}
-
-void G4OCCTRunAction::DefineMessenger() {
-  fMessenger = std::make_unique<G4GenericMessenger>(this, "/G4OCCT/output/",
-                                                    "G4OCCT output control");
-
-  fMessenger->DeclareProperty("setFileName", fFileName)
-      .SetGuidance("Base filename for CSV output (without extension).")
-      .SetParameterName("name", false)
-      .SetDefaultValue("g4occt");
-
-  fMessenger->DeclareProperty("recordSteps", fRecordSteps)
-      .SetGuidance("Enable or disable per-step ntuple (-> <name>_nt_steps.csv).")
-      .SetDefaultValue("true");
-
-  fMessenger->DeclareProperty("recordTracks", fRecordTracks)
-      .SetGuidance("Enable or disable per-track ntuple (-> <name>_nt_tracks.csv).")
-      .SetDefaultValue("true");
-
-  fMessenger->DeclareProperty("recordEvents", fRecordEvents)
-      .SetGuidance("Enable or disable per-event ntuple (-> <name>_nt_events.csv).")
-      .SetDefaultValue("true");
-}
+G4OCCTRunAction::G4OCCTRunAction(const G4OCCTOutputConfig* config)
+    : fConfig(config) {}
 
 void G4OCCTRunAction::BeginOfRunAction(const G4Run*) {
   auto* am = G4AnalysisManager::Instance();
@@ -50,13 +25,13 @@ void G4OCCTRunAction::BeginOfRunAction(const G4Run*) {
   if (G4Threading::IsMultithreadedApplication()) {
     am->SetNtupleMerging(false);
   }
-  am->OpenFile(fFileName);
+  am->OpenFile(fConfig->fileName);
 
   fStepsNtupleId  = -1;
   fTracksNtupleId = -1;
   fEventsNtupleId = -1;
 
-  if (fRecordSteps) {
+  if (fConfig->recordSteps) {
     fStepsNtupleId = am->CreateNtuple("steps", "Per-step data");
     am->CreateNtupleIColumn(fStepsNtupleId, "EventID");
     am->CreateNtupleIColumn(fStepsNtupleId, "TrackID");
@@ -71,7 +46,7 @@ void G4OCCTRunAction::BeginOfRunAction(const G4Run*) {
     am->FinishNtuple(fStepsNtupleId);
   }
 
-  if (fRecordTracks) {
+  if (fConfig->recordTracks) {
     fTracksNtupleId = am->CreateNtuple("tracks", "Per-track data");
     am->CreateNtupleIColumn(fTracksNtupleId, "EventID");
     am->CreateNtupleIColumn(fTracksNtupleId, "TrackID");
@@ -89,7 +64,7 @@ void G4OCCTRunAction::BeginOfRunAction(const G4Run*) {
     am->FinishNtuple(fTracksNtupleId);
   }
 
-  if (fRecordEvents) {
+  if (fConfig->recordEvents) {
     fEventsNtupleId = am->CreateNtuple("events", "Per-event data");
     am->CreateNtupleIColumn(fEventsNtupleId, "EventID");
     am->CreateNtupleDColumn(fEventsNtupleId, "TotalEdep");        // MeV

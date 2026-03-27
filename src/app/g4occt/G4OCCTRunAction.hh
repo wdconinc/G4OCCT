@@ -7,32 +7,28 @@
 #ifndef G4OCCT_APP_G4OCCTRunAction_hh
 #define G4OCCT_APP_G4OCCTRunAction_hh
 
-#include <G4String.hh>
 #include <G4Types.hh>
 #include <G4UserRunAction.hh>
 
-#include <memory>
-
-class G4GenericMessenger;
+class G4OCCTOutputConfig;
 
 /**
  * @brief Run action that opens and closes a G4AnalysisManager CSV output file.
  *
- * Three ntuples are booked, each independently toggleable via messenger:
+ * Three ntuples are booked, each independently toggleable via the shared
+ * @c G4OCCTOutputConfig (owned by @c G4OCCTActionInitialization):
  *  - "steps"  → @c <fileName>_nt_steps.csv   (per G4Step)
  *  - "tracks" → @c <fileName>_nt_tracks.csv  (per G4Track, at track end)
  *  - "events" → @c <fileName>_nt_events.csv  (per G4Event, at event end)
  *
- * Messenger commands (all under @c /G4OCCT/output/):
- *  - @c setFileName   — base filename without extension (default: @c "g4occt")
- *  - @c recordSteps   — enable/disable steps ntuple   (default: @c true)
- *  - @c recordTracks  — enable/disable tracks ntuple  (default: @c true)
- *  - @c recordEvents  — enable/disable events ntuple  (default: @c true)
+ * Output settings are controlled via @c /G4OCCT/output/ messenger commands
+ * that write to the shared @c G4OCCTOutputConfig object.  Every run action
+ * instance (master and all workers) receives a pointer to the same config and
+ * reads it in @c BeginOfRunAction, so UI commands reliably affect all threads.
  */
 class G4OCCTRunAction : public G4UserRunAction {
 public:
-  /// @param isMaster  When @c true the messenger is created (master thread only).
-  explicit G4OCCTRunAction(G4bool isMaster = false);
+  explicit G4OCCTRunAction(const G4OCCTOutputConfig* config);
   ~G4OCCTRunAction() override = default;
 
   void BeginOfRunAction(const G4Run* run) override;
@@ -46,18 +42,11 @@ public:
   ///@}
 
 private:
-  void DefineMessenger();
-
-  G4String fFileName     = "g4occt";
-  G4bool fRecordSteps   = true;
-  G4bool fRecordTracks  = true;
-  G4bool fRecordEvents  = true;
+  const G4OCCTOutputConfig* fConfig;
 
   G4int fStepsNtupleId  = -1;
   G4int fTracksNtupleId = -1;
   G4int fEventsNtupleId = -1;
-
-  std::unique_ptr<G4GenericMessenger> fMessenger;
 };
 
 #endif // G4OCCT_APP_G4OCCTRunAction_hh

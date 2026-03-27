@@ -2,7 +2,7 @@
 # Copyright (C) 2026 G4OCCT Contributors
 
 # run_output.mac — batch macro that fires 10 events and produces CSV output.
-# Output files: g4occt_nt_steps.csv, g4occt_nt_tracks.csv, g4occt_nt_events.csv
+# Output files (per-thread): g4occt_nt_steps_t0.csv, g4occt_nt_tracks_t0.csv, g4occt_nt_events_t0.csv
 
 /run/initialize
 /run/beamOn 10

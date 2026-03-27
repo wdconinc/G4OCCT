@@ -13,7 +13,8 @@
 G4OCCTEventAction::G4OCCTEventAction(const G4OCCTRunAction* runAction)
     : fRunAction(runAction) {}
 
-void G4OCCTEventAction::BeginOfEventAction(const G4Event*) {
+void G4OCCTEventAction::BeginOfEventAction(const G4Event* event) {
+  fEventId     = event->GetEventID();
   fTotalEdep   = 0.0;
   fTotalLength = 0.0;
   fNTracks     = 0;

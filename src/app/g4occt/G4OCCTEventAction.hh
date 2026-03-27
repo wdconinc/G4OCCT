@@ -27,6 +27,9 @@ public:
   void BeginOfEventAction(const G4Event* event) override;
   void EndOfEventAction(const G4Event* event) override;
 
+  /// Returns the current event ID; cached in BeginOfEventAction.
+  G4int GetEventId() const { return fEventId; }
+
   /// Called from G4OCCTSteppingAction for each step.
   void AddStep(G4double edep, G4double stepLength);
   /// Called from G4OCCTTrackingAction at the end of each track.
@@ -37,6 +40,7 @@ public:
 private:
   const G4OCCTRunAction* fRunAction;
 
+  G4int    fEventId         = -1;
   G4double fTotalEdep       = 0.0;
   G4double fTotalLength     = 0.0;
   G4int    fNTracks         = 0;
