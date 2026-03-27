@@ -45,7 +45,8 @@ void PrintUsage(const char* prog) {
 /// Return the lower-case file extension (including the dot), e.g. ".step".
 std::string FileExtension(const std::string& path) {
   auto dot = path.rfind('.');
-  if (dot == std::string::npos) return {};
+  if (dot == std::string::npos)
+    return {};
   std::string ext = path.substr(dot);
   std::transform(ext.begin(), ext.end(), ext.begin(),
                  [](unsigned char c) { return std::tolower(c); });
@@ -160,8 +161,7 @@ int main(int argc, char** argv) {
   // Register the installed data directory first, then the build-tree copy.
   // This satisfies both `make install` users and in-tree development/testing.
   auto* UImanager = G4UImanager::GetUIpointer();
-  UImanager->SetMacroSearchPath(G4String(G4OCCT_MACRO_DIR_INSTALL) + ":" +
-                                G4OCCT_MACRO_DIR_BUILD);
+  UImanager->SetMacroSearchPath(G4String(G4OCCT_MACRO_DIR_INSTALL) + ":" + G4OCCT_MACRO_DIR_BUILD);
 
   // ── Execute macro or start interactive session ────────────────────────────
   int exitCode = 0;

@@ -22,7 +22,7 @@ class G4Material;
 /// @param path     Path to the STEP file.
 /// @param materials  Map of STEP material name → G4Material*.
 /// Throws @c std::runtime_error on failure.
-int G4OCCT_ImportSTEPAssembly(const std::string&                    path,
-                               const std::map<std::string, G4Material*>& materials);
+int G4OCCT_ImportSTEPAssembly(const std::string& path,
+                              const std::map<std::string, G4Material*>& materials);
 
 #endif // G4OCCT_DD4HEP_STEPAssembly_impl_hh

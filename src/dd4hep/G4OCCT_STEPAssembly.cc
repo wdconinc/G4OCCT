@@ -49,10 +49,8 @@
 
 using namespace dd4hep;
 
-static Ref_t create_step_assembly(Detector& description, xml_h e,
-                                  SensitiveDetector /*sens*/)
-{
-  xml_det_t  x_det  = e;
+static Ref_t create_step_assembly(Detector& description, xml_h e, SensitiveDetector /*sens*/) {
+  xml_det_t x_det   = e;
   xml_comp_t x_step = x_det.child(_Unicode(step_file));
   xml_comp_t x_pos  = x_det.child(_Unicode(position));
   xml_comp_t x_map  = x_det.child(_Unicode(material_map));
@@ -63,10 +61,9 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
   // ── Build the material map from the compact XML entries ───────────────────
   std::map<std::string, G4Material*> materials;
   for (xml_coll_t it(x_map, _Unicode(entry)); it; ++it) {
-    xml_comp_t x_entry = it;
+    xml_comp_t x_entry        = it;
     std::string stepName      = x_entry.attr<std::string>(_Unicode(step_name));
-    std::string dd4hepMatName =
-        x_entry.attr<std::string>(_Unicode(dd4hep_material));
+    std::string dd4hepMatName = x_entry.attr<std::string>(_Unicode(dd4hep_material));
 
     // Resolve the G4Material via NIST manager (already constructed by DD4hep
     // material loading) — look up by the Geant4 material name.
@@ -77,13 +74,11 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
       g4mat = G4Material::GetMaterial(dd4hepMatName, /*warn=*/false);
     }
     if (!g4mat) {
-      throw std::runtime_error(
-          "G4OCCT_STEPAssembly: Geant4 material '" + dd4hepMatName +
-          "' not found for STEP name '" + stepName + "'");
+      throw std::runtime_error("G4OCCT_STEPAssembly: Geant4 material '" + dd4hepMatName +
+                               "' not found for STEP name '" + stepName + "'");
     }
     materials[stepName] = g4mat;
-    printout(DEBUG, "G4OCCT_STEPAssembly",
-             "Mapped STEP material '%s' → G4Material '%s'",
+    printout(DEBUG, "G4OCCT_STEPAssembly", "Mapped STEP material '%s' → G4Material '%s'",
              stepName.c_str(), dd4hepMatName.c_str());
   }
 
@@ -103,15 +98,13 @@ static Ref_t create_step_assembly(Detector& description, xml_h e,
   printout(INFO, "G4OCCT_STEPAssembly",
            "Imported STEP assembly '%s' from '%s'; %d constituent solid(s) on "
            "OCCT side; created empty dd4hep::Assembly '%s' as top-level container",
-           name.c_str(), path.c_str(), nConstituents,
-           (name + "_assembly").c_str());
+           name.c_str(), path.c_str(), nConstituents, (name + "_assembly").c_str());
 
   // ── DetElement and placement ─────────────────────────────────────────────
   DetElement det(name, x_det.id());
-  Position   pos(x_pos.x(), x_pos.y(), x_pos.z());
+  Position pos(x_pos.x(), x_pos.y(), x_pos.z());
 
-  PlacedVolume pv =
-      description.pickMotherVolume(det).placeVolume(dd4hepAssembly, pos);
+  PlacedVolume pv = description.pickMotherVolume(det).placeVolume(dd4hepAssembly, pos);
   pv.addPhysVolID("system", x_det.id());
   det.setPlacement(pv);
   return det;

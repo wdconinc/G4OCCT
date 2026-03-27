@@ -8,8 +8,8 @@
 #include <G4GenericMessenger.hh>
 
 G4OCCTOutputConfig::G4OCCTOutputConfig() {
-  fMessenger = std::make_unique<G4GenericMessenger>(this, "/G4OCCT/output/",
-                                                    "G4OCCT output control");
+  fMessenger =
+      std::make_unique<G4GenericMessenger>(this, "/G4OCCT/output/", "G4OCCT output control");
 
   fMessenger->DeclareProperty("setFileName", fileName)
       .SetGuidance("Base filename for CSV output (without extension).")

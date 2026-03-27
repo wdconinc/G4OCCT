@@ -73,9 +73,7 @@ bool IsAssemblySTEP(const std::string& path) {
 
 // ── G4OCCTDetectorConstruction ────────────────────────────────────────────────
 
-G4OCCTDetectorConstruction::G4OCCTDetectorConstruction() {
-  DefineMessengers();
-}
+G4OCCTDetectorConstruction::G4OCCTDetectorConstruction() { DefineMessengers(); }
 
 G4OCCTDetectorConstruction::~G4OCCTDetectorConstruction() = default;
 
@@ -176,7 +174,7 @@ G4VPhysicalVolume* G4OCCTDetectorConstruction::Construct() {
   std::vector<G4LogicalVolume*> solidLogicals;
   for (std::size_t i = 0; i < fSolidEntries.size(); ++i) {
     const auto& entry = fSolidEntries[i];
-    auto name = std::filesystem::path(entry.file).stem().string();
+    auto name         = std::filesystem::path(entry.file).stem().string();
     if (fSolidEntries.size() > 1) {
       name += "_" + std::to_string(i);
     }
@@ -233,12 +231,13 @@ G4VPhysicalVolume* G4OCCTDetectorConstruction::Construct() {
       Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
       totalBounds.Get(xMin, yMin, zMin, xMax, yMax, zMax);
       const double pad = 1.1;
-      halfSize = G4ThreeVector(pad * std::max(std::abs(xMax), std::abs(xMin)) * mm,
-                               pad * std::max(std::abs(yMax), std::abs(yMin)) * mm,
-                               pad * std::max(std::abs(zMax), std::abs(zMin)) * mm);
+      halfSize         = G4ThreeVector(pad * std::max(std::abs(xMax), std::abs(xMin)) * mm,
+                                       pad * std::max(std::abs(yMax), std::abs(yMin)) * mm,
+                                       pad * std::max(std::abs(zMax), std::abs(zMin)) * mm);
       // Enforce a minimum 10 cm half-size on each axis
       for (int k = 0; k < 3; ++k) {
-        if (halfSize[k] < 100.0 * mm) halfSize[k] = 100.0 * mm;
+        if (halfSize[k] < 100.0 * mm)
+          halfSize[k] = 100.0 * mm;
       }
     } else {
       halfSize = G4ThreeVector(500 * mm, 500 * mm, 500 * mm); // 1 m³ default
@@ -254,8 +253,8 @@ G4VPhysicalVolume* G4OCCTDetectorConstruction::Construct() {
 
   auto* worldSolid = new G4Box("world", halfSize.x(), halfSize.y(), halfSize.z());
   auto* worldLV    = new G4LogicalVolume(worldSolid, worldMat, "world_lv");
-  auto* worldPV    = new G4PVPlacement(nullptr, G4ThreeVector(), worldLV, "world_pv",
-                                       nullptr, false, 0);
+  auto* worldPV =
+      new G4PVPlacement(nullptr, G4ThreeVector(), worldLV, "world_pv", nullptr, false, 0);
 
   // ── Place solids at origin ─────────────────────────────────────────────────
   for (std::size_t i = 0; i < solidLogicals.size(); ++i) {

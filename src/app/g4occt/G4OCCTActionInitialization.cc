@@ -20,8 +20,7 @@ namespace {
 /// Default primary generator: one 1 GeV proton per event along +Z.
 class DefaultPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
 public:
-  DefaultPrimaryGeneratorAction()
-      : fGun(std::make_unique<G4ParticleGun>(1)) {
+  DefaultPrimaryGeneratorAction() : fGun(std::make_unique<G4ParticleGun>(1)) {
     auto* proton = G4ParticleTable::GetParticleTable()->FindParticle("proton");
     fGun->SetParticleDefinition(proton);
     fGun->SetParticleEnergy(1.0 * GeV);
@@ -55,4 +54,3 @@ void G4OCCTActionInitialization::Build() const {
 
   SetUserAction(new G4OCCTSteppingAction(eventAction, trackingAction, runAction));
 }
-

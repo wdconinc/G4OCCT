@@ -11,8 +11,7 @@
 #include <G4SystemOfUnits.hh>
 #include <G4Threading.hh>
 
-G4OCCTRunAction::G4OCCTRunAction(const G4OCCTOutputConfig* config)
-    : fConfig(config) {}
+G4OCCTRunAction::G4OCCTRunAction(const G4OCCTOutputConfig* config) : fConfig(config) {}
 
 void G4OCCTRunAction::BeginOfRunAction(const G4Run*) {
   auto* am = G4AnalysisManager::Instance();
@@ -53,14 +52,14 @@ void G4OCCTRunAction::BeginOfRunAction(const G4Run*) {
     am->CreateNtupleIColumn(fTracksNtupleId, "ParentID");
     am->CreateNtupleSColumn(fTracksNtupleId, "ParticleName");
     am->CreateNtupleSColumn(fTracksNtupleId, "CreatorProcess");
-    am->CreateNtupleDColumn(fTracksNtupleId, "TotalEdep");    // MeV
-    am->CreateNtupleDColumn(fTracksNtupleId, "TrackLength");  // mm
-    am->CreateNtupleDColumn(fTracksNtupleId, "X0");           // mm
-    am->CreateNtupleDColumn(fTracksNtupleId, "Y0");           // mm
-    am->CreateNtupleDColumn(fTracksNtupleId, "Z0");           // mm
-    am->CreateNtupleDColumn(fTracksNtupleId, "Xf");           // mm
-    am->CreateNtupleDColumn(fTracksNtupleId, "Yf");           // mm
-    am->CreateNtupleDColumn(fTracksNtupleId, "Zf");           // mm
+    am->CreateNtupleDColumn(fTracksNtupleId, "TotalEdep");   // MeV
+    am->CreateNtupleDColumn(fTracksNtupleId, "TrackLength"); // mm
+    am->CreateNtupleDColumn(fTracksNtupleId, "X0");          // mm
+    am->CreateNtupleDColumn(fTracksNtupleId, "Y0");          // mm
+    am->CreateNtupleDColumn(fTracksNtupleId, "Z0");          // mm
+    am->CreateNtupleDColumn(fTracksNtupleId, "Xf");          // mm
+    am->CreateNtupleDColumn(fTracksNtupleId, "Yf");          // mm
+    am->CreateNtupleDColumn(fTracksNtupleId, "Zf");          // mm
     am->FinishNtuple(fTracksNtupleId);
   }
 

@@ -40,12 +40,12 @@ public:
 private:
   const G4OCCTRunAction* fRunAction;
 
-  G4int    fEventId         = -1;
-  G4double fTotalEdep       = 0.0;
-  G4double fTotalLength     = 0.0;
-  G4int    fNTracks         = 0;
-  G4int    fNSteps          = 0;
-  G4int    fNPrimaries      = 0;
+  G4int fEventId        = -1;
+  G4double fTotalEdep   = 0.0;
+  G4double fTotalLength = 0.0;
+  G4int fNTracks        = 0;
+  G4int fNSteps         = 0;
+  G4int fNPrimaries     = 0;
 };
 
 #endif // G4OCCT_APP_G4OCCTEventAction_hh

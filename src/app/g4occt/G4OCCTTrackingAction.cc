@@ -12,8 +12,8 @@
 #include <G4Track.hh>
 #include <G4VProcess.hh>
 
-G4OCCTTrackingAction::G4OCCTTrackingAction(G4OCCTEventAction*     eventAction,
-                                            const G4OCCTRunAction* runAction)
+G4OCCTTrackingAction::G4OCCTTrackingAction(G4OCCTEventAction* eventAction,
+                                           const G4OCCTRunAction* runAction)
     : fEventAction(eventAction), fRunAction(runAction) {}
 
 void G4OCCTTrackingAction::PreUserTrackingAction(const G4Track* track) {
@@ -27,14 +27,15 @@ void G4OCCTTrackingAction::PostUserTrackingAction(const G4Track* track) {
   fEventAction->AddTrack();
 
   const G4int ntId = fRunAction->GetTracksNtupleId();
-  if (ntId < 0) return;
+  if (ntId < 0)
+    return;
 
   const G4int eventId = fEventAction->GetEventId();
 
   const G4ThreeVector& vertex = track->GetVertexPosition();
   const G4ThreeVector& final  = track->GetPosition();
 
-  const G4VProcess* creator = track->GetCreatorProcess();
+  const G4VProcess* creator  = track->GetCreatorProcess();
   const G4String creatorName = creator ? creator->GetProcessName() : "";
 
   auto* am  = G4AnalysisManager::Instance();
@@ -55,6 +56,4 @@ void G4OCCTTrackingAction::PostUserTrackingAction(const G4Track* track) {
   am->AddNtupleRow(ntId);
 }
 
-void G4OCCTTrackingAction::AddEdepToCurrentTrack(G4double edep) {
-  fCurrentTrackEdep += edep;
-}
+void G4OCCTTrackingAction::AddEdepToCurrentTrack(G4double edep) { fCurrentTrackEdep += edep; }

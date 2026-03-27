@@ -14,9 +14,9 @@
 #include <G4Track.hh>
 #include <G4VPhysicalVolume.hh>
 
-G4OCCTSteppingAction::G4OCCTSteppingAction(G4OCCTEventAction*     eventAction,
-                                            G4OCCTTrackingAction*  trackingAction,
-                                            const G4OCCTRunAction* runAction)
+G4OCCTSteppingAction::G4OCCTSteppingAction(G4OCCTEventAction* eventAction,
+                                           G4OCCTTrackingAction* trackingAction,
+                                           const G4OCCTRunAction* runAction)
     : fEventAction(eventAction), fTrackingAction(trackingAction), fRunAction(runAction) {}
 
 void G4OCCTSteppingAction::UserSteppingAction(const G4Step* step) {
@@ -27,14 +27,15 @@ void G4OCCTSteppingAction::UserSteppingAction(const G4Step* step) {
   fTrackingAction->AddEdepToCurrentTrack(edep);
 
   const G4int ntId = fRunAction->GetStepsNtupleId();
-  if (ntId < 0) return;
+  if (ntId < 0)
+    return;
 
-  const G4Track*           track = step->GetTrack();
-  const G4StepPoint*       pre   = step->GetPreStepPoint();
-  const G4ThreeVector&     pos   = pre->GetPosition();
-  const G4VPhysicalVolume* vol   = pre->GetPhysicalVolume();
-  const G4String volName = vol ? vol->GetLogicalVolume()->GetName() : "OutOfWorld";
-  const G4int eventId = fEventAction->GetEventId();
+  const G4Track* track         = step->GetTrack();
+  const G4StepPoint* pre       = step->GetPreStepPoint();
+  const G4ThreeVector& pos     = pre->GetPosition();
+  const G4VPhysicalVolume* vol = pre->GetPhysicalVolume();
+  const G4String volName       = vol ? vol->GetLogicalVolume()->GetName() : "OutOfWorld";
+  const G4int eventId          = fEventAction->GetEventId();
 
   auto* am  = G4AnalysisManager::Instance();
   G4int col = 0;

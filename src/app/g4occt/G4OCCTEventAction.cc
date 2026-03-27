@@ -10,8 +10,7 @@
 #include <G4Event.hh>
 #include <G4SystemOfUnits.hh>
 
-G4OCCTEventAction::G4OCCTEventAction(const G4OCCTRunAction* runAction)
-    : fRunAction(runAction) {}
+G4OCCTEventAction::G4OCCTEventAction(const G4OCCTRunAction* runAction) : fRunAction(runAction) {}
 
 void G4OCCTEventAction::BeginOfEventAction(const G4Event* event) {
   fEventId     = event->GetEventID();
@@ -24,7 +23,8 @@ void G4OCCTEventAction::BeginOfEventAction(const G4Event* event) {
 
 void G4OCCTEventAction::EndOfEventAction(const G4Event* event) {
   const G4int ntId = fRunAction->GetEventsNtupleId();
-  if (ntId < 0) return;
+  if (ntId < 0)
+    return;
 
   auto* am  = G4AnalysisManager::Instance();
   G4int col = 0;

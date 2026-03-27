@@ -26,8 +26,7 @@ class G4OCCTRunAction;
  */
 class G4OCCTTrackingAction : public G4UserTrackingAction {
 public:
-  G4OCCTTrackingAction(G4OCCTEventAction*    eventAction,
-                       const G4OCCTRunAction* runAction);
+  G4OCCTTrackingAction(G4OCCTEventAction* eventAction, const G4OCCTRunAction* runAction);
   ~G4OCCTTrackingAction() override = default;
 
   void PreUserTrackingAction(const G4Track* track) override;
@@ -37,7 +36,7 @@ public:
   void AddEdepToCurrentTrack(G4double edep);
 
 private:
-  G4OCCTEventAction*    fEventAction;
+  G4OCCTEventAction* fEventAction;
   const G4OCCTRunAction* fRunAction;
 
   G4double fCurrentTrackEdep = 0.0;

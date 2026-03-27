@@ -32,10 +32,10 @@ public:
   G4OCCTOutputConfig();
   ~G4OCCTOutputConfig();
 
-  G4String fileName    = "g4occt"; ///< Base CSV filename (no extension).
-  G4bool recordSteps   = true;     ///< Enable the per-step ntuple.
-  G4bool recordTracks  = true;     ///< Enable the per-track ntuple.
-  G4bool recordEvents  = true;     ///< Enable the per-event ntuple.
+  G4String fileName   = "g4occt"; ///< Base CSV filename (no extension).
+  G4bool recordSteps  = true;     ///< Enable the per-step ntuple.
+  G4bool recordTracks = true;     ///< Enable the per-track ntuple.
+  G4bool recordEvents = true;     ///< Enable the per-event ntuple.
 
 private:
   std::unique_ptr<G4GenericMessenger> fMessenger;

@@ -89,10 +89,10 @@ private:
 
   // Material XML files are stored and loaded at Construct() time so that
   // all maps can be merged before any geometry is built.
-  std::vector<std::string>   fMaterialXmlFiles;
-  std::vector<SolidEntry>    fSolidEntries;
+  std::vector<std::string> fMaterialXmlFiles;
+  std::vector<SolidEntry> fSolidEntries;
   std::vector<AssemblyEntry> fAssemblyEntries;
-  G4String      fWorldMaterial{"G4_AIR"};
+  G4String fWorldMaterial{"G4_AIR"};
   G4ThreeVector fWorldHalfSize{0, 0, 0}; ///< zero → auto-size
 
   std::unique_ptr<G4GenericMessenger> fLoadMessenger;

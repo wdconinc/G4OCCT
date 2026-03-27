@@ -25,15 +25,14 @@ class G4OCCTTrackingAction;
  */
 class G4OCCTSteppingAction : public G4UserSteppingAction {
 public:
-  G4OCCTSteppingAction(G4OCCTEventAction*    eventAction,
-                       G4OCCTTrackingAction* trackingAction,
+  G4OCCTSteppingAction(G4OCCTEventAction* eventAction, G4OCCTTrackingAction* trackingAction,
                        const G4OCCTRunAction* runAction);
   ~G4OCCTSteppingAction() override = default;
 
   void UserSteppingAction(const G4Step* step) override;
 
 private:
-  G4OCCTEventAction*    fEventAction;
+  G4OCCTEventAction* fEventAction;
   G4OCCTTrackingAction* fTrackingAction;
   const G4OCCTRunAction* fRunAction;
 };
