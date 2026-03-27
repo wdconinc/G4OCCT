@@ -111,8 +111,9 @@ if(BUILD_TESTING)
   # Create the output directory at configure time so WORKING_DIRECTORY exists.
   file(MAKE_DIRECTORY ${_output_dir})
 
-  set_tests_properties(run_g4occt_empty PROPERTIES TIMEOUT 120 WORKING_DIRECTORY
-                                                   ${CMAKE_CURRENT_BINARY_DIR})
+  set_tests_properties(
+    run_g4occt_empty PROPERTIES TIMEOUT 120 WORKING_DIRECTORY
+                                ${CMAKE_CURRENT_BINARY_DIR})
   foreach(_t run_g4occt_solid run_g4occt_cmd_load)
     set_tests_properties(${_t} PROPERTIES TIMEOUT 300 WORKING_DIRECTORY
                                           ${CMAKE_CURRENT_BINARY_DIR})
