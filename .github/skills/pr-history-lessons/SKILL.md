@@ -97,7 +97,7 @@ Branch name: `docs/agents-lessons-pr<start>-<end>`
 
 Commit message format:
 
-```
+```text
 docs: add lessons from PRs #<start>–#<end> to AGENTS.md
 
 - §N <section name>: <what was added>

@@ -27,7 +27,7 @@ summary at the end of the run.
 
 ## Geometry Layout
 
-```
+```text
 ┌──────────────────────────────┐  World (G4_AIR)
 │  ┌────────────────────────┐  │
 │  │       Envelope         │  │  20 × 20 × 30 cm  G4_WATER

@@ -497,7 +497,7 @@ namespace {
     std::size_t skipped_count        = 0;
     std::size_t native_skipped_count = 0;
     std::size_t failed_count         = 0;
-    bool done                  = false;
+    bool done                        = false;
 
     for (const auto& family : repository_manifest.families) {
       if (done)

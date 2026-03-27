@@ -269,7 +269,7 @@ DECLARE_DETELEMENT(G4OCCT_STEPAssembly, create_assembly_detector)
 The DD4hep plugin source code lives under `src/dd4hep/` inside the G4OCCT
 repository:
 
-```
+```text
 src/dd4hep/
 ├── CMakeLists.txt
 ├── G4OCCT_STEPSolid.cc         # DECLARE_DETELEMENT plugin
@@ -462,7 +462,7 @@ set_tests_properties(dd4hep_step_solid dd4hep_step_assembly PROPERTIES LABELS dd
 
 The following row should be added to the roadmap table in `docs/goals.md`:
 
-```
+```text
 | v0.7 | 🔲 Planned | DD4hep plugin (`G4OCCT_STEPSolid`, `G4OCCT_STEPAssembly`) | [DD4hep Plugin Design](dd4hep_plugin.md) |
 ```
 

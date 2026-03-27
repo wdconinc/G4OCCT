@@ -94,7 +94,7 @@ detectable early in the development cycle.
 
 ## Repository Layout
 
-```
+```text
 G4OCCT/
 ├── CMakeLists.txt          # Top-level build; installs G4OCCTConfig.cmake
 ├── cmake/

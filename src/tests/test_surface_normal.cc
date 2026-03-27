@@ -108,7 +108,7 @@ TEST(SurfaceNormal, BVHPruningStrictComparisonRegression) {
   // detect a regression if the strict > comparison were reverted to >=.
   const CylinderFixture cyl("BVHPruningRegressionCylinder", 25.0 * mm, 40.0 * mm);
 
-  const G4double delta            = 0.5 * mm;
+  const G4double delta = 0.5 * mm;
   const G4ThreeVector outsidePoint(cyl.radius + delta, 0.0, 0.0);
   ExpectSurfaceNormal("cylinder barrel outward normal from outside point (BVH pruning regression)",
                       cyl.solid, outsidePoint, G4ThreeVector(1.0, 0.0, 0.0), 1e-4 * mm);

@@ -27,10 +27,10 @@
 // ── Paths injected by CMake configure_file() ─────────────────────────────────
 
 #ifndef G4OCCT_COMPACT_STEP_SOLID
-#  error "G4OCCT_COMPACT_STEP_SOLID must be defined by CMake"
+#error "G4OCCT_COMPACT_STEP_SOLID must be defined by CMake"
 #endif
 #ifndef G4OCCT_COMPACT_STEP_ASSEMBLY
-#  error "G4OCCT_COMPACT_STEP_ASSEMBLY must be defined by CMake"
+#error "G4OCCT_COMPACT_STEP_ASSEMBLY must be defined by CMake"
 #endif
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -39,8 +39,7 @@ namespace {
 
 /// Load a compact XML into a fresh Detector instance.
 /// Returns a reference to the singleton that the caller must destroy.
-dd4hep::Detector& LoadCompact(const std::string& path)
-{
+dd4hep::Detector& LoadCompact(const std::string& path) {
   if (!std::filesystem::exists(path)) {
     throw std::runtime_error("Compact XML not found: " + path);
   }
@@ -51,12 +50,9 @@ dd4hep::Detector& LoadCompact(const std::string& path)
 
 /// Destroy and reset the Detector singleton between tests.
 /// In DD4hep, destroyInstance() handles both destruction and state reset.
-void DestroyDetector()
-{
-  dd4hep::Detector::destroyInstance();
-}
+void DestroyDetector() { dd4hep::Detector::destroyInstance(); }
 
-}  // namespace
+} // namespace
 
 // ── STEPSolid tests ──────────────────────────────────────────────────────────
 
@@ -66,8 +62,7 @@ protected:
 };
 
 /// Verify that G4OCCT_STEPSolid creates a detector element without errors.
-TEST_F(STEPSolidTest, LoadFromCompact)
-{
+TEST_F(STEPSolidTest, LoadFromCompact) {
   ASSERT_NO_THROW(LoadCompact(G4OCCT_COMPACT_STEP_SOLID));
   dd4hep::Detector& det = dd4hep::Detector::getInstance();
 
@@ -84,16 +79,14 @@ TEST_F(STEPSolidTest, LoadFromCompact)
     if (childName == "TestBox") {
       found = true;
       EXPECT_TRUE(childEl.isValid());
-      EXPECT_TRUE(childEl.placement().isValid())
-          << "TestBox placement is invalid";
+      EXPECT_TRUE(childEl.placement().isValid()) << "TestBox placement is invalid";
     }
   }
   EXPECT_TRUE(found) << "DetElement 'TestBox' not found among world children";
 }
 
 /// Verify that the placed volume has a valid material.
-TEST_F(STEPSolidTest, MaterialAssignment)
-{
+TEST_F(STEPSolidTest, MaterialAssignment) {
   ASSERT_NO_THROW(LoadCompact(G4OCCT_COMPACT_STEP_SOLID));
   dd4hep::Detector& det = dd4hep::Detector::getInstance();
 
@@ -117,8 +110,7 @@ protected:
 };
 
 /// Verify that G4OCCT_STEPAssembly creates a detector element without errors.
-TEST_F(STEPAssemblyTest, LoadFromCompact)
-{
+TEST_F(STEPAssemblyTest, LoadFromCompact) {
   ASSERT_NO_THROW(LoadCompact(G4OCCT_COMPACT_STEP_ASSEMBLY));
   dd4hep::Detector& det = dd4hep::Detector::getInstance();
 
@@ -133,10 +125,8 @@ TEST_F(STEPAssemblyTest, LoadFromCompact)
     if (childName == "TripleBoxAssembly") {
       found = true;
       EXPECT_TRUE(childEl.isValid());
-      EXPECT_TRUE(childEl.placement().isValid())
-          << "TripleBoxAssembly placement is invalid";
+      EXPECT_TRUE(childEl.placement().isValid()) << "TripleBoxAssembly placement is invalid";
     }
   }
-  EXPECT_TRUE(found)
-      << "DetElement 'TripleBoxAssembly' not found among world children";
+  EXPECT_TRUE(found) << "DetElement 'TripleBoxAssembly' not found among world children";
 }

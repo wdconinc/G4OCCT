@@ -310,8 +310,7 @@ namespace {
                     state.counters["has_expected_failure"] = static_cast<double>(
                         expected_failure.enabled || expected_failure.safety_enabled);
                   } catch (const std::exception& ex) {
-                    const std::string msg =
-                        "[BM_rays/" + fixture_id + "] exception: " + ex.what();
+                    const std::string msg = "[BM_rays/" + fixture_id + "] exception: " + ex.what();
                     std::cerr << msg << "\n";
                     state.SkipWithError(msg.c_str());
                     return;
@@ -324,13 +323,11 @@ namespace {
 
           benchmark::RegisterBenchmark(
               ("BM_inside/" + fixture_id).c_str(),
-              [fixture_id, request, inside_opts,
-               expected_failure](benchmark::State& state) {
+              [fixture_id, request, inside_opts, expected_failure](benchmark::State& state) {
                 for (auto _ : state) {
                   g4occt::tests::geometry::FixtureInsideComparisonSummary inside;
                   try {
-                    ValidationReport report =
-                        CompareFixtureInside(request, inside_opts, &inside);
+                    ValidationReport report = CompareFixtureInside(request, inside_opts, &inside);
                     report = g4occt::tests::geometry::ReclassifyExpectedFailures(report,
                                                                                  expected_failure);
                     {
@@ -386,7 +383,7 @@ namespace {
               ->Iterations(1)
               ->Unit(benchmark::kMillisecond);
 
-          continue;  // BM_safety skipped: no two different solids to compare
+          continue; // BM_safety skipped: no two different solids to compare
         }
 
         const std::string fixture_id = family_manifest.family + "/" + fixture.id;
@@ -795,7 +792,7 @@ int RunBenchmark(const std::filesystem::path& repository_manifest_path, const st
     total_inside_mismatches += s.inside.mismatch_count;
   }
 
-  bool has_mismatch_failures = false;
+  bool has_mismatch_failures   = false;
   const auto report_if_nonzero = [&](std::size_t count, std::string_view label) {
     if (count > 0) {
       report_out << "ERROR: " << count << " " << label

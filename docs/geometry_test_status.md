@@ -146,6 +146,7 @@ systematic differences in `DistanceToIn`/`DistanceToOut` and `Inside` results
 compared to the Geant4 analytic solid, especially near curved faces.
 
 **Work required to pass:**
+
 1. Evaluate whether a high-degree NURBS approximation within a tight tolerance
    (for example `<= kCarTolerance / 10`) is feasible using OCCT utilities such
    as `GeomConvert` or `Approx_SameParameter`.
@@ -188,6 +189,7 @@ geometry exactly. The xfail annotation has been removed and the fixture is now
 fully enforced.
 
 **Work required to pass:**
+
 1. For each affected class, verify the exact local-frame origin convention used
    by the Geant4 solid; see [Reference Position Handling](reference_position.md).
 2. Adjust the STEP fixture generation scripts, or post-process the STEP file
@@ -259,6 +261,7 @@ The remaining work to eliminate all current xfails is:
 ## 6. Adding, Updating, or Promoting Fixtures
 
 To **add** a new fixture:
+
 1. Generate a STEP file using the appropriate DRAWEXE or OCCT utility script in
    `src/tests/fixtures/geometry/<family>/`.
 2. Write a `provenance.yaml` describing the construction parameters.
@@ -271,6 +274,7 @@ To **add** a new fixture:
    produces no errors.
 
 To **update** an existing fixture (for example to fix frame alignment):
+
 1. Regenerate the STEP file using the updated construction script.
 2. Normalise the STEP `FILE_NAME` timestamp with
    `src/tests/fixtures/geometry/tools/normalize_step_header.py`.
@@ -278,6 +282,7 @@ To **update** an existing fixture (for example to fix frame alignment):
 4. Confirm the volume expectation still holds and the validation test passes.
 
 To **promote** an xfail fixture to enforced:
+
 1. Address the relevant remediation work described in Section 3.
 2. Remove the corresponding `geant4_class` check from
    `ExpectedFailureForFixture` in `src/tests/geometry/fixture_validation.cc`.
