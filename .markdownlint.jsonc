@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2026 G4OCCT Contributors
+{
+  // Default: enable all rules, then override specific ones below.
+  "default": true,
+
+  // MD013: Line length.
+  // Allow up to 160 characters; skip code blocks, tables, and headings which
+  // commonly contain long content that cannot be wrapped without losing clarity
+  // (e.g. C++ function signatures in headings, table cells, badge URLs).
+  "MD013": {
+    "line_length": 160,
+    "heading_line_length": 160,
+    "code_block_line_length": 160,
+    "code_blocks": false,
+    "tables": false,
+    "headings": false
+  }
+}
