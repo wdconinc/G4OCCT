@@ -30,29 +30,49 @@ FetchContent_MakeAvailable(cmake_modules)
 list(APPEND CMAKE_MODULE_PATH "${cmake_modules_SOURCE_DIR}")
 
 # ── Detect coverage tool matching the active compiler ────────────────────────
-# Look in the compiler's own directory first to avoid version mismatches with
-# any system-installed /usr/bin/gcov-* binaries (e.g. the eic_xl container
-# mounts the host /usr/bin which may carry a different GCC minor version).
+# Use private _g4occt_* variables for find_program to avoid polluting the cache
+# with an intermediate NOTFOUND value that would cause CodeCoverage.cmake's own
+# find_program(GCOV_PATH NAMES gcov) to re-run and hit its FATAL_ERROR.
+# After detection, GCOV_PATH is set with FORCE so CodeCoverage's check passes.
 get_filename_component(_cxx_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  find_program(GCOV_PATH llvm-cov HINTS "${_cxx_dir}")
-  if(GCOV_PATH)
-    set(_gcov_executable "${GCOV_PATH} gcov")
+  # Prefer llvm-cov (native Clang coverage tool).  Search in the compiler's
+  # directory first (spack installations co-locate all LLVM binaries), then
+  # fall through to the default PATH search.
+  find_program(_g4occt_llvm_cov NAMES llvm-cov HINTS "${_cxx_dir}")
+  if(_g4occt_llvm_cov)
+    set(_gcov_executable "${_g4occt_llvm_cov} gcov")
+    set(GCOV_PATH "${_g4occt_llvm_cov}" CACHE FILEPATH
+        "llvm-cov command for Clang coverage" FORCE)
+    message(STATUS "Coverage: Clang + llvm-cov; gcov executable: ${_gcov_executable}")
   else()
-    # Fall back to bare command; must be on PATH at build time.
-    set(_gcov_executable "llvm-cov gcov")
-    set(GCOV_PATH "llvm-cov" CACHE FILEPATH "llvm-cov command for Clang coverage")
+    # llvm-cov not found.  Clang's --coverage flag generates GCOV-compatible
+    # .gcno/.gcda files that can also be processed by system gcov.
+    find_program(_g4occt_gcov NAMES gcov gcov-14 gcov-13 HINTS "${_cxx_dir}")
+    if(_g4occt_gcov)
+      set(_gcov_executable "${_g4occt_gcov}")
+    else()
+      set(_g4occt_gcov "gcov")
+      set(_gcov_executable "gcov")
+    endif()
+    set(GCOV_PATH "${_g4occt_gcov}" CACHE FILEPATH
+        "gcov command (llvm-cov fallback for Clang coverage)" FORCE)
+    message(STATUS "Coverage: Clang + system gcov (llvm-cov not found); "
+                   "gcov executable: ${_gcov_executable}")
   endif()
-  message(STATUS "Coverage: Clang compiler; gcov executable: ${_gcov_executable}")
 else()
-  find_program(GCOV_PATH NAMES gcov gcov-14 gcov-13 HINTS "${_cxx_dir}")
-  if(NOT GCOV_PATH)
-    message(FATAL_ERROR "gcov not found in '${_cxx_dir}' or on PATH. "
-                        "Install gcov or set GCOV_PATH manually.")
+  # GCC: find gcov from the same toolchain directory to avoid version mismatches
+  # with any system-installed /usr/bin/gcov-* binaries.
+  find_program(_g4occt_gcov NAMES gcov gcov-14 gcov-13 HINTS "${_cxx_dir}")
+  if(_g4occt_gcov)
+    set(_gcov_executable "${_g4occt_gcov}")
+  else()
+    set(_g4occt_gcov "gcov")
+    set(_gcov_executable "gcov")
   endif()
-  set(_gcov_executable "${GCOV_PATH}")
-  message(STATUS "Coverage: GCC compiler; gcov executable: ${_gcov_executable}")
+  set(GCOV_PATH "${_g4occt_gcov}" CACHE FILEPATH "gcov command for GCC coverage" FORCE)
+  message(STATUS "Coverage: GCC; gcov executable: ${_gcov_executable}")
 endif()
 
 # gcovr is installed into a venv at CI build time and need not exist at
