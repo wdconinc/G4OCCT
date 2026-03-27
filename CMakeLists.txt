@@ -179,7 +179,7 @@ if(USE_UBSAN)
 endif()
 
 # Code coverage (gcov/llvm-cov; incompatible with optimised builds)
-option(USE_COVERAGE "Compile with code coverage instrumentation (gcov)" OFF)
+option(USE_COVERAGE "Compile with code coverage instrumentation (gcov/llvm-cov)" OFF)
 if(USE_COVERAGE)
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(FATAL_ERROR "USE_COVERAGE requires a GCC or Clang compiler")
@@ -208,6 +208,23 @@ if(BUILD_EXAMPLES)
   add_subdirectory(src/examples)
 endif()
 
+# ─── DD4hep plugin ────────────────────────────────────────────────────────────
+
+option(BUILD_DD4HEP_PLUGIN
+  "Build DD4hep detector element plugins (requires DD4hep)" OFF)
+
+if(BUILD_DD4HEP_PLUGIN)
+  find_package(DD4hep QUIET)
+  if(NOT DD4hep_FOUND)
+    message(
+      FATAL_ERROR
+      "BUILD_DD4HEP_PLUGIN=ON but DD4hep was not found. "
+      "The DD4hep plugin will not be built.")
+  else()
+    add_subdirectory(src/dd4hep)
+  endif()
+endif()
+
 # ─── App ──────────────────────────────────────────────────────────────────────
 
 include(GNUInstallDirs)
@@ -224,6 +241,10 @@ install(
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+if(BUILD_DD4HEP_PLUGIN AND DD4hep_FOUND)
+  install(TARGETS G4OCCTDD4hep LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
 
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 

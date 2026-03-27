@@ -1,0 +1,48 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Minimal DD4hep compact file for testing G4OCCT_STEPSolid.
+  @G4OCCT_STEP_SOLID_PATH@ is substituted by CMake configure_file() with the
+  absolute path to the box-20x30x40-v1 STEP fixture from the test suite.
+-->
+<lccdd>
+  <info name="g4occt_step_solid_test"
+        title="G4OCCT_STEPSolid integration test"
+        author="G4OCCT Contributors"
+        url="https://github.com/eic/G4OCCT"
+        status="testing"
+        version="1.0">
+    <comment>Minimal geometry for testing the G4OCCT_STEPSolid DD4hep plugin.</comment>
+  </info>
+
+  <define>
+    <constant name="world_side" value="500*mm"/>
+  </define>
+
+  <includes>
+    <gdmlFile ref="@G4OCCT_DD4HEP_ELEMENTS_XML@"/>
+  </includes>
+
+  <materials>
+    <!-- Al element is already defined by elements.xml; only the local
+         material alias is needed here. -->
+    <material name="Aluminium">
+      <D type="density" unit="g/cm3" value="2.7"/>
+      <composite n="1" ref="Al"/>
+    </material>
+  </materials>
+
+  <display>
+    <vis name="TestVis" r="0.5" g="0.5" b="1.0" alpha="1.0" showDaughters="true" visible="true"/>
+  </display>
+
+  <detectors>
+    <detector id="1" name="TestBox" type="G4OCCT_STEPSolid" vis="TestVis">
+      <step_file path="@G4OCCT_STEP_SOLID_PATH@"/>
+      <position x="0" y="0" z="0"/>
+      <rotation x="0" y="0" z="0"/>
+      <material name="Aluminium"/>
+    </detector>
+  </detectors>
+
+</lccdd>

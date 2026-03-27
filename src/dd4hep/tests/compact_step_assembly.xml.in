@@ -1,0 +1,47 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+<!-- Copyright (C) 2026 G4OCCT Contributors -->
+<!--
+  Minimal DD4hep compact file for testing G4OCCT_STEPAssembly.
+  @G4OCCT_STEP_ASSEMBLY_PATH@ is substituted by CMake configure_file() with
+  the absolute path to the triple-box-v1 STEP fixture.
+-->
+<lccdd>
+  <info name="g4occt_step_assembly_test"
+        title="G4OCCT_STEPAssembly integration test"
+        author="G4OCCT Contributors"
+        url="https://github.com/eic/G4OCCT"
+        status="testing"
+        version="1.0">
+    <comment>Minimal geometry for testing the G4OCCT_STEPAssembly DD4hep plugin.</comment>
+  </info>
+
+  <define>
+    <constant name="world_side" value="2000*mm"/>
+  </define>
+
+  <!--
+    The assembly detector uses a material_map to route STEP material names to
+    Geant4 material names (e.g. "G4_Al").  Material resolution happens at
+    detector-construction time via G4NistManager::FindOrBuildMaterial, so no
+    DD4hep material definitions are required here.
+  -->
+
+  <display>
+    <vis name="AssemblyVis" r="1.0" g="0.5" b="0.2" alpha="1.0" showDaughters="true" visible="true"/>
+  </display>
+
+  <detectors>
+    <!--
+      triple-box-v1: three aluminium boxes labelled "Component".
+      The material_map entry routes STEP material "Component" to G4_Al.
+    -->
+    <detector id="2" name="TripleBoxAssembly" type="G4OCCT_STEPAssembly">
+      <step_file path="@G4OCCT_STEP_ASSEMBLY_PATH@"/>
+      <position x="0" y="0" z="0"/>
+      <material_map>
+        <entry step_name="Component" dd4hep_material="G4_Al"/>
+      </material_map>
+    </detector>
+  </detectors>
+
+</lccdd>
