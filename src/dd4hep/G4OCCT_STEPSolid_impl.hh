@@ -23,28 +23,24 @@
 #include <vector>
 
 /// Plain vertex: three doubles — no OCCT or ROOT/DD4hep types.
-struct G4OCCT_Vertex
-{
+struct G4OCCT_Vertex {
   double x = 0., y = 0., z = 0.;
 };
 
 /// A single triangular facet: three vertices.
-struct G4OCCT_Triangle
-{
+struct G4OCCT_Triangle {
   G4OCCT_Vertex v[3];
 };
 
 /// Data returned by the OCCT impl TU to the DD4hep plugin TU.
 /// Contains the full tessellated mesh so the DD4hep side can build a
 /// TessellatedSolid instead of a bounding-box placeholder.
-struct G4OCCT_STEPSolidGeometry
-{
+struct G4OCCT_STEPSolidGeometry {
   std::vector<G4OCCT_Triangle> triangles; ///< Tessellated mesh triangles (mm).
 };
 
 /// Import a STEP file, tessellate it, and return the triangle mesh in mm.
 /// Throws @c std::runtime_error on failure or empty mesh.
-G4OCCT_STEPSolidGeometry G4OCCT_ImportSTEPSolid(const std::string& name,
-                                                  const std::string& path);
+G4OCCT_STEPSolidGeometry G4OCCT_ImportSTEPSolid(const std::string& name, const std::string& path);
 
 #endif // G4OCCT_DD4HEP_STEPSolid_impl_hh

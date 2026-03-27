@@ -156,14 +156,14 @@ public:
     Standard_Real tmin = 0.0;
     Standard_Real tmax = Precision::Infinite();
     for (int k = 0; k < 3; ++k) {
-      const Standard_Real dk =
-          (k == 0) ? myDir.x() : (k == 1) ? myDir.y() : myDir.z();
-      const Standard_Real ok =
-          (k == 0) ? myOrigin.x() : (k == 1) ? myOrigin.y() : myOrigin.z();
-      const Standard_Real ck_min =
-          (k == 0) ? theCornerMin.x() : (k == 1) ? theCornerMin.y() : theCornerMin.z();
-      const Standard_Real ck_max =
-          (k == 0) ? theCornerMax.x() : (k == 1) ? theCornerMax.y() : theCornerMax.z();
+      const Standard_Real dk     = (k == 0) ? myDir.x() : (k == 1) ? myDir.y() : myDir.z();
+      const Standard_Real ok     = (k == 0) ? myOrigin.x() : (k == 1) ? myOrigin.y() : myOrigin.z();
+      const Standard_Real ck_min = (k == 0)   ? theCornerMin.x()
+                                   : (k == 1) ? theCornerMin.y()
+                                              : theCornerMin.z();
+      const Standard_Real ck_max = (k == 0)   ? theCornerMax.x()
+                                   : (k == 1) ? theCornerMax.y()
+                                              : theCornerMax.z();
       if (std::abs(dk) < Precision::Confusion()) {
         if (ok < ck_min - myTolerance || ok > ck_max + myTolerance) {
           return Standard_True;
@@ -193,20 +193,20 @@ public:
   Standard_Boolean Accept(const Standard_Integer theIndex, const Standard_Real&) override {
     BVH_Vec3d v0, v1, v2;
     myBVHSet->GetVertices(theIndex, v0, v1, v2);
-    const BVH_Vec3d     edge1 = v1 - v0;
-    const BVH_Vec3d     edge2 = v2 - v0;
-    const BVH_Vec3d     h     = BVH_Vec3d::Cross(myDir, edge2);
-    const Standard_Real a     = edge1.Dot(h);
+    const BVH_Vec3d edge1 = v1 - v0;
+    const BVH_Vec3d edge2 = v2 - v0;
+    const BVH_Vec3d h     = BVH_Vec3d::Cross(myDir, edge2);
+    const Standard_Real a = edge1.Dot(h);
     if (std::abs(a) < 1e-12) {
       return Standard_False; // ray parallel to triangle plane
     }
     const Standard_Real f = 1.0 / a;
-    const BVH_Vec3d     s = myOrigin - v0;
+    const BVH_Vec3d s     = myOrigin - v0;
     const Standard_Real u = f * s.Dot(h);
     if (u < 0.0 || u > 1.0) {
       return Standard_False;
     }
-    const BVH_Vec3d     q = BVH_Vec3d::Cross(s, edge1);
+    const BVH_Vec3d q     = BVH_Vec3d::Cross(s, edge1);
     const Standard_Real v = f * myDir.Dot(q);
     if (v < 0.0 || u + v > 1.0) {
       return Standard_False;
@@ -230,22 +230,20 @@ public:
   }
 
   /// Never prune by metric alone — every AABB-intersecting branch must be visited.
-  Standard_Boolean RejectMetric(const Standard_Real&) const override {
-    return Standard_False;
-  }
+  Standard_Boolean RejectMetric(const Standard_Real&) const override { return Standard_False; }
 
   /// Never stop early — the full crossing count is required for parity.
   Standard_Boolean Stop() const override { return Standard_False; }
 
-  int              Crossings() const { return myCrossings; }
+  int Crossings() const { return myCrossings; }
   Standard_Boolean OnSurface() const { return myOnSurface; }
   Standard_Boolean Degenerate() const { return myDegenerate; }
 
 private:
-  BVH_Vec3d        myOrigin;
-  BVH_Vec3d        myDir;
-  Standard_Real    myTolerance{1e-7};
-  int              myCrossings{0};
+  BVH_Vec3d myOrigin;
+  BVH_Vec3d myDir;
+  Standard_Real myTolerance{1e-7};
+  int myCrossings{0};
   Standard_Boolean myOnSurface{Standard_False};
   Standard_Boolean myDegenerate{Standard_False};
 };
@@ -670,9 +668,8 @@ void G4OCCTSolid::ComputeBounds() {
         Standard_Real fx0 = 0.0, fy0 = 0.0, fz0 = 0.0;
         Standard_Real fx1 = 0.0, fy1 = 0.0, fz1 = 0.0;
         fb.box.Get(fx0, fy0, fz0, fx1, fy1, fz1);
-        const G4double faceDiag =
-            G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
-        deflection = kRelativeDeflection * faceDiag;
+        const G4double faceDiag = G4ThreeVector(fx1 - fx0, fy1 - fy0, fz1 - fz0).mag();
+        deflection              = kRelativeDeflection * faceDiag;
       }
       fFaceDeflections.push_back(deflection);
     }
@@ -781,8 +778,7 @@ G4OCCTSolid::TryFindClosestFace(const std::vector<FaceBounds>& faceBoundsCache,
     // For edge/vertex solutions ParOnFaceS2 has a different meaning so we
     // skip caching in those cases and let SurfaceNormal fall back to
     // GeomAPI_ProjectPointOnSurf.
-    if (distance.NbSolution() > 0 &&
-        distance.SupportTypeShape2(1) == BRepExtrema_IsInFace) {
+    if (distance.NbSolution() > 0 && distance.SupportTypeShape2(1) == BRepExtrema_IsInFace) {
       Standard_Real u = 0.0;
       Standard_Real v = 0.0;
       distance.ParOnFaceS2(1, u, v);
@@ -935,9 +931,9 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     // This eliminates BRepClass3d_SolidClassifier::Perform() calls for all but
     // the near-surface and all-degenerate cases, collapsing the CSLib_Class2d
     // and NCollection heap-allocation overhead for complex solids.
-    const BVH_Vec3d     bvhOrigin(p.x(), p.y(), p.z());
+    const BVH_Vec3d bvhOrigin(p.x(), p.y(), p.z());
     const Standard_Real bvhTol = static_cast<Standard_Real>(tolerance);
-    TriangleRayCast     caster;
+    TriangleRayCast caster;
     caster.SetBVHSet(fTriangleSet.get());
 
     // Primary ray: +Z
@@ -966,8 +962,8 @@ EInside G4OCCTSolid::Inside(const G4ThreeVector& p) const {
     }
 
     const BVH_Vec3d kExtraRays[2] = {
-      BVH_Vec3d(1.0, 0.0, 0.0),
-      BVH_Vec3d(0.0, 1.0, 0.0),
+        BVH_Vec3d(1.0, 0.0, 0.0),
+        BVH_Vec3d(0.0, 1.0, 0.0),
     };
     for (const BVH_Vec3d& dir : kExtraRays) {
       caster.SetRay(bvhOrigin, dir, bvhTol);
@@ -1080,9 +1076,9 @@ G4ThreeVector G4OCCTSolid::SurfaceNormal(const G4ThreeVector& p) const {
   // For planar solids every face's outward normal is constant and precomputed in
   // fFaceBoundsCache.  The closest face is identified by the minimum plane distance.
   if (fAllFacesPlanar) {
-    const gp_Pnt pt              = ToPoint(p);
-    const FaceBounds* bestFB     = nullptr;
-    G4double bestDist            = kInfinity;
+    const gp_Pnt pt          = ToPoint(p);
+    const FaceBounds* bestFB = nullptr;
+    G4double bestDist        = kInfinity;
     for (const FaceBounds& fb : fFaceBoundsCache) {
       if (!fb.plane.has_value() || !fb.outwardNormal.has_value()) {
         continue;
@@ -1509,7 +1505,7 @@ G4ThreeVector G4OCCTSolid::GetPointOnSurface() const {
     msg << "Tessellation of solid \"" << GetName()
         << "\" produced no valid triangles; cannot sample a point on the surface.";
     G4Exception("G4OCCTSolid::GetPointOnSurface", "GeomMgt1001", FatalException, msg);
-    return {0.0, 0.0, 0.0};  // unreachable; silences compiler warning
+    return {0.0, 0.0, 0.0}; // unreachable; silences compiler warning
   }
 
   // Select a triangle with probability proportional to its area using a

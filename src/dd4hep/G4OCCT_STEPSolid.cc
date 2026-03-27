@@ -46,10 +46,8 @@
 
 using namespace dd4hep;
 
-static Ref_t create_step_solid(Detector& description, xml_h e,
-                               SensitiveDetector /*sens*/)
-{
-  xml_det_t  x_det  = e;
+static Ref_t create_step_solid(Detector& description, xml_h e, SensitiveDetector /*sens*/) {
+  xml_det_t x_det   = e;
   xml_comp_t x_step = x_det.child(_Unicode(step_file));
   xml_comp_t x_pos  = x_det.child(_Unicode(position));
   xml_comp_t x_rot  = x_det.child(_Unicode(rotation));
@@ -61,8 +59,7 @@ static Ref_t create_step_solid(Detector& description, xml_h e,
   // ── Import STEP solid and tessellate (OCCT side, separate TU) ───────────
   G4OCCT_STEPSolidGeometry geom = G4OCCT_ImportSTEPSolid(name, path);
 
-  printout(INFO, "G4OCCT_STEPSolid",
-           "Imported '%s' from '%s'; %zu triangles in tessellated solid",
+  printout(INFO, "G4OCCT_STEPSolid", "Imported '%s' from '%s'; %zu triangles in tessellated solid",
            name.c_str(), path.c_str(), geom.triangles.size());
 
   // ── Build a TessellatedSolid for the TGeo/DD4hep representation ──────────
@@ -71,10 +68,9 @@ static Ref_t create_step_solid(Detector& description, xml_h e,
   // We pass the triangle count as a capacity hint, then add facets one by one.
   const std::size_t nTriangles = geom.triangles.size();
   if (nTriangles > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-    throw std::runtime_error(
-        "G4OCCT_STEPSolid: tessellation of '" + path + "' produced " +
-        std::to_string(nTriangles) +
-        " triangles, which exceeds TessellatedSolid's int capacity");
+    throw std::runtime_error("G4OCCT_STEPSolid: tessellation of '" + path + "' produced " +
+                             std::to_string(nTriangles) +
+                             " triangles, which exceeds TessellatedSolid's int capacity");
   }
   TessellatedSolid tess(name + "_tess", static_cast<int>(nTriangles));
   for (const auto& tri : geom.triangles) {
@@ -85,15 +81,14 @@ static Ref_t create_step_solid(Detector& description, xml_h e,
   tess.ptr()->CloseShape(/*check=*/true, /*fixFlipped=*/true, /*verbose=*/false);
 
   // ── DD4hep volume and placement ──────────────────────────────────────────
-  Material     mat = description.material(x_mat.attr<std::string>(_Unicode(name)));
-  Volume       vol(name + "_vol", tess, mat);
+  Material mat = description.material(x_mat.attr<std::string>(_Unicode(name)));
+  Volume vol(name + "_vol", tess, mat);
   vol.setVisAttributes(description, x_det.visStr());
 
   DetElement det(name, x_det.id());
-  Position   pos(x_pos.x(), x_pos.y(), x_pos.z());
+  Position pos(x_pos.x(), x_pos.y(), x_pos.z());
   RotationZYX rot(x_rot.z(), x_rot.y(), x_rot.x());
-  PlacedVolume pv =
-      description.pickMotherVolume(det).placeVolume(vol, Transform3D(rot, pos));
+  PlacedVolume pv = description.pickMotherVolume(det).placeVolume(vol, Transform3D(rot, pos));
   pv.addPhysVolID("system", x_det.id());
   det.setPlacement(pv);
   return det;

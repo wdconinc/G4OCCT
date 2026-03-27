@@ -438,27 +438,28 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
     std::vector<G4double> native_surface_dists(surface_rays.size());
     std::vector<G4double> imported_surface_dists(surface_rays.size());
     for (std::size_t i = 0; i < surface_rays.size(); ++i) {
-      native_surface_dists[i]   = native_solid->DistanceToIn(surface_rays[i].origin, surface_rays[i].direction);
-      imported_surface_dists[i] = imported_solid->DistanceToIn(surface_rays[i].origin, surface_rays[i].direction);
+      native_surface_dists[i] =
+          native_solid->DistanceToIn(surface_rays[i].origin, surface_rays[i].direction);
+      imported_surface_dists[i] =
+          imported_solid->DistanceToIn(surface_rays[i].origin, surface_rays[i].direction);
     }
 
     for (std::size_t i = 0; i < surface_rays.size(); ++i) {
-      const G4double nd = native_surface_dists[i];
-      const G4double id = imported_surface_dists[i];
+      const G4double nd       = native_surface_dists[i];
+      const G4double id       = imported_surface_dists[i];
       const bool native_hit   = !std::isinf(nd) && nd < kInfinity;
       const bool imported_hit = !std::isinf(id) && id < kInfinity;
 
       if (native_hit != imported_hit) {
         ++local_summary.mismatch_count;
         if (local_summary.mismatch_count <= options.max_reported_mismatches) {
-          report.AddError(
-              "fixture.surface_ray_intersection_mismatch",
-              "Surface ray " + std::to_string(i) + " hit mismatch for fixture '" +
-                  request.fixture.id + "': native=" + (native_hit ? "hit" : "miss") +
-                  ", imported=" + (imported_hit ? "hit" : "miss") +
-                  ", origin=" + ToString(surface_rays[i].origin) +
-                  ", direction=" + ToString(surface_rays[i].direction),
-              provenance_path);
+          report.AddError("fixture.surface_ray_intersection_mismatch",
+                          "Surface ray " + std::to_string(i) + " hit mismatch for fixture '" +
+                              request.fixture.id + "': native=" + (native_hit ? "hit" : "miss") +
+                              ", imported=" + (imported_hit ? "hit" : "miss") +
+                              ", origin=" + ToString(surface_rays[i].origin) +
+                              ", direction=" + ToString(surface_rays[i].direction),
+                          provenance_path);
         }
         continue;
       }
@@ -471,10 +472,9 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
         ++local_summary.mismatch_count;
         if (local_summary.mismatch_count <= options.max_reported_mismatches) {
           std::ostringstream message;
-          message << "Surface ray " << i << " distance mismatch for fixture '"
-                  << request.fixture.id << "': native=" << DistanceString(nd)
-                  << ", imported=" << DistanceString(id) << ", |delta|=" << delta
-                  << ", tolerance=" << local_summary.distance_tolerance
+          message << "Surface ray " << i << " distance mismatch for fixture '" << request.fixture.id
+                  << "': native=" << DistanceString(nd) << ", imported=" << DistanceString(id)
+                  << ", |delta|=" << delta << ", tolerance=" << local_summary.distance_tolerance
                   << ", origin=" << ToString(surface_rays[i].origin)
                   << ", direction=" << ToString(surface_rays[i].direction);
           report.AddError("fixture.surface_ray_distance_mismatch", message.str(), provenance_path);
@@ -559,8 +559,8 @@ ValidationReport CompareFixtureRays(const FixtureValidationRequest& request,
                    << " ms, imported=" << local_summary.imported_elapsed_ms
                    << " ms, mismatches=" << local_summary.mismatch_count
                    << ", normal_mismatches=" << local_summary.normal_mismatch_count
-                   << "; surface_rays=" << local_summary.surface_ray_count
-                   << "; SurfaceNormal(" << local_summary.surface_normal_count
+                   << "; surface_rays=" << local_summary.surface_ray_count << "; SurfaceNormal("
+                   << local_summary.surface_normal_count
                    << " points): native=" << local_summary.native_surface_normal_ms
                    << " ms, imported=" << local_summary.imported_surface_normal_ms
                    << " ms, mismatches=" << local_summary.surface_normal_mismatch_count;

@@ -23,15 +23,13 @@
 #include <stdexcept>
 #include <string>
 
-G4OCCT_STEPSolidGeometry G4OCCT_ImportSTEPSolid(const std::string& name,
-                                                  const std::string& path)
-{
+G4OCCT_STEPSolidGeometry G4OCCT_ImportSTEPSolid(const std::string& name, const std::string& path) {
   G4OCCTSolid* solid = nullptr;
   try {
     solid = G4OCCTSolid::FromSTEP(name, path);
   } catch (const std::exception& ex) {
-    throw std::runtime_error("G4OCCT_STEPSolid: failed to import '" + path +
-                             "' (" + ex.what() + ")");
+    throw std::runtime_error("G4OCCT_STEPSolid: failed to import '" + path + "' (" + ex.what() +
+                             ")");
   }
 
   // Copy the shape out before deleting the solid so we don't hold a reference
@@ -49,19 +47,16 @@ G4OCCT_STEPSolidGeometry G4OCCT_ImportSTEPSolid(const std::string& name,
 
   G4OCCT_STEPSolidGeometry result;
 
-  for (TopExp_Explorer explorer(shape, TopAbs_FACE);
-       explorer.More(); explorer.Next())
-  {
+  for (TopExp_Explorer explorer(shape, TopAbs_FACE); explorer.More(); explorer.Next()) {
     const TopoDS_Face& face = TopoDS::Face(explorer.Current());
-    TopLoc_Location    location;
-    const Handle(Poly_Triangulation)& tri =
-        BRep_Tool::Triangulation(face, location);
+    TopLoc_Location location;
+    const Handle(Poly_Triangulation) & tri = BRep_Tool::Triangulation(face, location);
     if (tri.IsNull() || tri->NbTriangles() == 0) {
       continue;
     }
 
-    const gp_Trsf& transform     = location.Transformation();
-    const bool     reverseWinding = (face.Orientation() == TopAbs_REVERSED);
+    const gp_Trsf& transform  = location.Transformation();
+    const bool reverseWinding = (face.Orientation() == TopAbs_REVERSED);
 
     for (Standard_Integer i = 1; i <= tri->NbTriangles(); ++i) {
       Standard_Integer n1, n2, n3;
@@ -83,8 +78,8 @@ G4OCCT_STEPSolidGeometry G4OCCT_ImportSTEPSolid(const std::string& name,
   }
 
   if (result.triangles.empty()) {
-    throw std::runtime_error(
-        "G4OCCT_STEPSolid: tessellation of '" + path + "' produced no triangles");
+    throw std::runtime_error("G4OCCT_STEPSolid: tessellation of '" + path +
+                             "' produced no triangles");
   }
   return result;
 }

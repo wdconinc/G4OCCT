@@ -8,9 +8,9 @@ cmake_minimum_required(VERSION 3.16)
 # ─── G4OCCTTestSupport ────────────────────────────────────────────────────────
 # OBJECT library linked by all GTest-based tests.  Contains a global-initializer
 # that registers a G4VExceptionHandler converting unexpected JustWarning
-# G4Exceptions from G4OCCT_ codes into Google Test failures.  Using OBJECT
-# (not STATIC) ensures the TU is never discarded by the linker, so the handler
-# is always installed regardless of link-time optimisation settings.
+# G4Exceptions from G4OCCT_ codes into Google Test failures.  Using OBJECT (not
+# STATIC) ensures the TU is never discarded by the linker, so the handler is
+# always installed regardless of link-time optimisation settings.
 add_library(G4OCCTTestSupport OBJECT g4occt_test_env.cc)
 target_include_directories(G4OCCTTestSupport PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(G4OCCTTestSupport PUBLIC G4OCCT GTest::gtest
@@ -224,9 +224,10 @@ if(G4_VIS_EXECUTIVE_HH)
         ${CMAKE_BINARY_DIR}/geometry_renders --manifest
         ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/geometry/manifest.yaml --fixture
         ${_qualified_id})
-    set_tests_properties("render_geometry_fixtures/${_qualified_id}"
-                         PROPERTIES RUN_SERIAL TRUE LABELS "visualization"
-                                    TIMEOUT ${_render_timeout})
+    set_tests_properties(
+      "render_geometry_fixtures/${_qualified_id}"
+      PROPERTIES RUN_SERIAL TRUE LABELS "visualization" TIMEOUT
+                 ${_render_timeout})
   endforeach()
   unset(_render_skip_families)
   unset(_render_family_manifests)
