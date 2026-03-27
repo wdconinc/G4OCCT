@@ -901,8 +901,10 @@ jobs:
 
             # ── Configure ──────────────────────────────────────────────────
             # Debug build: -O0 keeps line-level mappings accurate.
-            # USE_COVERAGE adds --coverage (= -fprofile-arcs -ftest-coverage)
-            # plus -fno-inline and -fno-omit-frame-pointer.
+            # USE_COVERAGE adds --coverage, -fno-inline, -fno-omit-frame-pointer
+            # and (when supported) -fprofile-abs-path via cmake/Coverage.cmake.
+            # Compiler-appropriate gcov/llvm-cov is detected at configure time,
+            # so no shell-side CMakeCache.txt parsing is required.
             cmake -S . -B build \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_TESTING=ON \
@@ -913,94 +915,35 @@ jobs:
             # ── Build ──────────────────────────────────────────────────────
             cmake --build build -- -j$(nproc)
 
-            # ── Test ───────────────────────────────────────────────────────
-            # Capture the exit code so that gcovr always runs (collecting
-            # coverage from any tests that did execute) while still failing
-            # the job if tests fail.
-            # DD4hep plugin tests (label "dd4hep") run in the dedicated
-            # dd4hep-plugin job; exclude them here.
-            set +e
-            ctest --test-dir build --output-on-failure -LE dd4hep -j$(nproc)
-            CTEST_EXIT=$?
-            set -e
-
-            # ── Generate coverage data ─────────────────────────────────────
-            # The eic_xl container file system is read-only; install gcovr into
-            # a virtual environment in the writable workspace directory.
+            # ── Test and generate coverage report ──────────────────────────
+            # Install gcovr into a venv in the writable workspace directory
+            # (the eic_xl container file system is read-only).  Prepend the
+            # venv to PATH so that the coverage-report CMake target can find
+            # gcovr at build time without any configure-time requirement.
+            #
+            # The coverage-report target (defined in cmake/Coverage.cmake via
+            # bilke/cmake-modules CodeCoverage) runs ctest and then gcovr,
+            # producing build/coverage-report/index.html and
+            # build/coverage-summary.json.
             python3 -m venv "${PWD}/.venv-gcovr"
             "${PWD}/.venv-gcovr/bin/pip" install --quiet gcovr
 
-            mkdir -p coverage reports
-
-            # Resolve the canonical (symlink-free) absolute path of the project
-            # root, used only for --root (controls display paths in the HTML
-            # report, not filtering).  Inside the Singularity container the CWD
-            # may be accessed through a bind-mount that does not preserve the
-            # host symlink chain, so the path cmake and GCC record in .gcno
-            # files may differ from what realpath(1) returns.  Anchoring
-            # --filter to an absolute prefix is therefore unreliable; instead
-            # use patterns that match on the project-relative path components
-            # alone (starting with / so gcovr treats them as absolute-path
-            # regexes, with .* absorbing whatever prefix the build system used).
-            ROOT=$(realpath .)
-
-            # Select the coverage-processing tool that matches the compiler.
-            # Read directly from the CMake cache file — avoids a SIGPIPE that
-            # would occur if cmake -LA -N is piped to awk with early exit.
-            CXX=$(grep '^CMAKE_CXX_COMPILER:FILEPATH=' build/CMakeCache.txt \
-                  | cut -d= -f2-)
-            CXX_ID=$(grep '^CMAKE_CXX_COMPILER_ID:STRING=' build/CMakeCache.txt \
-                     | cut -d= -f2-)
-            CXX_DIR=$(dirname "${CXX}")
-
-            if echo "${CXX_ID}" | grep -qi "clang"; then
-              # Clang generates gcov-compatible data but requires llvm-cov in
-              # gcov-emulation mode.  gcovr accepts a multi-word executable.
-              if [ -x "${CXX_DIR}/llvm-cov" ]; then
-                GCOV_EXECUTABLE="${CXX_DIR}/llvm-cov gcov"
-              else
-                GCOV_EXECUTABLE="llvm-cov gcov"
-              fi
-            else
-              # GCC: use the gcov binary from the same spack toolchain directory
-              # to avoid sub-version mismatches with /usr/bin/gcov-*.
-              if   [ -x "${CXX_DIR}/gcov" ];    then GCOV_EXECUTABLE="${CXX_DIR}/gcov"
-              elif [ -x "${CXX_DIR}/gcov-14" ]; then GCOV_EXECUTABLE="${CXX_DIR}/gcov-14"
-              elif [ -x "${CXX_DIR}/gcov-13" ]; then GCOV_EXECUTABLE="${CXX_DIR}/gcov-13"
-              else GCOV_EXECUTABLE=$(command -v gcov 2>/dev/null \
-                                  || command -v gcov-14 2>/dev/null \
-                                  || command -v gcov-13 2>/dev/null)
-              fi
-            fi
-            echo "Compiler: ${CXX} (${CXX_ID}), coverage tool: ${GCOV_EXECUTABLE}"
-
-            # Include only project library sources; exclude tests, benchmarks,
-            # examples, and any third-party headers caught by --coverage.
-            "${PWD}/.venv-gcovr/bin/gcovr" \
-              --root "${ROOT}" \
-              --gcov-executable "${GCOV_EXECUTABLE}" \
-              --filter '/.*/src/G4OCCT[^/]*' \
-              --filter '/.*/include/G4OCCT/.*' \
-              --html-details coverage/index.html \
-              --json-summary coverage-summary.json \
-              --print-summary \
-              build/
-
-            # Propagate test failures after coverage data has been collected.
-            exit $CTEST_EXIT
+            mkdir -p reports
+            PATH="${PWD}/.venv-gcovr/bin:${PATH}" \
+              cmake --build build --target coverage-report
 
       - name: Generate coverage Markdown report
         if: always()
         run: |
           mkdir -p reports
-          if [ -f coverage-summary.json ]; then
+          if [ -f build/coverage-summary.json ]; then
             python3 .github/scripts/generate_coverage_report.py \
-              coverage-summary.json reports/coverage.md
+              build/coverage-summary.json reports/coverage.md
           else
             {
               echo "## 📊 Coverage Report"
               echo ""
-              echo "Coverage summary unavailable — \`coverage-summary.json\` was not generated."
+              echo "Coverage summary unavailable — \`build/coverage-summary.json\` was not generated."
               echo "This typically means an earlier build, test, or coverage step failed before data could be collected."
             } > reports/coverage.md
           fi
@@ -1017,7 +960,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
-          path: coverage/
+          path: build/coverage-report/
           if-no-files-found: warn
           retention-days: 7
 
