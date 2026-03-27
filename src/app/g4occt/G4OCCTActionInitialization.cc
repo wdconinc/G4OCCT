@@ -2,9 +2,13 @@
 // Copyright (C) 2026 G4OCCT Contributors
 
 /// @file G4OCCTActionInitialization.cc
-/// @brief Minimal user action initialisation for the g4occt executable.
+/// @brief User action initialisation for the g4occt executable.
 
 #include "G4OCCTActionInitialization.hh"
+#include "G4OCCTEventAction.hh"
+#include "G4OCCTRunAction.hh"
+#include "G4OCCTSteppingAction.hh"
+#include "G4OCCTTrackingAction.hh"
 
 #include <G4ParticleGun.hh>
 #include <G4ParticleTable.hh>
@@ -33,6 +37,22 @@ private:
 
 } // namespace
 
+void G4OCCTActionInitialization::BuildForMaster() const {
+  SetUserAction(new G4OCCTRunAction(/*isMaster=*/true));
+}
+
 void G4OCCTActionInitialization::Build() const {
   SetUserAction(new DefaultPrimaryGeneratorAction);
+
+  auto* runAction = new G4OCCTRunAction(/*isMaster=*/false);
+  SetUserAction(runAction);
+
+  auto* eventAction = new G4OCCTEventAction(runAction);
+  SetUserAction(eventAction);
+
+  auto* trackingAction = new G4OCCTTrackingAction(eventAction, runAction);
+  SetUserAction(trackingAction);
+
+  SetUserAction(new G4OCCTSteppingAction(eventAction, trackingAction, runAction));
 }
+

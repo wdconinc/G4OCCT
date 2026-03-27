@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+
+# run_output.mac — batch macro that fires 10 events and produces CSV output.
+# Output files: g4occt_nt_steps.csv, g4occt_nt_tracks.csv, g4occt_nt_events.csv
+
+/run/initialize
+/run/beamOn 10

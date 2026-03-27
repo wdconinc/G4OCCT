@@ -10,18 +10,18 @@
 #include <G4VUserActionInitialization.hh>
 
 /**
- * @brief Minimal action initialisation for the @c g4occt interactive tool.
+ * @brief Action initialisation for the @c g4occt interactive tool.
  *
- * Installs a single-particle gun as the primary generator on each worker
- * thread.  No run, event, or stepping actions are registered by default;
- * the user controls simulation behaviour through Geant4 macro commands.
+ * Installs a 1 GeV proton gun, a run action (with CSV output), an event
+ * action, a tracking action, and a stepping action on each worker thread.
+ * The master run action owns the @c /G4OCCT/output/ messenger.
  */
 class G4OCCTActionInitialization : public G4VUserActionInitialization {
 public:
   G4OCCTActionInitialization()           = default;
   ~G4OCCTActionInitialization() override = default;
 
-  void BuildForMaster() const override {}
+  void BuildForMaster() const override;
   void Build() const override;
 };
 
