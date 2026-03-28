@@ -118,8 +118,24 @@ leak:G4OCCTSolid::GetOrInitSphereCache
 # ImportLabel() also places G4LogicalVolumes and G4VPhysicalVolumes into Geant4's
 # geometry stores (G4LogicalVolumeStore / G4PhysicalVolumeStore), which are
 # process-lifetime singletons; LSAN sees them as leaked even though Geant4 owns them.
+#
+# The G4OCCT-level suppressions below cover debug/non-inlined builds.  In
+# RelWithDebInfo (the sanitizer CI mode) clang inlines FromSTEP() and
+# ImportLabel() into their callers, so those names never appear in the LSAN
+# stack; instead we suppress at the OCCT allocator level:
+#
+#   NCollection_IncAllocator  — a non-releasing slab allocator; all memory it
+#     holds is intentionally freed only when the allocator itself is destroyed.
+#   Standard::Allocate        — OCCT's main heap allocator backed by reference-
+#     counted handles (opencascade::handle<T>).  Any allocation that escapes
+#     LSAN's snapshot is held by OCCT's XCAF document / application singletons.
+#   TCollection_ExtendedString::allocate — internal wide-string storage used by
+#     OCCT for label names and STEP entity strings; same lifetime as the document.
 leak:G4OCCTAssemblyVolume::FromSTEP
 leak:G4OCCTAssemblyVolume::ImportLabel
+leak:NCollection_IncAllocator::Allocate
+leak:Standard::Allocate
+leak:TCollection_ExtendedString::allocate
 
 # ── Test-fixture Geant4 geometry objects ──────────────────────────────────────
 # render_geometry_fixtures.cc::FixtureDetectorConstruction::Construct() allocates
