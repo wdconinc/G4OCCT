@@ -87,6 +87,8 @@ if(USE_TSAN)
   add_link_options(-fsanitize=thread)
 endif()
 
+# ─── Coverage ─────────────────────────────────────────────────────────────────
+
 # Code coverage (gcov/llvm-cov; incompatible with optimised builds)
 option(USE_COVERAGE
        "Compile with code coverage instrumentation (gcov/llvm-cov)" OFF)
