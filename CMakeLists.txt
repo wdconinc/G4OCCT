@@ -47,6 +47,56 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   endif()
 endif()
 
+# ─── Sanitizers ───────────────────────────────────────────────────────────────
+# These must be configured before any target definitions so that
+# add_compile_options / add_link_options apply to every target in this
+# directory (G4OCCT library, tests, benchmarks, apps).
+
+# Address sanitizer (also enables leak sanitizer via detect_leaks=1 at runtime)
+option(USE_ASAN "Compile with address sanitizer" OFF)
+if(USE_ASAN)
+  add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g -O1)
+  add_link_options(-fsanitize=address)
+endif()
+
+# Undefined behavior sanitizer
+option(USE_UBSAN "Compile with undefined behavior sanitizer" OFF)
+if(USE_UBSAN)
+  foreach(sanitizer undefined float-divide-by-zero unsigned-integer-overflow
+                    implicit-conversion local-bounds nullability)
+    check_cxx_compiler_flag("-fsanitize=${sanitizer}"
+                            CXX_COMPILER_HAS_sanitize_${sanitizer})
+    if(CXX_COMPILER_HAS_sanitize_${sanitizer})
+      add_compile_options(-fsanitize=${sanitizer})
+      add_link_options(-fsanitize=${sanitizer})
+    endif()
+  endforeach()
+  add_compile_options(-g -O1)
+endif()
+
+# Thread sanitizer (incompatible with address sanitizer and leak sanitizer)
+option(USE_TSAN "Compile with thread sanitizer" OFF)
+if(USE_TSAN)
+  if(USE_ASAN)
+    message(
+      FATAL_ERROR
+        "USE_TSAN is incompatible with USE_ASAN (and the leak sanitizer it implies). Enable only one sanitizer at a time."
+    )
+  endif()
+  add_compile_options(-fsanitize=thread -fno-omit-frame-pointer -g -O1)
+  add_link_options(-fsanitize=thread)
+endif()
+
+# Code coverage (gcov/llvm-cov; incompatible with optimised builds)
+option(USE_COVERAGE
+       "Compile with code coverage instrumentation (gcov/llvm-cov)" OFF)
+if(USE_COVERAGE)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    message(FATAL_ERROR "USE_COVERAGE requires a GCC or Clang compiler")
+  endif()
+  include(cmake/Coverage.cmake)
+endif()
+
 # ─── External dependencies ────────────────────────────────────────────────────
 
 find_package(Geant4 11.3 REQUIRED)
@@ -163,53 +213,6 @@ endif()
 
 if(BUILD_BENCHMARKS)
   add_subdirectory(src/benchmarks)
-endif()
-
-# ─── Sanitizers ───────────────────────────────────────────────────────────────
-
-# Address sanitizer (also enables leak sanitizer via detect_leaks=1 at runtime)
-option(USE_ASAN "Compile with address sanitizer" OFF)
-if(USE_ASAN)
-  add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g -O1)
-  add_link_options(-fsanitize=address)
-endif()
-
-# Undefined behavior sanitizer
-option(USE_UBSAN "Compile with undefined behavior sanitizer" OFF)
-if(USE_UBSAN)
-  foreach(sanitizer undefined float-divide-by-zero unsigned-integer-overflow
-                    implicit-conversion local-bounds nullability)
-    check_cxx_compiler_flag("-fsanitize=${sanitizer}"
-                            CXX_COMPILER_HAS_sanitize_${sanitizer})
-    if(CXX_COMPILER_HAS_sanitize_${sanitizer})
-      add_compile_options(-fsanitize=${sanitizer})
-      add_link_options(-fsanitize=${sanitizer})
-    endif()
-  endforeach()
-  add_compile_options(-g -O1)
-endif()
-
-# Code coverage (gcov/llvm-cov; incompatible with optimised builds)
-option(USE_COVERAGE
-       "Compile with code coverage instrumentation (gcov/llvm-cov)" OFF)
-if(USE_COVERAGE)
-  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    message(FATAL_ERROR "USE_COVERAGE requires a GCC or Clang compiler")
-  endif()
-  include(cmake/Coverage.cmake)
-endif()
-
-# Thread sanitizer (incompatible with address sanitizer and leak sanitizer)
-option(USE_TSAN "Compile with thread sanitizer" OFF)
-if(USE_TSAN)
-  if(USE_ASAN)
-    message(
-      FATAL_ERROR
-        "USE_TSAN is incompatible with USE_ASAN (and the leak sanitizer it implies). Enable only one sanitizer at a time."
-    )
-  endif()
-  add_compile_options(-fsanitize=thread -fno-omit-frame-pointer -g -O1)
-  add_link_options(-fsanitize=thread)
 endif()
 
 # ─── Examples ─────────────────────────────────────────────────────────────────
