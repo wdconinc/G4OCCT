@@ -193,15 +193,14 @@ TEST(MaterialMapReader, MissingFileTriggersXMLException) {
   // A non-existent path causes Xerces to throw XMLException, caught as
   // G4OCCT_MatReader001.
   G4OCCTMaterialMapReader reader;
-  EXPECT_DEATH(reader.ReadFile("/G4OCCT_does_not_exist_xyz_test_abc.xml"),
-               ".*G4Exception.*");
+  EXPECT_DEATH(reader.ReadFile("/G4OCCT_does_not_exist_xyz_test_abc.xml"), ".*G4Exception.*");
 }
 
 TEST(MaterialMapReader, WrongRootTagIsFatal) {
   // Root element is not <materials> → G4OCCT_MatReader005.
-  const std::string path =
-      WriteTempXML("test_mmr_wrong_root.xml",
-                   R"xml(<?xml version="1.0"?><root><material stepName="X" geant4Name="G4_Al"/></root>)xml");
+  const std::string path = WriteTempXML(
+      "test_mmr_wrong_root.xml",
+      R"xml(<?xml version="1.0"?><root><material stepName="X" geant4Name="G4_Al"/></root>)xml");
   G4OCCTMaterialMapReader reader;
   EXPECT_DEATH(reader.ReadFile(path), ".*G4Exception.*");
 }
@@ -221,7 +220,7 @@ TEST(MaterialMapReader, IsotopeAndElementBranchesAreTraversed) {
 </materials>
 )xml");
   G4OCCTMaterialMapReader reader;
-  G4OCCTMaterialMap       map;
+  G4OCCTMaterialMap map;
   ASSERT_NO_FATAL_FAILURE(map = reader.ReadFile(path));
   EXPECT_EQ(map.Size(), 1u);
   EXPECT_TRUE(map.Contains("IsoElemAlTest"));
@@ -231,7 +230,7 @@ TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
   // Pre-register a G4Material in the global table, then verify the reader
   // reuses it (the GetMaterial(gdmlName) reuse branch) instead of re-creating.
   const G4String matName = "G4OCCT_ReuseMat_TestUnique";
-  G4Material*    premat  = G4Material::GetMaterial(matName, /*warning=*/false);
+  G4Material* premat     = G4Material::GetMaterial(matName, /*warning=*/false);
   if (premat == nullptr) {
     premat = new G4Material(matName, 18.0, 39.948 * CLHEP::g / CLHEP::mole,
                             1.39 * CLHEP::g / CLHEP::cm3, kStateLiquid);
@@ -247,7 +246,7 @@ TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
 </materials>
 )xml");
   G4OCCTMaterialMapReader reader;
-  G4OCCTMaterialMap       map;
+  G4OCCTMaterialMap map;
   ASSERT_NO_FATAL_FAILURE(map = reader.ReadFile(path));
   ASSERT_TRUE(map.Contains("reuseStep"));
   // The resolved pointer must be the pre-registered material, not a new copy.
