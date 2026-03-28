@@ -73,12 +73,8 @@ endif()
 # --coverage (= -fprofile-arcs -ftest-coverage) is supported by both GCC and
 # Clang.  -fprofile-abs-path embeds absolute paths in .gcno/.gcda files for
 # accurate gcovr source mapping; supported by GCC ≥ 8 and Clang ≥ 7.
-add_compile_options(
-  -g
-  --coverage
-  -fno-inline
-  -fno-omit-frame-pointer
-  -fprofile-abs-path)
+add_compile_options(-g --coverage -fno-inline -fno-omit-frame-pointer
+                    -fprofile-abs-path)
 add_link_options(--coverage)
 
 # coverage-report target: runs ctest (excluding dd4hep plugin tests, which run
@@ -89,10 +85,10 @@ if(_nproc EQUAL 0)
   set(_nproc 1)
 endif()
 
-# The coverage-report custom target invokes a CMake -P script so that ctest
-# and gcovr are decoupled: ctest failure records its exit code but does not
-# stop the pipeline, gcovr always runs to generate HTML + JSON reports, and
-# any failure is propagated via FATAL_ERROR only after the report is complete.
+# The coverage-report custom target invokes a CMake -P script so that ctest and
+# gcovr are decoupled: ctest failure records its exit code but does not stop the
+# pipeline, gcovr always runs to generate HTML + JSON reports, and any failure
+# is propagated via FATAL_ERROR only after the report is complete.
 set(_coverage_runner "${CMAKE_BINARY_DIR}/coverage-runner.cmake")
 file(
   WRITE "${_coverage_runner}"
