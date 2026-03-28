@@ -16,23 +16,30 @@
 #include <G4VPhysicalVolume.hh>
 
 // OCCT BRep primitives
+#include <BRep_Builder.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
+#include <TopoDS_Compound.hxx>
 #include <TopoDS_Shape.hxx>
 
-// OCCT XDE
+// OCCT STEP / XDE
 #include <IFSelect_ReturnStatus.hxx>
 #include <STEPCAFControl_Writer.hxx>
 #include <TCollection_HAsciiString.hxx>
 #include <TDataStd_Name.hxx>
 #include <TDF_Label.hxx>
+#include <TDF_LabelSequence.hxx>
 #include <TDocStd_Application.hxx>
 #include <TDocStd_Document.hxx>
+#include <TopLoc_Location.hxx>
 #include <XCAFDoc_DocumentTool.hxx>
 #include <XCAFDoc_MaterialTool.hxx>
 #include <XCAFDoc_ShapeTool.hxx>
+#include <gp_Trsf.hxx>
+#include <gp_Vec.hxx>
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <stdexcept>
@@ -80,6 +87,60 @@ std::string BuildSingleBoxSTEP(const std::string& tmpPath, const std::string& pa
   if (writer.Write(tmpPath.c_str()) != IFSelect_RetDone) {
     throw std::runtime_error("BuildSingleBoxSTEP: Write failed to " + tmpPath);
   }
+  return tmpPath;
+}
+
+/// Build an XDE document with a top-level assembly containing two instances of
+/// the same 10×10×10 mm box.  The first instance has an identity placement;
+/// the second is translated by @p txX mm along X.  Exporting and reimporting
+/// this document exercises the LocationToTrsf code path.
+std::string BuildTwoBoxAssemblySTEP(const std::string& tmpPath, double txX) {
+  Handle(TDocStd_Application) app = new TDocStd_Application;
+  Handle(TDocStd_Document) doc;
+  app->NewDocument("MDTV-CAF", doc);
+
+  Handle(XCAFDoc_ShapeTool) shapeTool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+
+  // Box prototype: both instances share the same TShape geometry.
+  TopoDS_Shape protoBox = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+
+  // Build a compound that contains two instances of the same box at different
+  // positions.  Using the same TShape pointer for both sub-shapes enables
+  // XDE's shape-sharing detection: AddShape(compound, makeAssembly=true)
+  // creates one prototype label and two reference labels, the second of which
+  // carries an XCAFDoc_Location with the requested translation.
+  BRep_Builder brepBuilder;
+  TopoDS_Compound compound;
+  brepBuilder.MakeCompound(compound);
+  brepBuilder.Add(compound, protoBox); // identity placement
+
+  gp_Trsf trsf;
+  trsf.SetTranslation(gp_Vec(txX, 0.0, 0.0));
+  brepBuilder.Add(compound, protoBox.Located(TopLoc_Location(trsf))); // translated
+
+  // Create an XDE assembly from the compound.  makeAssembly=true causes OCCT
+  // to decompose the compound into reference labels, one per sub-shape, each
+  // carrying its sub-shape's location as an XCAFDoc_Location attribute.
+  TDF_Label asmLabel = shapeTool->AddShape(compound, /*makeAssembly=*/Standard_True);
+  TDataStd_Name::Set(asmLabel, "TwoBoxAssembly");
+
+  // Assign names to the referred prototype label(s) so that the material-map
+  // lookup in ImportLabel can resolve them.
+  TDF_LabelSequence components;
+  shapeTool->GetComponents(asmLabel, components, /*recursive=*/Standard_False);
+  for (Standard_Integer i = 1; i <= components.Length(); ++i) {
+    TDF_Label referred;
+    if (shapeTool->GetReferredShape(components.Value(i), referred)) {
+      TDataStd_Name::Set(referred, "BoxPart");
+    }
+  }
+
+  STEPCAFControl_Writer writer;
+  writer.SetNameMode(Standard_True);
+  if (writer.Transfer(doc) != Standard_True)
+    throw std::runtime_error("BuildTwoBoxAssemblySTEP: Transfer failed");
+  if (writer.Write(tmpPath.c_str()) != IFSelect_RetDone)
+    throw std::runtime_error("BuildTwoBoxAssemblySTEP: Write failed to " + tmpPath);
   return tmpPath;
 }
 
@@ -188,6 +249,109 @@ TEST(AssemblyVolume, MaterialPreservedAfterMakeImprint) {
   ASSERT_EQ(worldLV->GetNoDaughters(), 1);
   const G4VPhysicalVolume* daughter = worldLV->GetDaughter(0);
   EXPECT_EQ(daughter->GetLogicalVolume()->GetMaterial(), pb);
+
+  std::remove(tmpPath.c_str());
+  delete assembly;
+}
+
+// ── New tests: multi-shape assembly and LocationToTrsf coverage ───────────────
+
+TEST(AssemblyVolume, FromSTEPTripleBox) {
+  // Load the triple-box-v1 fixture which contains three free-shape boxes all
+  // named "Component".  Verifies that FromSTEP handles multi-shape STEP files
+  // and that three logical volumes are created with deduplicated names.
+  const std::filesystem::path fixtureDir =
+      std::filesystem::path(__FILE__).parent_path() / "fixtures";
+  const std::string stepPath =
+      (fixtureDir / "assembly-comparison/triple-box-v1/shape.step").string();
+
+  ASSERT_TRUE(std::filesystem::exists(stepPath)) << "Fixture not found: " << stepPath;
+
+  G4Material* al = G4NistManager::Instance()->FindOrBuildMaterial("G4_Al");
+  ASSERT_NE(al, nullptr);
+
+  // All three parts share the name "Component"; the material map key matches.
+  G4OCCTMaterialMap matMap;
+  matMap.Add("Component", al);
+
+  G4OCCTAssemblyVolume* assembly = nullptr;
+  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(stepPath, matMap); });
+  ASSERT_NE(assembly, nullptr);
+
+  // Three separate shape labels => three logical volumes with deduplicated names
+  // ("Component", "Component_1", "Component_2").
+  EXPECT_EQ(assembly->GetLogicalVolumes().size(), 3u);
+  EXPECT_EQ(assembly->GetLogicalVolumes().count("Component"), 1u);
+  EXPECT_EQ(assembly->GetLogicalVolumes().count("Component_1"), 1u);
+  EXPECT_EQ(assembly->GetLogicalVolumes().count("Component_2"), 1u);
+
+  delete assembly;
+}
+
+TEST(AssemblyVolume, AssemblyWithTranslation) {
+  // Build an XDE assembly whose second component is translated by 50 mm along X.
+  // When the STEP is reimported, ImportLabel extracts the XCAFDoc_Location from
+  // the reference label and calls LocationToTrsf, exercising that code path.
+  // After MakeImprint the two daughter physical volumes must differ in X by
+  // exactly kTranslationX.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_translation.step").string();
+  constexpr double kTranslationX = 50.0; // mm
+  BuildTwoBoxAssemblySTEP(tmpPath, kTranslationX);
+
+  G4Material* al = G4NistManager::Instance()->FindOrBuildMaterial("G4_Al");
+  ASSERT_NE(al, nullptr);
+
+  G4OCCTMaterialMap matMap;
+  matMap.Add("BoxPart", al);
+
+  G4OCCTAssemblyVolume* assembly = nullptr;
+  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });
+  ASSERT_NE(assembly, nullptr);
+
+  // Both components reference the same prototype => only 1 logical volume.
+  EXPECT_EQ(assembly->GetLogicalVolumes().size(), 1u);
+
+  // Imprint into a large world volume and check the two daughter placements.
+  auto* worldBox  = new G4Box("TranslationTestWorld", 500.0, 500.0, 500.0);
+  G4Material* air = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
+  auto* worldLV   = new G4LogicalVolume(worldBox, air, "TranslationTestWorldLV");
+  G4ThreeVector pos;
+  G4RotationMatrix rot;
+  assembly->MakeImprint(worldLV, pos, &rot);
+
+  ASSERT_EQ(worldLV->GetNoDaughters(), 2);
+  double x0 = worldLV->GetDaughter(0)->GetTranslation().x();
+  double x1 = worldLV->GetDaughter(1)->GetTranslation().x();
+  // The two placements must differ in X by kTranslationX regardless of any
+  // recentering offset that is absorbed identically into both translations.
+  EXPECT_NEAR(std::abs(x1 - x0), kTranslationX, 1e-6);
+
+  std::remove(tmpPath.c_str());
+  delete assembly;
+}
+
+TEST(AssemblyVolume, GetLogicalVolumesCompleteness) {
+  // Verify GetLogicalVolumes() returns exactly one entry keyed by the part name
+  // for a single-shape STEP file, with the correct material pointer.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_lv_complete.step").string();
+  BuildSingleBoxSTEP(tmpPath, "WidgetPart", "Iron material", 15.0, 20.0, 25.0);
+
+  G4Material* fe = G4NistManager::Instance()->FindOrBuildMaterial("G4_Fe");
+  ASSERT_NE(fe, nullptr);
+
+  G4OCCTMaterialMap matMap;
+  matMap.Add("WidgetPart", fe);
+
+  G4OCCTAssemblyVolume* assembly = nullptr;
+  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });
+  ASSERT_NE(assembly, nullptr);
+
+  const auto& lvMap = assembly->GetLogicalVolumes();
+  EXPECT_EQ(lvMap.size(), 1u);
+  ASSERT_EQ(lvMap.count("WidgetPart"), 1u);
+  EXPECT_EQ(lvMap.at("WidgetPart")->GetMaterial(), fe);
 
   std::remove(tmpPath.c_str());
   delete assembly;
