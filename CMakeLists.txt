@@ -94,7 +94,8 @@ option(USE_COVERAGE
        "Compile with code coverage instrumentation (gcov/llvm-cov)" OFF)
 if(USE_COVERAGE)
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-    message(FATAL_ERROR "USE_COVERAGE requires a GCC, Clang, or AppleClang compiler")
+    message(
+      FATAL_ERROR "USE_COVERAGE requires a GCC, Clang, or AppleClang compiler")
   endif()
   include(cmake/Coverage.cmake)
 endif()
