@@ -75,3 +75,35 @@ TEST(MaterialMap, MultipleMaterials) {
   EXPECT_EQ(matMap.Resolve("Air"), air);
   EXPECT_EQ(matMap.Size(), 3u);
 }
+
+TEST(MaterialMap, AddNullMaterialThrows) {
+  G4OCCTMaterialMap matMap;
+  EXPECT_DEATH(matMap.Add("MyMat", nullptr), ".*G4Exception.*");
+}
+
+TEST(MaterialMap, ResolveUnregisteredNameThrows) {
+  G4OCCTMaterialMap matMap;
+  EXPECT_DEATH(matMap.Resolve("not_in_map"), ".*G4Exception.*");
+}
+
+TEST(MaterialMap, MergeCombinesTwoMaps) {
+  G4Material* al = G4NistManager::Instance()->FindOrBuildMaterial("G4_Al");
+  G4Material* cu = G4NistManager::Instance()->FindOrBuildMaterial("G4_Cu");
+  G4Material* fe = G4NistManager::Instance()->FindOrBuildMaterial("G4_Fe");
+  ASSERT_NE(al, nullptr);
+  ASSERT_NE(cu, nullptr);
+  ASSERT_NE(fe, nullptr);
+
+  G4OCCTMaterialMap mapA;
+  mapA.Add("Al", al);
+  mapA.Add("Cu", cu);
+
+  G4OCCTMaterialMap mapB;
+  mapB.Add("Fe", fe);
+  mapB.Merge(mapA);
+
+  EXPECT_EQ(mapB.Size(), 3u);
+  EXPECT_EQ(mapB.Resolve("Al"), al);
+  EXPECT_EQ(mapB.Resolve("Cu"), cu);
+  EXPECT_EQ(mapB.Resolve("Fe"), fe);
+}

@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <memory>
 
 namespace {
 
@@ -83,6 +84,34 @@ TEST(SurfaceNormal, Cylinder) {
   ExpectUnitNormal("cylinder bottom normal is unit length", bottomNormal);
 }
 
+// ── Sphere-pole degenerate-normal retry loop ──────────────────────────────────
+// At the poles of a sphere (V = ±π/2 in OCCT parametrisation) the partial
+// derivative dP/dU vanishes, so BRepLProp_SLProps::IsNormalDefined() returns
+// false.  TryGetOutwardNormal first nudges U and V away from parametric
+// boundaries; if IsNormalDefined() still fails it retries with exponentially
+// larger V nudges (up to 8 attempts) walking toward the V midpoint.
+// These tests exercise that retry loop and verify the correct outward normal
+// is returned at both poles.
+
+TEST(SurfaceNormal, SpherePoleNorth) {
+  // North pole at (0, 0, r): V = +π/2, dP/dU → 0. Initial nudge alone may not
+  // satisfy OCCT's null-derivative threshold; retry loop is exercised.
+  const SphereFixture sphere("SpherePoleNorth", 50.0 * mm);
+  const G4ThreeVector northPole(0.0, 0.0, 50.0 * mm);
+  const G4ThreeVector normal = sphere.solid.SurfaceNormal(northPole);
+  EXPECT_NEAR(normal.z(), 1.0, 0.01) << "north-pole normal must point in +z";
+  EXPECT_NEAR(normal.mag(), 1.0, 1.0e-6) << "north-pole normal must be unit length";
+}
+
+TEST(SurfaceNormal, SphereSouthPole) {
+  // South pole at (0, 0, -r): V = -π/2, same degenerate condition.
+  const SphereFixture sphere("SphereSouthPole", 50.0 * mm);
+  const G4ThreeVector southPole(0.0, 0.0, -50.0 * mm);
+  const G4ThreeVector normal = sphere.solid.SurfaceNormal(southPole);
+  EXPECT_NEAR(normal.z(), -1.0, 0.01) << "south-pole normal must point in -z";
+  EXPECT_NEAR(normal.mag(), 1.0, 1.0e-6) << "south-pole normal must be unit length";
+}
+
 TEST(SurfaceNormal, BVHPruningStrictComparisonRegression) {
   // Regression for the strict (>) AABB pruning comparison in TryFindClosestFace.
   //
@@ -112,6 +141,22 @@ TEST(SurfaceNormal, BVHPruningStrictComparisonRegression) {
   const G4ThreeVector outsidePoint(cyl.radius + delta, 0.0, 0.0);
   ExpectSurfaceNormal("cylinder barrel outward normal from outside point (BVH pruning regression)",
                       cyl.solid, outsidePoint, G4ThreeVector(1.0, 0.0, 0.0), 1e-4 * mm);
+}
+
+// ── Curved-surface STEP fixture test ──────────────────────────────────────────
+
+TEST(SurfaceNormal, EllipsoidPoleSTEP) {
+  // G4Ellipsoid: semi-axes pX=15 mm, pY=10 mm, pZ=20 mm (no z cuts).
+  // The top pole is at (0, 0, 20): the outward normal must point in +Z.
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
+      "EllipsoidSTEP",
+      "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/profile-faceted/"
+      "G4Ellipsoid/ellipsoid-15x10x20-v1/shape.step"));
+
+  const G4ThreeVector pole(0.0, 0.0, 20.0 * mm);
+  const G4ThreeVector n = solid->SurfaceNormal(pole);
+  ExpectNear("ellipsoid top pole normal is unit length", n.mag(), 1.0, 1e-6);
+  ExpectNear("ellipsoid top pole normal points in +Z", n.z(), 1.0, 1e-3);
 }
 
 } // namespace

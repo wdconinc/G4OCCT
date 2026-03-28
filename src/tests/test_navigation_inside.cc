@@ -5,6 +5,8 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 namespace {
 
 using g4occt::tests::navigation::BoxFixture;
@@ -209,6 +211,81 @@ TEST(InsideClassification, RayParityDegenerateRayEdgeAndVertex) {
   // Interior and exterior points must not be affected by the fallback.
   ExpectInside("box centre is kInside", box.solid, G4ThreeVector(0.0, 0.0, 0.0), kInside);
   ExpectInside("point beyond +x face is kOutside", box.solid, G4ThreeVector(15.0 * mm, 0.0, 0.0),
+               kOutside);
+}
+
+// ── BVH TriangleRayCast investigation ─────────────────────────────────────────
+//
+// A. RejectNode slab-swap branch (if (t1 > t2) std::swap(t1, t2))
+//    This branch fires when a ray direction component is negative (t1 > t2
+//    means ck_min/dk > ck_max/dk, which requires dk < 0).  The three ray
+//    directions used by Inside() are always +Z (primary), +X, and +Y — all
+//    components are non-negative, so dk is never negative.  The swap branch
+//    is therefore structurally unreachable with the current fixed positive ray
+//    directions and cannot be triggered via the public API.
+//
+// B. TriangleRayCast::Accept myOnSurface path
+//    myOnSurface is set to true when |t| <= myTolerance, i.e. the ray origin
+//    lies on a tessellation triangle.  However, the BVH path is only entered
+//    when BVHLowerBoundDistance(p) >= tolerance (points provably away from the
+//    mesh surface).  Points on a tessellation triangle have BVHLowerBoundDistance
+//    ≈ 0, so the guard condition redirects them to the OCCT exact classifier
+//    before any BVH traversal occurs.  The myOnSurface path in the BVH cast is
+//    therefore not reachable for geometric surface points through the current
+//    Inside() implementation; no additional test is added.
+
+// ── Curved-surface STEP fixture tests ─────────────────────────────────────────
+// These tests load real STEP files generated from Geant4 primitive shapes and
+// exercise Inside() on curved/boolean geometries to cover branches that the
+// analytic-primitive fixtures (Box, Sphere, Cylinder) leave untouched.
+
+TEST(InsideClassification, TorusSTEP) {
+  // G4Torus: swept radius 20 mm, tube radius 5 mm.
+  // Tube centre circle lies in the XY plane at distance 20 mm from the Z axis.
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
+      "TorusSTEP",
+      "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/direct-primitives/"
+      "G4Torus/torus-rtor20-rmax5-v1/shape.step"));
+
+  // Centre of the tube cross-section at (20, 0, 0): inside the torus material.
+  ExpectInside("torus tube centre is inside", *solid, G4ThreeVector(20.0 * mm, 0.0, 0.0), kInside);
+  // Origin — inside the central hole: outside the solid.
+  ExpectInside("torus hole origin is outside", *solid, G4ThreeVector(0.0, 0.0, 0.0), kOutside);
+  // Far exterior along X.
+  ExpectInside("torus far exterior is outside", *solid, G4ThreeVector(100.0 * mm, 0.0, 0.0),
+               kOutside);
+}
+
+TEST(InsideClassification, ConeSTEP) {
+  // G4Cons: solid cone, outer radius 8 mm at z=−12, outer radius 3 mm at z=+12.
+  // Centred at the origin (translated during generation).
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
+      "ConeSTEP",
+      "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/direct-primitives/"
+      "G4Cons/cons-r8-r3-z24-v1/shape.step"));
+
+  // Axis centre (0, 0, 0): inside the solid cone.
+  ExpectInside("cone axis centre is inside", *solid, G4ThreeVector(0.0, 0.0, 0.0), kInside);
+  // Far exterior.
+  ExpectInside("cone far exterior is outside", *solid, G4ThreeVector(100.0 * mm, 0.0, 0.0),
+               kOutside);
+}
+
+TEST(InsideClassification, BooleanUnionSTEP) {
+  // G4UnionSolid: two overlapping 20×20×20 mm boxes fused into one body.
+  // After translation, the union spans X ∈ [−10, 20] mm, Y/Z ∈ [−10, 10] mm.
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
+      "BooleanUnionSTEP",
+      "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/boolean-compound/"
+      "G4UnionSolid/box-overlap-x10-v1/shape.step"));
+
+  // Inside the first box region.
+  ExpectInside("union first box centre is inside", *solid, G4ThreeVector(0.0, 0.0, 0.0), kInside);
+  // Inside the second box region (past the overlap).
+  ExpectInside("union second box region is inside", *solid, G4ThreeVector(8.0 * mm, 0.0, 0.0),
+               kInside);
+  // Well outside the union.
+  ExpectInside("union far exterior is outside", *solid, G4ThreeVector(50.0 * mm, 0.0, 0.0),
                kOutside);
 }
 

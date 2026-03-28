@@ -36,6 +36,43 @@ TEST(CalculateExtent, RotatedAndTranslatedExtent) {
              kExtentTolerance);
 }
 
+TEST(CalculateExtent, YAxisExtent) {
+  const BoxFixture box("CalculateExtentTransformBoxY", 10.0 * mm, 20.0 * mm, 30.0 * mm);
+
+  G4RotationMatrix rotation;
+  rotation.rotateZ(90.0 * deg);
+  const G4AffineTransform transform(rotation, G4ThreeVector(5.0 * mm, -7.0 * mm, 11.0 * mm));
+
+  G4double min            = 0.0;
+  G4double max            = 0.0;
+  const G4bool intersects = box.solid.CalculateExtent(kYAxis, G4VoxelLimits(), transform, min, max);
+
+  ExpectTrue("rotated box y-extent intersects world limits", intersects);
+  // 90° Z rotation maps the original X half-length (10 mm) onto the Y axis;
+  // centre is at y = -7 mm after translation.
+  ExpectNear("rotated box y-min follows transformed x half-length", min, -17.0 * mm,
+             kExtentTolerance);
+  ExpectNear("rotated box y-max follows transformed x half-length", max, 3.0 * mm,
+             kExtentTolerance);
+}
+
+TEST(CalculateExtent, ZAxisExtent) {
+  const BoxFixture box("CalculateExtentTransformBoxZ", 10.0 * mm, 20.0 * mm, 30.0 * mm);
+
+  G4RotationMatrix rotation;
+  rotation.rotateZ(90.0 * deg);
+  const G4AffineTransform transform(rotation, G4ThreeVector(5.0 * mm, -7.0 * mm, 11.0 * mm));
+
+  G4double min            = 0.0;
+  G4double max            = 0.0;
+  const G4bool intersects = box.solid.CalculateExtent(kZAxis, G4VoxelLimits(), transform, min, max);
+
+  ExpectTrue("rotated box z-extent intersects world limits", intersects);
+  // A Z rotation leaves the Z axis unchanged; centre is at z = 11 mm after translation.
+  ExpectNear("rotated box z-min follows z half-length", min, -19.0 * mm, kExtentTolerance);
+  ExpectNear("rotated box z-max follows z half-length", max, 41.0 * mm, kExtentTolerance);
+}
+
 TEST(CalculateExtent, ExtentClipping) {
   const BoxFixture box("CalculateExtentClippedBox", 10.0 * mm, 20.0 * mm, 30.0 * mm);
 
