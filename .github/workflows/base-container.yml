@@ -23,11 +23,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up Spack
-        uses: spack/setup-spack@v3
-        with:
-          spack_ref: releases/v1.1
-          buildcache: false
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -36,7 +33,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute spack environment hash
+        id: spack-hash
+        run: |
+          echo "tag=spack-$(sha256sum .github/spack.yaml | cut -c1-8)" >> "$GITHUB_OUTPUT"
+
+      - name: Check GHCR for cached base image
+        id: cache
+        run: |
+          if docker manifest inspect ghcr.io/eic/g4occt:${{ steps.spack-hash.outputs.tag }} \
+              > /dev/null 2>&1; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Spack
+        if: steps.cache.outputs.hit != 'true'
+        uses: spack/setup-spack@v3
+        with:
+          spack_ref: releases/v1.1
+          buildcache: false
+
       - name: Install spack environment from EIC buildcache
+        if: steps.cache.outputs.hit != 'true'
         env:
           GITHUB_USER: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,12 +65,19 @@ jobs:
         run: spack -e .github install
 
       - name: Push base layer image to GHCR
+        if: steps.cache.outputs.hit != 'true'
         env:
           GITHUB_USER: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           spack -e .github buildcache push \
             --base-image ubuntu:22.04 \
-            --tag base \
+            --tag ${{ steps.spack-hash.outputs.tag }} \
             --update-index \
             oci://ghcr.io/eic/g4occt
+
+      - name: Tag base image as :base in GHCR
+        run: |
+          docker buildx imagetools create \
+            --tag ghcr.io/eic/g4occt:base \
+            ghcr.io/eic/g4occt:${{ steps.spack-hash.outputs.tag }}

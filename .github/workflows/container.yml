@@ -54,3 +54,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: BASE_IMAGE=ghcr.io/eic/g4occt:base
+          cache-from: type=registry,ref=ghcr.io/eic/g4occt:buildcache
+          cache-to: type=registry,ref=ghcr.io/eic/g4occt:buildcache,mode=max
