@@ -72,9 +72,14 @@ endif()
 # ── Coverage compiler and linker flags ───────────────────────────────────────
 # --coverage (= -fprofile-arcs -ftest-coverage) is supported by both GCC and
 # Clang.  -fprofile-abs-path embeds absolute paths in .gcno/.gcda files for
-# accurate gcovr source mapping; supported by GCC ≥ 8 and Clang ≥ 7.
-add_compile_options(-g --coverage -fno-inline -fno-omit-frame-pointer
-                    -fprofile-abs-path)
+# accurate gcovr source mapping; it is a GCC-only flag (GCC ≥ 9) and is not
+# supported by Clang.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-g --coverage -fno-inline -fno-omit-frame-pointer)
+else()
+  add_compile_options(-g --coverage -fno-inline -fno-omit-frame-pointer
+                      -fprofile-abs-path)
+endif()
 add_link_options(--coverage)
 
 # coverage-report target: runs ctest (excluding dd4hep plugin tests, which run
