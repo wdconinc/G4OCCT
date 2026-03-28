@@ -78,4 +78,5 @@ pip install pre-commit && pre-commit install
 - `.clang-tidy`: `bugprone-*`, `modernize-*`, `readability-*`
 - `.codespellrc` / `.codespell-ignore`: spell checking
 - `.github/cmake-lint.py`: cmake-lint settings
+- `.markdownlint.jsonc`: markdownlint config (always pass `--config .markdownlint.jsonc --fix`)
 - Run all hooks: `pre-commit run --all-files`

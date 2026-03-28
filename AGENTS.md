@@ -221,6 +221,20 @@ Do not lower these version floors without an explicit project decision.
 - **GDML files** (`.gdml`) are XML and can carry SPDX headers in an XML
   comment.  Do **not** add `.gdml` files to the `ignore-paths` list in
   `.github/workflows/spdx.yml`.
+- **CTest `add_test()` commands** must specify the test executable via the
+  generator expression `$<TARGET_FILE:<target>>`, not by the bare target name.
+  The bare name is not guaranteed to be on PATH (it varies across generators
+  and multi-config builds).  Also set `WORKING_DIRECTORY` to the binary
+  directory so that macro files and fixture paths resolve correctly (PRs #314,
+  #320):
+
+  ```cmake
+  add_test(NAME my_test
+           COMMAND $<TARGET_FILE:my_executable> -m ${CMAKE_CURRENT_BINARY_DIR}/init.mac)
+  set_tests_properties(my_test PROPERTIES
+    TIMEOUT 120
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  ```
 
 ---
 
@@ -253,6 +267,13 @@ Do not lower these version floors without an explicit project decision.
   `find_package` first; use FetchContent as a fallback with a cache key so CI
   doesn't re-download on every run.  Use `actions/cache` to cache the
   FetchContent download directory between runs.
+- **FetchContent `actions/cache` scope:** Cache only the downloaded source
+  directories (e.g., `_fetchcontent/*-src` or the download subdirectory), not
+  the entire `_fetchcontent/` tree.  FetchContent build artefacts are compiled
+  with job-specific flags (Release, ASAN, TSAN, coverage); sharing them across
+  jobs via the cache causes cross-contamination and stale instrumentation.
+  Use a job-specific cache key that includes the build mode whenever
+  dependency build output is cached (PR #201).
 - **CI job (`ci.yml`):** Three main jobs:
   1. `build-test-benchmark` — builds with `-DCMAKE_BUILD_TYPE=Release
      -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`, runs tests, and installs.
@@ -276,8 +297,8 @@ Do not lower these version floors without an explicit project decision.
   and `TSAN_OPTIONS` unconditionally in the job-level `env:` block — do **not**
   put them in the workflow's top-level `env:` or in the `build-test-benchmark`
   job. Inactive sanitizers ignore the unrelated env vars.
-- Suppression files live in `.github/asan.supp`, `.github/lsan.supp`, and
-  `.github/ubsan.supp`.
+- Suppression files live in `.github/asan.supp`, `.github/lsan.supp`,
+  `.github/ubsan.supp`, and `.github/tsan.supp`.
 - **Do not split** tests and benchmarks into separate jobs.
 - **Docs workflow (`docs.yml`):** Builds Doxygen API docs and deploys the
   `docs/` directory (including generated `docs/api/`) to GitHub Pages.
@@ -489,6 +510,7 @@ The active hooks are:
 | `forbid-tabs` / `remove-tabs` | Replaces tabs with spaces |
 | `cmake-format` | Auto-formats `CMakeLists.txt` files |
 | `cmake-lint` | Lints `CMakeLists.txt` (config: `.github/cmake-lint.py`) |
+| `markdownlint` | Lints Markdown files (config: `.markdownlint.jsonc`); run with `--fix` |
 
 **Configuration files:**
 
@@ -499,6 +521,10 @@ The active hooks are:
 - `.codespellrc` — Codespell skip patterns; custom ignore list in
   `.codespell-ignore`.
 - `.github/cmake-lint.py` — cmake-lint settings.
+- `.markdownlint.jsonc` — markdownlint rule configuration.  The hook must
+  always pass both `--config .markdownlint.jsonc` **and** `--fix` (PRs #319,
+  #321).  Do **not** add markdownlint without an explicit config; the default
+  rule set can produce large, unexpected failure sets.
 
 **Codespell notes:**
 
