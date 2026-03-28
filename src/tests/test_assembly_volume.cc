@@ -265,9 +265,7 @@ TEST(AssemblyVolume, FromSTEPTripleBox) {
   const std::string stepPath =
       (fixtureDir / "assembly-comparison/triple-box-v1/shape.step").string();
 
-  if (!std::filesystem::exists(stepPath)) {
-    GTEST_SKIP() << "Fixture not found: " << stepPath;
-  }
+  ASSERT_TRUE(std::filesystem::exists(stepPath)) << "Fixture not found: " << stepPath;
 
   G4Material* al = G4NistManager::Instance()->FindOrBuildMaterial("G4_Al");
   ASSERT_NE(al, nullptr);
