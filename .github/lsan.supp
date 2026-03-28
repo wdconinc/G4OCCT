@@ -53,6 +53,30 @@ leak:G4HepRepFileXMLWriter::init
 leak:G4UIcommand::G4UIcommandCommonConstructorCode
 leak:G4UIcommand::G4UIcommand
 
+# RayTracer viewer: allocates a G4OutBitStream pixel buffer and the viewer
+# object itself that are never freed (viewer lifetime == scene handler lifetime,
+# which Geant4 never explicitly destroys in end-of-run cleanup).
+leak:G4RayTracerViewer::G4RayTracerViewer
+leak:G4OutBitStream::G4OutBitStream
+leak:G4RayTracerSceneHandler::G4RayTracerSceneHandler
+
+# G4PhysicalVolumeModel scene-tree attributes: CreateCurrentAttValues() and the
+# G4PhysicalVolumeModel constructor allocate G4AttValue vectors and string copies
+# that are stored in the scene tree (G4VViewer::SceneTreeScene) and never freed.
+# DescribeAndDescend() similarly allocates attribute data during tree traversal.
+leak:G4PhysicalVolumeModel::CreateCurrentAttValues
+leak:G4PhysicalVolumeModel::G4PhysicalVolumeModel
+leak:G4PhysicalVolumeModel::DescribeAndDescend
+
+# G4Scene::AddWorldIfEmpty allocates a G4PhysicalVolumeModel internally when
+# initialising the scene for a new viewer; the model is never explicitly freed.
+leak:G4Scene::AddWorldIfEmpty
+
+# G4VisCommandSceneAddVolume::SetNewValue allocates a G4PhysicalVolumeModel
+# and associated G4ModelingParameters that are owned by the scene but never
+# deleted on process exit.
+leak:G4VisCommandSceneAddVolume::SetNewValue
+
 # Generic analysis manager (thread-local singleton)
 # G4GenericAnalysisManager::Instance is used by B4c RunAction for histograms.
 leak:G4GenericAnalysisManager::Instance
@@ -84,3 +108,43 @@ leak:HepTool::Evaluator::evaluate
 leak:G4OCCTSolid::GetOrCreateClassifier
 leak:G4OCCTSolid::GetOrCreateIntersector
 leak:G4OCCTSolid::GetOrInitSphereCache
+
+# ── G4OCCTAssemblyVolume STEP-loading ─────────────────────────────────────────
+# When FromSTEP() loads a STEP file through OCCT's XDE framework, the XCAF
+# document retains all parsed shape data (labels, attributes, topology) in
+# OCCT's internal pool allocator (Standard::Allocate / NCollection_IncAllocator).
+# These pools are not released until OCCT's global cleanup runs at process exit,
+# after LSAN has already taken its snapshot — so they appear as indirect leaks.
+# ImportLabel() also places G4LogicalVolumes and G4VPhysicalVolumes into Geant4's
+# geometry stores (G4LogicalVolumeStore / G4PhysicalVolumeStore), which are
+# process-lifetime singletons; LSAN sees them as leaked even though Geant4 owns them.
+#
+# The G4OCCT-level suppressions below cover debug/non-inlined builds.  In
+# RelWithDebInfo (the sanitizer CI mode) clang inlines FromSTEP() and
+# ImportLabel() into their callers, so those names never appear in the LSAN
+# stack; instead we suppress at the OCCT allocator level:
+#
+#   NCollection_IncAllocator  — a non-releasing slab allocator; all memory it
+#     holds is intentionally freed only when the allocator itself is destroyed.
+#   Standard::Allocate        — OCCT's main heap allocator backed by reference-
+#     counted handles (opencascade::handle<T>).  Any allocation that escapes
+#     LSAN's snapshot is held by OCCT's XCAF document / application singletons.
+#   TCollection_ExtendedString::allocate — internal wide-string storage used by
+#     OCCT for label names and STEP entity strings; same lifetime as the document.
+leak:G4OCCTAssemblyVolume::FromSTEP
+leak:G4OCCTAssemblyVolume::ImportLabel
+leak:NCollection_IncAllocator::Allocate
+leak:Standard::Allocate
+leak:TCollection_ExtendedString::allocate
+
+# ── Test-fixture Geant4 geometry objects ──────────────────────────────────────
+# render_geometry_fixtures.cc::FixtureDetectorConstruction::Construct() allocates
+# G4VSolid / G4LogicalVolume / G4VPhysicalVolume objects and passes them to Geant4's
+# geometry stores, which own them for the process lifetime.  LSAN reports them as
+# leaked because the stores are destroyed after its snapshot.
+leak:FixtureDetectorConstruction::Construct
+
+# ── Geant4 RayTracer JPEG encoder ────────────────────────────────────────────
+# G4JpegCoder::DoCoding() allocates internal JPEG coding buffers in libG4RayTracer
+# that are never freed.  This is an upstream Geant4 issue.
+leak:G4JpegCoder::DoCoding
