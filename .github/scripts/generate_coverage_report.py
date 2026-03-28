@@ -96,7 +96,16 @@ def main() -> None:
         f"| Branches | {coverage_badge(branches_pct)} {fmt(branches_pct)} "
         f"| {branches_covered} / {branches_total} |",
         "",
+        "[View annotated HTML coverage report →](../coverage/index.html)",
+        "",
     ]
+
+    # Strip the build-machine root prefix from filenames so the table shows
+    # paths relative to the project root (e.g. "src/G4OCCTSolid.cc") instead
+    # of the full CI absolute path.
+    root_prefix = data.get("root", "")
+    if root_prefix and not root_prefix.endswith("/"):
+        root_prefix += "/"
 
     if files:
         content_lines += [
@@ -108,6 +117,8 @@ def main() -> None:
         ]
         for file_entry in files:
             fname = file_entry.get("filename", "?")
+            if root_prefix and fname.startswith(root_prefix):
+                fname = fname[len(root_prefix):]
             fl = file_entry.get("line_percent") or 0.0
             ff = file_entry.get("function_percent") or 0.0
             fb = file_entry.get("branch_percent") or 0.0

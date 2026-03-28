@@ -34,10 +34,11 @@
             // rather than being fetched and rendered as Markdown by docsify.
             // Matches: #/reports/some-page.html and #/reports/some-page.html?query=...
             // Also matches top-level standalone HTML files like #/slides.html.
+            // #/coverage/... paths serve the gcovr annotated-source HTML report.
             var standaloneHtmlPattern = /^#\/(reports\/[^?#]*|slides)\.html(\?|$)/;
             function redirectStandalonePage() {
               var hash = window.location.hash;
-              if (hash.startsWith('#/api/') || standaloneHtmlPattern.test(hash)) {
+              if (hash.startsWith('#/api/') || hash.startsWith('#/coverage/') || standaloneHtmlPattern.test(hash)) {
                 var base = window.location.pathname.replace(/[^\/]*$/, '');
                 window.location.replace(base + hash.replace('#/', ''));
               }
