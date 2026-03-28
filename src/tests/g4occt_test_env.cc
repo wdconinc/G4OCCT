@@ -21,7 +21,9 @@ public:
   }
 
   void TearDown() override {
+    auto* ourHandler = G4StateManager::GetStateManager()->GetExceptionHandler();
     G4StateManager::GetStateManager()->SetExceptionHandler(fPreviousHandler);
+    delete ourHandler;
   }
 
 private:

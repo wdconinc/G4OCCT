@@ -53,6 +53,30 @@ leak:G4HepRepFileXMLWriter::init
 leak:G4UIcommand::G4UIcommandCommonConstructorCode
 leak:G4UIcommand::G4UIcommand
 
+# RayTracer viewer: allocates a G4OutBitStream pixel buffer and the viewer
+# object itself that are never freed (viewer lifetime == scene handler lifetime,
+# which Geant4 never explicitly destroys in end-of-run cleanup).
+leak:G4RayTracerViewer::G4RayTracerViewer
+leak:G4OutBitStream::G4OutBitStream
+leak:G4RayTracerSceneHandler::G4RayTracerSceneHandler
+
+# G4PhysicalVolumeModel scene-tree attributes: CreateCurrentAttValues() and the
+# G4PhysicalVolumeModel constructor allocate G4AttValue vectors and string copies
+# that are stored in the scene tree (G4VViewer::SceneTreeScene) and never freed.
+# DescribeAndDescend() similarly allocates attribute data during tree traversal.
+leak:G4PhysicalVolumeModel::CreateCurrentAttValues
+leak:G4PhysicalVolumeModel::G4PhysicalVolumeModel
+leak:G4PhysicalVolumeModel::DescribeAndDescend
+
+# G4Scene::AddWorldIfEmpty allocates a G4PhysicalVolumeModel internally when
+# initialising the scene for a new viewer; the model is never explicitly freed.
+leak:G4Scene::AddWorldIfEmpty
+
+# G4VisCommandSceneAddVolume::SetNewValue allocates a G4PhysicalVolumeModel
+# and associated G4ModelingParameters that are owned by the scene but never
+# deleted on process exit.
+leak:G4VisCommandSceneAddVolume::SetNewValue
+
 # Generic analysis manager (thread-local singleton)
 # G4GenericAnalysisManager::Instance is used by B4c RunAction for histograms.
 leak:G4GenericAnalysisManager::Instance
