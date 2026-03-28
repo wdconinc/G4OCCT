@@ -67,21 +67,21 @@ def main() -> None:
         )
         return
 
-    lines_pct = data.get("line_percent", 0.0)
-    lines_covered = data.get("line_covered", 0)
-    lines_total = data.get("line_total", 0)
+    lines_pct = data.get("line_percent") or 0.0
+    lines_covered = data.get("line_covered") or 0
+    lines_total = data.get("line_total") or 0
 
-    funcs_pct = data.get("function_percent", 0.0)
-    funcs_covered = data.get("function_covered", 0)
-    funcs_total = data.get("function_total", 0)
+    funcs_pct = data.get("function_percent") or 0.0
+    funcs_covered = data.get("function_covered") or 0
+    funcs_total = data.get("function_total") or 0
 
-    branches_pct = data.get("branch_percent", 0.0)
-    branches_covered = data.get("branch_covered", 0)
-    branches_total = data.get("branch_total", 0)
+    branches_pct = data.get("branch_percent") or 0.0
+    branches_covered = data.get("branch_covered") or 0
+    branches_total = data.get("branch_total") or 0
 
     files = sorted(
         data.get("files", []),
-        key=lambda f: f.get("line_percent", 0.0),
+        key=lambda f: f.get("line_percent") or 0.0,
     )
 
     content_lines = [
@@ -108,9 +108,9 @@ def main() -> None:
         ]
         for file_entry in files:
             fname = file_entry.get("filename", "?")
-            fl = file_entry.get("line_percent", 0.0)
-            ff = file_entry.get("function_percent", 0.0)
-            fb = file_entry.get("branch_percent", 0.0)
+            fl = file_entry.get("line_percent") or 0.0
+            ff = file_entry.get("function_percent") or 0.0
+            fb = file_entry.get("branch_percent") or 0.0
             content_lines.append(
                 f"| `{fname}` | {coverage_badge(fl)} {fmt(fl)} "
                 f"| {coverage_badge(ff)} {fmt(ff)} "
