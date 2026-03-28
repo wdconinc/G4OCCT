@@ -108,3 +108,27 @@ leak:HepTool::Evaluator::evaluate
 leak:G4OCCTSolid::GetOrCreateClassifier
 leak:G4OCCTSolid::GetOrCreateIntersector
 leak:G4OCCTSolid::GetOrInitSphereCache
+
+# ── G4OCCTAssemblyVolume STEP-loading ─────────────────────────────────────────
+# When FromSTEP() loads a STEP file through OCCT's XDE framework, the XCAF
+# document retains all parsed shape data (labels, attributes, topology) in
+# OCCT's internal pool allocator (Standard::Allocate / NCollection_IncAllocator).
+# These pools are not released until OCCT's global cleanup runs at process exit,
+# after LSAN has already taken its snapshot — so they appear as indirect leaks.
+# ImportLabel() also places G4LogicalVolumes and G4VPhysicalVolumes into Geant4's
+# geometry stores (G4LogicalVolumeStore / G4PhysicalVolumeStore), which are
+# process-lifetime singletons; LSAN sees them as leaked even though Geant4 owns them.
+leak:G4OCCTAssemblyVolume::FromSTEP
+leak:G4OCCTAssemblyVolume::ImportLabel
+
+# ── Test-fixture Geant4 geometry objects ──────────────────────────────────────
+# render_geometry_fixtures.cc::FixtureDetectorConstruction::Construct() allocates
+# G4VSolid / G4LogicalVolume / G4VPhysicalVolume objects and passes them to Geant4's
+# geometry stores, which own them for the process lifetime.  LSAN reports them as
+# leaked because the stores are destroyed after its snapshot.
+leak:FixtureDetectorConstruction::Construct
+
+# ── Geant4 RayTracer JPEG encoder ────────────────────────────────────────────
+# G4JpegCoder::DoCoding() allocates internal JPEG coding buffers in libG4RayTracer
+# that are never freed.  This is an upstream Geant4 issue.
+leak:G4JpegCoder::DoCoding

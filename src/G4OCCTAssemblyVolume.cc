@@ -300,7 +300,7 @@ void G4OCCTAssemblyVolume::ImportLabel(const TDF_Label& label, G4AssemblyVolume*
     const gp_Trsf effectiveTrsf = composedTrsf.Multiplied(recenterComp);
 
     auto [rot, trans] = TrsfToG4(effectiveTrsf);
-    parentAssembly->AddPlacedVolume(lv, trans, new G4RotationMatrix(rot));
+    parentAssembly->AddPlacedVolume(lv, trans, &rot);
     return;
   }
 
