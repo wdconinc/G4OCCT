@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <filesystem>
 #include <memory>
 
 namespace {
@@ -148,9 +149,11 @@ TEST(SurfaceNormal, BVHPruningStrictComparisonRegression) {
 TEST(SurfaceNormal, EllipsoidPoleSTEP) {
   // G4Ellipsoid: semi-axes pX=15 mm, pY=10 mm, pZ=20 mm (no z cuts).
   // The top pole is at (0, 0, 20): the outward normal must point in +Z.
-  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
-      "EllipsoidSTEP", "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/profile-faceted/"
-                       "G4Ellipsoid/ellipsoid-15x10x20-v1/shape.step"));
+  const std::string step_path =
+      (std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "geometry" /
+       "profile-faceted" / "G4Ellipsoid" / "ellipsoid-15x10x20-v1" / "shape.step")
+          .string();
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP("EllipsoidSTEP", step_path));
 
   const G4ThreeVector pole(0.0, 0.0, 20.0 * mm);
   const G4ThreeVector n = solid->SurfaceNormal(pole);

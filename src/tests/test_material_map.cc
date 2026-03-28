@@ -76,12 +76,12 @@ TEST(MaterialMap, MultipleMaterials) {
   EXPECT_EQ(matMap.Size(), 3u);
 }
 
-TEST(MaterialMap, AddNullMaterialThrows) {
+TEST(MaterialMap, AddNullMaterialIsFatal) {
   G4OCCTMaterialMap matMap;
   EXPECT_DEATH(matMap.Add("MyMat", nullptr), ".*G4Exception.*");
 }
 
-TEST(MaterialMap, ResolveUnregisteredNameThrows) {
+TEST(MaterialMap, ResolveUnregisteredNameIsFatal) {
   G4OCCTMaterialMap matMap;
   EXPECT_DEATH(matMap.Resolve("not_in_map"), ".*G4Exception.*");
 }

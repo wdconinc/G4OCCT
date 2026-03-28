@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <memory>
 
 namespace {
@@ -242,9 +243,11 @@ TEST(InsideClassification, RayParityDegenerateRayEdgeAndVertex) {
 TEST(InsideClassification, TorusSTEP) {
   // G4Torus: swept radius 20 mm, tube radius 5 mm.
   // Tube centre circle lies in the XY plane at distance 20 mm from the Z axis.
-  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
-      "TorusSTEP", "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/direct-primitives/"
-                   "G4Torus/torus-rtor20-rmax5-v1/shape.step"));
+  const std::string step_path =
+      (std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "geometry" /
+       "direct-primitives" / "G4Torus" / "torus-rtor20-rmax5-v1" / "shape.step")
+          .string();
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP("TorusSTEP", step_path));
 
   // Centre of the tube cross-section at (20, 0, 0): inside the torus material.
   ExpectInside("torus tube centre is inside", *solid, G4ThreeVector(20.0 * mm, 0.0, 0.0), kInside);
@@ -258,9 +261,11 @@ TEST(InsideClassification, TorusSTEP) {
 TEST(InsideClassification, ConeSTEP) {
   // G4Cons: solid cone, outer radius 8 mm at z=−12, outer radius 3 mm at z=+12.
   // Centred at the origin (translated during generation).
-  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
-      "ConeSTEP", "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/direct-primitives/"
-                  "G4Cons/cons-r8-r3-z24-v1/shape.step"));
+  const std::string step_path =
+      (std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "geometry" /
+       "direct-primitives" / "G4Cons" / "cons-r8-r3-z24-v1" / "shape.step")
+          .string();
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP("ConeSTEP", step_path));
 
   // Axis centre (0, 0, 0): inside the solid cone.
   ExpectInside("cone axis centre is inside", *solid, G4ThreeVector(0.0, 0.0, 0.0), kInside);
@@ -272,9 +277,11 @@ TEST(InsideClassification, ConeSTEP) {
 TEST(InsideClassification, BooleanUnionSTEP) {
   // G4UnionSolid: two overlapping 20×20×20 mm boxes fused into one body.
   // After translation, the union spans X ∈ [−10, 20] mm, Y/Z ∈ [−10, 10] mm.
-  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
-      "BooleanUnionSTEP", "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/boolean-compound/"
-                          "G4UnionSolid/box-overlap-x10-v1/shape.step"));
+  const std::string step_path =
+      (std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "geometry" /
+       "boolean-compound" / "G4UnionSolid" / "box-overlap-x10-v1" / "shape.step")
+          .string();
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP("BooleanUnionSTEP", step_path));
 
   // Inside the first box region.
   ExpectInside("union first box centre is inside", *solid, G4ThreeVector(0.0, 0.0, 0.0), kInside);

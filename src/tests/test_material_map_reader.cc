@@ -192,8 +192,13 @@ TEST(MaterialMapReader, InlineWithoutNameIsFatal) {
 TEST(MaterialMapReader, MissingFileTriggersXMLException) {
   // A non-existent path causes Xerces to throw XMLException, caught as
   // G4OCCT_MatReader001.
+  const std::filesystem::path missing_path =
+      std::filesystem::temp_directory_path() / "test_mmr_missing_file.xml";
+  // Ensure the path does not exist before invoking the reader.
+  std::filesystem::remove(missing_path);
+
   G4OCCTMaterialMapReader reader;
-  EXPECT_DEATH(reader.ReadFile("/G4OCCT_does_not_exist_xyz_test_abc.xml"), ".*G4Exception.*");
+  EXPECT_DEATH(reader.ReadFile(missing_path.string()), ".*G4Exception.*");
 }
 
 TEST(MaterialMapReader, WrongRootTagIsFatal) {

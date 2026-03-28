@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <memory>
 
 namespace {
@@ -42,9 +43,11 @@ TEST(DistanceToInRay, TorusSurface) {
   // G4Torus: swept radius 20 mm, tube radius 5 mm.
   // Outermost surface along +X is at x = 25 mm.
   // A ray from (100, 0, 0) heading in −X must travel 75 mm before entry.
-  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP(
-      "TorusDistSTEP", "/home/wdconinc/git/G4OCCT/src/tests/fixtures/geometry/direct-primitives/"
-                       "G4Torus/torus-rtor20-rmax5-v1/shape.step"));
+  const std::string step_path =
+      (std::filesystem::path(G4OCCT_TEST_SOURCE_DIR) / "fixtures" / "geometry" /
+       "direct-primitives" / "G4Torus" / "torus-rtor20-rmax5-v1" / "shape.step")
+          .string();
+  std::unique_ptr<G4OCCTSolid> solid(G4OCCTSolid::FromSTEP("TorusDistSTEP", step_path));
 
   const G4ThreeVector start(100.0 * mm, 0.0, 0.0);
   const G4ThreeVector dir(-1.0, 0.0, 0.0);
