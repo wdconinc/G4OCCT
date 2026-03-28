@@ -252,9 +252,9 @@ jobs:
           run: |
             set -euo pipefail
             run-clang-tidy -p build -quiet \
+              -source-filter '^(?!.*_fetchcontent)' \
               -export-fixes clang_tidy_fixes.yaml \
-              -extra-arg='-std=c++20' \
-              '^(?!.*_fetchcontent)' || true
+              -extra-arg='-std=c++20' || true
 
       - name: Upload clang-tidy fixes as artifact
         uses: actions/upload-artifact@v7
