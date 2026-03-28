@@ -921,10 +921,9 @@ jobs:
             # venv to PATH so that the coverage-report CMake target can find
             # gcovr at build time without any configure-time requirement.
             #
-            # The coverage-report target (defined in cmake/Coverage.cmake via
-            # bilke/cmake-modules CodeCoverage) runs ctest and then gcovr,
-            # producing build/coverage-report/index.html and
-            # build/coverage-summary.json.
+            # The coverage-report target (defined in cmake/Coverage.cmake) runs
+            # ctest and then gcovr, producing build/coverage-report/index.html
+            # and build/coverage-summary.json.
             python3 -m venv "${PWD}/.venv-gcovr"
             "${PWD}/.venv-gcovr/bin/pip" install --quiet gcovr
 

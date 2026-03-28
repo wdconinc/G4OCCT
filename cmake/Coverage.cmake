@@ -3,8 +3,7 @@
 # Copyright (C) 2026 G4OCCT Contributors
 # cmake-format: on
 
-# Coverage instrumentation and report target using bilke/cmake-modules
-# CodeCoverage.
+# Coverage instrumentation and report target.
 #
 # This module is included by the top-level CMakeLists.txt when USE_COVERAGE=ON.
 # It configures the compiler-appropriate gcov/llvm-cov tool at CMake configure
@@ -19,21 +18,7 @@
 # PATH="$(pwd)/.venv-gcovr/bin:$PATH" cmake --build build --target
 # coverage-report
 
-include(FetchContent)
-
-# Pin to a specific commit for reproducibility; bilke/cmake-modules has no tags.
-FetchContent_Declare(
-  cmake_modules
-  GIT_REPOSITORY https://github.com/bilke/cmake-modules.git
-  GIT_TAG 5b988b5beb64270cf68b7d6c20298ebc8236b580)
-FetchContent_MakeAvailable(cmake_modules)
-list(APPEND CMAKE_MODULE_PATH "${cmake_modules_SOURCE_DIR}")
-
 # ── Detect coverage tool matching the active compiler ────────────────────────
-# Use private _g4occt_* variables for find_program to avoid polluting the cache
-# with an intermediate NOTFOUND value that would cause CodeCoverage.cmake's own
-# find_program(GCOV_PATH NAMES gcov) to re-run and hit its FATAL_ERROR. After
-# detection, GCOV_PATH is set with FORCE so CodeCoverage's check passes.
 get_filename_component(_cxx_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -46,9 +31,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     HINTS "${_cxx_dir}")
   if(_g4occt_llvm_cov)
     set(_gcov_executable "${_g4occt_llvm_cov} gcov")
-    set(GCOV_PATH
-        "${_g4occt_llvm_cov}"
-        CACHE FILEPATH "llvm-cov command for Clang coverage" FORCE)
     message(
       STATUS "Coverage: Clang + llvm-cov; gcov executable: ${_gcov_executable}")
   else()
@@ -61,13 +43,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     if(_g4occt_gcov)
       set(_gcov_executable "${_g4occt_gcov}")
     else()
-      set(_g4occt_gcov "gcov")
       set(_gcov_executable "gcov")
     endif()
-    set(GCOV_PATH
-        "${_g4occt_gcov}"
-        CACHE FILEPATH "gcov command (llvm-cov fallback for Clang coverage)"
-              FORCE)
     message(STATUS "Coverage: Clang + system gcov (llvm-cov not found); "
                    "gcov executable: ${_gcov_executable}")
   endif()
@@ -81,34 +58,28 @@ else()
   if(_g4occt_gcov)
     set(_gcov_executable "${_g4occt_gcov}")
   else()
-    set(_g4occt_gcov "gcov")
     set(_gcov_executable "gcov")
   endif()
-  set(GCOV_PATH
-      "${_g4occt_gcov}"
-      CACHE FILEPATH "gcov command for GCC coverage" FORCE)
   message(STATUS "Coverage: GCC; gcov executable: ${_gcov_executable}")
 endif()
 
-# gcovr is installed into a venv at CI build time and need not exist at
-# configure time.  Pre-set the CACHE variable so that CodeCoverage.cmake's
-# `if(NOT GCOVR_PATH) → FATAL_ERROR` does not fire during configuration.
+# gcovr is installed into a venv at CI build time; default to finding it on
+# PATH.  Override via -DGCOVR_PATH=... if needed.
 if(NOT GCOVR_PATH)
-  set(GCOVR_PATH
-      "gcovr"
-      CACHE FILEPATH
-            "gcovr command; must be on PATH when coverage-report is built")
+  set(GCOVR_PATH "gcovr")
 endif()
 
-include(CodeCoverage)
-
-# Add --coverage, -g, -fprofile-abs-path, and (when supported)
-# -fprofile-update=atomic to all targets via CMAKE_CXX_FLAGS / CMAKE_C_FLAGS.
-append_coverage_compiler_flags()
-
-# Supplement with flags that improve line-level accuracy but are not part of the
-# upstream CodeCoverage module's default set.
-add_compile_options(-fno-inline -fno-omit-frame-pointer)
+# ── Coverage compiler and linker flags ───────────────────────────────────────
+# --coverage (= -fprofile-arcs -ftest-coverage) is supported by both GCC and
+# Clang.  -fprofile-abs-path embeds absolute paths in .gcno/.gcda files for
+# accurate gcovr source mapping; supported by GCC ≥ 8 and Clang ≥ 7.
+add_compile_options(
+  -g
+  --coverage
+  -fno-inline
+  -fno-omit-frame-pointer
+  -fprofile-abs-path)
+add_link_options(--coverage)
 
 # coverage-report target: runs ctest (excluding dd4hep plugin tests, which run
 # in their own CI job) and generates an HTML report + JSON summary via gcovr.
@@ -118,12 +89,10 @@ if(_nproc EQUAL 0)
   set(_nproc 1)
 endif()
 
-# setup_target_for_coverage_gcovr_html() stops the custom-target pipeline when
-# ctest fails, which prevents gcovr from running and generating reports for
-# failing test runs.  Instead, write a small CMake -P script that: 1. runs ctest
-# and records its exit code (does not stop on failure), 2. runs gcovr
-# unconditionally to produce HTML + JSON reports, 3. propagates any failure via
-# FATAL_ERROR after the report is generated.
+# The coverage-report custom target invokes a CMake -P script so that ctest
+# and gcovr are decoupled: ctest failure records its exit code but does not
+# stop the pipeline, gcovr always runs to generate HTML + JSON reports, and
+# any failure is propagated via FATAL_ERROR only after the report is complete.
 set(_coverage_runner "${CMAKE_BINARY_DIR}/coverage-runner.cmake")
 file(
   WRITE "${_coverage_runner}"
