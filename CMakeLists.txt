@@ -49,8 +49,8 @@ endif()
 
 # ─── Sanitizers ───────────────────────────────────────────────────────────────
 # These must be configured before any target definitions so that
-# add_compile_options / add_link_options apply to every target in this
-# directory (G4OCCT library, tests, benchmarks, apps).
+# add_compile_options / add_link_options apply to every target in this directory
+# (G4OCCT library, tests, benchmarks, apps).
 
 # Address sanitizer (also enables leak sanitizer via detect_leaks=1 at runtime)
 option(USE_ASAN "Compile with address sanitizer" OFF)
