@@ -96,7 +96,7 @@ def main() -> None:
         f"| Branches | {coverage_badge(branches_pct)} {fmt(branches_pct)} "
         f"| {branches_covered} / {branches_total} |",
         "",
-        "[View annotated HTML coverage report →](../coverage/index.html)",
+        "[View annotated HTML coverage report →](https://eic.github.io/G4OCCT/coverage/index.html)",
         "",
     ]
 
