@@ -100,7 +100,7 @@ TEST(SurfaceNormal, SpherePoleNorth) {
   const SphereFixture sphere("SpherePoleNorth", 50.0 * mm);
   const G4ThreeVector northPole(0.0, 0.0, 50.0 * mm);
   const G4ThreeVector normal = sphere.solid.SurfaceNormal(northPole);
-  EXPECT_NEAR(normal.z(), 1.0, 0.01) << "north-pole normal must point in +z";
+  EXPECT_NEAR(normal.z(), 1.0, 1.0e-3) << "north-pole normal must point in +z";
   EXPECT_NEAR(normal.mag(), 1.0, 1.0e-6) << "north-pole normal must be unit length";
 }
 
@@ -109,7 +109,7 @@ TEST(SurfaceNormal, SphereSouthPole) {
   const SphereFixture sphere("SphereSouthPole", 50.0 * mm);
   const G4ThreeVector southPole(0.0, 0.0, -50.0 * mm);
   const G4ThreeVector normal = sphere.solid.SurfaceNormal(southPole);
-  EXPECT_NEAR(normal.z(), -1.0, 0.01) << "south-pole normal must point in -z";
+  EXPECT_NEAR(normal.z(), -1.0, 1.0e-3) << "south-pole normal must point in -z";
   EXPECT_NEAR(normal.mag(), 1.0, 1.0e-6) << "south-pole normal must be unit length";
 }
 

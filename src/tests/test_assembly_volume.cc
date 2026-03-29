@@ -40,14 +40,20 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <cstdio>
 #include <filesystem>
+#include <memory>
+#include <random>
 #include <stdexcept>
 #include <string>
 
 // ── Helpers to build in-memory STEP assemblies ────────────────────────────────
 
 namespace {
+
+G4Material* GetTestMaterial(const std::string& name)
+{
+  return G4NistManager::Instance()->FindOrBuildMaterial(name);
+}
 
 /// Build a minimal XDE document containing a single labelled solid box with
 /// a material attribute, then export it to a temporary STEP file on disk.
@@ -150,18 +156,19 @@ std::string BuildTwoBoxAssemblySTEP(const std::string& tmpPath, double txX) {
 
 TEST(AssemblyVolume, FromSTEPSingleBox) {
   // Build a 20×30×40 mm box STEP file with a single shape.
+  const std::string uniqueSuffix = std::to_string(std::random_device{}());
   const std::string tmpPath =
-      (std::filesystem::temp_directory_path() / "test_assembly_single_box.step").string();
+      (std::filesystem::temp_directory_path() / ("test_assembly_single_box_" + uniqueSuffix + ".step")).string();
   BuildSingleBoxSTEP(tmpPath, "Box", "Aluminium", 20.0, 30.0, 40.0);
 
-  G4Material* al = G4NistManager::Instance()->FindOrBuildMaterial("G4_Al");
+  G4Material* al = GetTestMaterial("G4_Al");
   ASSERT_NE(al, nullptr);
 
   G4OCCTMaterialMap matMap;
   matMap.Add("Box", al);
 
-  G4OCCTAssemblyVolume* assembly = nullptr;
-  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });
+  std::unique_ptr<G4OCCTAssemblyVolume> assembly;
+  ASSERT_NO_THROW({ assembly.reset(G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap)); });
   ASSERT_NE(assembly, nullptr);
 
   // One logical volume should have been created.
@@ -172,8 +179,7 @@ TEST(AssemblyVolume, FromSTEPSingleBox) {
   EXPECT_EQ(lvMap.count("Box"), 1u);
 
   // Clean up
-  std::remove(tmpPath.c_str());
-  delete assembly;
+  std::filesystem::remove(tmpPath);
 }
 
 TEST(AssemblyVolume, FromSTEPInvalidPath) {
@@ -187,10 +193,17 @@ TEST(AssemblyVolume, MaterialMapLookupFails) {
       (std::filesystem::temp_directory_path() / "test_assembly_mat_fail.step").string();
   BuildSingleBoxSTEP(tmpPath, "PartA", "UnknownMaterial", 10.0, 10.0, 10.0);
 
-  // Empty material map — resolve should fire a G4Exception (FatalException).
+  // Empty material map — resolving the material during FromSTEP should fire
+  // a G4Exception with FatalException severity and abort the process.
   G4OCCTMaterialMap emptyMap;
-  // G4Exception FatalException aborts the process; test via Contains instead.
-  EXPECT_FALSE(emptyMap.Contains("UnknownMaterial"));
+  EXPECT_DEATH(
+      {
+        G4OCCTAssemblyVolume* assembly = nullptr;
+        assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, emptyMap);
+        // In case the implementation changes and no death occurs, avoid leaks.
+        delete assembly;
+      },
+      "");
 
   std::remove(tmpPath.c_str());
 }
@@ -284,6 +297,28 @@ TEST(AssemblyVolume, FromSTEPTripleBox) {
   EXPECT_EQ(assembly->GetLogicalVolumes().count("Component"), 1u);
   EXPECT_EQ(assembly->GetLogicalVolumes().count("Component_1"), 1u);
   EXPECT_EQ(assembly->GetLogicalVolumes().count("Component_2"), 1u);
+
+  // Further validate that the fixture behaves as a triple-box assembly by
+  // imprinting it into an empty world volume and checking the resulting
+  // daughter volumes. This helps detect silent corruption or modification
+  // of the fixture geometry or labels.
+  auto* worldBox = new G4Box("TripleBoxWorld", 500.0, 500.0, 500.0);
+  // Reuse air material for the world; we only care about daughters' material.
+  G4Material* air = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
+  ASSERT_NE(air, nullptr);
+  auto* worldLV = new G4LogicalVolume(worldBox, air, "TripleBoxWorldLV");
+  G4ThreeVector worldPos;
+  G4RotationMatrix worldRot;
+  assembly->MakeImprint(worldLV, worldPos, &worldRot);
+
+  // The triple-box fixture is expected to produce exactly three daughter
+  // physical volumes when imprinted into an empty world.
+  ASSERT_EQ(worldLV->GetNoDaughters(), 3);
+  for (G4int i = 0; i < worldLV->GetNoDaughters(); ++i) {
+    const G4VPhysicalVolume* daughter = worldLV->GetDaughter(i);
+    ASSERT_NE(daughter, nullptr);
+    EXPECT_EQ(daughter->GetLogicalVolume()->GetMaterial(), al);
+  }
 
   delete assembly;
 }
