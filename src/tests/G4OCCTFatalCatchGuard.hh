@@ -18,18 +18,15 @@
  * lines execute in-process, where gcov can record them, complementing
  * `EXPECT_DEATH` tests that verify abort behaviour but run in a forked child.
  *
- * Non-fatal severities (e.g. `JustWarning`) are forwarded to @p previousHandler
- * so that the existing @c G4OCCTTestExceptionHandler warning-to-ADD_FAILURE
- * behaviour remains active while the guard is installed.
+ * Non-fatal severities (e.g. `JustWarning`) are forwarded to @c prev so that
+ * the existing @c G4OCCTTestExceptionHandler warning-to-ADD_FAILURE behaviour
+ * remains active while the guard is installed.
  *
- * ### Usage
- * ```cpp
- * G4OCCTFatalCatchGuard guard;
- * someFunction();                        // triggers FatalException
- * EXPECT_TRUE(guard.catcher.caught);
- * EXPECT_EQ(guard.catcher.code, "G4OCCT_XYZ");
- * // guard destructor restores the previous handler automatically
- * ```
+ * Instances must be heap-allocated (see @c G4OCCTFatalCatchGuard) to avoid
+ * ASAN `stack-use-after-return` errors: Geant4's `G4VExceptionHandler`
+ * constructor may register @c this with @c G4StateManager, so the object must
+ * remain valid (i.e. be on the heap, not the stack) until the guard restores
+ * the previous handler.
  */
 struct G4OCCTFatalCatcher : public G4VExceptionHandler {
   bool        caught = false;
@@ -57,19 +54,44 @@ struct G4OCCTFatalCatcher : public G4VExceptionHandler {
 /**
  * @brief RAII guard that installs G4OCCTFatalCatcher for the duration of a scope.
  *
- * Captures the current Geant4 exception handler on construction, installs
- * @c G4OCCTFatalCatcher (forwarding non-fatal calls to the saved handler), and
- * restores the original handler on destruction.
+ * The catcher is **heap-allocated** so that `G4StateManager` never holds a
+ * pointer into the test function's (fake) stack frame — this prevents the ASAN
+ * `detect_stack_use_after_return` check from firing in the global
+ * `G4OCCTTestEnv::TearDown()`.
+ *
+ * The previous handler is captured *before* the catcher object is constructed.
+ * `G4VExceptionHandler`'s constructor may auto-install `this` with
+ * `G4StateManager`; capturing `prev` first ensures `catcher->prev` always
+ * contains the handler that was active before the guard was installed (and not
+ * a self-referential pointer to the catcher itself).
+ *
+ * ### Usage
+ * ```cpp
+ * G4OCCTFatalCatchGuard guard;
+ * someFunction();                         // triggers FatalException
+ * EXPECT_TRUE(guard.catcher->caught);
+ * EXPECT_EQ(guard.catcher->code, "G4OCCT_XYZ");
+ * // guard destructor restores the previous handler automatically
+ * ```
  */
 struct G4OCCTFatalCatchGuard {
-  G4OCCTFatalCatcher catcher;
+  /// Heap-allocated catcher; access via `->`.
+  G4OCCTFatalCatcher* catcher = nullptr;
 
   G4OCCTFatalCatchGuard() {
-    catcher.prev = G4StateManager::GetStateManager()->GetExceptionHandler();
-    G4StateManager::GetStateManager()->SetExceptionHandler(&catcher);
+    // Capture the previous handler BEFORE constructing G4OCCTFatalCatcher.
+    // If G4VExceptionHandler's constructor auto-installs 'this' with
+    // G4StateManager, constructing the catcher after saving 'prev' guarantees
+    // that catcher->prev is the handler that was active before this guard.
+    G4VExceptionHandler* prev = G4StateManager::GetStateManager()->GetExceptionHandler();
+    catcher                   = new G4OCCTFatalCatcher();
+    catcher->prev             = prev;
+    G4StateManager::GetStateManager()->SetExceptionHandler(catcher);
   }
+
   ~G4OCCTFatalCatchGuard() {
-    G4StateManager::GetStateManager()->SetExceptionHandler(catcher.prev);
+    G4StateManager::GetStateManager()->SetExceptionHandler(catcher->prev);
+    delete catcher;
   }
 
   // Non-copyable, non-movable.

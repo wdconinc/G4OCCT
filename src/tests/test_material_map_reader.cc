@@ -277,8 +277,8 @@ TEST(MaterialMapReader, MissingFileTriggersFatalCode) {
   G4OCCTFatalCatchGuard guard;
   G4OCCTMaterialMapReader reader;
   G4OCCTMaterialMap map = reader.ReadFile(missing_path.string());
-  EXPECT_TRUE(guard.catcher.caught);
-  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatReader001");
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader001");
   EXPECT_EQ(map.Size(), 0u); // empty result returned after non-aborting exception
 }
 
@@ -291,8 +291,8 @@ TEST(MaterialMapReader, WrongRootTagTriggersFatalCode) {
   G4OCCTFatalCatchGuard guard;
   G4OCCTMaterialMapReader reader;
   G4OCCTMaterialMap map = reader.ReadFile(path);
-  EXPECT_TRUE(guard.catcher.caught);
-  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatReader005");
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader005");
   EXPECT_EQ(map.Size(), 0u);
 }
 
@@ -307,8 +307,8 @@ TEST(MaterialMapReader, MissingStepNameTriggersFatalCode) {
   G4OCCTFatalCatchGuard guard;
   G4OCCTMaterialMapReader reader;
   G4OCCTMaterialMap map = reader.ReadFile(path);
-  EXPECT_TRUE(guard.catcher.caught);
-  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatReader006");
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader006");
   EXPECT_EQ(map.Size(), 0u);
 }
 
@@ -323,8 +323,8 @@ TEST(MaterialMapReader, UnknownNistNameTriggersFatalCode) {
   G4OCCTFatalCatchGuard guard;
   G4OCCTMaterialMapReader reader;
   G4OCCTMaterialMap map = reader.ReadFile(path);
-  EXPECT_TRUE(guard.catcher.caught);
-  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatReader007");
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader007");
   EXPECT_EQ(map.Size(), 0u);
 }
 
@@ -342,7 +342,7 @@ TEST(MaterialMapReader, InlineWithoutNameTriggersFatalCode) {
   G4OCCTFatalCatchGuard guard;
   G4OCCTMaterialMapReader reader;
   G4OCCTMaterialMap map = reader.ReadFile(path);
-  EXPECT_TRUE(guard.catcher.caught);
-  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatReader008");
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader008");
   EXPECT_EQ(map.Size(), 0u);
 }

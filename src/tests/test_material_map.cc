@@ -121,8 +121,8 @@ TEST(MaterialMap, AddNullMaterialTriggersFatalCode) {
   G4OCCTFatalCatchGuard guard;
   G4OCCTMaterialMap matMap;
   matMap.Add("MyMat", nullptr);
-  EXPECT_TRUE(guard.catcher.caught);
-  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatMap000");
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatMap000");
   // After the non-aborting G4Exception the unreachable return executes;
   // the map must remain empty.
   EXPECT_EQ(matMap.Size(), 0u);
@@ -132,7 +132,7 @@ TEST(MaterialMap, ResolveUnregisteredNameTriggersFatalCode) {
   G4OCCTFatalCatchGuard guard;
   G4OCCTMaterialMap matMap;
   G4Material* result = matMap.Resolve("not_registered");
-  EXPECT_TRUE(guard.catcher.caught);
-  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatMap001");
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatMap001");
   EXPECT_EQ(result, nullptr); // unreachable return value
 }
