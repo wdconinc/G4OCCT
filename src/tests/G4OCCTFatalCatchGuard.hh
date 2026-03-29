@@ -29,7 +29,7 @@
  * the previous handler.
  */
 struct G4OCCTFatalCatcher : public G4VExceptionHandler {
-  bool        caught = false;
+  bool caught = false;
   std::string code;
   /// Previously active handler; non-fatal severities are delegated here.
   G4VExceptionHandler* prev = nullptr;
