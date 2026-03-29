@@ -5,7 +5,7 @@ spack:
   view: /opt/local
 
   specs:
-  - "geant4@11.3: ~opengl ~qt ~x11"
+  - "geant4@11.3:"
   - "opencascade@7.8:"
 
   config:
