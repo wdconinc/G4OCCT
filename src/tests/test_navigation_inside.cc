@@ -3,6 +3,13 @@
 
 #include "navigation_test_harness.hh"
 
+#include <BRepAlgoAPI_Cut.hxx>
+#include <BRepPrimAPI_MakeBox.hxx>
+#include <BRepPrimAPI_MakeCylinder.hxx>
+#include <gp_Ax2.hxx>
+#include <gp_Dir.hxx>
+#include <gp_Pnt.hxx>
+
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -290,6 +297,39 @@ TEST(InsideClassification, BooleanUnionSTEP) {
                kInside);
   // Well outside the union.
   ExpectInside("union far exterior is outside", *solid, G4ThreeVector(50.0 * mm, 0.0, 0.0),
+               kOutside);
+}
+
+// ── ComputeBounds: planar face with inner wires (wireCount > 1) ───────────────
+// When a planar face has more than one wire (i.e. it has holes), ComputeBounds
+// leaves its uvPolygon empty so the face is excluded from the fast ray-plane
+// path.  This prevents a ray through the hole from being incorrectly counted as
+// a face crossing.
+//
+// Trigger: BRepAlgoAPI_Cut(box, cylinder) where the cylinder axis is normal to
+// the top/bottom faces of the box.  The cut leaves the top and bottom faces each
+// with two wires (the outer rectangle + the inner circular hole edge), exercising
+// the wireCount > 1 branch in ComputeBounds.
+TEST(InsideClassification, BoxWithCylindricalHole) {
+  // Box ±10 mm × ±10 mm × ±5 mm with a 3 mm radius cylinder through the centre.
+  const TopoDS_Shape box = BRepPrimAPI_MakeBox(gp_Pnt(-10.0 * mm, -10.0 * mm, -5.0 * mm),
+                                               gp_Pnt(10.0 * mm, 10.0 * mm, 5.0 * mm))
+                               .Shape();
+  const gp_Ax2 cylAx(gp_Pnt(0.0, 0.0, -10.0 * mm), gp_Dir(0.0, 0.0, 1.0));
+  const TopoDS_Shape cyl      = BRepPrimAPI_MakeCylinder(cylAx, 3.0 * mm, 20.0 * mm).Shape();
+  const TopoDS_Shape withHole = BRepAlgoAPI_Cut(box, cyl).Shape();
+
+  // Construction exercises the wireCount > 1 branch in ComputeBounds.
+  G4OCCTSolid solid("BoxWithHole", withHole);
+
+  // A point inside the box solid but outside the cylindrical bore → kInside.
+  ExpectInside("point inside box wall (outside hole) is kInside", solid,
+               G4ThreeVector(7.0 * mm, 0.0, 0.0), kInside);
+  // A point on the cylinder axis inside the bore → material removed → kOutside.
+  ExpectInside("origin (inside cylindrical bore) is kOutside", solid, G4ThreeVector(0.0, 0.0, 0.0),
+               kOutside);
+  // A point well outside the box → kOutside.
+  ExpectInside("point far outside is kOutside", solid, G4ThreeVector(50.0 * mm, 0.0, 0.0),
                kOutside);
 }
 

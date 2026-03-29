@@ -927,7 +927,7 @@ jobs:
             # ctest and then gcovr, producing build/coverage-report/index.html
             # and build/coverage-summary.json.
             python3 -m venv "${PWD}/.venv-gcovr"
-            "${PWD}/.venv-gcovr/bin/pip" install --quiet gcovr
+            "${PWD}/.venv-gcovr/bin/pip" install --quiet "gcovr>=5.0"
 
             mkdir -p reports
             PATH="${PWD}/.venv-gcovr/bin:${PATH}" \
