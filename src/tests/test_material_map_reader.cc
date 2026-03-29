@@ -156,7 +156,10 @@ TEST(MaterialMapReader, MissingStepNameIsFatal) {
 )xml");
 
   G4OCCTMaterialMapReader reader;
-  EXPECT_DEATH(reader.ReadFile(path), ".*stepName.*");
+  // G4Exception detail goes to G4cout (stdout); only the abort line is on
+  // stderr.  Match the abort banner that G4Exception unconditionally writes
+  // to std::cerr before calling std::abort().
+  EXPECT_DEATH(reader.ReadFile(path), ".*G4Exception.*");
 }
 
 TEST(MaterialMapReader, UnknownNistNameIsFatal) {
@@ -167,7 +170,7 @@ TEST(MaterialMapReader, UnknownNistNameIsFatal) {
 )xml");
 
   G4OCCTMaterialMapReader reader;
-  EXPECT_DEATH(reader.ReadFile(path), ".*G4_DOES_NOT_EXIST_XYZ.*");
+  EXPECT_DEATH(reader.ReadFile(path), ".*G4Exception.*");
 }
 
 TEST(MaterialMapReader, InlineWithoutNameIsFatal) {
@@ -181,5 +184,76 @@ TEST(MaterialMapReader, InlineWithoutNameIsFatal) {
 )xml");
 
   G4OCCTMaterialMapReader reader;
-  EXPECT_DEATH(reader.ReadFile(path), ".*name.*");
+  EXPECT_DEATH(reader.ReadFile(path), ".*G4Exception.*");
+}
+
+// ── Additional error / branch coverage ───────────────────────────────────────
+
+TEST(MaterialMapReader, MissingFileTriggersXMLException) {
+  // A non-existent path causes Xerces to throw XMLException, caught as
+  // G4OCCT_MatReader001.
+  const std::filesystem::path missing_path =
+      std::filesystem::temp_directory_path() / "test_mmr_missing_file.xml";
+  // Ensure the path does not exist before invoking the reader.
+  std::filesystem::remove(missing_path);
+
+  G4OCCTMaterialMapReader reader;
+  EXPECT_DEATH(reader.ReadFile(missing_path.string()), ".*G4Exception.*");
+}
+
+TEST(MaterialMapReader, WrongRootTagIsFatal) {
+  // Root element is not <materials> → G4OCCT_MatReader005.
+  const std::string path = WriteTempXML(
+      "test_mmr_wrong_root.xml",
+      R"xml(<?xml version="1.0"?><root><material stepName="X" geant4Name="G4_Al"/></root>)xml");
+  G4OCCTMaterialMapReader reader;
+  EXPECT_DEATH(reader.ReadFile(path), ".*G4Exception.*");
+}
+
+TEST(MaterialMapReader, IsotopeAndElementBranchesAreTraversed) {
+  // Exercise the tag == "isotope" and tag == "element" branches in Pass 1.
+  // The NIST alias in Pass 2 keeps the test non-fatal.
+  const std::string path = WriteTempXML("test_mmr_isotope_element.xml", R"xml(<?xml version="1.0"?>
+<materials>
+  <isotope name="G4OCCT_UniqueIso_H1" Z="1" N="1">
+    <atom type="A" value="1.00782503207"/>
+  </isotope>
+  <element name="G4OCCT_UniqueElem_H" Z="1" formula="H">
+    <atom value="1.00794"/>
+  </element>
+  <material stepName="IsoElemAlTest" geant4Name="G4_Al"/>
+</materials>
+)xml");
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map;
+  ASSERT_NO_FATAL_FAILURE(map = reader.ReadFile(path));
+  EXPECT_EQ(map.Size(), 1u);
+  EXPECT_TRUE(map.Contains("IsoElemAlTest"));
+}
+
+TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
+  // Pre-register a G4Material in the global table, then verify the reader
+  // reuses it (the GetMaterial(gdmlName) reuse branch) instead of re-creating.
+  const G4String matName = "G4OCCT_ReuseMat_TestUnique";
+  G4Material* premat     = G4Material::GetMaterial(matName, /*warning=*/false);
+  if (premat == nullptr) {
+    premat = new G4Material(matName, 18.0, 39.948 * CLHEP::g / CLHEP::mole,
+                            1.39 * CLHEP::g / CLHEP::cm3, kStateLiquid);
+  }
+  ASSERT_NE(premat, nullptr);
+
+  const std::string path = WriteTempXML("test_mmr_reuse.xml", R"xml(<?xml version="1.0"?>
+<materials>
+  <material stepName="reuseStep" name="G4OCCT_ReuseMat_TestUnique" state="liquid">
+    <D value="1.39" unit="g/cm3"/>
+    <fraction n="1.0" ref="G4_Ar"/>
+  </material>
+</materials>
+)xml");
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map;
+  ASSERT_NO_FATAL_FAILURE(map = reader.ReadFile(path));
+  ASSERT_TRUE(map.Contains("reuseStep"));
+  // The resolved pointer must be the pre-registered material, not a new copy.
+  EXPECT_EQ(map.Resolve("reuseStep"), premat);
 }

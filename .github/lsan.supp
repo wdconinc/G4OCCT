@@ -129,12 +129,16 @@ leak:G4OCCTSolid::GetOrInitSphereCache
 #   Standard::Allocate        — OCCT's main heap allocator backed by reference-
 #     counted handles (opencascade::handle<T>).  Any allocation that escapes
 #     LSAN's snapshot is held by OCCT's XCAF document / application singletons.
+#   TCollection_AsciiString::allocate — internal narrow-string storage used by
+#     OCCT during STEP file parsing (e.g. entity names and error messages);
+#     triggered on error paths when OCCT does not clean up on read failure.
 #   TCollection_ExtendedString::allocate — internal wide-string storage used by
 #     OCCT for label names and STEP entity strings; same lifetime as the document.
 leak:G4OCCTAssemblyVolume::FromSTEP
 leak:G4OCCTAssemblyVolume::ImportLabel
 leak:NCollection_IncAllocator::Allocate
 leak:Standard::Allocate
+leak:TCollection_AsciiString::allocate
 leak:TCollection_ExtendedString::allocate
 
 # ── Test-fixture Geant4 geometry objects ──────────────────────────────────────

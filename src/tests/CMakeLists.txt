@@ -53,13 +53,22 @@ g4occt_gtest(test_navigation_harness test_navigation_harness.cc LINK_LIBRARIES
 # ─── test_navigation_inside ───────────────────────────────────────────────────
 g4occt_gtest(test_navigation_inside test_navigation_inside.cc LINK_LIBRARIES
              G4OCCT)
+target_compile_definitions(
+  test_navigation_inside
+  PRIVATE G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # ─── test_surface_normal ──────────────────────────────────────────────────────
 g4occt_gtest(test_surface_normal test_surface_normal.cc LINK_LIBRARIES G4OCCT)
+target_compile_definitions(
+  test_surface_normal
+  PRIVATE G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # ─── test_distance_to_in_ray ──────────────────────────────────────────────────
 g4occt_gtest(test_distance_to_in_ray test_distance_to_in_ray.cc LINK_LIBRARIES
              G4OCCT)
+target_compile_definitions(
+  test_distance_to_in_ray
+  PRIVATE G4OCCT_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # ─── test_distance_to_in_safety ───────────────────────────────────────────────
 g4occt_gtest(test_distance_to_in_safety test_distance_to_in_safety.cc

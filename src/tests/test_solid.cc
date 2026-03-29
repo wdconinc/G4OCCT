@@ -18,6 +18,9 @@
 
 #include <numbers>
 #include <cmath>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <stdexcept>
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -217,6 +220,28 @@ TEST(SolidBasicAPI, GetPointOnSurfaceSphere) {
     const EInside inside = solid.Inside(pt);
     EXPECT_EQ(inside, kSurface) << "GetPointOnSurface returned non-surface point at sample " << i;
   }
+}
+
+// ── G4OCCTSolid::FromSTEP error paths ─────────────────────────────────────────
+
+TEST(SolidBasicAPI, FromSTEPInvalidPathThrows) {
+  // ReadFile() returns != IFSelect_RetDone for a non-existent path.
+  EXPECT_THROW(G4OCCTSolid::FromSTEP("Test", "/nonexistent/path/file.step"), std::runtime_error);
+}
+
+TEST(SolidBasicAPI, FromSTEPEmptyFileThrows) {
+  // A STEP file that contains a valid ISO-10303-21 header but an empty DATA
+  // section has no geometry roots.  Depending on the OCCT version, ReadFile()
+  // may fail (IFSelect_RetDone not returned) or TransferRoots() returns 0.
+  // Either way G4OCCTSolid::FromSTEP must throw std::runtime_error.
+  const std::filesystem::path path =
+      std::filesystem::temp_directory_path() / "g4occt_test_empty.step";
+  {
+    std::ofstream f(path);
+    f << "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n";
+  }
+  EXPECT_THROW(G4OCCTSolid::FromSTEP("EmptyTest", path.string()), std::runtime_error);
+  std::filesystem::remove(path);
 }
 
 TEST(SolidInvariant, ConstructorRejectsNullShape) {
