@@ -20,6 +20,7 @@ namespace {
 using g4occt::tests::navigation::BoxFixture;
 using g4occt::tests::navigation::CylinderFixture;
 using g4occt::tests::navigation::ExpectDistanceToIn;
+using g4occt::tests::navigation::kDefaultTolerance;
 using g4occt::tests::navigation::SphereFixture;
 
 TEST(DistanceToInSafety, ShortestDistanceForExternalPoints) {
@@ -136,6 +137,35 @@ TEST(DistanceToInLowerBound, RejectsShapeWithNoGeometry) {
   builder.MakeCompound(emptyCompound);
 
   EXPECT_THROW(G4OCCTSolid("EmptyShapeNoGeometry", emptyCompound), std::invalid_argument);
+}
+
+// DistanceToIn(p) uses a three-tier strategy:
+//   Tier-0: AABB lower bound  -- fires when aabbDist > IntersectionTolerance().
+//   Tier-1: BVH lower bound   -- fires when inside the AABB but bvhDist > tol.
+//   Tier-2: ExactDistanceToIn -- fires when bvhDist ~ 0 (on or near the surface).
+//
+// Tier-0 fires for axis-aligned exterior points (already covered elsewhere).
+// Tier-2 fires for surface points (covered in NearSurfaceBehaviour).
+// This test specifically targets Tier-1 via a diagonal exterior point that lies
+// inside the sphere's AABB but outside the sphere surface.
+TEST(DistanceToInTiers, BVHTier1ForDiagonalExteriorPoint) {
+  // Sphere of radius 50 mm: AABB spans +/-50 mm in each dimension.
+  // Point (45, 25, 0) mm: |p| ~ 51.5 mm > 50 mm  ->  outside the sphere surface.
+  // But: max(45 - 50, 0) = 0 and max(25 - 50, 0) = 0  ->  inside the AABB.
+  // AABBLowerBound = 0 <= tol  ->  Tier-0 does NOT fire.
+  // BVH lower bound ~ 1.5 mm - deflection > tol  ->  Tier-1 fires.
+  const SphereFixture sphere("Tier1BVHSphere", 50.0 * mm);
+  const G4ThreeVector diagonalExterior(45.0 * mm, 25.0 * mm, 0.0);
+
+  const G4double dist  = sphere.solid.DistanceToIn(diagonalExterior);
+  const G4double exact = sphere.solid.ExactDistanceToIn(diagonalExterior);
+
+  EXPECT_GE(dist, 0.0) << "BVH tier-1: DistanceToIn must be non-negative";
+  EXPECT_LE(dist, exact + kDefaultTolerance)
+      << "BVH tier-1: safety must not exceed exact distance";
+  // The point is genuinely outside the sphere: exact distance must be positive.
+  EXPECT_GT(exact, 0.0)
+      << "BVH tier-1: diagonal exterior point must have positive exact distance";
 }
 
 } // namespace
