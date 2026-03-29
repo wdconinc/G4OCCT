@@ -8,10 +8,33 @@ Usage:
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
 from report_utils import write_report
+
+
+def pages_base_url() -> str:
+    """Return the GitHub Pages base URL for this repository.
+
+    Resolution order:
+    1. ``PAGES_BASE_URL`` environment variable (explicit override, useful for
+       forks or local previews — set to e.g. ``https://myfork.github.io/G4OCCT``).
+    2. Derived from ``GITHUB_REPOSITORY`` (``owner/repo`` provided by GitHub
+       Actions), producing ``https://{owner}.github.io/{repo}``.
+    3. Hard-coded upstream default ``https://eic.github.io/G4OCCT``.
+    """
+    override = os.environ.get("PAGES_BASE_URL", "").rstrip("/")
+    if override:
+        return override
+
+    github_repo = os.environ.get("GITHUB_REPOSITORY", "")
+    if github_repo and "/" in github_repo:
+        owner, repo = github_repo.split("/", 1)
+        return f"https://{owner}.github.io/{repo}"
+
+    return "https://eic.github.io/G4OCCT"
 
 
 def coverage_badge(percent: float) -> str:
@@ -96,7 +119,7 @@ def main() -> None:
         f"| Branches | {coverage_badge(branches_pct)} {fmt(branches_pct)} "
         f"| {branches_covered} / {branches_total} |",
         "",
-        "[View annotated HTML coverage report →](../coverage/index.html)",
+        f"[View annotated HTML coverage report →]({pages_base_url()}/coverage/index.html)",
         "",
     ]
 
