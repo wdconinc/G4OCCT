@@ -17,6 +17,8 @@
 
 #include <filesystem>
 #include <fstream>
+#include <random>
+#include <sstream>
 #include <string>
 
 namespace {
@@ -31,7 +33,7 @@ std::string WriteTempXML(const std::string& filename, const std::string& content
 
 } // namespace
 
-// ── NIST alias ────────────────────────────────────────────────────────────────
+// -- NIST alias ----------------------------------------------------------------
 
 TEST(MaterialMapReader, NistAliasSingleEntry) {
   const std::string path = WriteTempXML("test_mmr_nist_single.xml", R"xml(
@@ -71,10 +73,10 @@ TEST(MaterialMapReader, NistAliasMultipleEntries) {
   EXPECT_EQ(map.Resolve("AISI 316L"), ss);
 }
 
-// ── Inline GDML material definitions ─────────────────────────────────────────
+// -- Inline GDML material definitions -----------------------------------------
 
 TEST(MaterialMapReader, InlineSingleElementMaterial) {
-  // Simple single-element material (liquid argon — not a NIST material at
+  // Simple single-element material (liquid argon -- not a NIST material at
   // the correct density, so must be defined inline).
   const std::string path = WriteTempXML("test_mmr_inline_single.xml", R"xml(
 <materials>
@@ -98,7 +100,7 @@ TEST(MaterialMapReader, InlineSingleElementMaterial) {
 }
 
 TEST(MaterialMapReader, InlineMixtureWithExplicitElement) {
-  // FR4 approximation — inline element + inline material mixture.
+  // FR4 approximation -- inline element + inline material mixture.
   const std::string path = WriteTempXML("test_mmr_fr4.xml", R"xml(
 <materials>
   <material stepName="FR4" name="FR4" state="solid">
@@ -122,7 +124,7 @@ TEST(MaterialMapReader, InlineMixtureWithExplicitElement) {
   EXPECT_EQ(fr4->GetNumberOfElements(), 5u);
 }
 
-// ── Mixed NIST and inline ─────────────────────────────────────────────────────
+// -- Mixed NIST and inline ----------------------------------------------------
 
 TEST(MaterialMapReader, MixedNistAndInline) {
   const std::string path = WriteTempXML("test_mmr_mixed.xml", R"xml(
@@ -148,7 +150,7 @@ TEST(MaterialMapReader, MixedNistAndInline) {
   EXPECT_EQ(map.Resolve("Lead"), pb);
 }
 
-// ── Error cases ───────────────────────────────────────────────────────────────
+// -- Error cases --------------------------------------------------------------
 
 TEST(MaterialMapReader, MissingStepNameIsFatal) {
   const std::string path = WriteTempXML("test_mmr_no_stepname.xml", R"xml(
@@ -158,9 +160,9 @@ TEST(MaterialMapReader, MissingStepNameIsFatal) {
 )xml");
 
   G4OCCTMaterialMapReader reader;
-  // G4Exception detail goes to G4cout (stdout); only the abort line is on
-  // stderr.  Match the abort banner that G4Exception unconditionally writes
-  // to std::cerr before calling std::abort().
+  // A malformed material definition should trigger a fatal G4Exception,
+  // causing the process to terminate. Check that invoking ReadFile results
+  // in death with output mentioning G4Exception.
   EXPECT_DEATH(reader.ReadFile(path), ".*G4Exception.*");
 }
 
@@ -189,7 +191,7 @@ TEST(MaterialMapReader, InlineWithoutNameIsFatal) {
   EXPECT_DEATH(reader.ReadFile(path), ".*G4Exception.*");
 }
 
-// ── Additional error / branch coverage ───────────────────────────────────────
+// -- Additional error / branch coverage ---------------------------------------
 
 TEST(MaterialMapReader, MissingFileTriggersXMLException) {
   // A non-existent path causes Xerces to throw XMLException, caught as
@@ -236,7 +238,11 @@ TEST(MaterialMapReader, IsotopeAndElementBranchesAreTraversed) {
 TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
   // Pre-register a G4Material in the global table, then verify the reader
   // reuses it (the GetMaterial(gdmlName) reuse branch) instead of re-creating.
-  const G4String matName = "G4OCCT_ReuseMat_TestUnique";
+  const G4String baseName = "G4OCCT_ReuseMat_TestUnique";
+  // Make the material name unique per test run to avoid polluting the global table.
+  std::ostringstream nameBuilder;
+  nameBuilder << baseName << "_" << std::random_device{}();
+  const G4String matName = nameBuilder.str();
   G4Material* premat     = G4Material::GetMaterial(matName, /*warning=*/false);
   if (premat == nullptr) {
     premat = new G4Material(matName, 18.0, 39.948 * CLHEP::g / CLHEP::mole,
@@ -244,14 +250,16 @@ TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
   }
   ASSERT_NE(premat, nullptr);
 
-  const std::string path = WriteTempXML("test_mmr_reuse.xml", R"xml(<?xml version="1.0"?>
-<materials>
-  <material stepName="reuseStep" name="G4OCCT_ReuseMat_TestUnique" state="liquid">
-    <D value="1.39" unit="g/cm3"/>
-    <fraction n="1.0" ref="G4_Ar"/>
-  </material>
-</materials>
-)xml");
+  const std::string path =
+      WriteTempXML("test_mmr_reuse.xml", std::string("<?xml version=\"1.0\"?>\n"
+                                                     "<materials>\n"
+                                                     "  <material stepName=\"reuseStep\" name=\"") +
+                                             matName +
+                                             std::string("\" state=\"liquid\">\n"
+                                                         "    <D value=\"1.39\" unit=\"g/cm3\"/>\n"
+                                                         "    <fraction n=\"1.0\" ref=\"G4_Ar\"/>\n"
+                                                         "  </material>\n"
+                                                         "</materials>\n"));
   G4OCCTMaterialMapReader reader;
   G4OCCTMaterialMap map;
   ASSERT_NO_FATAL_FAILURE(map = reader.ReadFile(path));
@@ -260,7 +268,7 @@ TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
   EXPECT_EQ(map.Resolve("reuseStep"), premat);
 }
 
-// ── Fatal-path coverage (G4OCCTFatalCatchGuard) ────────────────────────────────────
+// -- Fatal-path coverage (G4OCCTFatalCatchGuard) -----------------------------------
 // The tests below exercise fatal G4Exception paths in-process by temporarily
 // installing a G4OCCTFatalCatcher handler that returns false (= don't abort).
 // This approach contributes to gcov line/branch coverage, complementing the

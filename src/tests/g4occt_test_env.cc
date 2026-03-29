@@ -15,14 +15,21 @@
 class G4OCCTTestEnv : public ::testing::Environment {
 public:
   void SetUp() override {
-    fPreviousHandler = G4StateManager::GetStateManager()->GetExceptionHandler();
-    G4StateManager::GetStateManager()->SetExceptionHandler(
-        new G4OCCTTestExceptionHandler(fPreviousHandler));
+    auto* stateManager = G4StateManager::GetStateManager();
+    if (!stateManager) {
+      return;
+    }
+    fPreviousHandler = stateManager->GetExceptionHandler();
+    stateManager->SetExceptionHandler(new G4OCCTTestExceptionHandler(fPreviousHandler));
   }
 
   void TearDown() override {
-    auto* ourHandler = G4StateManager::GetStateManager()->GetExceptionHandler();
-    G4StateManager::GetStateManager()->SetExceptionHandler(fPreviousHandler);
+    auto* stateManager = G4StateManager::GetStateManager();
+    if (!stateManager) {
+      return;
+    }
+    auto* ourHandler = stateManager->GetExceptionHandler();
+    stateManager->SetExceptionHandler(fPreviousHandler);
     delete ourHandler;
   }
 
