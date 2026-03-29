@@ -8,6 +8,8 @@
 
 #include "G4OCCT/G4OCCTMaterialMapReader.hh"
 
+#include "G4OCCTFatalCatchGuard.hh"
+
 #include <G4Material.hh>
 #include <G4NistManager.hh>
 
@@ -256,4 +258,91 @@ TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
   ASSERT_TRUE(map.Contains("reuseStep"));
   // The resolved pointer must be the pre-registered material, not a new copy.
   EXPECT_EQ(map.Resolve("reuseStep"), premat);
+}
+
+// ── Fatal-path coverage (G4OCCTFatalCatchGuard) ────────────────────────────────────
+// The tests below exercise fatal G4Exception paths in-process by temporarily
+// installing a G4OCCTFatalCatcher handler that returns false (= don't abort).
+// This approach contributes to gcov line/branch coverage, complementing the
+// EXPECT_DEATH variants above which verify aborting behaviour but run in a
+// forked child and therefore do not accumulate coverage data.
+
+TEST(MaterialMapReader, MissingFileTriggersFatalCode) {
+  // A non-existent path causes Xerces to throw XMLException, which is caught
+  // and rethrown as G4OCCT_MatReader001 (FatalException).
+  const std::filesystem::path missing_path =
+      std::filesystem::temp_directory_path() / "test_mmr_fatal_missing.xml";
+  std::filesystem::remove(missing_path);
+
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map = reader.ReadFile(missing_path.string());
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader001");
+  EXPECT_EQ(map.Size(), 0u); // empty result returned after non-aborting exception
+}
+
+TEST(MaterialMapReader, WrongRootTagTriggersFatalCode) {
+  // Root element is not <materials> → G4OCCT_MatReader005.
+  const std::string path = WriteTempXML(
+      "test_mmr_fatal_wrong_root.xml",
+      R"xml(<?xml version="1.0"?><root><material stepName="X" geant4Name="G4_Al"/></root>)xml");
+
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map = reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader005");
+  EXPECT_EQ(map.Size(), 0u);
+}
+
+TEST(MaterialMapReader, MissingStepNameTriggersFatalCode) {
+  // A <material> element without stepName → G4OCCT_MatReader006.
+  const std::string path = WriteTempXML("test_mmr_fatal_no_stepname.xml", R"xml(
+<materials>
+  <material geant4Name="G4_Al"/>
+</materials>
+)xml");
+
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map = reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader006");
+  EXPECT_EQ(map.Size(), 0u);
+}
+
+TEST(MaterialMapReader, UnknownNistNameTriggersFatalCode) {
+  // A geant4Name that does not exist in the NIST database → G4OCCT_MatReader007.
+  const std::string path = WriteTempXML("test_mmr_fatal_bad_nist.xml", R"xml(
+<materials>
+  <material stepName="Mystery" geant4Name="G4_DOES_NOT_EXIST_XYZ_FATAL"/>
+</materials>
+)xml");
+
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map = reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader007");
+  EXPECT_EQ(map.Size(), 0u);
+}
+
+TEST(MaterialMapReader, InlineWithoutNameTriggersFatalCode) {
+  // Inline material with stepName but no name attribute → G4OCCT_MatReader008.
+  const std::string path = WriteTempXML("test_mmr_fatal_inline_no_name.xml", R"xml(
+<materials>
+  <material stepName="SomeMat" state="solid">
+    <D value="1.0" unit="g/cm3"/>
+    <fraction n="1.0" ref="G4_Al"/>
+  </material>
+</materials>
+)xml");
+
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map = reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader008");
+  EXPECT_EQ(map.Size(), 0u);
 }

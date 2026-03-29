@@ -24,8 +24,19 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
 
   G4OCCTMaterialMap result;
 
-  {
-    // Limit parser scope so it is destroyed before Terminate().
+  // Pre-parse fatal errors (MatReader001–005) are saved here and reported
+  // after the parser is destroyed and Terminate() has been called.  Calling
+  // Terminate() inside the parser's {} scope and then returning through the
+  // scope exit would invoke XercesDOMParser::~XercesDOMParser() after
+  // Terminate() — a SEGFAULT if a non-aborting G4VExceptionHandler allows
+  // execution to continue past G4Exception().
+  G4String preFatalCode;
+  G4String preFatalMsg;
+
+  // IIFE: contains the XercesDOMParser so it is destroyed before Terminate().
+  // Early 'return' from the lambda exits the lambda scope cleanly, ensuring
+  // the parser destructor runs before Terminate() is called below.
+  [&]() {
     xercesc::XercesDOMParser parser;
     parser.setDoNamespaces(false);
     parser.setDoSchema(false);
@@ -34,40 +45,34 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
     try {
       parser.parse(path.c_str());
     } catch (const xercesc::XMLException& e) {
-      xercesc::XMLPlatformUtils::Terminate();
-      G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader001", FatalException,
-                  ("XML error parsing '" + path + "': " + Transcode(e.getMessage())).c_str());
-      return result;
+      preFatalCode = "G4OCCT_MatReader001";
+      preFatalMsg  = "XML error parsing '" + path + "': " + Transcode(e.getMessage());
+      return;
     } catch (const xercesc::DOMException& e) {
-      xercesc::XMLPlatformUtils::Terminate();
-      G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader002", FatalException,
-                  ("DOM error parsing '" + path + "': " + Transcode(e.getMessage())).c_str());
-      return result;
+      preFatalCode = "G4OCCT_MatReader002";
+      preFatalMsg  = "DOM error parsing '" + path + "': " + Transcode(e.getMessage());
+      return;
     }
 
     const xercesc::DOMDocument* const doc = parser.getDocument();
     if (!doc) {
-      xercesc::XMLPlatformUtils::Terminate();
-      G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader003", FatalException,
-                  ("Cannot open document: " + path).c_str());
-      return result;
+      preFatalCode = "G4OCCT_MatReader003";
+      preFatalMsg  = "Cannot open document: " + path;
+      return;
     }
 
     const xercesc::DOMElement* const root = doc->getDocumentElement();
     if (!root) {
-      xercesc::XMLPlatformUtils::Terminate();
-      G4Exception("G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader004", FatalException,
-                  ("Empty document: " + path).c_str());
-      return result;
+      preFatalCode = "G4OCCT_MatReader004";
+      preFatalMsg  = "Empty document: " + path;
+      return;
     }
 
     const G4String rootTag = Transcode(root->getTagName());
     if (rootTag != "materials") {
-      xercesc::XMLPlatformUtils::Terminate();
-      G4Exception(
-          "G4OCCTMaterialMapReader::ReadFile", "G4OCCT_MatReader005", FatalException,
-          ("Root element must be <materials>, got <" + rootTag + "> in '" + path + "'").c_str());
-      return result;
+      preFatalCode = "G4OCCT_MatReader005";
+      preFatalMsg  = "Root element must be <materials>, got <" + rootTag + "> in '" + path + "'";
+      return;
     }
 
     // ── Pass 1: isotopes and elements ──────────────────────────────────────
@@ -190,8 +195,18 @@ G4OCCTMaterialMap G4OCCTMaterialMapReader::ReadFile(const G4String& path) {
 
       result.Add(stepName, mat);
     }
-  } // xercesc::XercesDOMParser destroyed here
+  }(); // XercesDOMParser destroyed here
 
   xercesc::XMLPlatformUtils::Terminate();
+
+  if (!preFatalCode.empty()) {
+    G4Exception("G4OCCTMaterialMapReader::ReadFile", preFatalCode.c_str(), FatalException,
+                preFatalMsg.c_str());
+    // Normally unreachable: FatalException aborts.  If a non-aborting handler
+    // is installed (e.g. G4OCCTFatalCatcher in tests), return an empty map so
+    // callers get a predictable, safe value.
+    return result;
+  }
+
   return result;
 }

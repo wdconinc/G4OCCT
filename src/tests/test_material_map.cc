@@ -6,6 +6,8 @@
 
 #include "G4OCCT/G4OCCTMaterialMap.hh"
 
+#include "G4OCCTFatalCatchGuard.hh"
+
 #include <G4NistManager.hh>
 
 #include <gtest/gtest.h>
@@ -106,4 +108,31 @@ TEST(MaterialMap, MergeCombinesTwoMaps) {
   EXPECT_EQ(mapB.Resolve("Al"), al);
   EXPECT_EQ(mapB.Resolve("Cu"), cu);
   EXPECT_EQ(mapB.Resolve("Fe"), fe);
+}
+
+// ── Fatal-path coverage ───────────────────────────────────────────────────────
+// The tests below exercise fatal G4Exception paths in-process by temporarily
+// installing a FatalCatcher handler that returns false (= don't abort).
+// This approach contributes to gcov line/branch coverage, complementing the
+// EXPECT_DEATH variants above which verify the aborting behaviour but run in
+// a forked child and therefore do not accumulate coverage data.
+
+TEST(MaterialMap, AddNullMaterialTriggersFatalCode) {
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMap matMap;
+  matMap.Add("MyMat", nullptr);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatMap000");
+  // After the non-aborting G4Exception the unreachable return executes;
+  // the map must remain empty.
+  EXPECT_EQ(matMap.Size(), 0u);
+}
+
+TEST(MaterialMap, ResolveUnregisteredNameTriggersFatalCode) {
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMap matMap;
+  G4Material* result = matMap.Resolve("not_registered");
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatMap001");
+  EXPECT_EQ(result, nullptr); // unreachable return value
 }
