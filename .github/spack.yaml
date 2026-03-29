@@ -5,8 +5,10 @@ spack:
   view: /opt/local
 
   specs:
-  - "geant4@11.3: ~opengl ~qt ~x11"
+  - "geant4@11.3:"
   - "opencascade@7.8:"
+  - "libx11"
+  - "mesa+opengl+glx"
 
   config:
     install_tree:
@@ -15,21 +17,10 @@ spack:
   packages:
     all:
       require: 'target=x86_64_v2'
-    gl:
-      require:
-        - glx
-    libglx:
-      require:
-        - opengl
     egl:
       buildable: false
       externals:
         - spec: egl@1.5
-          prefix: /usr
-    opengl:
-      buildable: false
-      externals:
-        - spec: opengl@4.6
           prefix: /usr
     openglu:
       buildable: false

@@ -8,14 +8,10 @@ LABEL org.opencontainers.image.source=https://github.com/eic/G4OCCT
 LABEL org.opencontainers.image.description="G4OCCT: Geant4 interface to OpenCASCADE Technology"
 LABEL org.opencontainers.image.licenses=LGPL-2.1-or-later
 
-# Install build tools not present in the spack base layer.
-# libgl-dev and libx11-dev provide the linker stubs (-lGL, -lX11) required by
-# the Geant4 visualization drivers that are compiled into the spack base image.
+# Install build tools not present in the spack base layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     g++ \
-    libgl-dev \
-    libx11-dev \
     make \
     && rm -rf /var/lib/apt/lists/*
 
