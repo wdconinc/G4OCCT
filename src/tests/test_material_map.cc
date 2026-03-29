@@ -6,9 +6,50 @@
 
 #include "G4OCCT/G4OCCTMaterialMap.hh"
 
+#include <G4ExceptionSeverity.hh>
 #include <G4NistManager.hh>
+#include <G4StateManager.hh>
+#include <G4VExceptionHandler.hh>
 
 #include <gtest/gtest.h>
+
+#include <string>
+
+namespace {
+
+/// G4VExceptionHandler that records fatal G4Exceptions instead of aborting.
+/// Returning false from Notify() tells Geant4 not to call abort(), so the
+/// fatal-path source lines execute and contribute to gcov coverage.
+struct FatalCatcher : public G4VExceptionHandler {
+  bool caught = false;
+  std::string code;
+  G4bool Notify(const char* /*origin*/, const char* exceptionCode,
+                G4ExceptionSeverity severity, const char* /*description*/) override {
+    if (severity == FatalException || severity == FatalErrorInArgument) {
+      caught       = true;
+      code         = exceptionCode;
+      return false; // suppress abort — execution continues
+    }
+    return true; // abort for other severities
+  }
+};
+
+/// RAII guard: installs FatalCatcher on construction, restores previous
+/// handler on destruction.
+struct FatalCatchGuard {
+  FatalCatcher              catcher;
+  G4VExceptionHandler*      prev = nullptr;
+
+  FatalCatchGuard() {
+    prev = G4StateManager::GetStateManager()->GetExceptionHandler();
+    G4StateManager::GetStateManager()->SetExceptionHandler(&catcher);
+  }
+  ~FatalCatchGuard() {
+    G4StateManager::GetStateManager()->SetExceptionHandler(prev);
+  }
+};
+
+} // namespace
 
 TEST(MaterialMap, AddAndResolve) {
   G4Material* al = G4NistManager::Instance()->FindOrBuildMaterial("G4_Al");
@@ -106,4 +147,31 @@ TEST(MaterialMap, MergeCombinesTwoMaps) {
   EXPECT_EQ(mapB.Resolve("Al"), al);
   EXPECT_EQ(mapB.Resolve("Cu"), cu);
   EXPECT_EQ(mapB.Resolve("Fe"), fe);
+}
+
+// ── Fatal-path coverage ───────────────────────────────────────────────────────
+// The tests below exercise fatal G4Exception paths in-process by temporarily
+// installing a FatalCatcher handler that returns false (= don't abort).
+// This approach contributes to gcov line/branch coverage, complementing the
+// EXPECT_DEATH variants above which verify the aborting behaviour but run in
+// a forked child and therefore do not accumulate coverage data.
+
+TEST(MaterialMap, AddNullMaterialTriggersFatalCode) {
+  FatalCatchGuard guard;
+  G4OCCTMaterialMap matMap;
+  matMap.Add("MyMat", nullptr);
+  EXPECT_TRUE(guard.catcher.caught);
+  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatMap000");
+  // After the non-aborting G4Exception the unreachable return executes;
+  // the map must remain empty.
+  EXPECT_EQ(matMap.Size(), 0u);
+}
+
+TEST(MaterialMap, ResolveUnregisteredNameTriggersFatalCode) {
+  FatalCatchGuard guard;
+  G4OCCTMaterialMap matMap;
+  G4Material* result = matMap.Resolve("not_registered");
+  EXPECT_TRUE(guard.catcher.caught);
+  EXPECT_EQ(guard.catcher.code, "G4OCCT_MatMap001");
+  EXPECT_EQ(result, nullptr); // unreachable return value
 }
