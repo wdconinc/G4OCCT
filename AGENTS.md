@@ -268,12 +268,15 @@ Do not lower these version floors without an explicit project decision.
   doesn't re-download on every run.  Use `actions/cache` to cache the
   FetchContent download directory between runs.
 - **FetchContent `actions/cache` scope:** Cache only the downloaded source
-  directories (e.g., `_fetchcontent/*-src` or the download subdirectory), not
-  the entire `_fetchcontent/` tree.  FetchContent build artefacts are compiled
-  with job-specific flags (Release, ASAN, TSAN, coverage); sharing them across
-  jobs via the cache causes cross-contamination and stale instrumentation.
-  Use a job-specific cache key that includes the build mode whenever
-  dependency build output is cached (PR #201).
+  directories and CMake subbuild metadata (e.g., `_fetchcontent/*-src`,
+  `_fetchcontent/*-subbuild`, or the dedicated download subdirectory), not
+  the entire `_fetchcontent/` tree.  Do **not** cache `_fetchcontent/*-build`
+  or any directory that contains compiled artefacts (object files, libraries,
+  executables).  FetchContent build artefacts are compiled with job-specific
+  flags (Release, ASAN, TSAN, coverage); sharing them across jobs via the
+  cache causes cross-contamination and stale instrumentation.  Use a
+  job-specific cache key that includes the build mode whenever dependency
+  build output is cached (PR #201).
 - **CI job (`ci.yml`):** Three main jobs:
   1. `build-test-benchmark` — builds with `-DCMAKE_BUILD_TYPE=Release
      -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON`, runs tests, and installs.
