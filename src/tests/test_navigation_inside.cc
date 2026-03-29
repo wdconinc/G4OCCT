@@ -316,7 +316,7 @@ TEST(InsideClassification, BoxWithCylindricalHole) {
                                                gp_Pnt(10.0 * mm, 10.0 * mm, 5.0 * mm))
                                .Shape();
   const gp_Ax2 cylAx(gp_Pnt(0.0, 0.0, -10.0 * mm), gp_Dir(0.0, 0.0, 1.0));
-  const TopoDS_Shape cyl = BRepPrimAPI_MakeCylinder(cylAx, 3.0 * mm, 20.0 * mm).Shape();
+  const TopoDS_Shape cyl      = BRepPrimAPI_MakeCylinder(cylAx, 3.0 * mm, 20.0 * mm).Shape();
   const TopoDS_Shape withHole = BRepAlgoAPI_Cut(box, cyl).Shape();
 
   // Construction exercises the wireCount > 1 branch in ComputeBounds.
@@ -326,11 +326,11 @@ TEST(InsideClassification, BoxWithCylindricalHole) {
   ExpectInside("point inside box wall (outside hole) is kInside", solid,
                G4ThreeVector(7.0 * mm, 0.0, 0.0), kInside);
   // A point on the cylinder axis inside the bore → material removed → kOutside.
-  ExpectInside("origin (inside cylindrical bore) is kOutside", solid,
-               G4ThreeVector(0.0, 0.0, 0.0), kOutside);
+  ExpectInside("origin (inside cylindrical bore) is kOutside", solid, G4ThreeVector(0.0, 0.0, 0.0),
+               kOutside);
   // A point well outside the box → kOutside.
-  ExpectInside("point far outside is kOutside", solid,
-               G4ThreeVector(50.0 * mm, 0.0, 0.0), kOutside);
+  ExpectInside("point far outside is kOutside", solid, G4ThreeVector(50.0 * mm, 0.0, 0.0),
+               kOutside);
 }
 
 } // namespace
