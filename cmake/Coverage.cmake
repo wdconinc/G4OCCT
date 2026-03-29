@@ -14,7 +14,8 @@
 # Usage (from the build directory): cmake --build . --target coverage-report
 #
 # gcovr must be on PATH when the target is invoked.  In CI a venv is used:
-# python3 -m venv .venv-gcovr && .venv-gcovr/bin/pip install gcovr
+# python3 -m venv .venv-gcovr && .venv-gcovr/bin/pip install "gcovr>=5.0" gcovr
+# >=5.0 is required for --exclude-throw-branches support.
 # PATH="$(pwd)/.venv-gcovr/bin:$PATH" cmake --build build --target
 # coverage-report
 
