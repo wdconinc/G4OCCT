@@ -203,9 +203,9 @@ TEST(AssemblyVolume, MaterialMapLookupFails) {
         // In case the implementation changes and no death occurs, avoid leaks.
         delete assembly;
       },
-      "");
+      "G4Exception");
 
-  std::remove(tmpPath.c_str());
+  std::filesystem::remove(tmpPath);
 }
 
 TEST(AssemblyVolume, MaterialAssignedToLogicalVolume) {
@@ -229,7 +229,7 @@ TEST(AssemblyVolume, MaterialAssignedToLogicalVolume) {
   ASSERT_EQ(lvMap.count("CopperPart"), 1u);
   EXPECT_EQ(lvMap.at("CopperPart")->GetMaterial(), cu);
 
-  std::remove(tmpPath.c_str());
+  std::filesystem::remove(tmpPath);
   delete assembly;
 }
 
@@ -263,11 +263,11 @@ TEST(AssemblyVolume, MaterialPreservedAfterMakeImprint) {
   const G4VPhysicalVolume* daughter = worldLV->GetDaughter(0);
   EXPECT_EQ(daughter->GetLogicalVolume()->GetMaterial(), pb);
 
-  std::remove(tmpPath.c_str());
+  std::filesystem::remove(tmpPath);
   delete assembly;
 }
 
-// ── New tests: multi-shape assembly and LocationToTrsf coverage ───────────────
+// -- New tests: multi-shape assembly and LocationToTrsf coverage ---------------
 
 TEST(AssemblyVolume, FromSTEPTripleBox) {
   // Load the triple-box-v1 fixture which contains three free-shape boxes all
@@ -362,7 +362,7 @@ TEST(AssemblyVolume, AssemblyWithTranslation) {
   // recentering offset that is absorbed identically into both translations.
   EXPECT_NEAR(std::abs(x1 - x0), kTranslationX, 1e-6);
 
-  std::remove(tmpPath.c_str());
+  std::filesystem::remove(tmpPath);
   delete assembly;
 }
 
@@ -388,6 +388,6 @@ TEST(AssemblyVolume, GetLogicalVolumesCompleteness) {
   ASSERT_EQ(lvMap.count("WidgetPart"), 1u);
   EXPECT_EQ(lvMap.at("WidgetPart")->GetMaterial(), fe);
 
-  std::remove(tmpPath.c_str());
+  std::filesystem::remove(tmpPath);
   delete assembly;
 }

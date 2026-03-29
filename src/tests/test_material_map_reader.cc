@@ -33,7 +33,7 @@ std::string WriteTempXML(const std::string& filename, const std::string& content
 
 } // namespace
 
-// ── NIST alias ────────────────────────────────────────────────────────────────
+// -- NIST alias ----------------------------------------------------------------
 
 TEST(MaterialMapReader, NistAliasSingleEntry) {
   const std::string path = WriteTempXML("test_mmr_nist_single.xml", R"xml(
@@ -73,7 +73,7 @@ TEST(MaterialMapReader, NistAliasMultipleEntries) {
   EXPECT_EQ(map.Resolve("AISI 316L"), ss);
 }
 
-// ── Inline GDML material definitions ─────────────────────────────────────────
+// -- Inline GDML material definitions -----------------------------------------
 
 TEST(MaterialMapReader, InlineSingleElementMaterial) {
   // Simple single-element material (liquid argon -- not a NIST material at
@@ -100,7 +100,7 @@ TEST(MaterialMapReader, InlineSingleElementMaterial) {
 }
 
 TEST(MaterialMapReader, InlineMixtureWithExplicitElement) {
-  // FR4 approximation — inline element + inline material mixture.
+  // FR4 approximation -- inline element + inline material mixture.
   const std::string path = WriteTempXML("test_mmr_fr4.xml", R"xml(
 <materials>
   <material stepName="FR4" name="FR4" state="solid">
@@ -124,7 +124,7 @@ TEST(MaterialMapReader, InlineMixtureWithExplicitElement) {
   EXPECT_EQ(fr4->GetNumberOfElements(), 5u);
 }
 
-// ── Mixed NIST and inline ─────────────────────────────────────────────────────
+// -- Mixed NIST and inline ----------------------------------------------------
 
 TEST(MaterialMapReader, MixedNistAndInline) {
   const std::string path = WriteTempXML("test_mmr_mixed.xml", R"xml(
@@ -150,7 +150,7 @@ TEST(MaterialMapReader, MixedNistAndInline) {
   EXPECT_EQ(map.Resolve("Lead"), pb);
 }
 
-// ── Error cases ───────────────────────────────────────────────────────────────
+// -- Error cases --------------------------------------------------------------
 
 TEST(MaterialMapReader, MissingStepNameIsFatal) {
   const std::string path = WriteTempXML("test_mmr_no_stepname.xml", R"xml(
@@ -191,7 +191,7 @@ TEST(MaterialMapReader, InlineWithoutNameIsFatal) {
   EXPECT_DEATH(reader.ReadFile(path), ".*G4Exception.*");
 }
 
-// ── Additional error / branch coverage ───────────────────────────────────────
+// -- Additional error / branch coverage ---------------------------------------
 
 TEST(MaterialMapReader, MissingFileTriggersXMLException) {
   // A non-existent path causes Xerces to throw XMLException, caught as
