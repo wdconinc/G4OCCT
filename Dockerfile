@@ -30,6 +30,6 @@ RUN set -e; \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_INSTALL_PREFIX=/usr/local \
       -DBUILD_TESTING=OFF \
-  && cmake --build /tmp/G4OCCT-build -- -j"${JOBS}" \
+  && cmake --build /tmp/G4OCCT-build --parallel "${JOBS}" \
   && cmake --install /tmp/G4OCCT-build \
   && rm -rf /tmp/G4OCCT-build /usr/local/src/G4OCCT
