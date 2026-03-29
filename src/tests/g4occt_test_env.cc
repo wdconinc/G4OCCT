@@ -20,8 +20,7 @@ public:
       return;
     }
     fPreviousHandler = stateManager->GetExceptionHandler();
-    stateManager->SetExceptionHandler(
-        new G4OCCTTestExceptionHandler(fPreviousHandler));
+    stateManager->SetExceptionHandler(new G4OCCTTestExceptionHandler(fPreviousHandler));
   }
 
   void TearDown() override {

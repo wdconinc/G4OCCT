@@ -250,17 +250,16 @@ TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
   }
   ASSERT_NE(premat, nullptr);
 
-  const std::string path = WriteTempXML(
-      "test_mmr_reuse.xml",
-      std::string("<?xml version=\"1.0\"?>\n"
-                  "<materials>\n"
-                  "  <material stepName=\"reuseStep\" name=\"") +
-          matName +
-          std::string("\" state=\"liquid\">\n"
-                      "    <D value=\"1.39\" unit=\"g/cm3\"/>\n"
-                      "    <fraction n=\"1.0\" ref=\"G4_Ar\"/>\n"
-                      "  </material>\n"
-                      "</materials>\n"));
+  const std::string path =
+      WriteTempXML("test_mmr_reuse.xml", std::string("<?xml version=\"1.0\"?>\n"
+                                                     "<materials>\n"
+                                                     "  <material stepName=\"reuseStep\" name=\"") +
+                                             matName +
+                                             std::string("\" state=\"liquid\">\n"
+                                                         "    <D value=\"1.39\" unit=\"g/cm3\"/>\n"
+                                                         "    <fraction n=\"1.0\" ref=\"G4_Ar\"/>\n"
+                                                         "  </material>\n"
+                                                         "</materials>\n"));
   G4OCCTMaterialMapReader reader;
   G4OCCTMaterialMap map;
   ASSERT_NO_FATAL_FAILURE(map = reader.ReadFile(path));

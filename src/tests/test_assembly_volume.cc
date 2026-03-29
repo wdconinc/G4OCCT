@@ -50,8 +50,7 @@
 
 namespace {
 
-G4Material* GetTestMaterial(const std::string& name)
-{
+G4Material* GetTestMaterial(const std::string& name) {
   return G4NistManager::Instance()->FindOrBuildMaterial(name);
 }
 
@@ -157,8 +156,9 @@ std::string BuildTwoBoxAssemblySTEP(const std::string& tmpPath, double txX) {
 TEST(AssemblyVolume, FromSTEPSingleBox) {
   // Build a 20×30×40 mm box STEP file with a single shape.
   const std::string uniqueSuffix = std::to_string(std::random_device{}());
-  const std::string tmpPath =
-      (std::filesystem::temp_directory_path() / ("test_assembly_single_box_" + uniqueSuffix + ".step")).string();
+  const std::string tmpPath      = (std::filesystem::temp_directory_path() /
+                                    ("test_assembly_single_box_" + uniqueSuffix + ".step"))
+                                       .string();
   BuildSingleBoxSTEP(tmpPath, "Box", "Aluminium", 20.0, 30.0, 40.0);
 
   G4Material* al = GetTestMaterial("G4_Al");
@@ -199,7 +199,7 @@ TEST(AssemblyVolume, MaterialMapLookupFails) {
   EXPECT_DEATH(
       {
         G4OCCTAssemblyVolume* assembly = nullptr;
-        assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, emptyMap);
+        assembly                       = G4OCCTAssemblyVolume::FromSTEP(tmpPath, emptyMap);
         // In case the implementation changes and no death occurs, avoid leaks.
         delete assembly;
       },
