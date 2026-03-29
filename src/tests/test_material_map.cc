@@ -37,8 +37,8 @@ struct FatalCatcher : public G4VExceptionHandler {
 /// RAII guard: installs FatalCatcher on construction, restores previous
 /// handler on destruction.
 struct FatalCatchGuard {
-  FatalCatcher              catcher;
-  G4VExceptionHandler*      prev = nullptr;
+  FatalCatcher         catcher;
+  G4VExceptionHandler* prev    = nullptr;
 
   FatalCatchGuard() {
     prev = G4StateManager::GetStateManager()->GetExceptionHandler();

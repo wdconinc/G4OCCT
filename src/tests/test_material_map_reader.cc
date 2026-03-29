@@ -51,7 +51,7 @@ struct FatalCatcher : public G4VExceptionHandler {
 /// handler on destruction.
 struct FatalCatchGuard {
   FatalCatcher         catcher;
-  G4VExceptionHandler* prev = nullptr;
+  G4VExceptionHandler* prev    = nullptr;
 
   FatalCatchGuard() {
     prev = G4StateManager::GetStateManager()->GetExceptionHandler();
