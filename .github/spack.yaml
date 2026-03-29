@@ -4,9 +4,16 @@
 spack:
   view: /opt/local
 
+  repos:
+  - spack-repo
+
+  develop:
+    g4occt:
+      spec: g4occt@develop
+      path: ..
+
   specs:
-  - "geant4@11.3:"
-  - "opencascade@7.8:"
+  - "g4occt@develop"
 
   config:
     install_tree:

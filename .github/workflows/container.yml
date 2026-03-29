@@ -11,17 +11,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-base:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-    uses: ./.github/workflows/base-container.yml
-    permissions:
-      packages: write
-    secrets: inherit
-
   build-container:
     name: Build and push G4OCCT container
-    needs: build-base
-    if: ${{ !failure() && !cancelled() }}
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -40,6 +32,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Spack
+        uses: spack/setup-spack@v3
+        with:
+          spack_ref: releases/v1.1
+          buildcache: false
+
+      - name: Install spack environment from EIC buildcache
+        env:
+          GITHUB_USER: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: spack-bash {0}
+        run: spack -e .github install
+
       - name: Extract container metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -51,25 +56,27 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push G4OCCT container (trusted)
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: BASE_IMAGE=ghcr.io/eic/g4occt:base
-          cache-from: type=registry,ref=ghcr.io/eic/g4occt:buildcache
-          cache-to: type=registry,ref=ghcr.io/eic/g4occt:buildcache,mode=max
+      - name: Push G4OCCT container image
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          GITHUB_USER: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAGS=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && TAGS+=("$tag")
+          done <<< "${{ steps.meta.outputs.tags }}"
+          # spack buildcache push --tag expects only the tag portion (e.g. sha-abc1234),
+          # not the full image reference; strip the registry+repo prefix.
+          FIRST_TAG="${TAGS[0]#*:}"
+          spack -e .github buildcache push \
+            --base-image ubuntu:22.04 \
+            --tag "${FIRST_TAG}" \
+            --update-index \
+            oci://ghcr.io/eic/g4occt
+          for tag in "${TAGS[@]:1}"; do
+            docker buildx imagetools create \
+              --tag "${tag}" \
+              "${TAGS[0]}"
+          done
 
-      - name: Build G4OCCT container (untrusted PR)
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: BASE_IMAGE=ghcr.io/eic/g4occt:base
-          cache-from: type=registry,ref=ghcr.io/eic/g4occt:buildcache
