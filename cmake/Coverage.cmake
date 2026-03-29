@@ -129,6 +129,8 @@ file(
   "          --print-summary\n"
   "          --html\n"
   "          --html-details\n"
+  "          --exclude-throw-branches\n"
+  "          --exclude-unreachable-branches\n"
   "          --output \"${CMAKE_BINARY_DIR}/coverage-report/index.html\"\n"
   "  RESULT_VARIABLE _gcovr_result\n"
   ")\n"
