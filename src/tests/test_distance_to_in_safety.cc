@@ -161,11 +161,9 @@ TEST(DistanceToInTiers, BVHTier1ForDiagonalExteriorPoint) {
   const G4double exact = sphere.solid.ExactDistanceToIn(diagonalExterior);
 
   EXPECT_GE(dist, 0.0) << "BVH tier-1: DistanceToIn must be non-negative";
-  EXPECT_LE(dist, exact + kDefaultTolerance)
-      << "BVH tier-1: safety must not exceed exact distance";
+  EXPECT_LE(dist, exact + kDefaultTolerance) << "BVH tier-1: safety must not exceed exact distance";
   // The point is genuinely outside the sphere: exact distance must be positive.
-  EXPECT_GT(exact, 0.0)
-      << "BVH tier-1: diagonal exterior point must have positive exact distance";
+  EXPECT_GT(exact, 0.0) << "BVH tier-1: diagonal exterior point must have positive exact distance";
 }
 
 } // namespace

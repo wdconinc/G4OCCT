@@ -138,8 +138,7 @@ TEST(DistanceToOutBranchCoverage, SphereCacheEvictionAndCapacityEarlyExit) {
 
   // Near-corner point has r ~ 1 mm < 2.5 mm ~ back().radius when cache is full,
   // triggering the capacity early exit (size >= 64 && d <= back().radius -> return).
-  const G4double dCorner =
-      solid.DistanceToOut(G4ThreeVector(99.0 * mm, 99.0 * mm, 9.0 * mm));
+  const G4double dCorner = solid.DistanceToOut(G4ThreeVector(99.0 * mm, 99.0 * mm, 9.0 * mm));
   EXPECT_GE(dCorner, 0.0) << "near-corner DistanceToOut must be non-negative";
 }
 

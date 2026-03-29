@@ -496,11 +496,9 @@ TEST(AssemblyVolume, GetMaterialNameXCAFBranch) {
         shapeTool->AddShape(BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape(), Standard_False);
     TDataStd_Name::Set(shapeLabel, "SteelPart");
 
-    TDF_Label matLabel =
-        matTool->AddMaterial(new TCollection_HAsciiString("Steel"),
-                             new TCollection_HAsciiString(""), 7.8,
-                             new TCollection_HAsciiString("g/cm3"),
-                             new TCollection_HAsciiString("MASS_DENSITY"));
+    TDF_Label matLabel = matTool->AddMaterial(
+        new TCollection_HAsciiString("Steel"), new TCollection_HAsciiString(""), 7.8,
+        new TCollection_HAsciiString("g/cm3"), new TCollection_HAsciiString("MASS_DENSITY"));
     matTool->SetMaterial(shapeLabel, matLabel);
 
     STEPCAFControl_Writer writer;
