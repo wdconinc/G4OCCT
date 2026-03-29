@@ -481,10 +481,9 @@ TEST(AssemblyVolume, GetMaterialNameXCAFBranch) {
   // registered in matMap so the test is stable regardless of STEP round-trip
   // fidelity; the logical volume is named "SteelPart" in both cases.
   const std::string uniqueSuffix = std::to_string(std::random_device{}());
-  const std::string tmpPath =
-      (std::filesystem::temp_directory_path() /
-       ("test_assembly_mat_xcaf_" + uniqueSuffix + ".step"))
-          .string();
+  const std::string tmpPath      = (std::filesystem::temp_directory_path() /
+                                    ("test_assembly_mat_xcaf_" + uniqueSuffix + ".step"))
+                                       .string();
 
   {
     Handle(TDocStd_Application) app = new TDocStd_Application;
