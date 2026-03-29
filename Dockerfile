@@ -9,11 +9,10 @@ LABEL org.opencontainers.image.description="G4OCCT: Geant4 interface to OpenCASC
 LABEL org.opencontainers.image.licenses=LGPL-2.1-or-later
 
 # Install build tools not present in the spack base layer
-# Versions pinned to Ubuntu 22.04 (Jammy) for reproducible builds
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake=3.22.1-1ubuntu1.22.04.2 \
-    g++=4:11.2.0-1ubuntu1 \
-    make=4.3-4.1build1 \
+    cmake \
+    g++ \
+    make \
     && rm -rf /var/lib/apt/lists/*
 
 # Use the spack view so cmake can find Geant4 and OpenCASCADE
