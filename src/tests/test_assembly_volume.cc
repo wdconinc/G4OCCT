@@ -613,6 +613,8 @@ TEST(AssemblyVolume, LocationToTrsfNegativePower) {
 
   std::filesystem::remove(tmpPath);
   delete assembly;
+  delete worldLV;
+  delete worldBox;
 }
 
 TEST(AssemblyVolume, FromSTEPBadFileThrows) {
