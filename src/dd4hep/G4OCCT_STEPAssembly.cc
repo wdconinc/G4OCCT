@@ -6,13 +6,17 @@
 ///
 /// Compact XML usage:
 /// @code{.xml}
-/// <detector id="2" name="TrackingStation" type="G4OCCT_STEPAssembly">
-///   <step_file path="geometry/tracker_station.step"/>
+/// <detector id="2" name="Calorimeter" type="G4OCCT_STEPAssembly" readout="CaloHits">
+///   <step_file path="geometry/calorimeter.step"/>
 ///   <position x="0" y="0" z="0"/>
 ///   <material_map>
-///     <entry step_name="Al 6061-T6" dd4hep_material="Aluminium"/>
-///     <entry step_name="G10"        dd4hep_material="G10"/>
+///     <entry step_name="Lead"        dd4hep_material="Lead"/>
+///     <entry step_name="LiquidArgon" dd4hep_material="liquidArgon"/>
 ///   </material_map>
+///   <sensitive_volumes>
+///     <volume name="Gap"/>
+///     <volume name="Absorber"/>
+///   </sensitive_volumes>
 /// </detector>
 /// @endcode
 ///
@@ -46,6 +50,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using namespace dd4hep;
 
@@ -82,8 +87,18 @@ static Ref_t create_step_assembly(Detector& description, xml_h e, SensitiveDetec
              stepName.c_str(), dd4hepMatName.c_str());
   }
 
+  // ── Parse optional <sensitive_volumes> ───────────────────────────────────
+  std::vector<std::string> sensitiveNames;
+  if (x_det.hasChild(_Unicode(sensitive_volumes))) {
+    xml_comp_t x_svols = x_det.child(_Unicode(sensitive_volumes));
+    for (xml_coll_t it(x_svols, _Unicode(volume)); it; ++it) {
+      xml_comp_t x_vol = it;
+      sensitiveNames.push_back(x_vol.attr<std::string>(_Unicode(name)));
+    }
+  }
+
   // ── Import the STEP assembly (OCCT side, separate TU) ────────────────────
-  int nConstituents = G4OCCT_ImportSTEPAssembly(path, materials);
+  int nConstituents = G4OCCT_ImportSTEPAssembly(path, materials, name, sensitiveNames);
 
   // ── Create a DD4hep assembly container (no per-solid placements here) ────
   // Phase 1 limitation: the STEP assembly is imported on the OCCT side and its

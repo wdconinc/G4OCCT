@@ -9,6 +9,7 @@
 
 #include "G4OCCT/G4OCCTLogicalVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
+#include "G4OCCT/G4OCCTSensitiveDetectorMap.hh"
 
 #include <G4AssemblyVolume.hh>
 #include <G4String.hh>
@@ -57,6 +58,11 @@
  * matMap.Add("Al 6061-T6", G4NistManager::Instance()->FindOrBuildMaterial("G4_Al"));
  *
  * auto* assembly = G4OCCTAssemblyVolume::FromSTEP("detector.step", matMap);
+ *
+ * // In ConstructSDandField():
+ * G4OCCTSensitiveDetectorMap sdMap;
+ * sdMap.Add("Absorber", myAbsoSD);
+ * assembly->ApplySDMap(sdMap);
  *
  * // Imprint into the world logical volume
  * G4ThreeVector pos;
@@ -111,6 +117,24 @@ public:
   const std::map<G4String, G4OCCTLogicalVolume*>& GetLogicalVolumes() const {
     return fLogicalVolumes;
   }
+
+  /**
+   * Assign sensitive detectors to all logical volumes whose names match
+   * entries in @p sdMap.
+   *
+   * Iterates all logical volumes created during `FromSTEP()` and calls
+   * `sdMap.Resolve(name)` for each.  When a non-null sensitive detector is
+   * returned, `G4LogicalVolume::SetSensitiveDetector()` is called on the
+   * corresponding logical volume.
+   *
+   * @param sdMap  Map from volume-name patterns to sensitive detector pointers.
+   * @return Number of logical volumes for which a sensitive detector was assigned.
+   *
+   * @note Call this from `G4VUserDetectorConstruction::ConstructSDandField()`
+   *       **after** both `FromSTEP()` and the SD objects have been created and
+   *       registered with `G4SDManager`.
+   */
+  std::size_t ApplySDMap(const G4OCCTSensitiveDetectorMap& sdMap);
 
 private:
   /// All G4OCCTLogicalVolume objects created during import, keyed by unique name.
