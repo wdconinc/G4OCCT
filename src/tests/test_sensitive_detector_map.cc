@@ -448,23 +448,24 @@ TEST(SensitiveDetectorMapReader, HappyPath) {
   // Write a valid XML map file.
   const std::string path = TmpPath("sdmap_happy");
   WriteSdMapXml(path, "<sensitive_detector_map>\n"
-                       "  <volume name=\"Absorber\" sensDet=\"" +
-                           sdName + "\"/>\n"
-                                    "</sensitive_detector_map>\n");
+                      "  <volume name=\"Absorber\" sensDet=\"" +
+                          sdName +
+                          "\"/>\n"
+                          "</sensitive_detector_map>\n");
 
   G4OCCTSensitiveDetectorMapReader reader;
-  G4OCCTSensitiveDetectorMap       sdMap;
+  G4OCCTSensitiveDetectorMap sdMap;
   ASSERT_NO_THROW({ sdMap = reader.ReadFile(path); });
   EXPECT_EQ(sdMap.Size(), 1u);
   EXPECT_EQ(sdMap.Resolve("Absorber"), sd);
-  EXPECT_EQ(sdMap.Resolve("Absorber_1"), sd);  // prefix match
+  EXPECT_EQ(sdMap.Resolve("Absorber_1"), sd);   // prefix match
   EXPECT_EQ(sdMap.Resolve("Unknown"), nullptr); // no match
 
   std::filesystem::remove(path);
 }
 
 TEST(SensitiveDetectorMapReader, MissingFileTriggersFatalCode) {
-  G4OCCTFatalCatchGuard           guard;
+  G4OCCTFatalCatchGuard guard;
   G4OCCTSensitiveDetectorMapReader reader;
   reader.ReadFile("/nonexistent/path/sd_map.xml");
   EXPECT_TRUE(guard.catcher->caught);
@@ -478,7 +479,7 @@ TEST(SensitiveDetectorMapReader, WrongRootTagTriggersFatalCode) {
   const std::string path = TmpPath("sdmap_wrong_root");
   WriteSdMapXml(path, "<materials><volume name=\"A\" sensDet=\"B\"/></materials>\n");
 
-  G4OCCTFatalCatchGuard           guard;
+  G4OCCTFatalCatchGuard guard;
   G4OCCTSensitiveDetectorMapReader reader;
   reader.ReadFile(path);
   EXPECT_TRUE(guard.catcher->caught);
@@ -489,10 +490,10 @@ TEST(SensitiveDetectorMapReader, WrongRootTagTriggersFatalCode) {
 TEST(SensitiveDetectorMapReader, MissingNameAttrTriggersFatalCode) {
   const std::string path = TmpPath("sdmap_no_name");
   WriteSdMapXml(path, "<sensitive_detector_map>\n"
-                       "  <volume sensDet=\"SomeSD\"/>\n"
-                       "</sensitive_detector_map>\n");
+                      "  <volume sensDet=\"SomeSD\"/>\n"
+                      "</sensitive_detector_map>\n");
 
-  G4OCCTFatalCatchGuard           guard;
+  G4OCCTFatalCatchGuard guard;
   G4OCCTSensitiveDetectorMapReader reader;
   reader.ReadFile(path);
   EXPECT_TRUE(guard.catcher->caught);
@@ -503,10 +504,10 @@ TEST(SensitiveDetectorMapReader, MissingNameAttrTriggersFatalCode) {
 TEST(SensitiveDetectorMapReader, MissingSensDetAttrTriggersFatalCode) {
   const std::string path = TmpPath("sdmap_no_sensdet");
   WriteSdMapXml(path, "<sensitive_detector_map>\n"
-                       "  <volume name=\"Gap\"/>\n"
-                       "</sensitive_detector_map>\n");
+                      "  <volume name=\"Gap\"/>\n"
+                      "</sensitive_detector_map>\n");
 
-  G4OCCTFatalCatchGuard           guard;
+  G4OCCTFatalCatchGuard guard;
   G4OCCTSensitiveDetectorMapReader reader;
   reader.ReadFile(path);
   EXPECT_TRUE(guard.catcher->caught);
@@ -517,10 +518,10 @@ TEST(SensitiveDetectorMapReader, MissingSensDetAttrTriggersFatalCode) {
 TEST(SensitiveDetectorMapReader, UnknownSdNameTriggersFatalCode) {
   const std::string path = TmpPath("sdmap_unknown_sd");
   WriteSdMapXml(path, "<sensitive_detector_map>\n"
-                       "  <volume name=\"Gap\" sensDet=\"NonexistentSD_XYZ\"/>\n"
-                       "</sensitive_detector_map>\n");
+                      "  <volume name=\"Gap\" sensDet=\"NonexistentSD_XYZ\"/>\n"
+                      "</sensitive_detector_map>\n");
 
-  G4OCCTFatalCatchGuard           guard;
+  G4OCCTFatalCatchGuard guard;
   G4OCCTSensitiveDetectorMapReader reader;
   reader.ReadFile(path);
   EXPECT_TRUE(guard.catcher->caught);
@@ -538,14 +539,16 @@ TEST(SensitiveDetectorMapReader, MultipleVolumesHappyPath) {
 
   const std::string path = TmpPath("sdmap_multi");
   WriteSdMapXml(path, "<sensitive_detector_map>\n"
-                       "  <volume name=\"Absorber\" sensDet=\"" +
-                           sdName1 + "\"/>\n"
-                                     "  <volume name=\"Gap\" sensDet=\"" +
-                           sdName2 + "\"/>\n"
-                                     "</sensitive_detector_map>\n");
+                      "  <volume name=\"Absorber\" sensDet=\"" +
+                          sdName1 +
+                          "\"/>\n"
+                          "  <volume name=\"Gap\" sensDet=\"" +
+                          sdName2 +
+                          "\"/>\n"
+                          "</sensitive_detector_map>\n");
 
   G4OCCTSensitiveDetectorMapReader reader;
-  G4OCCTSensitiveDetectorMap       sdMap;
+  G4OCCTSensitiveDetectorMap sdMap;
   ASSERT_NO_THROW({ sdMap = reader.ReadFile(path); });
   EXPECT_EQ(sdMap.Size(), 2u);
   EXPECT_EQ(sdMap.Resolve("Absorber"), sd1);
