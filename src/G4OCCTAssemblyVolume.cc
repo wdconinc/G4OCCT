@@ -6,6 +6,7 @@
 
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 
+#include "G4OCCT/G4OCCTSensitiveDetectorMap.hh"
 #include "G4OCCT/G4OCCTSolid.hh"
 
 // OCCT BRep / geometry
@@ -356,4 +357,18 @@ G4OCCTAssemblyVolume* G4OCCTAssemblyVolume::FromSTEP(const std::string& path,
   }
 
   return result;
+}
+
+// ── SD map application ────────────────────────────────────────────────────────
+
+std::size_t G4OCCTAssemblyVolume::ApplySDMap(const G4OCCTSensitiveDetectorMap& sdMap) {
+  std::size_t count = 0;
+  for (auto& [name, lv] : fLogicalVolumes) {
+    G4VSensitiveDetector* sd = sdMap.Resolve(name);
+    if (sd != nullptr) {
+      lv->SetSensitiveDetector(sd);
+      ++count;
+    }
+  }
+  return count;
 }

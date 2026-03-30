@@ -13,6 +13,7 @@
 #include <BRepExtrema_DistShapeShape.hxx>
 #include <BRepExtrema_SupportType.hxx>
 #include <BRepExtrema_TriangleSet.hxx>
+#include <NCollection_Vector.hxx>
 #include <BRepGProp.hxx>
 #include <BRepLib.hxx>
 #include <BRepLProp_SLProps.hxx>

@@ -46,6 +46,10 @@ g4occt_gtest(test_material_map_reader test_material_map_reader.cc
 # ─── test_assembly_volume ─────────────────────────────────────────────────────
 g4occt_gtest(test_assembly_volume test_assembly_volume.cc LINK_LIBRARIES G4OCCT)
 
+# ─── test_sensitive_detector_map ─────────────────────────────────────────────
+g4occt_gtest(test_sensitive_detector_map test_sensitive_detector_map.cc
+             LINK_LIBRARIES G4OCCT)
+
 # ─── test_navigation_harness ──────────────────────────────────────────────────
 g4occt_gtest(test_navigation_harness test_navigation_harness.cc LINK_LIBRARIES
              G4OCCT)
