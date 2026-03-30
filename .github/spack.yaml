@@ -9,7 +9,7 @@ spack:
 
   develop:
     g4occt:
-      spec: g4occt@develop
+      spec: g4occt@main
       path: ..
 
   specs:
