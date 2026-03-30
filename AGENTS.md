@@ -622,7 +622,43 @@ infrastructure) live in `src/app/<name>/` and are built unconditionally
 
 ---
 
-## 17. Updating These Instructions
+## 17. Release Procedure
+
+The project version is declared once, in `CMakeLists.txt`:
+
+```cmake
+project(G4OCCT VERSION X.Y.Z ...)
+```
+
+The Git release tag **must** be `vX.Y.Z` — identical to the CMakeLists version
+with a `v` prefix.  The CI workflow `.github/workflows/version-check.yml`
+enforces this: pushing a `v*` tag whose version does not match CMakeLists will
+fail immediately, before any release artifact is published.
+
+### Steps to cut a release
+
+1. Update `project(VERSION ...)` in `CMakeLists.txt` on the `main` branch
+   (or via a merge of the feature branch that triggers the version bump).
+2. Commit: `git commit -m "chore: bump version to X.Y.Z"`.
+3. Tag: `git tag vX.Y.Z`.
+4. Push tag: `git push origin vX.Y.Z`.
+5. The `version-check` CI job validates the tag matches CMakeLists.
+6. Create a GitHub Release from the tag (via the web UI or `gh release create`).
+
+### Version numbering (semver, pre-1.0)
+
+| Change | Bump |
+|--------|------|
+| New user-facing feature (e.g. SD mapping, material bridging) | Minor (`0.Y`) |
+| Bug fix or non-breaking internal improvement | Patch (`0.Y.Z`) |
+| Breaking API change | Minor (`0.Y`) until 1.0, then Major |
+
+The project remains in `0.x` until the geometry API and DD4hep interface are
+declared stable against real detector geometries.
+
+---
+
+## 18. Updating These Instructions
 
 If a PR discussion establishes a new convention:
 

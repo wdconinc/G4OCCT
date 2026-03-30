@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 G4OCCT Contributors
+
+# Verify that the CMakeLists.txt project version matches the Git tag being pushed.
+# Runs only on v* tag pushes; fails fast if the versions diverge, preventing a
+# mismatched release from being published.
+
+name: Version check
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  version-check:
+    name: CMakeLists version matches tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract CMakeLists version
+        id: cmake_ver
+        run: |
+          ver=$(grep -m1 'VERSION [0-9]' CMakeLists.txt | grep -oP '\d+\.\d+\.\d+')
+          echo "cmake_version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Compare to tag
+        run: |
+          tag="${GITHUB_REF_NAME}"          # e.g. v0.1.0
+          expected="v${{ steps.cmake_ver.outputs.cmake_version }}"
+          echo "Git tag   : $tag"
+          echo "CMakeLists: $expected"
+          if [ "$tag" != "$expected" ]; then
+            echo "::error::Tag '$tag' does not match CMakeLists.txt version '$expected'."
+            echo "::error::Update project(VERSION ...) in CMakeLists.txt before tagging."
+            exit 1
+          fi
+          echo "Versions match — OK."
