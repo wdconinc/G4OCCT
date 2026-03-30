@@ -47,7 +47,7 @@ namespace {
 class MockSD : public G4VSensitiveDetector {
 public:
   explicit MockSD(const std::string& name) : G4VSensitiveDetector(name) {}
-  void   Initialize(G4HCofThisEvent*) override {}
+  void Initialize(G4HCofThisEvent*) override {}
   G4bool ProcessHits(G4Step*, G4TouchableHistory*) override { return false; }
 };
 
@@ -56,24 +56,22 @@ public:
 /// Build a STEP file with two free-shape boxes with distinct sizes, names, and
 /// a material attribute each.  Returns @p path.
 std::string BuildTwoPartSTEP(const std::string& path, const std::string& name1,
-                              const std::string& mat1, const std::string& name2,
-                              const std::string& mat2) {
+                             const std::string& mat1, const std::string& name2,
+                             const std::string& mat2) {
   Handle(TDocStd_Application) app = new TDocStd_Application;
   Handle(TDocStd_Document) doc;
   app->NewDocument("MDTV-CAF", doc);
 
-  Handle(XCAFDoc_ShapeTool)   shapeTool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
-  Handle(XCAFDoc_MaterialTool) matTool  = XCAFDoc_DocumentTool::MaterialTool(doc->Main());
+  Handle(XCAFDoc_ShapeTool) shapeTool  = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+  Handle(XCAFDoc_MaterialTool) matTool = XCAFDoc_DocumentTool::MaterialTool(doc->Main());
 
   auto addBox = [&](double sx, double sy, double sz, const std::string& pName,
                     const std::string& mName) {
-    TDF_Label lbl =
-        shapeTool->AddShape(BRepPrimAPI_MakeBox(sx, sy, sz).Shape(), Standard_False);
+    TDF_Label lbl = shapeTool->AddShape(BRepPrimAPI_MakeBox(sx, sy, sz).Shape(), Standard_False);
     TDataStd_Name::Set(lbl, pName.c_str());
-    TDF_Label mLbl = matTool->AddMaterial(new TCollection_HAsciiString(mName.c_str()),
-                                          new TCollection_HAsciiString(""), 0.0,
-                                          new TCollection_HAsciiString(""),
-                                          new TCollection_HAsciiString(""));
+    TDF_Label mLbl = matTool->AddMaterial(
+        new TCollection_HAsciiString(mName.c_str()), new TCollection_HAsciiString(""), 0.0,
+        new TCollection_HAsciiString(""), new TCollection_HAsciiString(""));
     matTool->SetMaterial(lbl, mLbl);
   };
 
@@ -92,26 +90,24 @@ std::string BuildTwoPartSTEP(const std::string& path, const std::string& name1,
 /// Build a STEP file with three free-shape boxes all named @p partName, each
 /// with the same material attribute.  After import via FromSTEP,
 /// MakeUniqueName deduplicates them to partName, partName_1, partName_2.
-std::string BuildThreeIdenticalPartsSTEP(const std::string& path,
-                                         const std::string& partName,
+std::string BuildThreeIdenticalPartsSTEP(const std::string& path, const std::string& partName,
                                          const std::string& matName) {
   Handle(TDocStd_Application) app = new TDocStd_Application;
   Handle(TDocStd_Document) doc;
   app->NewDocument("MDTV-CAF", doc);
 
-  Handle(XCAFDoc_ShapeTool)    shapeTool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
-  Handle(XCAFDoc_MaterialTool) matTool   = XCAFDoc_DocumentTool::MaterialTool(doc->Main());
+  Handle(XCAFDoc_ShapeTool) shapeTool  = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+  Handle(XCAFDoc_MaterialTool) matTool = XCAFDoc_DocumentTool::MaterialTool(doc->Main());
 
-  TDF_Label mLbl =
-      matTool->AddMaterial(new TCollection_HAsciiString(matName.c_str()),
-                           new TCollection_HAsciiString(""), 0.0,
-                           new TCollection_HAsciiString(""), new TCollection_HAsciiString(""));
+  TDF_Label mLbl = matTool->AddMaterial(
+      new TCollection_HAsciiString(matName.c_str()), new TCollection_HAsciiString(""), 0.0,
+      new TCollection_HAsciiString(""), new TCollection_HAsciiString(""));
 
   // Three geometrically distinct boxes so XDE creates separate labels.
   double sizes[3][3] = {{10.0, 10.0, 10.0}, {20.0, 20.0, 20.0}, {30.0, 30.0, 30.0}};
   for (auto& sz : sizes) {
-    TDF_Label lbl = shapeTool->AddShape(BRepPrimAPI_MakeBox(sz[0], sz[1], sz[2]).Shape(),
-                                        Standard_False);
+    TDF_Label lbl =
+        shapeTool->AddShape(BRepPrimAPI_MakeBox(sz[0], sz[1], sz[2]).Shape(), Standard_False);
     TDataStd_Name::Set(lbl, partName.c_str());
     matTool->SetMaterial(lbl, mLbl);
   }
@@ -374,8 +370,8 @@ TEST(AssemblyRegistry, GetUnknownReturnsNullptr) {
 }
 
 TEST(AssemblyRegistry, SizeReflectsEntries) {
-  const std::string name1 = "RegistryTest_Size1";
-  const std::string name2 = "RegistryTest_Size2";
+  const std::string name1  = "RegistryTest_Size1";
+  const std::string name2  = "RegistryTest_Size2";
   const std::size_t before = G4OCCTAssemblyRegistry::Instance().Size();
 
   auto* a1 = new G4OCCTAssemblyVolume();

@@ -22,9 +22,9 @@
 class G4Material;
 
 int G4OCCT_ImportSTEPAssembly(const std::string& path,
-                               const std::map<std::string, G4Material*>& materials,
-                               const std::string& detectorName,
-                               const std::vector<std::string>& /*sensitiveNames*/) {
+                              const std::map<std::string, G4Material*>& materials,
+                              const std::string& detectorName,
+                              const std::vector<std::string>& /*sensitiveNames*/) {
   G4OCCTMaterialMap matMap;
   for (const auto& [stepName, g4mat] : materials) {
     matMap.Add(stepName, g4mat);

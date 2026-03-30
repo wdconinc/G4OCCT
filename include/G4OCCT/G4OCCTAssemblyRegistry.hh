@@ -72,7 +72,7 @@ public:
   std::size_t Size() const;
 
 private:
-  G4OCCTAssemblyRegistry()  = default;
+  G4OCCTAssemblyRegistry() = default;
   ~G4OCCTAssemblyRegistry();
 
   std::map<std::string, G4OCCTAssemblyVolume*> fAssemblies;

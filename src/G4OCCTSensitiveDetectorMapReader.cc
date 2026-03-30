@@ -82,8 +82,8 @@ G4OCCTSensitiveDetectorMap G4OCCTSensitiveDetectorMapReader::ReadFile(const G4St
     const G4String rootTag = Transcode(root->getTagName());
     if (rootTag != "sensitive_detector_map") {
       preFatalCode = "G4OCCT_SDReader007";
-      preFatalMsg  = "Root element must be <sensitive_detector_map>, got <" + rootTag + "> in '"
-                    + path + "'";
+      preFatalMsg =
+          "Root element must be <sensitive_detector_map>, got <" + rootTag + "> in '" + path + "'";
       return;
     }
 
@@ -120,8 +120,7 @@ G4OCCTSensitiveDetectorMap G4OCCTSensitiveDetectorMapReader::ReadFile(const G4St
       if (volumeName.empty()) {
         G4Exception("G4OCCTSensitiveDetectorMapReader::ReadFile", "G4OCCT_SDReader000",
                     FatalException,
-                    ("<volume> element in '" + path
-                     + "' is missing the required 'name' attribute.")
+                    ("<volume> element in '" + path + "' is missing the required 'name' attribute.")
                         .c_str());
         continue;
       }
@@ -129,8 +128,8 @@ G4OCCTSensitiveDetectorMap G4OCCTSensitiveDetectorMapReader::ReadFile(const G4St
       if (sdName.empty()) {
         G4Exception("G4OCCTSensitiveDetectorMapReader::ReadFile", "G4OCCT_SDReader001",
                     FatalException,
-                    ("<volume name=\"" + volumeName + "\"> in '" + path
-                     + "' is missing the required 'sensDet' attribute.")
+                    ("<volume name=\"" + volumeName + "\"> in '" + path +
+                     "' is missing the required 'sensDet' attribute.")
                         .c_str());
         continue;
       }
@@ -140,9 +139,9 @@ G4OCCTSensitiveDetectorMap G4OCCTSensitiveDetectorMapReader::ReadFile(const G4St
       if (!sd) {
         G4Exception("G4OCCTSensitiveDetectorMapReader::ReadFile", "G4OCCT_SDReader002",
                     FatalException,
-                    ("Sensitive detector '" + sdName + "' (volume pattern '" + volumeName
-                     + "') not found in G4SDManager.  Ensure all SDs are registered before "
-                       "calling ReadFile().")
+                    ("Sensitive detector '" + sdName + "' (volume pattern '" + volumeName +
+                     "') not found in G4SDManager.  Ensure all SDs are registered before "
+                     "calling ReadFile().")
                         .c_str());
         continue;
       }
@@ -154,8 +153,8 @@ G4OCCTSensitiveDetectorMap G4OCCTSensitiveDetectorMapReader::ReadFile(const G4St
   xercesc::XMLPlatformUtils::Terminate();
 
   if (!preFatalCode.empty()) {
-    G4Exception("G4OCCTSensitiveDetectorMapReader::ReadFile", preFatalCode.c_str(),
-                FatalException, preFatalMsg.c_str());
+    G4Exception("G4OCCTSensitiveDetectorMapReader::ReadFile", preFatalCode.c_str(), FatalException,
+                preFatalMsg.c_str());
     // Normally unreachable: FatalException aborts.  If a non-aborting handler
     // is installed (e.g. G4OCCTFatalCatcher in tests), return an empty map so
     // callers get a predictable, safe value.

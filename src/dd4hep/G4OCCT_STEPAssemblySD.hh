@@ -56,9 +56,9 @@ public:
    * @return Number of logical volumes that received an SD assignment.
    *         Returns 0 and emits a JustWarning if the assembly is not found.
    */
-  static std::size_t Apply(const std::string& detectorName,
-                            const std::vector<std::pair<std::string, G4VSensitiveDetector*>>&
-                                assignments);
+  static std::size_t
+  Apply(const std::string& detectorName,
+        const std::vector<std::pair<std::string, G4VSensitiveDetector*>>& assignments);
 };
 
 #endif // G4OCCT_DD4HEP_STEPAssemblySD_hh

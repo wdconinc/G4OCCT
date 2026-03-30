@@ -23,8 +23,8 @@ G4OCCTAssemblyRegistry::~G4OCCTAssemblyRegistry() {
 
 void G4OCCTAssemblyRegistry::Register(const std::string& name, G4OCCTAssemblyVolume* assembly) {
   if (fAssemblies.count(name) != 0) {
-    throw std::runtime_error("G4OCCTAssemblyRegistry: assembly '" + name
-                             + "' is already registered.");
+    throw std::runtime_error("G4OCCTAssemblyRegistry: assembly '" + name +
+                             "' is already registered.");
   }
   fAssemblies[name] = assembly;
 }
@@ -44,6 +44,4 @@ G4OCCTAssemblyVolume* G4OCCTAssemblyRegistry::Release(const std::string& name) {
   return assembly;
 }
 
-std::size_t G4OCCTAssemblyRegistry::Size() const {
-  return fAssemblies.size();
-}
+std::size_t G4OCCTAssemblyRegistry::Size() const { return fAssemblies.size(); }

@@ -127,10 +127,14 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 add_library(
   G4OCCT
-  src/G4OCCTSolid.cc src/G4OCCTLogicalVolume.cc src/G4OCCTPlacement.cc
-  src/G4OCCTMaterialMap.cc src/G4OCCTMaterialMapReader.cc
+  src/G4OCCTSolid.cc
+  src/G4OCCTLogicalVolume.cc
+  src/G4OCCTPlacement.cc
+  src/G4OCCTMaterialMap.cc
+  src/G4OCCTMaterialMapReader.cc
   src/G4OCCTAssemblyVolume.cc
-  src/G4OCCTSensitiveDetectorMap.cc src/G4OCCTSensitiveDetectorMapReader.cc
+  src/G4OCCTSensitiveDetectorMap.cc
+  src/G4OCCTSensitiveDetectorMapReader.cc
   src/G4OCCTAssemblyRegistry.cc)
 add_library(G4OCCT::G4OCCT ALIAS G4OCCT)
 

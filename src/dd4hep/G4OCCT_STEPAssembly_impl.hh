@@ -28,8 +28,8 @@ class G4Material;
 ///                          SD assignment happens at ConstructSDandField time).
 /// Throws std::runtime_error on failure.
 int G4OCCT_ImportSTEPAssembly(const std::string& path,
-                               const std::map<std::string, G4Material*>& materials,
-                               const std::string& detectorName,
-                               const std::vector<std::string>& sensitiveNames);
+                              const std::map<std::string, G4Material*>& materials,
+                              const std::string& detectorName,
+                              const std::vector<std::string>& sensitiveNames);
 
 #endif // G4OCCT_DD4HEP_STEPAssembly_impl_hh
