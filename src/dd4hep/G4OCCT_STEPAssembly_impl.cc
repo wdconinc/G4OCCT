@@ -15,6 +15,7 @@
 #include "G4OCCT/G4OCCTMaterialMap.hh"
 
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -30,16 +31,16 @@ int G4OCCT_ImportSTEPAssembly(const std::string& path,
     matMap.Add(stepName, g4mat);
   }
 
-  G4OCCTAssemblyVolume* assembly = nullptr;
+  std::unique_ptr<G4OCCTAssemblyVolume> assembly;
   try {
-    assembly = G4OCCTAssemblyVolume::FromSTEP(path, matMap);
+    assembly.reset(G4OCCTAssemblyVolume::FromSTEP(path, matMap));
   } catch (const std::exception& ex) {
     throw std::runtime_error("G4OCCT_STEPAssembly: failed to import '" + path + "' (" + ex.what() +
                              ")");
   }
 
   const int nConstituents = static_cast<int>(assembly->GetLogicalVolumes().size());
-  G4OCCTAssemblyRegistry::Instance().Register(detectorName, assembly);
-  assembly = nullptr; // registry owns it now
+  G4OCCTAssemblyRegistry::Instance().Register(detectorName, assembly.get());
+  assembly.release(); // registry takes ownership
   return nConstituents;
 }

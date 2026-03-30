@@ -22,6 +22,9 @@ G4OCCTAssemblyRegistry::~G4OCCTAssemblyRegistry() {
 }
 
 void G4OCCTAssemblyRegistry::Register(const std::string& name, G4OCCTAssemblyVolume* assembly) {
+  if (!assembly) {
+    throw std::invalid_argument("G4OCCTAssemblyRegistry: null assembly passed for '" + name + "'.");
+  }
   if (fAssemblies.count(name) != 0) {
     throw std::runtime_error("G4OCCTAssemblyRegistry: assembly '" + name +
                              "' is already registered.");

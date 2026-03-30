@@ -39,6 +39,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <random>
 #include <stdexcept>
 #include <string>

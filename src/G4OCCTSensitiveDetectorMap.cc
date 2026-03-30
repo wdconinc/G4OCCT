@@ -10,6 +10,7 @@
 #include <G4VSensitiveDetector.hh>
 
 #include <algorithm>
+#include <cctype>
 
 void G4OCCTSensitiveDetectorMap::Add(const G4String& pattern, G4VSensitiveDetector* sd) {
   if (!sd) {
@@ -39,7 +40,9 @@ G4VSensitiveDetector* G4OCCTSensitiveDetectorMap::Resolve(const G4String& volume
     const G4String prefix = pattern + "_";
     if (volumeName.rfind(prefix, 0) == 0) {
       const G4String suffix = volumeName.substr(prefix.size());
-      if (!suffix.empty() && std::all_of(suffix.begin(), suffix.end(), ::isdigit)) {
+      if (!suffix.empty() &&
+          std::all_of(suffix.begin(), suffix.end(),
+                      [](char c) { return std::isdigit(static_cast<unsigned char>(c)); })) {
         return entry.second;
       }
     }
