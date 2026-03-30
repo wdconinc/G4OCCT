@@ -10,17 +10,21 @@
 
 #include "G4OCCT_STEPAssembly_impl.hh"
 
+#include "G4OCCT/G4OCCTAssemblyRegistry.hh"
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
 
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 class G4Material;
 
 int G4OCCT_ImportSTEPAssembly(const std::string& path,
-                              const std::map<std::string, G4Material*>& materials) {
+                               const std::map<std::string, G4Material*>& materials,
+                               const std::string& detectorName,
+                               const std::vector<std::string>& /*sensitiveNames*/) {
   G4OCCTMaterialMap matMap;
   for (const auto& [stepName, g4mat] : materials) {
     matMap.Add(stepName, g4mat);
@@ -34,12 +38,8 @@ int G4OCCT_ImportSTEPAssembly(const std::string& path,
                              ")");
   }
 
-  // Extract the constituent count before releasing the assembly.
-  // G4OCCTAssemblyVolume::FromSTEP() returns a heap-allocated object owned by
-  // the caller.  We only need the count here; the G4 logical volumes that
-  // FromSTEP() registered in the Geant4 volume store remain valid after this.
   const int nConstituents = static_cast<int>(assembly->GetLogicalVolumes().size());
-  delete assembly;
-  assembly = nullptr;
+  G4OCCTAssemblyRegistry::Instance().Register(detectorName, assembly);
+  assembly = nullptr; // registry owns it now
   return nConstituents;
 }
