@@ -40,9 +40,9 @@ G4VSensitiveDetector* G4OCCTSensitiveDetectorMap::Resolve(const G4String& volume
     const G4String prefix = pattern + "_";
     if (volumeName.rfind(prefix, 0) == 0) {
       const G4String suffix = volumeName.substr(prefix.size());
-      if (!suffix.empty() &&
-          std::all_of(suffix.begin(), suffix.end(),
-                      [](char c) { return std::isdigit(static_cast<unsigned char>(c)); })) {
+      if (!suffix.empty() && std::all_of(suffix.begin(), suffix.end(), [](char c) {
+            return std::isdigit(static_cast<unsigned char>(c));
+          })) {
         return entry.second;
       }
     }
