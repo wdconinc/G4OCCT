@@ -79,4 +79,3 @@ jobs:
               --tag "${tag}" \
               "${TAGS[0]}"
           done
-
