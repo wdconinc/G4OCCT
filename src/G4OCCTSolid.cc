@@ -32,6 +32,7 @@
 #include <Geom_Surface.hxx>
 #include <IFSelect_ReturnStatus.hxx>
 #include <IntCurvesFace_Intersector.hxx>
+#include <NCollection_Vector.hxx>
 #include <Poly_Triangulation.hxx>
 #include <Precision.hxx>
 #include <STEPControl_Reader.hxx>
@@ -643,7 +644,7 @@ void G4OCCTSolid::ComputeBounds() {
   }
 
   // Build the BVH-accelerated triangle set over all tessellated faces.
-  BRepExtrema_ShapeList faces;
+  NCollection_Vector<TopoDS_Shape> faces;
   for (TopExp_Explorer ex(fShape, TopAbs_FACE); ex.More(); ex.Next()) {
     faces.Append(ex.Current());
   }
