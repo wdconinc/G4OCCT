@@ -3,16 +3,18 @@
 
 // test_sensitive_detector_map.cc
 // Tests for G4OCCTSensitiveDetectorMap and G4OCCTAssemblyVolume::ApplySDMap,
-// and G4OCCTAssemblyRegistry.
+// G4OCCTAssemblyRegistry, and G4OCCTSensitiveDetectorMapReader.
 
 #include "G4OCCT/G4OCCTAssemblyRegistry.hh"
 #include "G4OCCT/G4OCCTAssemblyVolume.hh"
 #include "G4OCCT/G4OCCTMaterialMap.hh"
 #include "G4OCCT/G4OCCTSensitiveDetectorMap.hh"
+#include "G4OCCT/G4OCCTSensitiveDetectorMapReader.hh"
 
 #include "G4OCCTFatalCatchGuard.hh"
 
 #include <G4NistManager.hh>
+#include <G4SDManager.hh>
 #include <G4Step.hh>
 #include <G4TouchableHistory.hh>
 #include <G4VSensitiveDetector.hh>
@@ -36,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <fstream>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -397,4 +400,156 @@ TEST(AssemblyRegistry, ReleaseReturnsAndRemoves) {
   EXPECT_EQ(released, assembly);
   EXPECT_EQ(G4OCCTAssemblyRegistry::Instance().Get(name), nullptr);
   delete released;
+}
+
+TEST(AssemblyRegistry, RegisterDuplicateThrows) {
+  const std::string name = "RegistryTest_Duplicate";
+  auto* a1               = new G4OCCTAssemblyVolume();
+  auto* a2               = new G4OCCTAssemblyVolume();
+
+  G4OCCTAssemblyRegistry::Instance().Register(name, a1);
+  EXPECT_THROW(G4OCCTAssemblyRegistry::Instance().Register(name, a2), std::runtime_error);
+
+  // Clean up: a1 is owned by registry; a2 was rejected and must be deleted here.
+  delete G4OCCTAssemblyRegistry::Instance().Release(name);
+  delete a2;
+}
+
+TEST(AssemblyRegistry, ReleaseUnknownReturnsNullptr) {
+  EXPECT_EQ(G4OCCTAssemblyRegistry::Instance().Release("RegistryTest_NeverRegistered"), nullptr);
+}
+
+// ── G4OCCTSensitiveDetectorMapReader tests ───────────────────────────────────
+
+namespace {
+
+/// Write a minimal SD map XML file to @p path and return @p path.
+std::string WriteSdMapXml(const std::string& path, const std::string& content) {
+  std::ofstream f(path);
+  f << content;
+  f.close();
+  return path;
+}
+
+/// Return a unique temporary file path with the given suffix.
+std::string TmpPath(const std::string& label, const std::string& ext = ".xml") {
+  const std::string suffix = std::to_string(std::random_device{}());
+  return (std::filesystem::temp_directory_path() / (label + "_" + suffix + ext)).string();
+}
+
+} // namespace
+
+TEST(SensitiveDetectorMapReader, HappyPath) {
+  // Register a mock SD in G4SDManager.
+  const std::string sdName = "ReaderTestSD_Happy";
+  MockSD* sd               = new MockSD(sdName);
+  G4SDManager::GetSDMpointer()->AddNewDetector(sd);
+
+  // Write a valid XML map file.
+  const std::string path = TmpPath("sdmap_happy");
+  WriteSdMapXml(path, "<sensitive_detector_map>\n"
+                       "  <volume name=\"Absorber\" sensDet=\"" +
+                           sdName + "\"/>\n"
+                                    "</sensitive_detector_map>\n");
+
+  G4OCCTSensitiveDetectorMapReader reader;
+  G4OCCTSensitiveDetectorMap       sdMap;
+  ASSERT_NO_THROW({ sdMap = reader.ReadFile(path); });
+  EXPECT_EQ(sdMap.Size(), 1u);
+  EXPECT_EQ(sdMap.Resolve("Absorber"), sd);
+  EXPECT_EQ(sdMap.Resolve("Absorber_1"), sd);  // prefix match
+  EXPECT_EQ(sdMap.Resolve("Unknown"), nullptr); // no match
+
+  std::filesystem::remove(path);
+}
+
+TEST(SensitiveDetectorMapReader, MissingFileTriggersFatalCode) {
+  G4OCCTFatalCatchGuard           guard;
+  G4OCCTSensitiveDetectorMapReader reader;
+  reader.ReadFile("/nonexistent/path/sd_map.xml");
+  EXPECT_TRUE(guard.catcher->caught);
+  // Missing file: Xerces can't open it → null document (SDReader005) or
+  // XMLException during parse (SDReader003); either is acceptable.
+  EXPECT_TRUE(guard.catcher->code == "G4OCCT_SDReader003" ||
+              guard.catcher->code == "G4OCCT_SDReader005");
+}
+
+TEST(SensitiveDetectorMapReader, WrongRootTagTriggersFatalCode) {
+  const std::string path = TmpPath("sdmap_wrong_root");
+  WriteSdMapXml(path, "<materials><volume name=\"A\" sensDet=\"B\"/></materials>\n");
+
+  G4OCCTFatalCatchGuard           guard;
+  G4OCCTSensitiveDetectorMapReader reader;
+  reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_SDReader007");
+  std::filesystem::remove(path);
+}
+
+TEST(SensitiveDetectorMapReader, MissingNameAttrTriggersFatalCode) {
+  const std::string path = TmpPath("sdmap_no_name");
+  WriteSdMapXml(path, "<sensitive_detector_map>\n"
+                       "  <volume sensDet=\"SomeSD\"/>\n"
+                       "</sensitive_detector_map>\n");
+
+  G4OCCTFatalCatchGuard           guard;
+  G4OCCTSensitiveDetectorMapReader reader;
+  reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_SDReader000");
+  std::filesystem::remove(path);
+}
+
+TEST(SensitiveDetectorMapReader, MissingSensDetAttrTriggersFatalCode) {
+  const std::string path = TmpPath("sdmap_no_sensdet");
+  WriteSdMapXml(path, "<sensitive_detector_map>\n"
+                       "  <volume name=\"Gap\"/>\n"
+                       "</sensitive_detector_map>\n");
+
+  G4OCCTFatalCatchGuard           guard;
+  G4OCCTSensitiveDetectorMapReader reader;
+  reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_SDReader001");
+  std::filesystem::remove(path);
+}
+
+TEST(SensitiveDetectorMapReader, UnknownSdNameTriggersFatalCode) {
+  const std::string path = TmpPath("sdmap_unknown_sd");
+  WriteSdMapXml(path, "<sensitive_detector_map>\n"
+                       "  <volume name=\"Gap\" sensDet=\"NonexistentSD_XYZ\"/>\n"
+                       "</sensitive_detector_map>\n");
+
+  G4OCCTFatalCatchGuard           guard;
+  G4OCCTSensitiveDetectorMapReader reader;
+  reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught);
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_SDReader002");
+  std::filesystem::remove(path);
+}
+
+TEST(SensitiveDetectorMapReader, MultipleVolumesHappyPath) {
+  const std::string sdName1 = "ReaderTestSD_Multi1";
+  const std::string sdName2 = "ReaderTestSD_Multi2";
+  MockSD* sd1               = new MockSD(sdName1);
+  MockSD* sd2               = new MockSD(sdName2);
+  G4SDManager::GetSDMpointer()->AddNewDetector(sd1);
+  G4SDManager::GetSDMpointer()->AddNewDetector(sd2);
+
+  const std::string path = TmpPath("sdmap_multi");
+  WriteSdMapXml(path, "<sensitive_detector_map>\n"
+                       "  <volume name=\"Absorber\" sensDet=\"" +
+                           sdName1 + "\"/>\n"
+                                     "  <volume name=\"Gap\" sensDet=\"" +
+                           sdName2 + "\"/>\n"
+                                     "</sensitive_detector_map>\n");
+
+  G4OCCTSensitiveDetectorMapReader reader;
+  G4OCCTSensitiveDetectorMap       sdMap;
+  ASSERT_NO_THROW({ sdMap = reader.ReadFile(path); });
+  EXPECT_EQ(sdMap.Size(), 2u);
+  EXPECT_EQ(sdMap.Resolve("Absorber"), sd1);
+  EXPECT_EQ(sdMap.Resolve("Gap"), sd2);
+
+  std::filesystem::remove(path);
 }
