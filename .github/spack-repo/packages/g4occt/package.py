@@ -12,7 +12,7 @@ class G4occt(CMakePackage):
 
     maintainers("wdconinc")
 
-    version("develop", branch="main")
+    version("main", branch="main")
 
     variant("tests", default=False, description="Build test suite")
     variant("benchmarks", default=False, description="Build benchmark suite")

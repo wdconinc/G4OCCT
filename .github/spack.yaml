@@ -13,7 +13,7 @@ spack:
       path: ..
 
   specs:
-  - "g4occt@develop"
+  - "g4occt@main"
 
   config:
     install_tree:
