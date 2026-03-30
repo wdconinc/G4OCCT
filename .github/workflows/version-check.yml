@@ -24,7 +24,16 @@ jobs:
       - name: Extract CMakeLists version
         id: cmake_ver
         run: |
-          ver=$(grep -m1 'VERSION [0-9]' CMakeLists.txt | grep -oP '\d+\.\d+\.\d+')
+          # Extract version from the project() block (handles multi-line project() calls).
+          # sed extracts lines from 'project(' through the closing ')'; grep then finds VERSION.
+          ver=$(sed -n '/^[[:space:]]*project[[:space:]]*(/,/)/p' CMakeLists.txt \
+                | grep -oE 'VERSION[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+' \
+                | sed -E 's/VERSION[[:space:]]*//')
+          if [ -z "$ver" ]; then
+            echo "::error::Failed to parse project(VERSION ...) from CMakeLists.txt."
+            echo "::error::Ensure CMakeLists.txt contains a line like: project(<name> VERSION X.Y.Z ...)."
+            exit 1
+          fi
           echo "cmake_version=$ver" >> "$GITHUB_OUTPUT"
 
       - name: Compare to tag
