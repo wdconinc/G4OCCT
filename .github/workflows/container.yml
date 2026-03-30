@@ -70,7 +70,7 @@ jobs:
           # not the full image reference; strip the registry+repo prefix.
           FIRST_TAG="${TAGS[0]#*:}"
           spack -e .github buildcache push \
-            --base-image ubuntu:22.04 \
+            --base-image ubuntu:24.04 \
             --tag "${FIRST_TAG}" \
             --update-index \
             oci://ghcr.io/eic/g4occt
