@@ -392,7 +392,82 @@ All GDML fixture files must define materials with fractions that sum to
 
 ---
 
-## 10. Geometry and Navigation
+## 10. Sensitive Detector Mapping
+
+`G4OCCTSensitiveDetectorMap` is the SD analogue of `G4OCCTMaterialMap`: it
+maps volume name patterns to `G4VSensitiveDetector*` pointers and is applied
+**after** import, in `ConstructSDandField()`.
+
+### Matching rules (`G4OCCTSensitiveDetectorMap::Resolve`)
+
+Two strategies are checked in insertion order; the first match wins:
+
+1. **Exact match** — `volumeName == pattern`
+2. **Prefix match** — `volumeName` starts with `pattern + "_"` **and** the
+   remaining suffix consists entirely of decimal digits.  This handles Geant4's
+   `MakeUniqueName` deduplication (e.g. `"Absorber_1"`, `"Absorber_2"` both
+   match pattern `"Absorber"`).
+
+`Resolve()` returns `nullptr` for unmatched names — this is expected for
+non-sensitive volumes and is **not** fatal.  Adding a `nullptr` SD pointer is
+fatal (`G4Exception` with code `G4OCCT_SDMap000`).
+
+### Applying the map (`G4OCCTAssemblyVolume::ApplySDMap`)
+
+```cpp
+// In ConstructSDandField():
+G4OCCTSensitiveDetectorMap sdMap;
+sdMap.Add("Absorber", myAbsoSD);
+sdMap.Add("Gap",      myGapSD);
+// Assigns SDs to all matching logical volumes; returns count of assignments.
+std::size_t assigned = assembly->ApplySDMap(sdMap);
+```
+
+Call `ApplySDMap()` **after** `FromSTEP()` and after all SDs have been
+created and registered with `G4SDManager`.
+
+### G4OCCTAssemblyRegistry (DD4hep / plugin workflows)
+
+`G4OCCTAssemblyRegistry` is a singleton that takes ownership of
+`G4OCCTAssemblyVolume` objects by name, keeping them alive past the plugin
+build phase.
+
+```cpp
+// Build phase (plugin):
+auto* assembly = G4OCCTAssemblyVolume::FromSTEP("detector.step", matMap);
+G4OCCTAssemblyRegistry::Instance().Register("myDetector", assembly);
+
+// SD field phase (ConstructSDandField):
+G4OCCTAssemblyVolume* a = G4OCCTAssemblyRegistry::Instance().Get("myDetector");
+a->ApplySDMap(sdMap);
+```
+
+Key methods: `Register(name, assembly)`, `Get(name)` (returns `nullptr` if not
+found), `Release(name)` (removes from registry and transfers ownership to
+caller), `Size()`.
+
+### XML map file (`G4OCCTSensitiveDetectorMapReader`)
+
+```xml
+<sensitive_detector_map>
+  <volume name="Absorber" sensDet="AbsorberSD"/>
+  <volume name="Gap"      sensDet="GapSD"/>
+</sensitive_detector_map>
+```
+
+```cpp
+G4OCCTSensitiveDetectorMapReader reader;
+G4OCCTSensitiveDetectorMap sdMap = reader.ReadFile("sd_map.xml");
+assembly->ApplySDMap(sdMap);
+```
+
+Must be called **after** all SDs are registered in `G4SDManager`.  Missing
+`name`/`sensDet` attributes or an unknown SD name are fatal errors (codes
+`G4OCCT_SDReader000`–`G4OCCT_SDReader002`).
+
+---
+
+## 11. Geometry and Navigation
 
 - `G4OCCTSolid` wraps a `TopoDS_Shape` and inherits `G4VSolid`.
 - `G4OCCTLogicalVolume` inherits `G4LogicalVolume` and carries an optional
@@ -473,7 +548,7 @@ All GDML fixture files must define materials with fractions that sum to
 
 ---
 
-## 11. Code Style
+## 12. Code Style
 
 - Doxygen `/** ... */` block comments before all public API (classes,
   constructors, methods).
@@ -490,7 +565,7 @@ All GDML fixture files must define materials with fractions that sum to
 
 ---
 
-## 12. Code Quality Tools (pre-commit)
+## 13. Code Quality Tools (pre-commit)
 
 The project uses **pre-commit** hooks (`.pre-commit-config.yaml`) to enforce
 consistent style automatically before every commit.  Install once with:
@@ -551,7 +626,7 @@ pre-commit run --all-files
 
 ---
 
-## 13. Sanitizers
+## 14. Sanitizers
 
 - **Scope:** All sanitizer environment variables (`ASAN_OPTIONS`, `LSAN_OPTIONS`,
   `UBSAN_OPTIONS`, `TSAN_OPTIONS`) must be set **only in the `sanitizer` matrix
@@ -570,7 +645,7 @@ pre-commit run --all-files
 
 ---
 
-## 14. Report and Script Conventions
+## 15. Report and Script Conventions
 
 - CI-specific Python and shell scripts belong in **`.github/scripts/`**, not
   in a top-level `scripts/` directory.  Top-level `scripts/` should not exist.
@@ -585,7 +660,7 @@ pre-commit run --all-files
 
 ---
 
-## 15. Examples
+## 16. Examples
 
 - **License:** Source files copied from Geant4 examples (B1, B4c, etc.) must
   retain their **original Geant4 license block** unchanged.  Do not replace it
@@ -601,7 +676,7 @@ pre-commit run --all-files
 
 ---
 
-## 16. Application (`src/app/`)
+## 17. Application (`src/app/`)
 
 Standalone application targets (not pedagogical examples, not test
 infrastructure) live in `src/app/<name>/` and are built unconditionally
@@ -622,7 +697,7 @@ infrastructure) live in `src/app/<name>/` and are built unconditionally
 
 ---
 
-## 17. Updating These Instructions
+## 18. Updating These Instructions
 
 If a PR discussion establishes a new convention:
 
