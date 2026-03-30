@@ -193,7 +193,7 @@ TEST(MaterialMapReader, InlineWithoutNameIsFatal) {
 
 // -- Additional error / branch coverage ---------------------------------------
 
-TEST(MaterialMapReader, MissingFileTriggersXMLException) {
+TEST(MaterialMapReader, MissingFileTriggersFatalDeath) {
   // A non-existent path causes Xerces to return a null document, caught as
   // G4OCCT_MatReader003 (FatalException).
   const std::filesystem::path missing_path =

@@ -32,7 +32,6 @@
 #include <TDocStd_Document.hxx>
 #include <TopLoc_Location.hxx>
 #include <XCAFDoc_DocumentTool.hxx>
-#include <XCAFDoc_Location.hxx>
 #include <XCAFDoc_MaterialTool.hxx>
 #include <XCAFDoc_ShapeTool.hxx>
 #include <gp_Trsf.hxx>
