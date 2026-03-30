@@ -41,6 +41,7 @@
 
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -146,6 +147,86 @@ std::string BuildTwoBoxAssemblySTEP(const std::string& tmpPath, double txX) {
     throw std::runtime_error("BuildTwoBoxAssemblySTEP: Transfer failed");
   if (writer.Write(tmpPath.c_str()) != IFSelect_RetDone)
     throw std::runtime_error("BuildTwoBoxAssemblySTEP: Write failed to " + tmpPath);
+  return tmpPath;
+}
+
+/// Build a STEP file with three free-shape boxes named "Box", "Box_1", "Box"
+/// (in that document order).  When imported, MakeUniqueName processes the
+/// third shape ("Box") and must enter the do-while collision loop body more
+/// than once: it tries "Box_1" (already taken by the second shape) before
+/// succeeding with "Box_2".
+std::string BuildNamingCollisionSTEP(const std::string& tmpPath) {
+  Handle(TDocStd_Application) app = new TDocStd_Application;
+  Handle(TDocStd_Document) doc;
+  app->NewDocument("MDTV-CAF", doc);
+
+  Handle(XCAFDoc_ShapeTool) shapeTool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+
+  // Three geometrically distinct shapes so XDE creates three separate labels.
+  TDF_Label label1 =
+      shapeTool->AddShape(BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape(), Standard_False);
+  TDF_Label label2 =
+      shapeTool->AddShape(BRepPrimAPI_MakeBox(20.0, 20.0, 20.0).Shape(), Standard_False);
+  TDF_Label label3 =
+      shapeTool->AddShape(BRepPrimAPI_MakeBox(30.0, 30.0, 30.0).Shape(), Standard_False);
+
+  TDataStd_Name::Set(label1, "Box");
+  TDataStd_Name::Set(label2, "Box_1");
+  TDataStd_Name::Set(label3, "Box");
+
+  STEPCAFControl_Writer writer;
+  writer.SetNameMode(Standard_True);
+  if (writer.Transfer(doc) != Standard_True)
+    throw std::runtime_error("BuildNamingCollisionSTEP: Transfer failed");
+  if (writer.Write(tmpPath.c_str()) != IFSelect_RetDone)
+    throw std::runtime_error("BuildNamingCollisionSTEP: Write failed to " + tmpPath);
+  return tmpPath;
+}
+
+/// Build an XDE assembly whose second component carries an explicitly inverted
+/// (negative-power) TopLoc_Location — constructed via TopLoc_Location::Inverted()
+/// — representing a –30 mm translation along X.  This exercises the
+/// `if (power < 0)` branch in LocationToTrsf when the XDE document is
+/// traversed in memory (before the STEP round-trip converts it to a plain
+/// 4×4 matrix).
+std::string BuildNegativePowerAssemblySTEP(const std::string& tmpPath) {
+  Handle(TDocStd_Application) app = new TDocStd_Application;
+  Handle(TDocStd_Document) doc;
+  app->NewDocument("MDTV-CAF", doc);
+
+  Handle(XCAFDoc_ShapeTool) shapeTool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+
+  TopoDS_Shape protoBox = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+
+  BRep_Builder brepBuilder;
+  TopoDS_Compound compound;
+  brepBuilder.MakeCompound(compound);
+  brepBuilder.Add(compound, protoBox); // identity placement
+
+  gp_Trsf trsf;
+  trsf.SetTranslation(gp_Vec(30.0, 0.0, 0.0));
+  TopLoc_Location posLoc(trsf);
+  TopLoc_Location negLoc = posLoc.Inverted(); // negative power → –30 mm along X
+  brepBuilder.Add(compound, protoBox.Located(negLoc));
+
+  TDF_Label asmLabel = shapeTool->AddShape(compound, Standard_True);
+  TDataStd_Name::Set(asmLabel, "NegPowerAsm");
+
+  // Name the referred prototype so ImportLabel can resolve the material.
+  TDF_LabelSequence components;
+  shapeTool->GetComponents(asmLabel, components, Standard_False);
+  for (Standard_Integer i = 1; i <= components.Length(); ++i) {
+    TDF_Label referred;
+    if (shapeTool->GetReferredShape(components.Value(i), referred))
+      TDataStd_Name::Set(referred, "BoxPart");
+  }
+
+  STEPCAFControl_Writer writer;
+  writer.SetNameMode(Standard_True);
+  if (writer.Transfer(doc) != Standard_True)
+    throw std::runtime_error("BuildNegativePowerAssemblySTEP: Transfer failed");
+  if (writer.Write(tmpPath.c_str()) != IFSelect_RetDone)
+    throw std::runtime_error("BuildNegativePowerAssemblySTEP: Write failed to " + tmpPath);
   return tmpPath;
 }
 
@@ -390,4 +471,162 @@ TEST(AssemblyVolume, GetLogicalVolumesCompleteness) {
 
   std::filesystem::remove(tmpPath);
   delete assembly;
+}
+
+TEST(AssemblyVolume, GetMaterialNameXCAFBranch) {
+  // Build a STEP with an XDE material attribute "Steel" and label name "SteelPart".
+  // With SetMatMode the material attribute survives the STEP round-trip so that
+  // GetMaterialName returns "Steel" (non-empty), exercising the true branch.
+  // Both "Steel" (XDE attr path) and "SteelPart" (label-name fallback path) are
+  // registered in matMap so the test is stable regardless of STEP round-trip
+  // fidelity; the logical volume is named "SteelPart" in both cases.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_mat_xcaf.step").string();
+
+  {
+    Handle(TDocStd_Application) app = new TDocStd_Application;
+    Handle(TDocStd_Document) doc;
+    app->NewDocument("MDTV-CAF", doc);
+
+    Handle(XCAFDoc_ShapeTool) shapeTool  = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+    Handle(XCAFDoc_MaterialTool) matTool = XCAFDoc_DocumentTool::MaterialTool(doc->Main());
+
+    TDF_Label shapeLabel =
+        shapeTool->AddShape(BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape(), Standard_False);
+    TDataStd_Name::Set(shapeLabel, "SteelPart");
+
+    TDF_Label matLabel = matTool->AddMaterial(
+        new TCollection_HAsciiString("Steel"), new TCollection_HAsciiString(""), 7.8,
+        new TCollection_HAsciiString("g/cm3"), new TCollection_HAsciiString("MASS_DENSITY"));
+    matTool->SetMaterial(shapeLabel, matLabel);
+
+    STEPCAFControl_Writer writer;
+    writer.SetNameMode(Standard_True);
+    writer.SetMaterialMode(Standard_True);
+    ASSERT_TRUE(writer.Transfer(doc));
+    ASSERT_EQ(writer.Write(tmpPath.c_str()), IFSelect_RetDone);
+  }
+
+  G4Material* fe = G4NistManager::Instance()->FindOrBuildMaterial("G4_Fe");
+  ASSERT_NE(fe, nullptr);
+
+  G4OCCTMaterialMap matMap;
+  matMap.Add("Steel", fe);     // matched when XDE material attr round-trips
+  matMap.Add("SteelPart", fe); // matched when falling back to label name
+
+  G4OCCTAssemblyVolume* assembly = nullptr;
+  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });
+  ASSERT_NE(assembly, nullptr);
+
+  const auto& lvMap = assembly->GetLogicalVolumes();
+  EXPECT_EQ(lvMap.size(), 1u);
+  EXPECT_EQ(lvMap.count("SteelPart"), 1u);
+  EXPECT_EQ(lvMap.at("SteelPart")->GetMaterial(), fe);
+
+  std::filesystem::remove(tmpPath);
+  delete assembly;
+}
+
+TEST(AssemblyVolume, FromSTEPNoShapesThrows) {
+  // A syntactically valid STEP file with an empty DATA section produces no
+  // free shapes.  FromSTEP must detect this and throw std::runtime_error.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_no_shapes.step").string();
+  {
+    std::ofstream f(tmpPath);
+    f << "ISO-10303-21;\n"
+         "HEADER;\n"
+         "FILE_DESCRIPTION((''),'2;1');\n"
+         "FILE_NAME('','2000-01-01T00:00:00',(''),(''),'','','');\n"
+         "FILE_SCHEMA(('AUTOMOTIVE_DESIGN'));\n"
+         "ENDSEC;\n"
+         "DATA;\n"
+         "ENDSEC;\n"
+         "END-ISO-10303-21;\n";
+  }
+  G4OCCTMaterialMap matMap;
+  EXPECT_THROW(G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap), std::runtime_error);
+  std::filesystem::remove(tmpPath);
+}
+
+TEST(AssemblyVolume, MakeUniqueNameTripleCollision) {
+  // Three free-shape boxes named "Box", "Box_1", "Box" in document order.
+  // MakeUniqueName processes them in sequence:
+  //   1) "Box"   → inserted as-is                              → "Box"
+  //   2) "Box_1" → inserted as-is                              → "Box_1"
+  //   3) "Box"   → tries "Box_1" (already in usedNames)
+  //              → tries "Box_2" (free)                        → "Box_2"
+  // The do-while body executes more than once for shape 3.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_naming_collision.step").string();
+  BuildNamingCollisionSTEP(tmpPath);
+
+  G4Material* al = GetTestMaterial("G4_Al");
+  ASSERT_NE(al, nullptr);
+
+  G4OCCTMaterialMap matMap;
+  matMap.Add("Box", al);
+  matMap.Add("Box_1", al);
+
+  G4OCCTAssemblyVolume* assembly = nullptr;
+  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });
+  ASSERT_NE(assembly, nullptr);
+
+  // Exactly three logical volumes must exist; their exact names depend on the
+  // document traversal order but they must be pairwise distinct.
+  const auto& lvMap = assembly->GetLogicalVolumes();
+  EXPECT_EQ(lvMap.size(), 3u);
+
+  std::filesystem::remove(tmpPath);
+  delete assembly;
+}
+
+TEST(AssemblyVolume, LocationToTrsfNegativePower) {
+  // The second component of the assembly is placed at –30 mm along X via an
+  // explicitly inverted (negative-power) TopLoc_Location.  After the STEP
+  // round-trip both daughters must differ in X by exactly 30 mm.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_neg_power.step").string();
+  BuildNegativePowerAssemblySTEP(tmpPath);
+
+  G4Material* al = GetTestMaterial("G4_Al");
+  ASSERT_NE(al, nullptr);
+
+  G4OCCTMaterialMap matMap;
+  matMap.Add("BoxPart", al);
+
+  G4OCCTAssemblyVolume* assembly = nullptr;
+  ASSERT_NO_THROW({ assembly = G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap); });
+  ASSERT_NE(assembly, nullptr);
+
+  auto* worldBox  = new G4Box("NegPowerWorld", 500.0, 500.0, 500.0);
+  G4Material* air = G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR");
+  auto* worldLV   = new G4LogicalVolume(worldBox, air, "NegPowerWorldLV");
+  G4ThreeVector pos;
+  G4RotationMatrix rot;
+  assembly->MakeImprint(worldLV, pos, &rot);
+
+  ASSERT_EQ(worldLV->GetNoDaughters(), 2);
+  const double x0 = worldLV->GetDaughter(0)->GetTranslation().x();
+  const double x1 = worldLV->GetDaughter(1)->GetTranslation().x();
+  EXPECT_NEAR(std::abs(x1 - x0), 30.0, 1e-6);
+
+  std::filesystem::remove(tmpPath);
+  delete assembly;
+  delete worldLV;
+  delete worldBox;
+}
+
+TEST(AssemblyVolume, FromSTEPBadFileThrows) {
+  // A file whose content is not valid STEP data causes ReadFile to fail;
+  // FromSTEP must propagate a std::runtime_error.
+  const std::string tmpPath =
+      (std::filesystem::temp_directory_path() / "test_assembly_bad_content.step").string();
+  {
+    std::ofstream f(tmpPath);
+    f << "NOT A STEP FILE\n";
+  }
+  G4OCCTMaterialMap matMap;
+  EXPECT_THROW(G4OCCTAssemblyVolume::FromSTEP(tmpPath, matMap), std::runtime_error);
+  std::filesystem::remove(tmpPath);
 }

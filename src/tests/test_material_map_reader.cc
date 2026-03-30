@@ -193,9 +193,9 @@ TEST(MaterialMapReader, InlineWithoutNameIsFatal) {
 
 // -- Additional error / branch coverage ---------------------------------------
 
-TEST(MaterialMapReader, MissingFileTriggersXMLException) {
-  // A non-existent path causes Xerces to throw XMLException, caught as
-  // G4OCCT_MatReader001.
+TEST(MaterialMapReader, MissingFileTriggersFatalDeath) {
+  // A non-existent path causes Xerces to return a null document, caught as
+  // G4OCCT_MatReader003 (FatalException).
   const std::filesystem::path missing_path =
       std::filesystem::temp_directory_path() / "test_mmr_missing_file.xml";
   // Ensure the path does not exist before invoking the reader.
@@ -276,8 +276,8 @@ TEST(MaterialMapReader, InlineMaterialReuseWhenAlreadyRegistered) {
 // forked child and therefore do not accumulate coverage data.
 
 TEST(MaterialMapReader, MissingFileTriggersFatalCode) {
-  // A non-existent path causes Xerces to throw XMLException, which is caught
-  // and rethrown as G4OCCT_MatReader001 (FatalException).
+  // A non-existent path causes Xerces to return a null document (it does not
+  // throw XMLException for a missing file), caught as G4OCCT_MatReader003.
   const std::filesystem::path missing_path =
       std::filesystem::temp_directory_path() / "test_mmr_fatal_missing.xml";
   std::filesystem::remove(missing_path);
@@ -286,7 +286,7 @@ TEST(MaterialMapReader, MissingFileTriggersFatalCode) {
   G4OCCTMaterialMapReader reader;
   G4OCCTMaterialMap map = reader.ReadFile(missing_path.string());
   EXPECT_TRUE(guard.catcher->caught);
-  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader001");
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader003");
   EXPECT_EQ(map.Size(), 0u); // empty result returned after non-aborting exception
 }
 
@@ -352,5 +352,35 @@ TEST(MaterialMapReader, InlineWithoutNameTriggersFatalCode) {
   G4OCCTMaterialMap map = reader.ReadFile(path);
   EXPECT_TRUE(guard.catcher->caught);
   EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader008");
+  EXPECT_EQ(map.Size(), 0u);
+}
+
+TEST(MaterialMapReader, InvalidXMLTriggersFatalCode) {
+  // Plain-text content that contains no XML elements at all causes Xerces to
+  // return a document with no root element (getDocumentElement() == nullptr),
+  // caught as G4OCCT_MatReader004.
+  const std::string path = WriteTempXML("test_mmr_invalid_xml.xml", "this is definitely not xml");
+
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map = reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught) << "actual code: " << guard.catcher->code;
+  EXPECT_EQ(guard.catcher->code, "G4OCCT_MatReader004") << "actual code: " << guard.catcher->code;
+  EXPECT_EQ(map.Size(), 0u);
+}
+
+TEST(MaterialMapReader, EmptyFileTriggersFatalCode) {
+  // An empty file (0 bytes) has no XML content.  Xerces either returns a null
+  // document (→ G4OCCT_MatReader003) or a document with no root element
+  // (→ G4OCCT_MatReader004).
+  const std::string path = WriteTempXML("test_mmr_empty.xml", "");
+
+  G4OCCTFatalCatchGuard guard;
+  G4OCCTMaterialMapReader reader;
+  G4OCCTMaterialMap map = reader.ReadFile(path);
+  EXPECT_TRUE(guard.catcher->caught) << "actual code: " << guard.catcher->code;
+  EXPECT_TRUE(guard.catcher->code == "G4OCCT_MatReader003" ||
+              guard.catcher->code == "G4OCCT_MatReader004")
+      << "actual code: " << guard.catcher->code;
   EXPECT_EQ(map.Size(), 0u);
 }

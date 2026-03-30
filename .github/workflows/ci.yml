@@ -689,7 +689,7 @@ jobs:
       - name: Download target-branch ci-reports artifact
         if: github.event_name == 'pull_request'
         id: download-target-bench
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v19
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: ci.yml
@@ -1067,7 +1067,7 @@ jobs:
           path: docs/reports/
 
       - name: Setup GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v4
