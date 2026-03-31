@@ -22,8 +22,7 @@ class G4occt(CMakePackage):
 
     depends_on("cmake@3.16:", type="build")
     depends_on("geant4@11.3:")
-    # OCCT 7.8 has incomplete INTERFACE_LINK_LIBRARIES to GL and X11
-    depends_on("opencascade@7.9:")
+    depends_on("opencascade@7.8:")
     depends_on("dd4hep", when="+dd4hep")
 
     def cmake_args(self):
