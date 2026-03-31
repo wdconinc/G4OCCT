@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <climits>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -46,10 +47,14 @@ std::filesystem::path ExeDir() {
   if (!ec)
     return p.parent_path();
 #elif defined(__APPLE__)
-  char buf[PATH_MAX];
+  char buf[PATH_MAX]; // PATH_MAX from <climits>
   uint32_t size = sizeof(buf);
-  if (_NSGetExecutablePath(buf, &size) == 0)
-    return std::filesystem::canonical(buf).parent_path();
+  if (_NSGetExecutablePath(buf, &size) == 0) {
+    std::error_code ec;
+    auto p = std::filesystem::canonical(buf, ec);
+    if (!ec)
+      return p.parent_path();
+  }
 #endif
   return {};
 }
@@ -57,12 +62,14 @@ std::filesystem::path ExeDir() {
 /// Build the colon-separated macro search path using a three-tier fallback:
 ///  1. @c G4OCCT_MACRO_PATH environment variable (user/admin override).
 ///  2. Runtime-detected path relative to the executable
-///     (@c <prefix>/share/g4occt/macros) — correct after spack relocation.
+///     (@c <prefix>/${CMAKE_INSTALL_DATADIR}/g4occt/macros) — correct after
+///     spack relocation; the datadir component is baked in at compile time via
+///     @c G4OCCT_INSTALL_DATADIR.
 ///  3. Compile-time build-tree path @c G4OCCT_MACRO_DIR_BUILD — for in-tree
 ///     development and CTest runs.
 ///
-/// All existing, non-empty entries are appended in order so that Geant4's
-/// macro search tries them in priority sequence.
+/// Only non-empty entries whose path exists on disk are appended, in priority
+/// order, so that Geant4's macro search tries them in priority sequence.
 G4String BuildMacroSearchPath() {
   std::vector<std::string> dirs;
 
@@ -71,10 +78,10 @@ G4String BuildMacroSearchPath() {
     if (*env != '\0')
       dirs.emplace_back(env);
 
-  // 2. Runtime path: exe/../share/g4occt/macros.
+  // 2. Runtime path: exe/../${CMAKE_INSTALL_DATADIR}/g4occt/macros.
   auto exeDir = ExeDir();
   if (!exeDir.empty()) {
-    auto runtimeDir = exeDir.parent_path() / "share" / "g4occt" / "macros";
+    auto runtimeDir = exeDir.parent_path() / G4OCCT_INSTALL_DATADIR / "g4occt" / "macros";
     dirs.push_back(runtimeDir.string());
   }
 
@@ -83,6 +90,11 @@ G4String BuildMacroSearchPath() {
 
   G4String path;
   for (const auto& d : dirs) {
+    if (d.empty())
+      continue;
+    std::error_code ec;
+    if (!std::filesystem::exists(d, ec) || ec)
+      continue;
     if (!path.empty())
       path += ":";
     path += d;
