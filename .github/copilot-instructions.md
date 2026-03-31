@@ -61,6 +61,12 @@ Every new file must begin with:
 - Docs site: docsify (`docs/index.html`) + Doxygen (`Doxyfile` → `docs/api/`).
 - Deployed to GitHub Pages by `.github/workflows/docs.yml`.
 
+### Release Procedure
+
+Tag format: `vX.Y.Z` — must match `project(VERSION X.Y.Z)` in `CMakeLists.txt`.
+CI workflow `version-check.yml` enforces this on every `v*` tag push.
+See `AGENTS.md` §17 for the full release steps and version numbering policy.
+
 ### Updating Instructions
 
 When a PR establishes a new convention, update **both** `AGENTS.md` **and**
