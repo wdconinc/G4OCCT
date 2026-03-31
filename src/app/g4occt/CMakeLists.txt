@@ -25,12 +25,13 @@ target_link_libraries(g4occt PRIVATE G4OCCT::G4OCCT ${Geant4_LIBRARIES})
 # ${CMAKE_CURRENT_BINARY_DIR}/macros/ so the layout mirrors the install tree.
 
 set(G4OCCT_MACRO_DIR_BUILD "${CMAKE_CURRENT_BINARY_DIR}/macros")
-set(G4OCCT_MACRO_DIR_INSTALL "${CMAKE_INSTALL_FULL_DATADIR}/g4occt/macros")
 
-# Embed both directories directly as compile definitions — no generated header.
-target_compile_definitions(
-  g4occt PRIVATE G4OCCT_MACRO_DIR_INSTALL="${G4OCCT_MACRO_DIR_INSTALL}"
-                 G4OCCT_MACRO_DIR_BUILD="${G4OCCT_MACRO_DIR_BUILD}")
+# Embed the build-tree directory as a compile definition for the in-tree
+# developer / CTest fallback.  The installed path is no longer hardcoded;
+# main.cc derives it at runtime relative to the executable so the binary
+# survives spack relocation.
+target_compile_definitions(g4occt PRIVATE
+    G4OCCT_MACRO_DIR_BUILD="${G4OCCT_MACRO_DIR_BUILD}")
 
 # Copy macro files into the build-tree macros/ subdirectory.
 foreach(_mac init_vis gui init_batch run_output)

@@ -25,10 +25,70 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
+#include <filesystem>
 #include <string>
 #include <vector>
 
+#ifdef __APPLE__
+#  include <mach-o/dyld.h>
+#endif
+
 namespace {
+
+/// Return the directory that contains the running executable, or an empty path
+/// on failure.  Uses @c /proc/self/exe on Linux and @c _NSGetExecutablePath on
+/// macOS so that the result survives symlinks and spack relocation.
+std::filesystem::path ExeDir() {
+#if defined(__linux__)
+  std::error_code ec;
+  auto p = std::filesystem::read_symlink("/proc/self/exe", ec);
+  if (!ec)
+    return p.parent_path();
+#elif defined(__APPLE__)
+  char buf[PATH_MAX];
+  uint32_t size = sizeof(buf);
+  if (_NSGetExecutablePath(buf, &size) == 0)
+    return std::filesystem::canonical(buf).parent_path();
+#endif
+  return {};
+}
+
+/// Build the colon-separated macro search path using a three-tier fallback:
+///  1. @c G4OCCT_MACRO_PATH environment variable (user/admin override).
+///  2. Runtime-detected path relative to the executable
+///     (@c <prefix>/share/g4occt/macros) — correct after spack relocation.
+///  3. Compile-time build-tree path @c G4OCCT_MACRO_DIR_BUILD — for in-tree
+///     development and CTest runs.
+///
+/// All existing, non-empty entries are appended in order so that Geant4's
+/// macro search tries them in priority sequence.
+G4String BuildMacroSearchPath() {
+  std::vector<std::string> dirs;
+
+  // 1. Environment variable override.
+  if (const char* env = std::getenv("G4OCCT_MACRO_PATH"))
+    if (*env != '\0')
+      dirs.emplace_back(env);
+
+  // 2. Runtime path: exe/../share/g4occt/macros.
+  auto exeDir = ExeDir();
+  if (!exeDir.empty()) {
+    auto runtimeDir = exeDir.parent_path() / "share" / "g4occt" / "macros";
+    dirs.push_back(runtimeDir.string());
+  }
+
+  // 3. Build-tree compile-time constant (developer / CTest fallback).
+  dirs.emplace_back(G4OCCT_MACRO_DIR_BUILD);
+
+  G4String path;
+  for (const auto& d : dirs) {
+    if (!path.empty())
+      path += ":";
+    path += d;
+  }
+  return path;
+}
 
 void PrintUsage(const char* prog) {
   G4cerr << "Usage: " << prog
@@ -158,10 +218,12 @@ int main(int argc, char** argv) {
   }
 
   // ── Macro search path ─────────────────────────────────────────────────────
-  // Register the installed data directory first, then the build-tree copy.
-  // This satisfies both `make install` users and in-tree development/testing.
+  // Three-tier fallback so the binary works after spack relocation:
+  //  1. G4OCCT_MACRO_PATH env var  — user/admin override
+  //  2. <exe>/../share/g4occt/macros — runtime-relative (survives relocation)
+  //  3. G4OCCT_MACRO_DIR_BUILD     — in-tree build / CTest
   auto* UImanager = G4UImanager::GetUIpointer();
-  UImanager->SetMacroSearchPath(G4String(G4OCCT_MACRO_DIR_INSTALL) + ":" + G4OCCT_MACRO_DIR_BUILD);
+  UImanager->SetMacroSearchPath(BuildMacroSearchPath());
 
   // ── Execute macro or start interactive session ────────────────────────────
   int exitCode = 0;
