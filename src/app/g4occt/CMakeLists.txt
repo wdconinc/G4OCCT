@@ -30,8 +30,8 @@ set(G4OCCT_MACRO_DIR_BUILD "${CMAKE_CURRENT_BINARY_DIR}/macros")
 # developer / CTest fallback.  The installed path is no longer hardcoded;
 # main.cc derives it at runtime relative to the executable so the binary
 # survives spack relocation.
-target_compile_definitions(g4occt PRIVATE
-    G4OCCT_MACRO_DIR_BUILD="${G4OCCT_MACRO_DIR_BUILD}")
+target_compile_definitions(
+  g4occt PRIVATE G4OCCT_MACRO_DIR_BUILD="${G4OCCT_MACRO_DIR_BUILD}")
 
 # Copy macro files into the build-tree macros/ subdirectory.
 foreach(_mac init_vis gui init_batch run_output)
