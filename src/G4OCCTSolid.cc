@@ -714,22 +714,98 @@ void G4OCCTSolid::ComputeInitialSpheres() {
   BRepClass3d_SolidClassifier localClassifier;
   localClassifier.Load(fShape);
 
-  for (const G4ThreeVector& cand : candidates) {
-    localClassifier.Perform(ToPoint(cand), tol);
-    if (localClassifier.State() != TopAbs_IN) {
-      continue;
-    }
-    G4double d = BVHLowerBoundDistance(cand);
+  constexpr int kMaxExtra        = 30;
+  constexpr int kMaxBisectLevels = 3;
+
+  std::vector<G4ThreeVector> succeededPts;
+  std::vector<G4ThreeVector> failedPts;
+  succeededPts.reserve(candidates.size() + kMaxExtra);
+  failedPts.reserve(candidates.size());
+
+  // Returns the inscribed-sphere radius for a point that the caller has already
+  // classified as TopAbs_IN, or std::nullopt when no usable radius can be found.
+  auto computeRadius = [&](const G4ThreeVector& pt) -> std::optional<G4double> {
+    G4double d = BVHLowerBoundDistance(pt);
     if (d >= kInfinity || d <= tol) {
       // BVH unavailable or too close to surface; try exact distance.
-      const auto match = TryFindClosestFace(fFaceBoundsCache, cand);
+      const auto match = TryFindClosestFace(fFaceBoundsCache, pt);
       if (!match.has_value() || match->distance <= tol) {
-        continue;
+        return std::nullopt;
       }
       d = match->distance;
     }
-    fInitialSpheres.push_back({cand, d});
+    return d;
+  };
+
+  for (const G4ThreeVector& cand : candidates) {
+    localClassifier.Perform(ToPoint(cand), tol);
+    if (localClassifier.State() != TopAbs_IN) {
+      failedPts.push_back(cand);
+      continue;
+    }
+    succeededPts.push_back(cand);
+    const auto r = computeRadius(cand);
+    if (r.has_value()) {
+      fInitialSpheres.push_back({cand, *r});
+    }
   }
+
+  // Adaptive bisection pass: for each failed (exterior) candidate, bisect toward the
+  // nearest succeeded (interior) candidate up to kMaxBisectLevels times.  Each interior
+  // midpoint found gets an inscribed sphere via BVHLowerBoundDistance and is added to
+  // fInitialSpheres.  This improves coverage for twisted or elongated shapes where many
+  // of the 15 fixed candidates land outside the solid.
+  // If no interior reference points exist, the adaptive pass is skipped entirely.
+  if (!succeededPts.empty()) {
+    int extraCount = 0;
+
+    for (const G4ThreeVector& failedPt : failedPts) {
+      if (extraCount >= kMaxExtra) {
+        break;
+      }
+
+      // Find the nearest succeeded point to use as the bisection target.
+      G4ThreeVector refPt   = succeededPts[0];
+      G4double bestRefDist2 = (failedPt - refPt).mag2();
+      for (const G4ThreeVector& sp : succeededPts) {
+        const G4double d2 = (failedPt - sp).mag2();
+        if (d2 < bestRefDist2) {
+          bestRefDist2 = d2;
+          refPt        = sp;
+        }
+      }
+
+      // Bisect: current starts at the exterior side, refPt is the interior reference.
+      G4ThreeVector current = failedPt;
+      for (int level = 0; level < kMaxBisectLevels; ++level) {
+        if (extraCount >= kMaxExtra) {
+          break;
+        }
+        const G4ThreeVector mid = 0.5 * (current + refPt);
+        localClassifier.Perform(ToPoint(mid), tol);
+        if (localClassifier.State() == TopAbs_IN) {
+          const auto r = computeRadius(mid);
+          if (!r.has_value()) {
+            // Inside but no usable radius; keep as reference for further bisection.
+            succeededPts.push_back(mid);
+            refPt   = mid;
+            current = failedPt;
+            continue;
+          }
+          fInitialSpheres.push_back({mid, *r});
+          succeededPts.push_back(mid);
+          ++extraCount;
+          // Continue bisecting between the original failed side and this new interior point.
+          refPt   = mid;
+          current = failedPt;
+        } else {
+          // mid is still outside; move the exterior boundary inward.
+          current = mid;
+        }
+      }
+    }
+  }
+
   // Sort descending by radius so the most useful spheres are checked first.
   std::sort(fInitialSpheres.begin(), fInitialSpheres.end(),
             [](const InscribedSphere& a, const InscribedSphere& b) { return a.radius > b.radius; });
