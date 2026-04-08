@@ -4,9 +4,16 @@
 spack:
   view: /opt/local
 
+  repos:
+  - spack-repo
+
+  develop:
+    g4occt:
+      spec: g4occt@main
+      path: ..
+
   specs:
-  - "geant4@11.3: ~opengl ~qt ~x11"
-  - "opencascade@7.8:"
+  - "g4occt@main +dd4hep"
 
   config:
     install_tree:
@@ -15,27 +22,6 @@ spack:
   packages:
     all:
       require: 'target=x86_64_v2'
-    gl:
-      require:
-        - glx
-    libglx:
-      require:
-        - opengl
-    egl:
-      buildable: false
-      externals:
-        - spec: egl@1.5
-          prefix: /usr
-    opengl:
-      buildable: false
-      externals:
-        - spec: opengl@4.6
-          prefix: /usr
-    openglu:
-      buildable: false
-      externals:
-        - spec: openglu@1.4
-          prefix: /usr
 
   mirrors:
     eic-buildcache:
