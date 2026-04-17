@@ -12,10 +12,26 @@ on:
   workflow_call:
   workflow_dispatch:
 
+# Single source of truth for the supported architectures.  Every job that
+# needs an arch-specific tag (build-base matrix and merge-base manifest
+# assembly) derives it from this list so future additions only require one
+# change here.
+env:
+  ARCHES: "amd64 arm64"
+
 jobs:
   build-base:
-    name: Build spack base layer
-    runs-on: ubuntu-latest
+    name: Build spack base layer (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            spack_target: x86_64_v2
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            spack_target: aarch64
+    runs-on: ${{ matrix.runner }}
     permissions:
       packages: write
 
@@ -36,7 +52,7 @@ jobs:
       - name: Compute spack environment hash
         id: spack-hash
         run: |
-          echo "tag=spack-$(sha256sum .github/spack.yaml | cut -c1-8)" >> "$GITHUB_OUTPUT"
+          echo "tag=spack-$(sha256sum .github/spack.yaml | cut -c1-8)-${{ matrix.arch }}" >> "$GITHUB_OUTPUT"
 
       - name: Check GHCR for cached base image
         id: cache
@@ -54,6 +70,15 @@ jobs:
         with:
           spack_ref: releases/v1.1
           buildcache: false
+
+      - name: Set spack target for this architecture
+        if: steps.cache.outputs.hit != 'true'
+        run: |
+          # Anchored replacement: only modifies the `require: 'target=...'` line
+          # in the packages.all block, not any other occurrence of 'target='.
+          sed -E -i "s/(require: 'target=)[^']+/\1${{ matrix.spack_target }}/" .github/spack.yaml
+          grep -q "target=${{ matrix.spack_target }}" .github/spack.yaml || \
+            { echo "ERROR: expected 'target=${{ matrix.spack_target }}' not found in spack.yaml after substitution"; exit 1; }
 
       - name: Install spack environment from EIC buildcache
         if: steps.cache.outputs.hit != 'true'
@@ -76,9 +101,39 @@ jobs:
             --update-index \
             oci://ghcr.io/eic/g4occt
 
-      - name: Tag base image as :base in GHCR
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+  merge-base:
+    name: Create multi-arch base image manifest
+    needs: build-base
+    if: "!failure() && !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)"
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute spack environment hash
+        id: spack-hash
         run: |
-          docker buildx imagetools create \
-            --tag ghcr.io/eic/g4occt:base \
-            ghcr.io/eic/g4occt:${{ steps.spack-hash.outputs.tag }}
+          echo "hash=$(sha256sum .github/spack.yaml | cut -c1-8)" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push multi-arch :base manifest
+        run: |
+          HASH="${{ steps.spack-hash.outputs.hash }}"
+          IFS=' ' read -ra arches <<< "$ARCHES"
+          REFS=()
+          for arch in "${arches[@]}"; do
+            REFS+=("ghcr.io/eic/g4occt:spack-${HASH}-${arch}")
+          done
+          docker buildx imagetools create --tag ghcr.io/eic/g4occt:base "${REFS[@]}"
