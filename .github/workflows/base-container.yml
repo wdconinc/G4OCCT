@@ -12,6 +12,13 @@ on:
   workflow_call:
   workflow_dispatch:
 
+# Single source of truth for the supported architectures.  Every job that
+# needs an arch-specific tag (build-base matrix and merge-base manifest
+# assembly) derives it from this list so future additions only require one
+# change here.
+env:
+  ARCHES: "amd64 arm64"
+
 jobs:
   build-base:
     name: Build spack base layer (${{ matrix.arch }})
@@ -67,7 +74,9 @@ jobs:
       - name: Set spack target for this architecture
         if: steps.cache.outputs.hit != 'true'
         run: |
-          sed -i "s/target=x86_64_v2/target=${{ matrix.spack_target }}/" .github/spack.yaml
+          # Anchored replacement: only modifies the `require: 'target=...'` line
+          # in the packages.all block, not any other occurrence of 'target='.
+          sed -E -i "s/(require: 'target=)[^']+/\1${{ matrix.spack_target }}/" .github/spack.yaml
           grep -q "target=${{ matrix.spack_target }}" .github/spack.yaml || \
             { echo "ERROR: expected 'target=${{ matrix.spack_target }}' not found in spack.yaml after substitution"; exit 1; }
 
@@ -121,7 +130,10 @@ jobs:
 
       - name: Create and push multi-arch :base manifest
         run: |
-          docker buildx imagetools create \
-            --tag ghcr.io/eic/g4occt:base \
-            ghcr.io/eic/g4occt:spack-${{ steps.spack-hash.outputs.hash }}-amd64 \
-            ghcr.io/eic/g4occt:spack-${{ steps.spack-hash.outputs.hash }}-arm64
+          HASH="${{ steps.spack-hash.outputs.hash }}"
+          IFS=' ' read -ra arches <<< "$ARCHES"
+          REFS=()
+          for arch in "${arches[@]}"; do
+            REFS+=("ghcr.io/eic/g4occt:spack-${HASH}-${arch}")
+          done
+          docker buildx imagetools create --tag ghcr.io/eic/g4occt:base "${REFS[@]}"
