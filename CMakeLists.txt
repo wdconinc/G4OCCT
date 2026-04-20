@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
 project(
   G4OCCT
-  VERSION 0.1.0
+  VERSION 0.2.1
   DESCRIPTION
     "Geant4 interface to Open CASCADE Technology (OCCT) geometry definitions"
   LANGUAGES CXX)
