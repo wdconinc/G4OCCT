@@ -73,10 +73,12 @@ static Ref_t create_step_solid(Detector& description, xml_h e, SensitiveDetector
                              " triangles, which exceeds TessellatedSolid's int capacity");
   }
   TessellatedSolid tess(name + "_tess", static_cast<int>(nTriangles));
+  // G4OCCT_ImportSTEPSolid returns vertex coordinates in OCCT native units (mm).
+  // TessellatedSolid::Vertex expects ROOT/TGeo units (cm)
   for (const auto& tri : geom.triangles) {
-    tess.addFacet(TessellatedSolid::Vertex(tri.v[0].x, tri.v[0].y, tri.v[0].z),
-                  TessellatedSolid::Vertex(tri.v[1].x, tri.v[1].y, tri.v[1].z),
-                  TessellatedSolid::Vertex(tri.v[2].x, tri.v[2].y, tri.v[2].z));
+    tess.addFacet(TessellatedSolid::Vertex(tri.v[0].x, tri.v[0].y, tri.v[0].z) * dd4hep::mm,
+                  TessellatedSolid::Vertex(tri.v[1].x, tri.v[1].y, tri.v[1].z) * dd4hep::mm,
+                  TessellatedSolid::Vertex(tri.v[2].x, tri.v[2].y, tri.v[2].z) * dd4hep::mm);
   }
   tess.ptr()->CloseShape(/*check=*/true, /*fixFlipped=*/true, /*verbose=*/false);
 

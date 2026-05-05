@@ -9,6 +9,7 @@
 ///  - The expected number of placed volumes.
 ///  - Material assignment for the placed volumes.
 ///  - No DD4hep or Geant4 exceptions during construction.
+///  - Geometric dimensions in DD4hep/ROOT native units (cm), not OCCT mm.
 ///
 /// Tests are labelled "dd4hep" (via CTest LABELS) so they can be run in
 /// isolation with `ctest -L dd4hep` or excluded from other runs with
@@ -17,6 +18,7 @@
 #include <DD4hep/Detector.h>
 #include <DD4hep/DetElement.h>
 #include <DD4hep/Volumes.h>
+#include <TGeoTessellated.h>
 
 #include <gtest/gtest.h>
 
@@ -100,6 +102,38 @@ TEST_F(STEPSolidTest, MaterialAssignment) {
   dd4hep::Volume vol = pv.volume();
   ASSERT_TRUE(vol.isValid());
   EXPECT_TRUE(vol.material().isValid()) << "Volume material is invalid";
+}
+
+/// Verify that the TessellatedSolid's bounding-box half-extents are in
+/// DD4hep/ROOT native units (cm), not in OCCT native units (mm).
+///
+/// The STEP fixture is the box-20x30x40-v1 shape: a 20 × 30 × 40 mm box
+/// centred at the origin.  In ROOT/TGeo/DD4hep units (cm) the bounding-box
+/// half-extents must be 1.0 × 1.5 × 2.0 cm.  If the mm → cm unit conversion
+/// is absent (the regression this test guards against), the half-extents
+/// appear as 10.0 × 15.0 × 20.0 — a factor of ten too large.
+TEST_F(STEPSolidTest, TessellatedSolidBoundsInCm) {
+  ASSERT_NO_THROW(LoadCompact(G4OCCT_COMPACT_STEP_SOLID));
+  dd4hep::Detector& det = dd4hep::Detector::getInstance();
+
+  const auto& children = det.world().children();
+  auto it              = children.find("TestBox");
+  ASSERT_NE(it, children.end()) << "DetElement 'TestBox' not found";
+
+  dd4hep::Volume vol = it->second.placement().volume();
+  ASSERT_TRUE(vol.isValid());
+
+  auto* tess = dynamic_cast<TGeoTessellated*>(vol.solid().ptr());
+  ASSERT_NE(tess, nullptr) << "Volume solid is not a TGeoTessellated";
+
+  // Expected half-extents in cm.  The fixture box is 20 × 30 × 40 mm, so
+  // half-extents are 10 × 15 × 20 mm = 1.0 × 1.5 × 2.0 cm.
+  // For a box (flat faces) the tessellation vertices sit exactly at the
+  // corners, so floating-point error is negligible; 2 % tolerance is ample.
+  constexpr double kRelTol = 0.02;
+  EXPECT_NEAR(tess->GetDX(), 1.0, 1.0 * kRelTol) << "X half-extent should be 1.0 cm (10 mm)";
+  EXPECT_NEAR(tess->GetDY(), 1.5, 1.5 * kRelTol) << "Y half-extent should be 1.5 cm (15 mm)";
+  EXPECT_NEAR(tess->GetDZ(), 2.0, 2.0 * kRelTol) << "Z half-extent should be 2.0 cm (20 mm)";
 }
 
 // ── STEPAssembly tests ────────────────────────────────────────────────────────
