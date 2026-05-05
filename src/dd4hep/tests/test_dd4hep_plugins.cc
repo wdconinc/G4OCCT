@@ -130,10 +130,10 @@ TEST_F(STEPSolidTest, TessellatedSolidBoundsInCm) {
   // half-extents are 10 × 15 × 20 mm = 1.0 × 1.5 × 2.0 cm.
   // For a box (flat faces) the tessellation vertices sit exactly at the
   // corners, so floating-point error is negligible; 2 % tolerance is ample.
-  constexpr double kTol = 0.02;
-  EXPECT_NEAR(tess->GetDX(), 1.0, kTol) << "X half-extent should be 1.0 cm (10 mm)";
-  EXPECT_NEAR(tess->GetDY(), 1.5, kTol) << "Y half-extent should be 1.5 cm (15 mm)";
-  EXPECT_NEAR(tess->GetDZ(), 2.0, kTol) << "Z half-extent should be 2.0 cm (20 mm)";
+  constexpr double kRelTol = 0.02;
+  EXPECT_NEAR(tess->GetDX(), 1.0, 1.0 * kRelTol) << "X half-extent should be 1.0 cm (10 mm)";
+  EXPECT_NEAR(tess->GetDY(), 1.5, 1.5 * kRelTol) << "Y half-extent should be 1.5 cm (15 mm)";
+  EXPECT_NEAR(tess->GetDZ(), 2.0, 2.0 * kRelTol) << "Z half-extent should be 2.0 cm (20 mm)";
 }
 
 // ── STEPAssembly tests ────────────────────────────────────────────────────────
